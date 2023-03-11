@@ -10,6 +10,70 @@ impl MigrationName for Migration {
 
 
 #[derive(Iden)]
+enum Tournament {
+    Table,
+    Uuid
+}
+
+
+#[derive(Iden)]
+enum TournamentRound {
+    Table,
+    Uuid,
+    TournamentId,
+    Index
+}
+
+
+#[derive(Iden)]
+enum TournamentDebate {
+    Table,
+    Uuid,
+    RoundId,
+    Index,
+    BallotId
+}
+
+
+#[derive(Iden)]
+enum TournamentLog {
+    Table,
+    Uuid,
+    TournamentId,
+    SequenceIdx,
+    Timestamp,
+    TargetType,
+    TargetUuid,
+}
+
+#[derive(Iden)]
+enum TournamentRemote {
+    Table,
+    Uuid,
+    TournamentId,
+    Url,
+    LastKnownChange,
+}
+
+#[derive(Iden)]
+enum Ballot {
+    Table,
+    Uuid,
+}
+
+
+
+
+#[derive(Iden)]
+enum Participant {
+    Table,
+    Uuid,
+    TournamentId,
+    Name,
+}
+
+
+#[derive(Iden)]
 pub enum Debate {
     Table,
     Uuid,
@@ -17,12 +81,6 @@ pub enum Debate {
     BallotId
 }
 
-
-#[derive(Iden)]
-pub enum Ballot {
-    Table,
-    Uuid,
-}
 
 #[derive(Iden)]
 pub enum BallotTeam {
@@ -55,7 +113,6 @@ pub enum AdjudicatorTeamScore {
 #[derive(Iden)]
 pub enum BallotSpeech {
     Table,
-    Uuid,
     BallotId,
     SpeakerId,
     Position,
@@ -69,7 +126,8 @@ pub enum AdjudicatorSpeechScore {
     Table,
     AdjudicatorId,
     BallotId,
-    BallotSpeechId,
+    SpeechRole,
+    SpeechPosition,
     ManualTotalScore
 }
 
@@ -87,7 +145,6 @@ pub enum BallotAdjudicator {
 pub enum Adjudicator {
     Table,
     Uuid,
-    Name
 }
 
 
@@ -95,8 +152,7 @@ pub enum Adjudicator {
 pub enum Speaker {
     Table,
     Uuid,
-    Name,
-    TeamUuid
+    TeamId,
 }
 
 
@@ -104,21 +160,131 @@ pub enum Speaker {
 pub enum Team {
     Table,
     Uuid,
-    Name
+    Name,
+    TournamentId,
 }
 
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager.create_table(
+            sea_query::Table::create()
+                .table(Tournament::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(Tournament::Uuid).uuid().not_null().primary_key())
+                .to_owned()
+        ).await?;
+
+        manager.create_table(
+            sea_query::Table::create()
+                .table(TournamentRound::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentRound::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentRound::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(TournamentRound::Index).unsigned().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-round-tournament")
+                        .from_tbl(TournamentRound::Table)
+                        .from_col(TournamentRound::TournamentId)
+                        .to_tbl(Tournament::Table)
+                        .to_col(Tournament::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .to_owned()
+        ).await?;
+
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(TournamentLog::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentLog::Uuid).uuid().primary_key())
+                .col(ColumnDef::new(TournamentLog::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(TournamentLog::SequenceIdx).integer().not_null())
+                .col(ColumnDef::new(TournamentLog::Timestamp).timestamp().not_null())
+                .col(ColumnDef::new(TournamentLog::TargetType).string().not_null())
+                .col(ColumnDef::new(TournamentLog::TargetUuid).uuid().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-log-tournament")
+                        .from_tbl(TournamentLog::Table)
+                        .from_col(TournamentLog::TournamentId)
+                        .to_tbl(Tournament::Table)
+                        .to_col(Tournament::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .to_owned()
+        ).await?;
         
+        manager.create_table(
+            sea_query::Table::create()
+                .table(TournamentRemote::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentRemote::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentRemote::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(TournamentRemote::Url).string().not_null())
+                .col(ColumnDef::new(TournamentRemote::LastKnownChange).uuid())
+                .to_owned()
+        ).await?;
+
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-log_tournament-idx")
+            .table(TournamentLog::Table)
+            .col(TournamentLog::TournamentId)
+            .to_owned()
+        ).await?;
+
+        manager.create_table(
+            sea_query::Table::create()
+                .table(Participant::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(Participant::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(Participant::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(Participant::Name).string().not_null())
+                .to_owned()
+        ).await?;
+
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-participant_tournament-idx")
+            .table(Participant::Table)
+            .col(Participant::TournamentId)
+            .to_owned()
+        ).await?;
+        
+        manager.create_table(
+            sea_query::Table::create()
+                .table(TournamentRemote::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentRemote::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentRemote::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(TournamentRemote::Url).string().not_null())
+                .col(ColumnDef::new(TournamentRemote::LastKnownChange).uuid())
+                .to_owned()
+        ).await?;
+
         manager
         .create_table(
             sea_query::Table::create()
                 .table(Adjudicator::Table)
                 .if_not_exists()
                 .col(ColumnDef::new(Adjudicator::Uuid).uuid().not_null().primary_key())
-                .col(ColumnDef::new(Adjudicator::Name).string())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-adjudicator-participant")
+                    .from_tbl(Adjudicator::Table)
+                    .from_col(Adjudicator::Uuid)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
                 .to_owned()
         ).await?;
 
@@ -129,6 +295,17 @@ impl MigrationTrait for Migration {
                 .if_not_exists()
                 .col(ColumnDef::new(Team::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(Team::Name).string().not_null())
+                .col(ColumnDef::new(Team::TournamentId).uuid().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-team-tournament")
+                    .from_tbl(Team::Table)
+                    .from_col(Team::TournamentId)
+                    .to_tbl(Tournament::Table)
+                    .to_col(Tournament::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
                 .to_owned()
         ).await?;
 
@@ -138,17 +315,26 @@ impl MigrationTrait for Migration {
                 .table(Speaker::Table)
                 .if_not_exists()
                 .col(ColumnDef::new(Speaker::Uuid).uuid().not_null().primary_key())
-                .col(ColumnDef::new(Speaker::Name).string())
-                .col(ColumnDef::new(Speaker::TeamUuid).uuid())
+                .col(ColumnDef::new(Speaker::TeamId).uuid())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-speaker-team")
                         .from_tbl(Speaker::Table)
-                        .from_col(Speaker::TeamUuid)
+                        .from_col(Speaker::TeamId)
                         .to_tbl(Team::Table)
                         .to_col(Team::Uuid)
                         .on_delete(ForeignKeyAction::Cascade)
                         .on_update(ForeignKeyAction::Cascade)
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-speaker-participant")
+                    .from_tbl(Speaker::Table)
+                    .from_col(Speaker::Uuid)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
                 )
                 .to_owned()
         ).await?;
@@ -157,7 +343,7 @@ impl MigrationTrait for Migration {
             IndexCreateStatement::new()
             .name("idx-speaker-team-id")
             .table(Speaker::Table)
-            .col(Speaker::TeamUuid)
+            .col(Speaker::TeamId)
             .to_owned()
         ).await?;
 
@@ -167,6 +353,37 @@ impl MigrationTrait for Migration {
                 .table(Ballot::Table)
                 .if_not_exists()
                 .col(ColumnDef::new(Ballot::Uuid).uuid().not_null().primary_key())
+                .to_owned()
+        ).await?;
+
+        manager.create_table(
+            sea_query::Table::create()
+                .table(TournamentDebate::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentDebate::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentDebate::RoundId).uuid().not_null().not_null())
+                .col(ColumnDef::new(TournamentDebate::Index).unsigned().not_null())
+                .col(ColumnDef::new(TournamentDebate::BallotId).uuid().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-debate-round")
+                        .from_tbl(TournamentDebate::Table)
+                        .from_col(TournamentDebate::RoundId)
+                        .to_tbl(TournamentRound::Table)
+                        .to_col(TournamentRound::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-debate-ballot")
+                        .from_tbl(TournamentDebate::Table)
+                        .from_col(TournamentDebate::BallotId)
+                        .to_tbl(Ballot::Table)
+                        .to_col(Ballot::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
                 .to_owned()
         ).await?;
 
@@ -273,6 +490,16 @@ impl MigrationTrait for Migration {
                         .on_delete(ForeignKeyAction::Cascade)
                         .on_update(ForeignKeyAction::Cascade)
                 )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-ballot_team-team")
+                        .from_tbl(BallotTeam::Table)
+                        .from_col(BallotTeam::TeamId)
+                        .to_tbl(Team::Table)
+                        .to_col(Team::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
                 .to_owned()
         ).await?;
 
@@ -351,11 +578,18 @@ impl MigrationTrait for Migration {
             sea_query::Table::create()
                 .table(BallotSpeech::Table)
                 .if_not_exists()
-                .col(ColumnDef::new(BallotSpeech::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(BallotSpeech::BallotId).uuid().not_null())
                 .col(ColumnDef::new(BallotSpeech::Position).integer().not_null())
                 .col(ColumnDef::new(BallotSpeech::Role).string_len(1).not_null())
                 .col(ColumnDef::new(BallotSpeech::SpeakerId).uuid())
+                .primary_key(
+                    Index::create()
+                        .name("pk-speech")
+                        .col(BallotSpeech::BallotId)
+                        .col(BallotSpeech::Role)
+                        .col(BallotSpeech::Position)
+                        .primary(),
+                )    
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-speech-ballot")
@@ -400,23 +634,30 @@ impl MigrationTrait for Migration {
                 .table(AdjudicatorSpeechScore::Table)
                 .if_not_exists()
                 .col(ColumnDef::new(AdjudicatorSpeechScore::AdjudicatorId).uuid().not_null())
-                .col(ColumnDef::new(AdjudicatorSpeechScore::BallotSpeechId).uuid().not_null())
                 .col(ColumnDef::new(AdjudicatorSpeechScore::BallotId).uuid().not_null())
+                .col(ColumnDef::new(AdjudicatorSpeechScore::SpeechRole).string_len(1).not_null())
+                .col(ColumnDef::new(AdjudicatorSpeechScore::SpeechPosition).integer().not_null())
                 .col(ColumnDef::new(AdjudicatorSpeechScore::ManualTotalScore).integer())
                 .primary_key(
                     Index::create()
                         .name("pk-adjudicator_speech_score")
                         .col(AdjudicatorSpeechScore::AdjudicatorId)
-                        .col(AdjudicatorSpeechScore::BallotSpeechId)
+                        .col(AdjudicatorSpeechScore::BallotId)
+                        .col(AdjudicatorSpeechScore::SpeechRole)
+                        .col(AdjudicatorSpeechScore::SpeechPosition)
                         .primary(),
                 )    
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-adjudicator_speech_score-speech")
                         .from_tbl(AdjudicatorSpeechScore::Table)
-                        .from_col(AdjudicatorSpeechScore::BallotSpeechId)
+                        .from_col(AdjudicatorSpeechScore::BallotId)
+                        .from_col(AdjudicatorSpeechScore::SpeechRole)
+                        .from_col(AdjudicatorSpeechScore::SpeechPosition)
                         .to_tbl(BallotSpeech::Table)
-                        .to_col(BallotSpeech::Uuid)
+                        .to_col(BallotSpeech::BallotId)
+                        .to_col(BallotSpeech::Role)
+                        .to_col(BallotSpeech::Position)
                         .on_delete(ForeignKeyAction::Cascade)
                         .on_update(ForeignKeyAction::Cascade)
                 )
