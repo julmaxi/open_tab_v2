@@ -1,0 +1,28 @@
+[package]
+name = "open_tab_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = { version = "0.5.0-rc.2", features = ["json", "uuid"] }
+
+open_tab_entities = { path = "../open_tab_entities" }
+migration = { path = "../migration" }
+sea-orm = { version = "0.11.0", features = [ "macros" ] }
+serde = "^1.0.0"
+async-trait = "0.1.64"
+itertools="*"
+sea-query="*"
+log="*"
+serde_json="*"
+chrono="*"
+
+[dependencies.uuid]
+version = "1.3.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs/
+]
