@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "open_tab_entities",
+    "open_tab_server",
+    "open_tab_app//src-tauri"
+]
