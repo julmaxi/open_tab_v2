@@ -1,0 +1,29 @@
+[package]
+name = "open_tab_entities"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sea-orm = { version = "0.11.0", features = [ "macros" ] }
+serde = "^1.0.0"
+async-trait = "*"
+itertools = "^0.10"
+sea-query="*"
+chrono = "*"
+
+[dependencies.uuid]
+version = "1.3.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs/
+]
+
+[dev-dependencies]
+migration = { path = "../migration" }
+tokio = { version = "*", features = ["full"] }
+log = "0.4.0"
+env_logger = "0.9.0"
+serde = "^1.0.0"
