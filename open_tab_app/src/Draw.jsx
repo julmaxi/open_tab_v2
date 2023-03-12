@@ -5,7 +5,6 @@ import "./App.css";
 
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
-import {useSortable, SortableContext, rectSwappingStrategy} from '@dnd-kit/sortable';
 
 import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
@@ -49,7 +48,7 @@ function DebateRow(props) {
         </DropList>
       </td>
       <td>
-        <DropWell type="adjudicator" collection={[props.debate.index, "president"]}><AdjudicatorItem adjudicator={props.debate.president} /></DropWell>
+        <DropWell type="adjudicator" collection={[props.debate.index, "president"]}>{props.debate.president ? <AdjudicatorItem adjudicator={props.debate.president} /> : []}</DropWell>
       </td>
     </tr>
   );
@@ -119,12 +118,18 @@ function simulateDragOutcome(draw, from, to, isSwap) {
   } else if (to.index !== undefined) {
     let from_val = from_collection;
     let to_val = to_collection[to.index];
-    from_collection = isSwap ? to_val : undefined;
-    to_collection.splice(to.index, 1, from_val);
+    from_collection = isSwap ? to_val : null;
+    to_collection.splice(to.index, isSwap ? 1 : 0, from_val);
   } else if (from.index !== undefined) {
     let from_val = from_collection[from.index];
     let to_val = to_collection;
-    from_collection.splice(from.index, 1, isSwap ? to_val : undefined);
+    if (isSwap && to_val !== null) {
+      from_collection.splice(from.index, 1, to_val);
+    }
+    else {
+      from_collection.splice(from.index, 1);
+    }
+    console.log(from_collection);
     to_collection = from_val;
   } else {
     let tmp = from_collection;

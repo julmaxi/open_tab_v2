@@ -18,12 +18,12 @@ pub enum Entity {
 
 
 pub struct EntityGroups {
-    tournaments: Vec<Tournament>,
-    rounds: Vec<TournamentRound>,
-    debates: Vec<TournamentDebate>,
-    participants: Vec<Participant>,
-    ballots: Vec<Ballot>,
-    teams: Vec<Team>,
+    pub tournaments: Vec<Tournament>,
+    pub rounds: Vec<TournamentRound>,
+    pub debates: Vec<TournamentDebate>,
+    pub participants: Vec<Participant>,
+    pub ballots: Vec<Ballot>,
+    pub teams: Vec<Team>,
 }
 
 impl EntityGroups {
@@ -59,12 +59,16 @@ impl EntityGroups {
     }
 
     pub async fn save_all<C>(&self, db: &C) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
-        Tournament::save_many(db, false, &self.tournaments.iter().collect()).await?;
-        Team::save_many(db, false, &self.teams.iter().collect()).await?;
-        Participant::save_many(db, false, &self.participants.iter().collect()).await?;
-        TournamentRound::save_many(db, false, &self.rounds.iter().collect()).await?;
-        Ballot::save_many(db, false, &self.ballots.iter().collect()).await?;
-        TournamentDebate::save_many(db, false, &self.debates.iter().collect()).await?;
+        self.save_all_with_options(db, false).await
+    }
+
+    pub async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        Tournament::save_many(db, guarantee_insert, &self.tournaments.iter().collect()).await?;
+        Team::save_many(db, guarantee_insert, &self.teams.iter().collect()).await?;
+        Participant::save_many(db, guarantee_insert, &self.participants.iter().collect()).await?;
+        TournamentRound::save_many(db, guarantee_insert, &self.rounds.iter().collect()).await?;
+        Ballot::save_many(db, guarantee_insert, &self.ballots.iter().collect()).await?;
+        TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
         Ok(())   
     }
 

@@ -28,6 +28,17 @@ impl Team {
             })
         }).collect()
     }
+
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Team>, DbErr> where C: ConnectionTrait {
+        let teams = schema::team::Entity::find().filter(schema::team::Column::TournamentId.eq(tournament_id)).all(db).await?;
+        teams.into_iter().map(|team| {
+            Ok(Team {
+                uuid: team.uuid,
+                name: team.name,
+                tournament_id: team.tournament_id,
+            })
+        }).collect()
+    }
 }
 
 #[async_trait]

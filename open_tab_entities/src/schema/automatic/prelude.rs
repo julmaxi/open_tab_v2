@@ -2,7 +2,6 @@
 
 pub use super::adjudicator::Entity as Adjudicator;
 pub use super::ballot_adjudicator::Entity as BallotAdjudicator;
-pub use super::debate::Entity as Debate;
 pub use super::participant::Entity as Participant;
 pub use super::speaker::Entity as Speaker;
 pub use super::team::Entity as Team;

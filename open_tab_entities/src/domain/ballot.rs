@@ -157,7 +157,10 @@ impl TeamScore {
 
 impl Ballot {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
-        let ballots = schema::ballot::Entity::find().filter(schema::ballot::Column::Uuid.is_in(uuids)).all(db).await?;
+        let mut ballots = schema::ballot::Entity::find().filter(schema::ballot::Column::Uuid.is_in(uuids.clone())).all(db).await?;
+        let original_positions = uuids.iter().enumerate().map(|(i, u)| (u, i)).collect::<HashMap<_, _>>();
+        ballots.sort_by_key(|b| *original_positions.get(&b.uuid).unwrap_or(&0));
+
         let teams = ballots.load_many(schema::ballot_team::Entity, db).await?;
         let adjudicators = ballots.load_many(schema::ballot_adjudicator::Entity, db).await?;
 

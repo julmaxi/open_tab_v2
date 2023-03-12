@@ -71,6 +71,15 @@ impl From<DbErr> for ParticipantParseError {
 impl Participant {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let participants = schema::participant::Entity::find().filter(schema::participant::Column::Uuid.is_in(uuids.clone())).all(db).await?;
+        Self::load_participants(db, participants).await
+    }
+
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
+        let participants = schema::participant::Entity::find().filter(schema::participant::Column::TournamentId.eq(Some(tournament_uuid))).all(db).await?;
+        Self::load_participants(db, participants).await
+    }
+
+    async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let adjudicators = participants.load_one(schema::adjudicator::Entity, db).await?;
         let speakers = participants.load_one(schema::speaker::Entity, db).await?;
         let out : Result<Vec<Participant>, ParticipantParseError> = izip!(participants.into_iter(), speakers.into_iter(), adjudicators.into_iter())
@@ -78,8 +87,7 @@ impl Participant {
             Self::from_rows(part, speaker, adj)
         })
         .collect();
-
-        Ok(out?)
+        out
     }
 
     fn from_rows(

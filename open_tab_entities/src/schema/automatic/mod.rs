@@ -4,7 +4,6 @@ pub mod prelude;
 
 pub mod adjudicator;
 pub mod ballot_adjudicator;
-pub mod debate;
 pub mod speaker;
 pub mod team;
 pub mod tournament;

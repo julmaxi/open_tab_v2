@@ -355,7 +355,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(Ballot::Uuid).uuid().not_null().primary_key())
                 .to_owned()
         ).await?;
-
+        
         manager.create_table(
             sea_query::Table::create()
                 .table(TournamentDebate::Table)
@@ -387,6 +387,7 @@ impl MigrationTrait for Migration {
                 .to_owned()
         ).await?;
 
+        /*
         manager
         .create_table(
             sea_query::Table::create()
@@ -414,7 +415,7 @@ impl MigrationTrait for Migration {
             .table(Debate::Table)
             .col(Debate::BallotId)
             .to_owned()
-        ).await?;
+        ).await?;*/
 
         manager
         .create_table(

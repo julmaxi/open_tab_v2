@@ -1,5 +1,6 @@
 use std::{error::Error, collections::HashMap};
 
+use itertools::Itertools;
 use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
@@ -478,6 +479,28 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
     debate.save(&db, true).await?;
 
     assert_eq!(ballot.get_tournament(&db).await?, Some(Uuid::from_u128(10)));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_many_preserves_order() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let ballots = (100..=102).map(|i| Ballot {
+        uuid: Uuid::from_u128(i),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    }).collect_vec();
+    
+    for ballot in ballots {
+        ballot.save(&db, true).await?;
+    }
+
+    let uuid_order = vec![Uuid::from_u128(101), Uuid::from_u128(100), Uuid::from_u128(102)];
+    let retrieved = Ballot::get_many(&db, uuid_order.clone()).await?;
+
+    assert_eq!(retrieved.into_iter().map(|b| b.uuid).collect_vec(), uuid_order);
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-import { useState, useId, useMemo } from "react";
+import { useState, useId, useMemo, Children } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import "./App.css";
@@ -66,7 +66,7 @@ export function DropWell(props) {
     return (
         <div>
             <DropSlot collection={props.collection} type={props.type}>
-                <DragItem collection={props.collection} type={props.type}>{props.children}</DragItem>
+                {Children.count(props.children) > 0 ? <DragItem collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
             </DropSlot>
         </div>
     );
@@ -102,7 +102,7 @@ function Placeholder(props) {
 
 export function makeDragHandler(f) {
     return (event) => {
-        console.log(event.active.data.current, event.over.data.current);
+
         if (event.active.data.current.type != event.over.data.current.type) {
             return;
         }
