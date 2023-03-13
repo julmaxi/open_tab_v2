@@ -1,6 +1,7 @@
 import { useState, useId, useMemo, useEffect, useCallback } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
+import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
 
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
@@ -30,25 +31,26 @@ function AdjudicatorItem(props) {
 }
 
 function DebateRow(props) {
+  let ballot = props.debate.ballot;
   return (
     <tr>
       <td>
-        <DropWell type="team" collection={[props.debate.index, "government"]}><TeamItem team={props.debate.government} /></DropWell>
+        <DropWell type="team" collection={[props.debate.index, "ballot", "government"]}><TeamItem team={ballot.government} /></DropWell>
         <br />
-        <DropWell type="team" collection={[props.debate.index, "opposition"]}><TeamItem team={props.debate.opposition} /></DropWell>
+        <DropWell type="team" collection={[props.debate.index, "ballot", "opposition"]}><TeamItem team={ballot.opposition} /></DropWell>
       </td>
       <td>
-        <DropList type="speaker" collection={[props.debate.index, "non_aligned_speakers"]}>
-          {props.debate.non_aligned_speakers.map((speaker) => <SpeakerItem key={speaker.uuid} speaker={speaker} />)}
+        <DropList type="speaker" collection={[props.debate.index, "ballot", "non_aligned_speakers"]}>
+          {ballot.non_aligned_speakers.map((speaker) => <SpeakerItem key={speaker.uuid} speaker={speaker} />)}
         </DropList>
       </td>
       <td>
-        <DropList type="adjudicator" collection={[props.debate.index, "adjudicators"]}>
-          {props.debate.adjudicators.map((adjudicator) => <AdjudicatorItem key={adjudicator.uuid} adjudicator={adjudicator} />)}
+        <DropList type="adjudicator" collection={[props.debate.index, "ballot", "adjudicators"]}>
+          {ballot.adjudicators.map((adjudicator) => <AdjudicatorItem key={adjudicator.uuid} adjudicator={adjudicator} />)}
         </DropList>
       </td>
       <td>
-        <DropWell type="adjudicator" collection={[props.debate.index, "president"]}>{props.debate.president ? <AdjudicatorItem adjudicator={props.debate.president} /> : []}</DropWell>
+        <DropWell type="adjudicator" collection={[props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
       </td>
     </tr>
   );
@@ -129,7 +131,6 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     else {
       from_collection.splice(from.index, 1);
     }
-    console.log(from_collection);
     to_collection = from_val;
   } else {
     let tmp = from_collection;
@@ -152,23 +153,62 @@ function DrawEditor() {
   const [draw, setDraw] = useState([]);
 
   function onDragEnd(from, to, isSwap) {
-    let changedRooms = simulateDragOutcome(draw, from, to, isSwap);
+    let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
+
+    invoke("execute_action", {
+      action: {
+        type: "UpdateDraw",
+        action: {
+          updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
+        }
+      }
+    }).then((msg) => {
+      console.log(`Action success`);
+    });
 
     let newDraw = structuredClone(draw);
 
-    for (let [index, debate] of Object.entries(changedRooms)) {
+    for (let [index, debate] of Object.entries(changedDebates)) {
       newDraw[index] = debate;
     }
 
     setDraw(newDraw);
   }
 
+  let currentView = {type: "Draw", uuid: "00000000-0000-0000-0000-000000000064"};
   useEffect(() => {
-    invoke("subscribe_to_view", {view: {type: "Draw", uuid: 1}}).then((msg) => {
-      let draw = JSON.parse(msg);
+    invoke("subscribe_to_view", {view: currentView}).then((msg) => {
+      console.log(msg);
+      let draw = JSON.parse(msg["success"]);
       setDraw(draw.debates);
     });
   }, []);
+
+  useEffect(
+    () => {
+        const unlisten = listen('views-changed', (event) => {
+          console.log(event.payload);
+
+          let relevant_changes = event.payload.changes.filter((change) => change.view.uuid == currentView.uuid && change.view.type == currentView.type);
+          console.log(relevant_changes)
+
+          if (relevant_changes.length > 0) {
+            let changes = relevant_changes[0].changes;
+            let new_draw = [...draw];
+            for (var change_path in changes) {
+              let parsed_change_path = change_path.split(".").map(e => !isNaN(e) ? parseInt(e) : e).slice(1);
+              updatePath(new_draw, parsed_change_path, changes[change_path])
+            }
+            setDraw(new_draw);
+          }
+        })
+
+        return () => {
+            unlisten.then((unlisten) => unlisten())
+        }
+    },
+  [draw]
+  );
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
 
@@ -181,7 +221,7 @@ function DrawEditor() {
       </table>
     </DndContext>
   </div>
-}
+  }
 
 
 export default DrawEditor;

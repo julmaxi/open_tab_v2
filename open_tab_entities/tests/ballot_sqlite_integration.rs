@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate};
+use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
 
@@ -501,6 +501,78 @@ async fn test_get_many_preserves_order() -> Result<(), Box<dyn Error>> {
     let retrieved = Ballot::get_many(&db, uuid_order.clone()).await?;
 
     assert_eq!(retrieved.into_iter().map(|b| b.uuid).collect_vec(), uuid_order);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_getting_missing_ballot_raises_error() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let ballots = (100..=102).map(|i| Ballot {
+        uuid: Uuid::from_u128(i),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    }).collect_vec();
+    
+    for ballot in ballots {
+        ballot.save(&db, true).await?;
+    }
+
+    let uuid_order = vec![Uuid::from_u128(101), Uuid::from_u128(105)];
+    let retrieved = Ballot::get_many(&db, uuid_order.clone()).await;
+
+    assert!(retrieved.is_err());
+
+    if let Err(BallotParseError::BallotDoesNotExist) = retrieved {
+    }
+    else {
+        panic!("Expected BallotParseError::BallotDoesNotExist, got {:?} instead", retrieved);
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_try_get_has_correct_order() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let ballots = (100..=102).map(|i| Ballot {
+        uuid: Uuid::from_u128(i),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    }).collect_vec();
+    
+    for ballot in ballots {
+        ballot.save(&db, true).await?;
+    }
+
+    let uuid_order = vec![Uuid::from_u128(101), Uuid::from_u128(100), Uuid::from_u128(102)];
+    let retrieved = Ballot::try_get_many(&db, uuid_order.clone()).await?;
+
+    assert_eq!(retrieved.into_iter().map(|b| b.unwrap().uuid).collect_vec(), uuid_order);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_try_get_replaces_missing_with_none() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let ballots = (100..=102).map(|i| Ballot {
+        uuid: Uuid::from_u128(i),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    }).collect_vec();
+    
+    for ballot in ballots {
+        ballot.save(&db, true).await?;
+    }
+
+    let uuid_order = vec![Uuid::from_u128(101), Uuid::from_u128(2000), Uuid::from_u128(102)];
+    let retrieved = Ballot::try_get_many(&db, uuid_order.clone()).await?;
+
+    assert_eq!(retrieved.into_iter().map(|b| b.map(|b| b.uuid)).collect_vec(), vec![Some(Uuid::from_u128(101)), None, Some(Uuid::from_u128(102))]);
 
     Ok(())
 }

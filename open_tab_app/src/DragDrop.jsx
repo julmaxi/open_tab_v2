@@ -102,7 +102,7 @@ function Placeholder(props) {
 
 export function makeDragHandler(f) {
     return (event) => {
-
+        console.log(event.active.data.current, event.over.data.current);
         if (event.active.data.current.type != event.over.data.current.type) {
             return;
         }

@@ -10,6 +10,7 @@ use crate::schema::{self};
 use itertools::{izip, Itertools};
 
 use super::TournamentEntity;
+use crate::utilities::{BatchLoad, BatchLoadError};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BallotParseError {
@@ -17,6 +18,7 @@ pub enum BallotParseError {
     UnknownSpeechRole,
     UnknownJudgeRole,
     TooManyPresidents,
+    BallotDoesNotExist,
     DbErr(DbErr)
 }
 
@@ -156,11 +158,35 @@ impl TeamScore {
 }
 
 impl Ballot {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
-        let mut ballots = schema::ballot::Entity::find().filter(schema::ballot::Column::Uuid.is_in(uuids.clone())).all(db).await?;
-        let original_positions = uuids.iter().enumerate().map(|(i, u)| (u, i)).collect::<HashMap<_, _>>();
-        ballots.sort_by_key(|b| *original_positions.get(&b.uuid).unwrap_or(&0));
+    pub async fn get_one(db: &impl ConnectionTrait, uuid: Uuid) -> Result<Ballot, BallotParseError> {
+        Self::get_many(db, vec![uuid]).await.map(|r| r.into_iter().next().unwrap())
+    }
 
+    pub async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, BallotParseError> where C: ConnectionTrait {
+        let ballots = schema::ballot::Entity::batch_load(db, uuids.clone()).await?;
+        let has_value = ballots.iter().map(|b| b.is_some()).collect_vec();
+        let mut retrieved_ballots_iter = Self::get_from_ballots(db, ballots.into_iter().filter(|b| b.is_some()).map(|b| b.unwrap()).collect()).await?.into_iter();
+
+        Ok(has_value.into_iter().map(|has_value| {
+            if has_value {
+                retrieved_ballots_iter.next()
+            }
+            else {
+                None
+            }
+        }).collect())
+    }
+
+    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
+        let ballots = schema::ballot::Entity::batch_load_all(db, uuids.clone()).await.map_err(|e| match e {
+            BatchLoadError::DbErr(e) => BallotParseError::DbErr(e),
+            BatchLoadError::RowNotFound => BallotParseError::BallotDoesNotExist
+        })?;
+
+        Self::get_from_ballots(db, ballots).await
+    }
+
+    async fn get_from_ballots<C>(db: &C, ballots: Vec<schema::ballot::Model>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
         let teams = ballots.load_many(schema::ballot_team::Entity, db).await?;
         let adjudicators = ballots.load_many(schema::ballot_adjudicator::Entity, db).await?;
 

@@ -52,7 +52,7 @@ impl EntityGroups {
     pub async fn get_all_tournaments<C>(&self, db: &C) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
         let mut out = Vec::new();
 
-        out.extend(Participant::get_many_tournaments(db, &self.participants.iter().collect()).await?.into_iter());
+        out.extend(Participant::get_many_tournaments(db, &self.participants.iter().collect()).await?.iter());
         out.extend(Ballot::get_many_tournaments(db, &self.ballots.iter().collect()).await?.into_iter());
 
         Ok(out)
@@ -72,6 +72,17 @@ impl EntityGroups {
         Ok(())   
     }
 
+    pub async fn save_all_and_log_for_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        self.save_all_with_options_and_log_for_tournament(db, false, tournament_id).await
+    }
+
+    pub async fn save_all_with_options_and_log_for_tournament<C>(&self, db: &C, guarantee_insert: bool, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        self.save_all_with_options(db, guarantee_insert).await?;
+        self.save_log_with_tournament_id(db, tournament_id).await?;
+
+        Ok(())
+    }
+
     pub fn into_entity_iterator(self) -> impl Iterator<Item=Entity> {
         self.participants.into_iter().map(|p| Entity::Participant(p))
         .chain(self.ballots.into_iter().map(|b| Entity::Ballot(b)))
@@ -81,9 +92,19 @@ impl EntityGroups {
         .chain(self.teams.into_iter().map(|t| Entity::Team(t)))
     }
 
+    pub fn get_entity_ids(&self) -> Vec<(String, Uuid)> {
+        self.participants.iter().map(|p| ("Participant".to_string(), p.uuid.clone()))
+        .chain(self.ballots.iter().map(|b| ("Ballot".to_string(), b.uuid.clone())))
+        .chain(self.tournaments.iter().map(|t| ("Tournament".to_string(), t.uuid.clone())))
+        .chain(self.rounds.iter().map(|r| ("TournamentRound".to_string(), r.uuid.clone())))
+        .chain(self.debates.iter().map(|d| ("TournamentDebate".to_string(), d.uuid.clone())))
+        .chain(self.teams.iter().map(|t| ("Team".to_string(), t.uuid.clone())))
+        .collect_vec()
+    }
+
     /* Saves all changes with a single tournament id. This function does not check whether all changes do belong to the same tournament.
      */
-    pub async fn save_log_with_tournament_id<C>(self, transaction: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
         let last_log_entry = tournament_log::Entity::find()
         .filter(tournament_log::Column::TournamentId.eq(tournament_id))
         .order_by_desc(tournament_log::Column::SequenceIdx)
@@ -97,14 +118,14 @@ impl EntityGroups {
         };
     
     
-        let new_entries = self.into_entity_iterator().enumerate().map(|(idx, e)| {
+        let new_entries = self.get_entity_ids().into_iter().enumerate().map(|(idx, (name, uuid))| {
             tournament_log::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::new_v4()),
                 timestamp: ActiveValue::Set(chrono::offset::Local::now().naive_local()),
                 sequence_idx: ActiveValue::Set(last_sequence_idx + idx as i32),
                 tournament_id: ActiveValue::Set(tournament_id),
-                target_type: ActiveValue::Set(e.get_name()),
-                target_uuid: ActiveValue::Set(e.get_uuid())
+                target_type: ActiveValue::Set(name),
+                target_uuid: ActiveValue::Set(uuid)
             }
         }).collect_vec();
     
