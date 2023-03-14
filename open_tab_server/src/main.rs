@@ -1,30 +1,59 @@
 #[macro_use] extern crate rocket;
 use std::{collections::HashMap, error::Error};
-use open_tab_entities::{Entity, EntityGroups, EntityId};
+use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log};
 use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
 use open_tab_entities::schema::{self, tournament_log, tournament};
 use rocket::futures::TryFutureExt;
+use rocket::http::hyper::body::HttpBody;
 use rocket::response::status::Custom;
 use rocket::serde::{Deserialize, Serialize, json::Json};
 use migration::MigratorTrait;
 use rocket::State;
+use rocket_dyn_templates::{Template, context};
 use sea_orm::{prelude::*, Database, ConnectionTrait, DbBackend, Statement, QuerySelect, QueryOrder, TransactionTrait, ActiveValue, QueryTrait};
 use itertools::Itertools;
 use rocket::http::Status;
 use rocket::{Rocket, Build};
 use log::{info};
 
-#[derive(Serialize, Deserialize)]
-struct TournamentUpdate {
-    changes: Vec<Entity>
+use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
+
+
+fn handle_error<E>(e: E) -> Custom<String> where E: Error {
+    handle_error_impl(format!("{}", e))
 }
 
+fn handle_error_dyn<E>(e: Box<E>) -> Custom<String> where E: Error + ?Sized {
+    handle_error_impl(format!("{}", e))
+}
 
+fn handle_error_impl(msg: String) -> Custom<String> {
+    println!("{}", msg);
+    Custom(Status::InternalServerError, msg)
+}
 
 #[post("/tournament/<tournament_id>/update", data="<updates>")]
-async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, updates: Json<TournamentUpdate>) -> Result<&'static str,
- Custom<&'static str>> {
-    let transaction = db.begin_with_config(Some(sea_orm::IsolationLevel::Serializable), None).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
+async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, updates: Json<TournamentUpdate>) -> Result<String, Custom<String>> {
+    let transaction = db.begin_with_config(Some(sea_orm::IsolationLevel::Serializable), None).await.map_err(handle_error)?;
+
+    if let Some(expected_log_sequence_number) = updates.expected_log_head {
+        let latest_log = tournament_log::Entity::find()
+            .filter(tournament_log::Column::TournamentId.eq(tournament_id))
+            .order_by_desc(tournament_log::Column::SequenceIdx)
+            .limit(1)
+            .one(&transaction)
+            .await
+            .map_err(handle_error)?;
+        if let Some(latest_log) = latest_log {
+            if latest_log.uuid != expected_log_sequence_number {
+                return Err(Custom(Status::Conflict, "Expected log sequence number is not current log sequence".into()))
+            }
+        }
+        else {
+            return Err(Custom(Status::Conflict, "Expected log sequence number is not current log sequence".into()))
+        }
+    }
+    
     let mut updates : TournamentUpdate = updates.into_inner();
 
     updates.changes.sort_by_key(|e| e.get_processing_order());
@@ -34,24 +63,30 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
     for change in updates.changes.into_iter() {
         let identity = Some((change.get_name(), change.get_uuid()));
         if identity == prev_change {
-            return Err(Custom(Status::BadRequest, "Duplicate entity"))
+            return Err(Custom(Status::BadRequest, "Duplicate entity".into()))
         }
         prev_change = identity;
         changeset.add(change)
     }
 
-    let tournament_uuids = changeset.get_all_tournaments(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
+    changeset.save_all(&transaction).await.map_err(handle_error_dyn)?;
 
+    // Entity tournament ids can be a bit tricky to determine, since
+    // they might be multiple layers deep. To avoid having to replicate
+    // a lot of what the database can do better anyway, we first
+    // write the changes and then rollback if any of the entity ids
+    // do not match
+    let tournament_uuids = changeset.get_all_tournaments(&transaction).await.map_err(handle_error_dyn)?;
     if tournament_uuids.iter().any(|u| *u != Some(tournament_id)) {
-        return Err(Custom(Status::BadRequest, "Entity tournament id does not match tournament id in path"))
+        transaction.rollback().await.map_err(handle_error)?;
+        return Err(Custom(Status::BadRequest, "Entity tournament id does not match tournament id in path".into()))
     }
 
-    changeset.save_all(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
-    changeset.save_log_with_tournament_id(&transaction, tournament_id).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
+    let new_log_head = changeset.save_log_with_tournament_id(&transaction, tournament_id).await.map_err(handle_error_dyn)?;
 
-    transaction.commit().await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
+    transaction.commit().await.map_err(handle_error)?;
 
-    Ok("Done")
+    Ok(serde_json::to_string(&TournamentUpdateResponse{new_log_head }).map_err(handle_error)?)
 }
 
 
@@ -75,14 +110,27 @@ impl From<tournament_log::Model> for SerializedTournamentLogEntry {
 
 #[get("/tournament/<tournament_id>/log")]
 async fn get_tournament_log(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Json<Vec<SerializedTournamentLogEntry>>, Custom<String>> {
-    get_tournament_log_since(db, tournament_id, 0).await
+    get_tournament_log_since(db, tournament_id, Uuid::nil()).await
 }
 
 #[get("/tournament/<tournament_id>/log?<since>")]
-async fn get_tournament_log_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: u64) -> Result<Json<Vec<SerializedTournamentLogEntry>>, Custom<String>> {
+async fn get_tournament_log_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: Uuid) -> Result<Json<Vec<SerializedTournamentLogEntry>>, Custom<String>> {
+    // TODO: This can be a single select
+    let start_idx = if since == Uuid::nil() {
+        0
+    }
+    else {
+        schema::tournament_log::Entity::find_by_id(
+            since
+        ).one(
+            db.inner()
+        ).await.map_err(handle_error)?
+        .map(|e| e.sequence_idx).ok_or(Custom(Status::NotFound, "Log entry not found".to_string()))?
+    };
+
     let log_entries = schema::tournament_log::Entity::find().filter(
         schema::tournament_log::Column::TournamentId.eq(tournament_id).and(
-            schema::tournament_log::Column::SequenceIdx.gte(since)
+            schema::tournament_log::Column::SequenceIdx.gte(start_idx)
         )
     ).all(db.inner()).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
@@ -92,48 +140,32 @@ async fn get_tournament_log_since(db: &State<DatabaseConnection>, tournament_id:
 }
 
 #[get("/tournament/<tournament_id>/changes")]
-async fn get_tournament_changes(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Json<Vec<Entity>>, Custom<String>> {
+async fn get_tournament_changes(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Json<TournamentChanges>, Custom<String>> {
     get_tournament_changes_since(db, tournament_id, 0).await
 }
 
 #[get("/tournament/<tournament_id>/changes?<since>")]
-async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: u64) -> Result<Json<Vec<Entity>>, Custom<String>> {
+async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: u64) -> Result<Json<TournamentChanges>, Custom<String>> {
     let transaction = db.begin().await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
     
     let log_entries = schema::tournament_log::Entity::find().filter(
         schema::tournament_log::Column::TournamentId.eq(tournament_id).and(
             schema::tournament_log::Column::SequenceIdx.gte(since)
         )
-    ).all(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
+    ).order_by_asc(schema::tournament_log::Column::SequenceIdx)
+    .all(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
-    let mut to_query : HashMap<String, Vec<Uuid>> = HashMap::new();
-
-    log_entries.into_iter().for_each(|e| {
-        match to_query.get_mut(&e.target_type) {
-            Some(v) => {
-                v.push(e.target_uuid);
-            },
-            None => {
-                to_query.insert(e.target_type, vec![(e.target_uuid)]);
-            }
-        }
-    });
-
-    // FIXME: This is unelegant
-    let mut all_new_entities = Vec::new();
-
-    for (type_, uuids) in to_query.into_iter() {
-        let new_entities = match type_.as_str() {
-            "Participant" => Participant::get_many(&transaction, uuids).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?.into_iter().map(|e| Entity::Participant(e)).collect_vec(),
-            "Ballot" => Ballot::get_many(&transaction, uuids).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?.into_iter().map(|e| Entity::Ballot(e)).collect_vec(),
-            _ => panic!("Unknown entity type {}", type_)
-        };
-        all_new_entities.extend(new_entities);
-    };
-
+    let log_head = log_entries.last().map(|e| e.uuid).unwrap_or(Uuid::nil());
+    let all_new_entities = get_changed_entities_from_log(&transaction, log_entries).map_err(|_| Custom(Status::InternalServerError, "Error".to_string())).await?;
     transaction.commit().await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
-    Ok(Json(all_new_entities))
+    Ok(Json(
+        TournamentChanges {
+            changes: all_new_entities,
+            // FIXME: Raise error when since is too large
+            log_head
+        }
+    ))
 }
 
  #[get("/tournament/<tournament_id>")]
@@ -194,18 +226,32 @@ pub async fn set_up_db(config: DatabaseConfig) -> Result<DatabaseConnection, DbE
     Ok(db)
 }
 
+#[get("/home/<participant_uuid>")]
+async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnection>) -> Result<Template, Custom<String>> {
+    let participant = schema::prelude::Participant::find_by_id(participant_uuid).one(db.inner()).await.map_err(handle_error)?;
+
+    if let Some(participant) = participant {
+        Ok(Template::render("participant_home", context! { participant_name: participant.name }))
+    }
+    else {
+        Err(Custom(Status::NotFound, "Participant not found".to_string()))
+    }
+}
+
 
 async fn config_rocket(db_config: DatabaseConfig) -> rocket::Rocket<rocket::Build> {
     let db = set_up_db(db_config).await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
     rocket::build()
+        .attach(Template::fairing())
         .manage(db)
         .mount("/", routes![
             get_tournament_overview,
             update_tournament,
             get_tournament_log,
             get_tournament_changes,
-            get_tournament_changes_since
+            get_tournament_changes_since,
+            participant_homepage
         ])
 }
 
@@ -222,6 +268,7 @@ mod test {
     use super::rocket;
     use open_tab_entities::domain::participant::{Participant, Adjudicator};
     use open_tab_entities::schema;
+    use open_tab_server::TournamentChanges;
     use rocket::{State, Rocket, Build};
     use rocket::local::asynchronous::Client;
     use rocket::http::Status;
@@ -280,7 +327,7 @@ mod test {
         
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change]}
+                &TournamentUpdate{changes: vec![change], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -309,7 +356,7 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2]}
+                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -337,7 +384,7 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2]}
+                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -358,7 +405,7 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2]}
+                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -377,7 +424,7 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change.clone()]}
+                &TournamentUpdate{changes: vec![change.clone()], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -386,11 +433,10 @@ mod test {
         let response = client.get("/tournament/00000000-0000-0000-0000-000000000001/changes").dispatch().await;
         assert_eq!(response.status(), Status::Ok);
 
-        let result : Vec<Entity> = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+        let result : TournamentChanges = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
 
-        assert_eq!(result.len(), 1);
-
-        assert_eq!(&result[0], &change);
+        assert_eq!(result.changes.len(), 1);
+        assert_eq!(&result.changes[0], &change);
     }
 
     #[rocket::async_test]
@@ -404,7 +450,7 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change.clone()]}
+                &TournamentUpdate{changes: vec![change.clone()], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -413,10 +459,9 @@ mod test {
         let response = client.get("/tournament/00000000-0000-0000-0000-000000000001/changes").dispatch().await;
         assert_eq!(response.status(), Status::Ok);
 
-        let result : Vec<Entity> = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+        let result : TournamentChanges = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
 
-        assert_eq!(result.len(), 1);
-
-        assert_eq!(&result[0], &change);
+        assert_eq!(result.changes.len(), 1);
+        assert_eq!(&result.changes[0], &change);
     }
 }

@@ -1,0 +1,8 @@
+<html>
+
+<body>
+{{ participant_name }}
+{{ team_name }}
+</body>
+
+</html>
