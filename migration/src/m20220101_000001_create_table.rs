@@ -53,6 +53,7 @@ enum TournamentRemote {
     TournamentId,
     Url,
     LastKnownChange,
+    LastSyncedChange,
 }
 
 #[derive(Iden)]
@@ -229,6 +230,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRemote::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(TournamentRemote::Url).string().not_null())
                 .col(ColumnDef::new(TournamentRemote::LastKnownChange).uuid())
+                .col(ColumnDef::new(TournamentRemote::LastSyncedChange).uuid())
                 .to_owned()
         ).await?;
 
