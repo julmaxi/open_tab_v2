@@ -85,7 +85,7 @@ function Placeholder(props) {
     let simulate_insert = isOver && active.data.current.type == props.type;
 
     const style = {
-        height: "10px",
+        height: "2px",
     };
     const container_style = {
         height: simulate_insert ? `25px` : "auto",

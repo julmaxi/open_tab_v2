@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use sea_query::ValueTuple;
 
 
-use crate::schema::{self, adjudicator, speaker};
+use crate::{schema::{self, adjudicator, speaker}, utilities::{BatchLoad, BatchLoadError}};
 
 use super::TournamentEntity;
 
@@ -38,7 +38,8 @@ pub struct Adjudicator {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParticipantParseError {
     DbErr(DbErr),
-    MultipleRoles
+    MultipleRoles,
+    ParticipantDoesNotExist
 }
 
 impl Display for ParticipantParseError {
@@ -70,7 +71,14 @@ impl From<DbErr> for ParticipantParseError {
 
 impl Participant {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
-        let participants = schema::participant::Entity::find().filter(schema::participant::Column::Uuid.is_in(uuids.clone())).all(db).await?;
+        //let participants = schema::participant::Entity::find().filter(schema::participant::Column::Uuid.is_in(uuids.clone())).all(db).await?;
+        let participants = schema::participant::Entity::batch_load_all(db, uuids).await.map_err(
+            |e| match e {
+                BatchLoadError::DbErr(e) => ParticipantParseError::DbErr(e),
+                BatchLoadError::RowNotFound => ParticipantParseError::ParticipantDoesNotExist
+            }
+        )?;
+
         Self::load_participants(db, participants).await
     }
 

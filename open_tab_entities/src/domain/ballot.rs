@@ -125,10 +125,22 @@ pub struct Speech {
     pub scores: HashMap<Uuid, SpeakerScore>,
 }
 
+impl Speech {
+    pub fn speaker_score(&self) -> f64 {
+        self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize, Clone)]
 pub struct BallotTeam {
     pub team: Option<Uuid>,
     pub scores: HashMap<Uuid, TeamScore>
+}
+
+impl BallotTeam {
+    pub fn team_score(&self) -> f64 {
+        self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -150,7 +162,7 @@ pub enum TeamScore {
 }
 
 impl TeamScore {
-    fn total(&self) -> i16 {
+    pub fn total(&self) -> i16 {
         match self {
             TeamScore::Aggregate(s) => *s,
         }
@@ -350,7 +362,6 @@ impl Ballot {
         self.save_adjudicators(db, is_insert).await?;
         self.save_teams(db, is_insert).await?;
         self.save_speeches(db, is_insert).await?;
-
         Ok(())
     }
 
@@ -565,12 +576,14 @@ impl Ballot {
 
             if let Some((prev_speech, prev_scores)) = prev_speech {
                 if prev_speech.speaker_id != speech.speaker {
+                    println!("Change?");
                     schema::ballot_speech::ActiveModel {
                         ballot_id: ActiveValue::Unchanged(self.uuid),
                         position: ActiveValue::Unchanged(prev_speech.position),
                         role: ActiveValue::Unchanged(prev_speech.role.clone()),
                         speaker_id: ActiveValue::Set(speech.speaker)
                     }.update(db).await?;
+                    println!("Not Change.");
                 }
 
                 for (adj, score) in speech.scores.iter() {

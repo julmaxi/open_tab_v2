@@ -66,8 +66,8 @@ impl ActionTrait for UpdateDrawAction {
         for (ballot, debate) in izip![ballots, self.updated_ballots.iter()] {
             let mut new_ballot = ballot.clone();
 
-            new_ballot.government.team = if let Some(gov) = &debate.government {Some(gov.uuid)} else {None};
-            new_ballot.opposition.team = if let Some(opp) = &debate.opposition {Some(opp.uuid)} else {None};
+            new_ballot.government.team = if let Some(gov) = &debate.government { Some(gov.uuid) } else { None };
+            new_ballot.opposition.team = if let Some(opp) = &debate.opposition { Some(opp.uuid) } else { None };
 
             let mut existing_non_aligned_speeches = new_ballot.speeches.iter_mut().filter(|speech| speech.role == open_tab_entities::domain::ballot::SpeechRole::NonAligned).collect_vec();
 

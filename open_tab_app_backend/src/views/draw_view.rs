@@ -12,13 +12,8 @@ use open_tab_entities::schema::{self, tournament_round};
 use itertools::izip;
 use itertools::Itertools;
 
+use super::base::{LoadedView, TournamentParticipantsInfo};
 
-#[async_trait]
-pub trait LoadedView : Sync + Send {
-    // We can't use a connection trait here, since otherwise the trait is not object safe
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>>;
-    async fn view_string(&self) -> Result<String, Box<dyn Error>>;
-}
 
 pub struct LoadedDrawView {
     pub view: DrawView,
@@ -119,6 +114,7 @@ pub struct DrawTeam {
 pub struct DrawSpeaker {
     pub uuid: Uuid,
     pub name: String,
+    pub team_name: Option<String>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -142,38 +138,6 @@ impl Error for DrawViewError {
 }
 
 
-struct TournamentParticipantsInfo {
-    participants_by_id: HashMap<Uuid, Participant>,
-    teams_by_id: HashMap<Uuid, Team>,
-    team_members: HashMap<Uuid, Vec<Uuid>>
-}
-
-impl TournamentParticipantsInfo {
-    async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
-        let all_participants = Participant::get_all_in_tournament(db, tournament_id).await?;
-        let team_members = all_participants.iter().filter_map(|speaker| {
-            if let ParticipantRole::Speaker(speaker_info) = &speaker.role {
-                if let Some(team_uuid) = speaker_info.team_id {
-                    Some((team_uuid, speaker.uuid))
-                }
-                else {
-                    None
-                }
-            }
-            else {
-                None
-            }
-        }).into_group_map();
-        let teams_by_id = Team::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|team| (team.uuid, team)).collect::<HashMap<_, _>>();
-        let participants_by_id = all_participants.into_iter().map(|speaker| (speaker.uuid, speaker)).collect::<HashMap<_, _>>();
-
-        Ok(Self {
-            participants_by_id,
-            teams_by_id,
-            team_members
-        })
-    }
-}
 
 /*
 
@@ -199,9 +163,11 @@ let participants_by_id = all_participants.into_iter().map(|speaker| (speaker.uui
 impl DrawView {
     fn draw_speaker_from_uuid(speaker_uuid: Uuid, info: &TournamentParticipantsInfo) -> DrawSpeaker {
         let speaker = info.participants_by_id.get(&speaker_uuid).unwrap();
+        let team = info.speaker_teams.get(&speaker.uuid);
         DrawSpeaker {
             uuid: speaker.uuid,
-            name: speaker.name.clone()
+            name: speaker.name.clone(),
+            team_name: team.map(|t| info.teams_by_id.get(t).map(|t| t.name.clone())).flatten()
         }
     }
 

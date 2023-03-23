@@ -1,13 +1,13 @@
 #[macro_use] extern crate rocket;
 use std::{collections::HashMap, error::Error};
-use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log};
+use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log, domain};
 use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
 use open_tab_entities::schema::{self, tournament_log, tournament};
 use rocket::futures::TryFutureExt;
 use rocket::http::hyper::body::HttpBody;
 use rocket::response::status::Custom;
 use rocket::serde::{Deserialize, Serialize, json::Json};
-use migration::MigratorTrait;
+use migration::{MigratorTrait, Query};
 use rocket::State;
 use rocket_dyn_templates::{Template, context};
 use sea_orm::{prelude::*, Database, ConnectionTrait, DbBackend, Statement, QuerySelect, QueryOrder, TransactionTrait, ActiveValue, QueryTrait};
@@ -36,6 +36,7 @@ fn handle_error_impl(msg: String) -> Custom<String> {
 async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, updates: Json<TournamentUpdate>) -> Result<String, Custom<String>> {
     let transaction = db.begin_with_config(Some(sea_orm::IsolationLevel::Serializable), None).await.map_err(handle_error)?;
 
+    dbg!(&updates.expected_log_head);
     if let Some(expected_log_sequence_number) = updates.expected_log_head {
         let latest_log = tournament_log::Entity::find()
             .filter(tournament_log::Column::TournamentId.eq(tournament_id))
@@ -44,12 +45,13 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
             .one(&transaction)
             .await
             .map_err(handle_error)?;
+        dbg!(&latest_log);
         if let Some(latest_log) = latest_log {
             if latest_log.uuid != expected_log_sequence_number {
-                return Err(Custom(Status::Conflict, "Expected log sequence number is not current log sequence".into()))
+                return Err(Custom(Status::Conflict, "Expected log is not in sequence".into()))
             }
         }
-        else {
+        else if !expected_log_sequence_number.is_nil() {
             return Err(Custom(Status::Conflict, "Expected log sequence number is not current log sequence".into()))
         }
     }
@@ -125,7 +127,7 @@ async fn get_tournament_log_since(db: &State<DatabaseConnection>, tournament_id:
         ).one(
             db.inner()
         ).await.map_err(handle_error)?
-        .map(|e| e.sequence_idx).ok_or(Custom(Status::NotFound, "Log entry not found".to_string()))?
+        .map(|e| e.sequence_idx + 1).ok_or(Custom(Status::NotFound, "Log entry not found".to_string()))?
     };
 
     let log_entries = schema::tournament_log::Entity::find().filter(
@@ -141,16 +143,29 @@ async fn get_tournament_log_since(db: &State<DatabaseConnection>, tournament_id:
 
 #[get("/tournament/<tournament_id>/changes")]
 async fn get_tournament_changes(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Json<TournamentChanges>, Custom<String>> {
-    get_tournament_changes_since(db, tournament_id, 0).await
+    get_tournament_changes_since(db, tournament_id, Uuid::nil()).await
 }
 
 #[get("/tournament/<tournament_id>/changes?<since>")]
-async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: u64) -> Result<Json<TournamentChanges>, Custom<String>> {
+async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, since: Uuid) -> Result<Json<TournamentChanges>, Custom<String>> {
+    // TODO: This can be a single select
+    let start_idx = if since == Uuid::nil() {
+        0
+    }
+    else {
+        schema::tournament_log::Entity::find_by_id(
+            since
+        ).one(
+            db.inner()
+        ).await.map_err(handle_error)?
+        .map(|e| e.sequence_idx + 1).ok_or(Custom(Status::NotFound, "Log entry not found".to_string()))?
+    };
+
     let transaction = db.begin().await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
     
     let log_entries = schema::tournament_log::Entity::find().filter(
         schema::tournament_log::Column::TournamentId.eq(tournament_id).and(
-            schema::tournament_log::Column::SequenceIdx.gte(since)
+            schema::tournament_log::Column::SequenceIdx.gte(start_idx)
         )
     ).order_by_asc(schema::tournament_log::Column::SequenceIdx)
     .all(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
@@ -162,7 +177,6 @@ async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament
     Ok(Json(
         TournamentChanges {
             changes: all_new_entities,
-            // FIXME: Raise error when since is too large
             log_head
         }
     ))
@@ -226,16 +240,85 @@ pub async fn set_up_db(config: DatabaseConfig) -> Result<DatabaseConnection, DbE
     Ok(db)
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct ParticipantHomePageInfo {
+    name: String,
+    team_name: Option<String>,
+    role: String
+}
+
 #[get("/home/<participant_uuid>")]
 async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnection>) -> Result<Template, Custom<String>> {
-    let participant = schema::prelude::Participant::find_by_id(participant_uuid).one(db.inner()).await.map_err(handle_error)?;
+    let participant2 = schema::prelude::Participant::find_by_id(
+        participant_uuid
+    )
+    .one(
+        db.inner()
+    ).await.map_err(handle_error)?;
 
-    if let Some(participant) = participant {
-        Ok(Template::render("participant_home", context! { participant_name: participant.name }))
+    let participant = domain::participant::Participant::get_many(
+        db.inner(),
+        vec![participant_uuid]
+    ).await.map_err(|e| match e {
+        domain::participant::ParticipantParseError::ParticipantDoesNotExist => Custom(Status::NotFound, "Participant not found".to_string()),
+        _ => handle_error(e)
+    })?.into_iter().next().expect("List was empty. Apparently uuid missing error failed.");
+
+    let mut info = ParticipantHomePageInfo {..Default::default()};
+    info.name = participant.name.clone();
+
+    // FIXME: Just for testing this takes the first round. Should be the last.
+    let current_active_round = schema::prelude::TournamentRound::find().filter(
+        schema::tournament_round::Column::TournamentId.eq(participant.tournament_id)
+    ).order_by_asc(schema::tournament_round::Column::Index)
+    .limit(1)
+    .one(db.inner()).await.map_err(handle_error)?;
+
+    if let Some(current_active_round) = current_active_round {
+        match participant.role {
+            open_tab_entities::prelude::ParticipantRole::Speaker(speaker) => {
+                if let Some(team_id) = speaker.team_id {
+                    let team = schema::team::Entity::find_by_id(team_id).one(db.inner()).await.map_err(handle_error)?;
+
+                    if let Some(team) = team {
+                        info.team_name = Some(team.name);
+                        let relevant_debates = schema::tournament_debate::Entity::find()
+                        .inner_join(schema::ballot::Entity)
+                        .filter(
+                            schema::tournament_debate::Column::RoundId.eq(current_active_round.uuid).and(
+                                schema::ballot::Column::Uuid.in_subquery(
+                                    Query::select()
+                                    .column(schema::ballot_speech::Column::BallotId)
+                                    .from(schema::ballot_speech::Entity)
+                                    .and_where(
+                                        schema::ballot_speech::Column::SpeakerId.eq(participant.uuid)
+                                    )
+                                    .to_owned()
+                                ).or(
+                                    schema::ballot::Column::Uuid.in_subquery(
+                                        Query::select()
+                                        .column(schema::ballot_team::Column::BallotId)
+                                        .from(schema::ballot_team::Entity)
+                                        .and_where(
+                                            schema::ballot_team::Column::TeamId.eq(team.uuid)
+                                        )
+                                        .to_owned()
+                                    )
+                                )
+                            )
+                        ).all(db.inner()).await.map_err(handle_error)?;
+                        dbg!(relevant_debates);
+                    }
+                }
+            },
+            open_tab_entities::prelude::ParticipantRole::Adjudicator(adj) => {
+
+            },
+        }
     }
-    else {
-        Err(Custom(Status::NotFound, "Participant not found".to_string()))
-    }
+
+    Ok(Template::render("participant_home", context!{participant: info}))
 }
 
 

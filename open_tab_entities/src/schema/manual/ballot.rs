@@ -21,6 +21,8 @@ pub enum Relation {
     BallotSpeech,
     #[sea_orm(has_many = "super::ballot_team::Entity")]
     BallotTeam,
+    #[sea_orm(has_many = "super::tournament_debate::Entity")]
+    TournamentDebate,
 }
 
 impl Related<super::adjudicator_speech_score::Entity> for Entity {
@@ -59,6 +61,12 @@ impl Related<super::adjudicator::Entity> for Entity {
     }
     fn via() -> Option<RelationDef> {
         Some(super::ballot_adjudicator::Relation::Ballot.def().rev())
+    }
+}
+
+impl Related<super::tournament_debate::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentDebate.def()
     }
 }
 

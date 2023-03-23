@@ -42,8 +42,8 @@
         "resizable": true,
         "title": "open_tab_app",
         "label": "main",
-        "width": 800,
-        "height": 600
+        "width": 1200,
+        "height": 800
       }
     ]
   }

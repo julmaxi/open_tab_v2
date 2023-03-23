@@ -10,6 +10,7 @@ pub struct Model {
     pub tournament_id: Uuid,
     pub url: String,
     pub last_known_change: Option<Uuid>,
+    pub last_synced_change: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

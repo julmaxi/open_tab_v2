@@ -1,10 +1,12 @@
 pub mod draw_view;
+pub mod tab_view;
+mod base;
+
+pub use self::base::LoadedView;
 
 use std::error::Error;
 
-use self::draw_view::DrawView;
 use self::draw_view::LoadedDrawView;
-use self::draw_view::LoadedView;
 
 use sea_orm::ConnectionTrait;
 use sea_orm::prelude::*;

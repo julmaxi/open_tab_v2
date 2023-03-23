@@ -12,6 +12,11 @@ open_tab_entities = { path = "../open_tab_entities" }
 migration = { path = "../migration" }
 sea-orm = "*"
 itertools = "*"
+csv = "1.1"
+lazy_static = "1.4"
+regex = "1"
+ordered-float = "3.5.0"
+
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

@@ -12,20 +12,23 @@ import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
 function TeamItem(props) {
   return <div>
-    <div>{props.team.name}</div>
+    <div className="bg-gray-100 min-w-[14rem] rounded-md">
+      {props.team.name}
+    </div>
   </div>
 }
 
 
 function SpeakerItem(props) {
-  return <div>
+  return <div className="bg-gray-100 min-w-[14rem] rounded-md">
     <div>{props.speaker.name}</div>
+    <div>{props.speaker.team_name}</div>
   </div>
 }
 
 
 function AdjudicatorItem(props) {
-  return <div>
+  return <div className="bg-gray-100 min-w-[14rem] rounded-md m-0">
     <div>{props.adjudicator.name}</div>
   </div>
 }
@@ -193,9 +196,10 @@ function DrawEditor() {
           console.log(relevant_changes)
 
           if (relevant_changes.length > 0) {
-            let changes = relevant_changes[0].changes;
+            console.log(relevant_changes);
+            let updated_paths = relevant_changes[0].updated_paths;
             let new_draw = [...draw];
-            for (var change_path in changes) {
+            for (var change_path in updated_paths) {
               let parsed_change_path = change_path.split(".").map(e => !isNaN(e) ? parseInt(e) : e).slice(1);
               updatePath(new_draw, parsed_change_path, changes[change_path])
             }

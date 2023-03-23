@@ -1,4 +1,4 @@
-use std::{error::Error, f32::consts::E};
+use std::{error::Error, f32::consts::E, collections::HashMap};
 
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
@@ -69,7 +69,7 @@ impl EntityGroups {
         TournamentRound::save_many(db, guarantee_insert, &self.rounds.iter().collect()).await?;
         Ballot::save_many(db, guarantee_insert, &self.ballots.iter().collect()).await?;
         TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
-        Ok(())   
+        Ok(())
     }
 
     pub async fn save_all_and_log_for_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
@@ -104,7 +104,7 @@ impl EntityGroups {
 
     /* Saves all changes with a single tournament id. This function does not check whether all changes do belong to the same tournament.
      */
-    pub async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<Uuid, Box<dyn Error>> where C: ConnectionTrait {
         let last_log_entry = tournament_log::Entity::find()
         .filter(tournament_log::Column::TournamentId.eq(tournament_id))
         .order_by_desc(tournament_log::Column::SequenceIdx)
@@ -112,12 +112,15 @@ impl EntityGroups {
         .one(transaction)
         .await?;
 
-        let last_sequence_idx = match last_log_entry {
+        let last_sequence_idx = match &last_log_entry {
             Some(entry) => entry.sequence_idx,
             None => 0,
         };
-    
-    
+        let mut log_head = match &last_log_entry {
+            Some(entry) => entry.uuid,
+            None => Uuid::nil(),
+        };
+
         let new_entries = self.get_entity_ids().into_iter().enumerate().map(|(idx, (name, uuid))| {
             tournament_log::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::new_v4()),
@@ -128,10 +131,25 @@ impl EntityGroups {
                 target_uuid: ActiveValue::Set(uuid)
             }
         }).collect_vec();
-    
-        tournament_log::Entity::insert_many(new_entries).exec(transaction).await?;
-            
-        Ok(())
+
+        if new_entries.len() > 0 {
+            log_head = new_entries[new_entries.len() - 1].uuid.clone().unwrap();
+            tournament_log::Entity::insert_many(new_entries).exec(transaction).await?;
+        }
+
+        Ok(log_head)
+    }
+}
+
+impl From<Vec<Entity>> for EntityGroups {
+    fn from(entities: Vec<Entity>) -> Self {
+        let mut groups = EntityGroups::new();
+
+        for e in entities {
+            groups.add(e);
+        }
+
+        groups
     }
 }
 
@@ -197,4 +215,36 @@ impl EntityId {
             _ => panic!("Unknown entity type {}", target_type)
         }
     }
+}
+
+
+pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<Entity>, Box<dyn Error>> where C: ConnectionTrait {
+    let mut to_query : HashMap<String, Vec<Uuid>> = HashMap::new();
+    log_entries.into_iter().for_each(|e| {
+        match to_query.get_mut(&e.target_type) {
+            Some(v) => {
+                v.push(e.target_uuid);
+            },
+            None => {
+                to_query.insert(e.target_type, vec![(e.target_uuid)]);
+            }
+        }
+    });
+
+    // FIXME: This is unelegant
+    let mut all_new_entities = Vec::new();
+
+    for (type_, uuids) in to_query.into_iter() {
+        let new_entities = match type_.as_str() {
+            "Participant" => Participant::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Participant(e)).collect_vec(),
+            "Ballot" => Ballot::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Ballot(e)).collect_vec(),
+            "Tournament" => Tournament::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Tournament(e)).collect_vec(),
+            "TournamentRound" => TournamentRound::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentRound(e)).collect_vec(),
+            "TournamentDebate" => TournamentDebate::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentDebate(e)).collect_vec(),
+            "Team" => Team::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Team(e)).collect_vec(),
+            _ => panic!("Unknown entity type {}", type_)
+        };
+        all_new_entities.extend(new_entities);
+    };
+    Ok(all_new_entities)
 }
