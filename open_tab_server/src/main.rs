@@ -308,7 +308,6 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
                                 )
                             )
                         ).all(db.inner()).await.map_err(handle_error)?;
-                        dbg!(relevant_debates);
                     }
                 }
             },

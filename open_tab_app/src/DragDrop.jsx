@@ -63,7 +63,6 @@ export function DropList(props) {
 
 
 export function DropWell(props) {
-    console.log(props.children);
     return (
         <div>
             <DropSlot collection={props.collection} type={props.type}>

@@ -9,6 +9,7 @@ import {CSS} from '@dnd-kit/utilities';
 
 import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
+import { useView, updatePath, getPath, clone } from './View.js'
 
 function TeamItem(props) {
   return <div>
@@ -38,72 +39,50 @@ function DebateRow(props) {
   return (
     <tr>
       <td>
-        <DropWell type="team" collection={[props.debate.index, "ballot", "government"]}>
-          {ballot.government !== null ? [<TeamItem team={ballot.government} />] : []}
+        <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
+          {ballot.government !== null ? <TeamItem team={ballot.government} /> : []}
         </DropWell>
         <br />
-        <DropWell type="team" collection={[props.debate.index, "ballot", "opposition"]}>
-          {ballot.opposition !== null ? [<TeamItem team={ballot.opposition} />] : []}
+        <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
+          {ballot.opposition !== null ? <TeamItem team={ballot.opposition} /> : []}
         </DropWell>
       </td>
       <td>
-        <DropList type="speaker" collection={[props.debate.index, "ballot", "non_aligned_speakers"]}>
+        <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
           {ballot.non_aligned_speakers.map((speaker) => <SpeakerItem key={speaker.uuid} speaker={speaker} />)}
         </DropList>
       </td>
       <td>
-        <DropList type="adjudicator" collection={[props.debate.index, "ballot", "adjudicators"]}>
+        <DropList type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
           {ballot.adjudicators.map((adjudicator) => <AdjudicatorItem key={adjudicator.uuid} adjudicator={adjudicator} />)}
         </DropList>
       </td>
       <td>
-        <DropWell type="adjudicator" collection={[props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
+        <DropWell type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
       </td>
     </tr>
   );
 }
 
-
-function getPath(obj, path) {
-  return path.reduce((acc, part) => acc[part], obj);
-}
-
-
-function clone(e) {
-  return structuredClone(e);
-}
-
-function updatePath(obj, path, new_val) {
-  if (path.length == 0) {
-    return new_val;
-  }
-  let child = obj[path[0]];
-
-  let val = updatePath(child, path.slice(1), new_val)
-  obj[path[0]] = val;
-
-  return obj;
-}
-
 function simulateDragOutcome(draw, from, to, isSwap) {
-  var from_debate = clone(draw[from.collection[0]]);
+  var from_debate = clone(draw.debates[from.collection[1]]);
 
   var to_debate;
-  if (from.collection[0] == to.collection[0]) {
+  if (from.collection[1] == to.collection[1]) {
     to_debate = from_debate;
   }
   else {
-    to_debate = clone(draw[to.collection[0]]);
+    to_debate = clone(draw.debates[to.collection[1]]);
   }
 
-  var from_collection = getPath(from_debate, from.collection.slice(1));
+  var from_collection = getPath(draw, from.collection);
   var to_collection;
 
   if (from.collection == to.collection) {
     to_collection = from_collection
   }
   else {
-    to_collection = getPath(to_debate, to.collection.slice(1));
+    to_collection = getPath(draw, to.collection);
   }
 
   if (to.index !== undefined && from.index !== undefined) {
@@ -145,22 +124,23 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     to_collection = tmp;
   }
 
-  updatePath(from_debate, from.collection.slice(1), from_collection);
-  updatePath(to_debate, to.collection.slice(1), to_collection);
+  updatePath(from_debate, from.collection.slice(2), from_collection);
+  updatePath(to_debate, to.collection.slice(2), to_collection);
 
-  if (from.collection[0] == to.collection[0]) {
-    return {[from.collection[0]]: from_debate};
+  if (from.collection[1] == to.collection[1]) {
+    return {[from.collection[1]]: from_debate};
   }
   else {
-    return {[from.collection[0]]: from_debate, [to.collection[0]]: to_debate};
+    return {[from.collection[1]]: from_debate, [to.collection[0]]: to_debate};
   }
 }
 
 function DrawEditor(props) {
-  const [draw, setDraw] = useState([]);
+  //const [draw, setDraw] = useState([]);
 
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
+    console.log(changedDebates)
 
     invoke("execute_action", {
       action: {
@@ -170,9 +150,10 @@ function DrawEditor(props) {
         }
       }
     }).then((msg) => {
+      console.log(msg);
       console.log(`Action success`);
     });
-
+    /*
     let newDraw = structuredClone(draw);
 
     for (let [index, debate] of Object.entries(changedDebates)) {
@@ -180,51 +161,21 @@ function DrawEditor(props) {
     }
 
     setDraw(newDraw);
+    */
   }
 
   let currentView = {type: "Draw", uuid: props.round_uuid};
-  useEffect(() => {
-    invoke("subscribe_to_view", {view: currentView}).then((msg) => {
-      console.log(msg);
-      let draw = JSON.parse(msg["success"]);
-      setDraw(draw.debates);
-    });
-  }, [props.round_uuid]);
-
-  useEffect(
-    () => {
-        const unlisten = listen('views-changed', (event) => {
-          console.log(event.payload);
-
-          let relevant_changes = event.payload.changes.filter((change) => change.view.uuid == currentView.uuid && change.view.type == currentView.type);
-          console.log(relevant_changes)
-
-          if (relevant_changes.length > 0) {
-            console.log(relevant_changes);
-            let updated_paths = relevant_changes[0].updated_paths;
-            let new_draw = [...draw];
-            for (var change_path in updated_paths) {
-              let parsed_change_path = change_path.split(".").map(e => !isNaN(e) ? parseInt(e) : e).slice(1);
-              updatePath(new_draw, parsed_change_path, changes[change_path])
-            }
-            setDraw(new_draw);
-          }
-        })
-
-        return () => {
-            unlisten.then((unlisten) => unlisten())
-        }
-    },
-  [draw]
-  );
+  let draw = useView(currentView, {"debates": []});
+  let debates = draw.debates;
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
 
+  console.log(draw);
   return <div>
     <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <table>
         <tbody>
-          {draw.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
+          {debates.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
         </tbody>
       </table>
     </DndContext>

@@ -12,6 +12,7 @@ import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 import DrawEditor from "./Draw";
 import { Outlet, Route, useParams } from "react-router";
 import { Link } from "react-router-dom";
+import { useView } from "./View";
 
 
 function NavGroup(props) {
@@ -32,28 +33,8 @@ function NavItem(props) {
 function SideNav(props) {
   let currentView = {type: "RoundsOverview", tournament_uuid: "00000000-0000-0000-0000-000000000001"};
 
-  let [rounds, setRounds] = useState([]);
-
-  useEffect(() => {
-    invoke("subscribe_to_view", {view: currentView}).then((msg) => {
-      let rounds = JSON.parse(msg["success"]);
-      console.log(rounds.rounds);
-      setRounds(rounds.rounds);
-    });
-  }, []);
-
-  useEffect(
-    () => {
-        const unlisten = listen('views-changed', (event) => {
-          console.log("Reload")
-        })
-
-        return () => {
-            unlisten.then((unlisten) => unlisten())
-        }
-    },
-  [rounds]
-  );
+  let roundsOverview = useView(currentView, {"rounds": []});
+  let rounds = roundsOverview.rounds;
 
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
     <NavGroup header="Rounds">

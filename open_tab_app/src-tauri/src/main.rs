@@ -215,7 +215,6 @@ fn main() {
                 let target_uuid = Uuid::from_u128(1);
                 let client = reqwest::Client::new();
 
-                println!("Start");
                 loop {        
                     let db = &*app_handle.state::<DatabaseConnection>();
 
@@ -282,7 +281,7 @@ fn main() {
                 //let emit_result = app_handle.emit_all("app_event", "Hello Tauri!"); // Run this in a loop {} or whatever you want to do with the handle
               };
         
-            tauri::async_runtime::spawn(synchronization_function);
+            //tauri::async_runtime::spawn(synchronization_function);
             Ok(())  
         })
         .run(tauri::generate_context!())
