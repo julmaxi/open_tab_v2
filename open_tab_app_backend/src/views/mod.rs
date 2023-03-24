@@ -1,8 +1,10 @@
 pub mod draw_view;
 pub mod tab_view;
+pub mod rounds_view;
 mod base;
 
 pub use self::base::LoadedView;
+use self::rounds_view::LoadedRoundsView;
 
 use std::error::Error;
 
@@ -15,17 +17,12 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(tag = "type")]
 pub enum View {
-    Draw{uuid: Uuid}
+    Draw{uuid: Uuid},
+    RoundsOverview{tournament_uuid: Uuid},
 }
 
 impl View {
     pub async fn load_json<C>(&self, db: &C) -> Result<String, Box<dyn Error>> where C: ConnectionTrait {
-        /*match self {
-            View::Draw{uuid} => {
-                let draw_view = DrawView::load(db, *uuid).await?;
-                Ok(serde_json::to_string(&draw_view)?)
-            }
-        }*/
         let view = self.load(db).await?;
         view.view_string().await
     }
@@ -34,6 +31,9 @@ impl View {
         Ok(match self {
             View::Draw{uuid} => {
                 Box::new(LoadedDrawView::load(db, *uuid).await?)
+            }
+            View::RoundsOverview { tournament_uuid } => {
+                Box::new(LoadedRoundsView::load(db, *tournament_uuid).await?)
             }
         })
     }

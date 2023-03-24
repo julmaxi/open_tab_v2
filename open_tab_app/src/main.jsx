@@ -1,10 +1,30 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import {App, DrawEditorRoute} from "./App";
 import "./styles.css";
+import {
+  createMemoryRouter,
+  RouterProvider,
+} from "react-router-dom";
+
+
+const router = createMemoryRouter([
+  {
+    path: "/",
+    element: <App />,
+    children: [
+      {
+        path: "round/:roundId/draw",
+        element: <DrawEditorRoute />,
+      },
+    ],
+  },
+]);
+
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );

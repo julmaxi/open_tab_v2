@@ -38,9 +38,13 @@ function DebateRow(props) {
   return (
     <tr>
       <td>
-        <DropWell type="team" collection={[props.debate.index, "ballot", "government"]}><TeamItem team={ballot.government} /></DropWell>
+        <DropWell type="team" collection={[props.debate.index, "ballot", "government"]}>
+          {ballot.government !== null ? [<TeamItem team={ballot.government} />] : []}
+        </DropWell>
         <br />
-        <DropWell type="team" collection={[props.debate.index, "ballot", "opposition"]}><TeamItem team={ballot.opposition} /></DropWell>
+        <DropWell type="team" collection={[props.debate.index, "ballot", "opposition"]}>
+          {ballot.opposition !== null ? [<TeamItem team={ballot.opposition} />] : []}
+        </DropWell>
       </td>
       <td>
         <DropList type="speaker" collection={[props.debate.index, "ballot", "non_aligned_speakers"]}>
@@ -152,7 +156,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
   }
 }
 
-function DrawEditor() {
+function DrawEditor(props) {
   const [draw, setDraw] = useState([]);
 
   function onDragEnd(from, to, isSwap) {
@@ -178,14 +182,14 @@ function DrawEditor() {
     setDraw(newDraw);
   }
 
-  let currentView = {type: "Draw", uuid: "00000000-0000-0000-0000-000000000064"};
+  let currentView = {type: "Draw", uuid: props.round_uuid};
   useEffect(() => {
     invoke("subscribe_to_view", {view: currentView}).then((msg) => {
       console.log(msg);
       let draw = JSON.parse(msg["success"]);
       setDraw(draw.debates);
     });
-  }, []);
+  }, [props.round_uuid]);
 
   useEffect(
     () => {

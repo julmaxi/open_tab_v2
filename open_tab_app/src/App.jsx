@@ -10,6 +10,8 @@ import {CSS} from '@dnd-kit/utilities';
 
 import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 import DrawEditor from "./Draw";
+import { Outlet, Route, useParams } from "react-router";
+import { Link } from "react-router-dom";
 
 
 function NavGroup(props) {
@@ -23,16 +25,39 @@ function NavGroup(props) {
 
 function NavItem(props) {
   return <div className="ml-3">
-    {props.children}
+    <Link to={props.href}>{props.children}</Link>
   </div>
 }
 
 function SideNav(props) {
+  let currentView = {type: "RoundsOverview", tournament_uuid: "00000000-0000-0000-0000-000000000001"};
+
+  let [rounds, setRounds] = useState([]);
+
+  useEffect(() => {
+    invoke("subscribe_to_view", {view: currentView}).then((msg) => {
+      let rounds = JSON.parse(msg["success"]);
+      console.log(rounds.rounds);
+      setRounds(rounds.rounds);
+    });
+  }, []);
+
+  useEffect(
+    () => {
+        const unlisten = listen('views-changed', (event) => {
+          console.log("Reload")
+        })
+
+        return () => {
+            unlisten.then((unlisten) => unlisten())
+        }
+    },
+  [rounds]
+  );
+
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
     <NavGroup header="Rounds">
-      <NavItem>Runde 1</NavItem>
-      <NavItem>Runde 2</NavItem>
-      <NavItem>Runde 3</NavItem>
+      {rounds.map((round) => <NavItem href={`/round/${round.uuid}/draw`} key={round.uuid}>{round.name}</NavItem>)}      
     </NavGroup>
   </nav>
 }
@@ -49,17 +74,20 @@ function WindowFrame(props) {
   return <div className="flex h-screen overscroll-none">
     <SideNav />
     <Main>
-      {props.children}
+      <Outlet />
     </Main>
   </div>
 }
 
-function App() {
+export function App() {
   return <div className="overscroll-none">
-    <WindowFrame>
-      <DrawEditor />
-    </WindowFrame>
+    <WindowFrame />
   </div>
+}
+
+export function DrawEditorRoute() {
+  let { roundId } = useParams();
+  return <DrawEditor round_uuid={roundId} />;
 }
 
 export default App;
