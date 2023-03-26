@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useState, useMemo } from "react";
-import { useView } from "./View";
+import { executeAction } from "./Action";
+import { getPath, useView } from "./View";
 
 
 function EditableCell(props) {
@@ -35,9 +36,10 @@ function EditableCell(props) {
             }
         } onBlur= {
             (event) => {
+                let value = event.target.value;
                 setLocalValue(null);
                 setEdit(false);
-                props.onChange(localValue);
+                props.onChange(value);
             }
         } onFocus = {
             (event) => {
@@ -69,7 +71,6 @@ function SortableTable(props) {
                 let row = orderedRows[i];
                 for (let [col, groups] of colGroups) {
                     let currentGroup = groups[groups.length - 1];
-                    console.log(groups, currentGroup, row[col.key])
                     if (currentGroup === undefined || currentGroup.val !== row[col.key]) {
                         currentGroup = {val: row[col.key], size: 1, start: i};
                         groups.push(currentGroup);
@@ -84,7 +85,6 @@ function SortableTable(props) {
             return {orderedRows, groups: colGroups};
         }, [props.data, sortOrder]
     );
-    console.log("ABC", orderedRows, groups);
 
     function handleSort(column_key) {
         return (event) => {
@@ -116,7 +116,7 @@ function SortableTable(props) {
                                 let val = row[column.key];
                                 let rowSpan = groups.get(column)?.[rowIdx]?.size ?? 1;
 
-                                return column.isEditable ? <EditableCell key={idx} value={val} /> : <td rowSpan={rowSpan} key={idx} className="">{val}</td>
+                                return column.cellFactory !== undefined ? column.cellFactory(val, rowIdx, idx, row) : <td rowSpan={rowSpan} key={idx} className="">{val}</td>
                             }
                         )
                     }
@@ -128,31 +128,59 @@ function SortableTable(props) {
 
 
 function ParticipantTable(props) {
-    let flatTable = [];
-    for (let team of props.participants.teams) {
-        for (let speaker of team.members) {
+    //let flatTable = [];
+
+    /*
+    for (let [_, team] of Object.entries(props.participants.teams)) {
+        for (let [_, speaker] of Object.entries(team.members)) {
             flatTable.push({
                 "uuid": speaker.uuid,
                 "role": team.name,
                 "name": speaker.name,
-                "institutions": speaker.institutions
+                "institutions": speaker.institutions,
+
             });
         }
-    }
+    }*/
 
-    for (let adjudicator of props.participants.adjudicators) {
-        flatTable.push({
-            "uuid": adjudicator.uuid,
-            "role": "Adjudicator",
-            "name": adjudicator.name,
-            "institutions": adjudicator.institutions
-        });
-    }
+    let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
+        return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
+            return {
+                "uuid": speaker.uuid,
+                "role": team.name,
+                "name": speaker.name,
+                "institutions": speaker.institutions,
+                "path": ["teams", team_uuid, "members", speaker_uuid]
+            }
+        })
+    });
+
+    flatTable.push(...Object.entries(props.participants.adjudicators).map(
+        ([adjudicator_uuid, adjudicator]) => {
+            return {
+                "uuid": adjudicator.uuid,
+                "role": "Adjudicator",
+                "name": adjudicator.name,
+                "institutions": adjudicator.institutions,
+                "path": ["adjudicators", adjudicator_uuid]
+            }
+        }
+    ))
 
     return <SortableTable data={flatTable} row_id="uuid" columns={
         [
             { "key": "role", "header": "Role", "group": true },
-            { "key": "name", "header": "Name", isEditable: true },
+            { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
+                return <EditableCell key={colIdx} value={value} onChange={
+                    (newName) => {
+                        console.log(rowValue);
+                        let newParticipant = {... getPath(props.participants, rowValue.path)};
+                        console.log(newParticipant);
+                        newParticipant.name = newName;
+                        executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: "00000000-0000-0000-0000-000000000001"})
+                    }
+                } />
+            } },
             { "key": "institutions", "header": "Institutions" }
         ]
     } />
@@ -162,7 +190,7 @@ function ParticipantTable(props) {
 export function ParticipantOverview() {
     let currentView = {type: "ParticipantsList", tournament_uuid: "00000000-0000-0000-0000-000000000001"};
 
-    let participants = useView(currentView, {"teams": [], "adjudicators": []});
+    let participants = useView(currentView, {"teams": {}, "adjudicators": {}});
 
     return <div>
         <ParticipantTable participants={participants} />

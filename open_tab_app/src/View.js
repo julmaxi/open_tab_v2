@@ -24,8 +24,13 @@ export function useView(viewDef, defaultVal) {
                 let updatedPaths = relevant_changes[0].updated_paths;
                 let new_view = {...view};
                 for (var change_path in updatedPaths) {
-                    let parsed_change_path = change_path.split(".").map(e => !isNaN(e) ? parseInt(e) : e);
-                    updatePath(new_view, parsed_change_path, updatedPaths[change_path])
+                    if (change_path === ".") {
+                        new_view = updatedPaths[change_path];
+                    }
+                    else {
+                        let parsed_change_path = change_path.split(".").map(e => !isNaN(parseInt(e)) ? parseInt(e) : e);
+                        updatePath(new_view, parsed_change_path, updatedPaths[change_path])    
+                    }
                 }
                 setView(new_view);
             }

@@ -193,3 +193,22 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_change_participant_name() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let mut participant = Participant {
+        uuid: Uuid::from_u128(440),
+        name: "Test".into(),
+        role: ParticipantRole::Adjudicator(Adjudicator{}),
+        tournament_id: Uuid::from_u128(1),
+    };
+
+    participant.save(&db, true).await?;
+
+    participant.name = "New Name".into();
+
+    test_participant_roundtrip_in_db(&db, participant, false).await?;
+
+    Ok(())
+}

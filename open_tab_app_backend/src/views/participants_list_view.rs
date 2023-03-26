@@ -1,6 +1,4 @@
 use sea_orm::prelude::Uuid;
-use std::fmt::Display;
-use std::hash::Hash;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -9,14 +7,11 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use open_tab_entities::prelude::*;
 
-use open_tab_entities::schema::{self, tournament_round, adjudicator};
 use open_tab_entities::domain;
 
-use itertools::izip;
 use itertools::Itertools;
 
 use crate::LoadedView;
-use itertools::partition;
 
 pub struct LoadedParticipantsListView {
     pub view: ParticipantsListView,
@@ -41,7 +36,7 @@ impl LoadedParticipantsListView {
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
-        if changes.rounds.len() > 0 {
+        if changes.participants.len() > 0 || changes.teams.len() > 0 {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out = HashMap::new();
@@ -61,29 +56,31 @@ impl LoadedView for LoadedParticipantsListView {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticipantsListView {
-    adjudicators: Vec<AdjudicatorEntry>,
-    teams: Vec<TeamEntry>,
+    pub adjudicators: HashMap<Uuid, ParticipantEntry>,
+    pub teams: HashMap<Uuid, TeamEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeamEntry {
-    uuid: Uuid,
-    name: String,
-    members: Vec<SpeakerEntry>,
+    pub uuid: Uuid,
+    pub name: String,
+    pub members: HashMap<Uuid, ParticipantEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpeakerEntry {
-    uuid: Uuid,
-    name: String,
+pub struct ParticipantEntry {
+    pub uuid: Uuid,
+    pub name: String,
+    #[serde(flatten)]
+    pub role: ParticipantRole
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdjudicatorEntry {
-    uuid: Uuid,
-    name: String,
+#[serde(tag = "type")]
+pub enum ParticipantRole {
+    Speaker{team_id: Uuid},
+    Adjudicator{}
 }
-
 
 
 impl ParticipantsListView {
@@ -97,9 +94,10 @@ impl ParticipantsListView {
         });
 
         let adjudicators = adjudicators.into_iter().map(|p| {
-            AdjudicatorEntry {
+            ParticipantEntry {
                 uuid: p.uuid,
-                name: p.name
+                name: p.name,
+                role: ParticipantRole::Adjudicator {  }
             }
         }).collect_vec();
 
@@ -109,9 +107,10 @@ impl ParticipantsListView {
                     Speaker { team_id }
                 ) => {
                     if let Some(team_id) = team_id {
-                        Some((team_id, SpeakerEntry {
+                        Some((team_id, ParticipantEntry {
                             uuid: p.uuid,
-                            name: p.name
+                            name: p.name,
+                            role: ParticipantRole::Speaker { team_id  }
                         }))
                     }
                     else {
@@ -129,14 +128,14 @@ impl ParticipantsListView {
             TeamEntry {
                 uuid: team_id,
                 name: team_names.get(&team_id).unwrap().clone(),
-                members: speakers
+                members: speakers.into_iter().map(|s| (s.uuid, s)).collect()
             }
         }).collect_vec();
 
         Ok(
             ParticipantsListView {
-                adjudicators,
-                teams
+                adjudicators: adjudicators.into_iter().map(|a| (a.uuid, a)).collect(),
+                teams: teams.into_iter().map(|t| (t.uuid, t)).collect()
             }
         )
     }

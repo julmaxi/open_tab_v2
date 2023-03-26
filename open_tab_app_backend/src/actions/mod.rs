@@ -11,20 +11,25 @@ use serde::{Serialize, Deserialize};
 
 mod base;
 mod update_draw;
+mod update_participant;
 
-use self::base::ActionTrait;
-use self::update_draw::UpdateDrawAction;
+pub use self::base::ActionTrait;
+pub use self::update_draw::UpdateDrawAction;
+pub use self::update_participant::UpdateParticipantsAction;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Action {
-    UpdateDraw{action: UpdateDrawAction}
+    UpdateDraw{action: UpdateDrawAction},
+    UpdateParticipants{action: UpdateParticipantsAction}
 }
 
 impl Action {
     pub async fn execute<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
         match self {
-            Action::UpdateDraw{action} => action.get_changes(db).await
+            Action::UpdateDraw{action} => action.get_changes(db).await,
+            Action::UpdateParticipants{action} => action.get_changes(db).await
         }
     }
 }

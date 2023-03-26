@@ -140,28 +140,10 @@ function DrawEditor(props) {
 
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
-    console.log(changedDebates)
 
-    invoke("execute_action", {
-      action: {
-        type: "UpdateDraw",
-        action: {
-          updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
-        }
-      }
-    }).then((msg) => {
-      console.log(msg);
-      console.log(`Action success`);
+    executeAction("execute_action", {
+        updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
     });
-    /*
-    let newDraw = structuredClone(draw);
-
-    for (let [index, debate] of Object.entries(changedDebates)) {
-      newDraw[index] = debate;
-    }
-
-    setDraw(newDraw);
-    */
   }
 
   let currentView = {type: "Draw", uuid: props.round_uuid};

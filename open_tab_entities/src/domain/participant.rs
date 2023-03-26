@@ -181,7 +181,16 @@ impl TournamentEntity for Participant {
         let mut adj_changes = ChangeSet::new(schema::adjudicator::Column::Uuid);
 
         for ent in entities {
+            let mut participant_change = schema::participant::ActiveModel {
+                uuid: ActiveValue::Unchanged(ent.uuid),
+                tournament_id: ActiveValue::Set(ent.tournament_id),
+                name: ActiveValue::Set(ent.name.clone())
+            };
+
             if let Some((_part_model, adj_model, speaker_model)) = existing.get(&ent.uuid) {
+                participant_changes.update.push(
+                    participant_change
+                );
                 match (&ent.role, adj_model, speaker_model) {
                     (_, None, None) => panic!("Participant has no role"),
                     (_, Some(_), Some(_)) => panic!("Participant has two roles"),
@@ -216,11 +225,10 @@ impl TournamentEntity for Participant {
                 };
             }
             else {
-                participant_changes.insert.push(schema::participant::ActiveModel {
-                    uuid: ActiveValue::Set(ent.uuid),
-                    tournament_id: ActiveValue::Set(ent.tournament_id),
-                    name: ActiveValue::Set(ent.name.clone())
-                });
+                participant_change.uuid = ActiveValue::Set(ent.uuid);
+                participant_changes.insert.push(
+                    participant_change
+                );
 
                 match &ent.role {
                     ParticipantRole::Speaker(speaker) => {

@@ -6,7 +6,7 @@ use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, Speaker
 use sea_orm::{prelude::*, Database, Statement};
 
 
-use open_tab_app_backend::{UpdateDrawAction, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker}, ActionTrait, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_app_backend::{actions::UpdateDrawAction, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker}, actions::ActionTrait, mock::{make_mock_tournament_with_options, MockOption}};
 
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
