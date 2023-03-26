@@ -1,10 +1,12 @@
 pub mod draw_view;
 pub mod tab_view;
 pub mod rounds_view;
+pub mod participants_list_view;
 mod base;
 
 pub use self::base::LoadedView;
 use self::rounds_view::LoadedRoundsView;
+use self::participants_list_view::LoadedParticipantsListView;
 
 use std::error::Error;
 
@@ -19,6 +21,7 @@ use serde::{Serialize, Deserialize};
 pub enum View {
     Draw{uuid: Uuid},
     RoundsOverview{tournament_uuid: Uuid},
+    ParticipantsList{tournament_uuid: Uuid},
 }
 
 impl View {
@@ -34,6 +37,9 @@ impl View {
             }
             View::RoundsOverview { tournament_uuid } => {
                 Box::new(LoadedRoundsView::load(db, *tournament_uuid).await?)
+            }
+            View::ParticipantsList { tournament_uuid } => {
+                Box::new(LoadedParticipantsListView::load(db, *tournament_uuid).await?)
             }
         })
     }

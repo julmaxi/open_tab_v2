@@ -6,6 +6,7 @@ import {
   createMemoryRouter,
   RouterProvider,
 } from "react-router-dom";
+import { ParticipantOverview } from "./ParticipantOverview";
 
 
 const router = createMemoryRouter([
@@ -17,6 +18,10 @@ const router = createMemoryRouter([
         path: "round/:roundId/draw",
         element: <DrawEditorRoute />,
       },
+      {
+        index: true,
+        element: <ParticipantOverview />
+      }
     ],
   },
 ]);

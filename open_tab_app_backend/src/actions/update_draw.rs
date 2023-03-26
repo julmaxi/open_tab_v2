@@ -9,19 +9,7 @@ use sea_orm::prelude::*;
 use crate::draw_view::DrawBallot;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum Action {
-    UpdateDraw{action: UpdateDrawAction}
-}
-
-impl Action {
-    pub async fn execute<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        match self {
-            Action::UpdateDraw{action} => action.get_changes(db).await
-        }
-    }
-}
+use super::ActionTrait;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateDrawAction {
@@ -39,11 +27,6 @@ impl Display for UpdateDrawError {
 }
 
 impl Error for UpdateDrawError {}
-
-#[async_trait]
-pub trait ActionTrait {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait;
-}
 
 #[async_trait]
 impl ActionTrait for UpdateDrawAction {
