@@ -1,4 +1,4 @@
-use std::{fmt::Display, error::Error, collections::HashMap, marker::PhantomData, vec};
+use std::{fmt::Display, error::Error, collections::{HashMap, HashSet, hash_map::RandomState}, marker::PhantomData, vec};
 
 use async_trait::async_trait;
 use itertools::{izip, Itertools};
@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use sea_query::ValueTuple;
 
 
-use crate::{schema::{self, adjudicator, speaker}, utilities::{BatchLoad, BatchLoadError}};
+use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution}, utilities::{BatchLoad, BatchLoadError}};
 
 use super::TournamentEntity;
 
@@ -98,7 +98,7 @@ impl Participant {
     async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let adjudicators = participants.load_one(schema::adjudicator::Entity, db).await?;
         let speakers = participants.load_one(schema::speaker::Entity, db).await?;
-        let institutions = participants.load_many(schema::participant_tournament_institution::Entity, db).await?;
+        let institutions = participants.load_many(participant_tournament_institution::Entity, db).await?;
         
         let out : Result<Vec<Participant>, ParticipantParseError> = izip!(participants.into_iter(), speakers.into_iter(), adjudicators.into_iter(), institutions.into_iter())
         .map(|(part, speaker, adj, inst)| {
@@ -112,7 +112,7 @@ impl Participant {
         participant: schema::participant::Model,
         speaker_info: Option<schema::speaker::Model>,
         adjudicator_info: Option<schema::adjudicator::Model>,
-        institution_info: Vec<schema::participant_tournament_institution::Model>
+        institution_info: Vec<participant_tournament_institution::Model>
     ) -> Result<Self, ParticipantParseError> {
         let role = match (speaker_info, adjudicator_info) {
             (None, None) => panic!("Database constraint violated. Participant has neither adjudicator nor speaker info"),
@@ -188,7 +188,7 @@ impl<A, C, E, P> ChangeSet<A, C> where A: ActiveModelTrait<Entity = E> + IntoAct
 impl TournamentEntity for Participant {
     async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
         let existing = if guarantee_insert {
-            (vec![], vec![], vec![])
+            (vec![], vec![], vec![], vec![])
         }
         else {
             let participants = schema::participant::Entity::find()
@@ -197,15 +197,21 @@ impl TournamentEntity for Participant {
             
             let adjs = participants.load_one(adjudicator::Entity, db).await?;
             let speakers = participants.load_one(speaker::Entity, db).await?;
+            let institutions = participants.load_many(participant_tournament_institution::Entity, db).await?;
 
-            (participants, adjs, speakers)
+            (participants, adjs, speakers, institutions)
         };
 
-        let existing : HashMap<Uuid, _, std::collections::hash_map::RandomState> = HashMap::from_iter(izip!(existing.0, existing.1, existing.2).into_iter().map(|e| (e.0.uuid.clone(), e)));
+        let existing : HashMap<Uuid, _, std::collections::hash_map::RandomState> = HashMap::from_iter(izip!(existing.0, existing.1, existing.2, existing.3).into_iter().map(|e| (e.0.uuid.clone(), e)));
 
         let mut participant_changes = ChangeSet::new(schema::participant::Column::Uuid);
         let mut speaker_changes = ChangeSet::new(schema::speaker::Column::Uuid);
         let mut adj_changes = ChangeSet::new(schema::adjudicator::Column::Uuid);
+        // Institutions have a composite primary key, so we can't use ChangeSet
+        let mut institution_insertions = vec![];
+        let mut institution_updates = vec![];
+        let mut institution_deletes = vec![];
+
 
         for ent in entities {
             let mut participant_change = schema::participant::ActiveModel {
@@ -214,7 +220,7 @@ impl TournamentEntity for Participant {
                 name: ActiveValue::Set(ent.name.clone())
             };
 
-            if let Some((_part_model, adj_model, speaker_model)) = existing.get(&ent.uuid) {
+            if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
                 participant_changes.update.push(
                     participant_change
                 );
@@ -250,6 +256,34 @@ impl TournamentEntity for Participant {
                         );
                     },
                 };
+
+                let mut existing_institutions : HashMap<Uuid, &participant_tournament_institution::Model, RandomState> = HashMap::from_iter(institution_models.into_iter().map(|x| (x.institution_id, x)));
+                for institution in ent.institutions.iter() {
+                    let previous_inst = existing_institutions.remove(&institution.uuid);
+                    let mut update = participant_tournament_institution::ActiveModel {
+                        participant_id: ActiveValue::Unchanged(ent.uuid),
+                        institution_id: ActiveValue::Set(institution.uuid),
+                        clash_strength: ActiveValue::Set(institution.clash_strength)
+                    };
+
+                    if let Some(_) = previous_inst {
+                        institution_updates.push(
+                            update
+                        )
+                    }
+                    else {
+                        update.participant_id = ActiveValue::Set(ent.uuid);
+                        institution_insertions.push(
+                            update
+                        )
+                    }
+                }
+
+                for inst in existing_institutions.values() {
+                    institution_deletes.push(
+                        (inst.clone().clone()).into_active_model()
+                    )
+                }
             }
             else {
                 participant_change.uuid = ActiveValue::Set(ent.uuid);
@@ -272,12 +306,32 @@ impl TournamentEntity for Participant {
                         });
                     },
                 }
+
+                institution_insertions.extend(ent.institutions.iter().map(
+                    |institution| participant_tournament_institution::ActiveModel {
+                        participant_id: ActiveValue::Unchanged(ent.uuid),
+                        institution_id: ActiveValue::Set(institution.uuid),
+                        clash_strength: ActiveValue::Set(institution.clash_strength)
+                    }
+                ).collect_vec());
             }
         }
 
         participant_changes.exec(db).await?;
         speaker_changes.exec(db).await?;
         adj_changes.exec(db).await?;
+
+        for insert in institution_insertions {
+            insert.insert(db).await?;
+        }
+
+        for update in institution_updates {
+            update.update(db).await?;
+        }
+
+        for delete in institution_deletes {
+            delete.delete(db).await?;
+        }
 
         Ok(())
     }

@@ -12,11 +12,12 @@ use serde::{Serialize, Deserialize};
 mod base;
 mod update_draw;
 mod update_participant;
+mod upload_participants_list;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
 pub use self::update_participant::UpdateParticipantsAction;
-
+pub use self::upload_participants_list::UploadParticipantsListAction;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]

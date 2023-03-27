@@ -2,7 +2,7 @@ use std::error::Error;
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole}, ballot::Ballot, TournamentEntity};
+use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity};
 use sea_orm::prelude::*;
 
 
@@ -16,11 +16,19 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
     ).await?;
 
     if with_mock_env {
-        let a : open_tab_entities::schema::tournament::ActiveModel = open_tab_entities::schema::tournament::Model {
+        let tournament : open_tab_entities::schema::tournament::ActiveModel = open_tab_entities::schema::tournament::Model {
             uuid: Uuid::from_u128(1),
         }.into();
-        a.insert(&db).await?;
-         open_tab_entities::schema::team::Entity::insert_many(vec![
+        tournament.insert(&db).await?;
+        open_tab_entities::schema::tournament_institution::Entity::insert(
+            open_tab_entities::schema::tournament_institution::ActiveModel {
+                tournament_id: ActiveValue::Set(Uuid::from_u128(1)),
+                uuid: ActiveValue::Set(Uuid::from_u128(500)),
+                name: ActiveValue::Set("Testclub".into()),
+            }
+        ).exec(&db).await?;
+
+        open_tab_entities::schema::team::Entity::insert_many(vec![
             open_tab_entities::schema::team::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(200)),
                 name: ActiveValue::Set("Team 1".into()),
@@ -146,7 +154,12 @@ async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
             team_id: Some(Uuid::from_u128(200))
         }),
         tournament_id: Uuid::from_u128(1),
-        institutions: vec![]
+        institutions: vec![
+            ParticipantInstitution {
+                uuid: Uuid::from_u128(500),
+                clash_strength: 20
+            }
+        ]
     }, true).await?;
 
     Ok(())

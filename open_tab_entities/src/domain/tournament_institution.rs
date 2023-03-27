@@ -12,7 +12,8 @@ use super::TournamentEntity;
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub struct TournamentInstitution {
     pub uuid: Uuid,
-    pub name: String
+    pub name: String,
+    pub tournament_id: Uuid
 }
 
 
@@ -56,7 +57,8 @@ impl TournamentInstitution {
         Ok(institutions.into_iter().map(|institution| {
             institution.map(|institution| TournamentInstitution {
                 uuid: institution.uuid,
-                name: institution.name
+                name: institution.name,
+                tournament_id: institution.tournament_id
             })
         }).collect())
     }
@@ -70,7 +72,8 @@ impl TournamentInstitution {
         Ok(institutions.into_iter().map(|institution| {
             TournamentInstitution {
                 uuid: institution.uuid,
-                name: institution.name
+                name: institution.name,
+                tournament_id: institution.tournament_id
             }
         }).collect())
     }
@@ -79,14 +82,16 @@ impl TournamentInstitution {
 #[async_trait]
 impl TournamentEntity for TournamentInstitution {
     async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
-        let model = schema::tournament::ActiveModel {
+        let model = schema::tournament_institution::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
+            name: ActiveValue::Set(self.name.clone()),
+            tournament_id: ActiveValue::Set(self.tournament_id)
         };
         if guarantee_insert {
             model.insert(db).await?;
         }
         else {
-            let existing_model = schema::tournament::Entity::find().filter(schema::tournament::Column::Uuid.eq(self.uuid)).one(db).await?;
+            let existing_model = schema::tournament_institution::Entity::find().filter(schema::tournament_institution::Column::Uuid.eq(self.uuid)).one(db).await?;
             if let Some(_) = existing_model {
                 model.update(db).await?;
             }
@@ -99,8 +104,8 @@ impl TournamentEntity for TournamentInstitution {
     }
 
     async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
-        return Ok(entities.iter().map(|tournament| {
-            Some(tournament.uuid)
+        return Ok(entities.iter().map(|i| {
+            Some(i.tournament_id)
         }).collect());
     }
 }

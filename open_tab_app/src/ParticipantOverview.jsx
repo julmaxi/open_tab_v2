@@ -1,9 +1,11 @@
 //@ts-check
 
-import React from "react";
+import React, { useCallback, useContext } from "react";
 import { useState, useMemo } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
+import { open } from '@tauri-apps/api/dialog';
+import { TournamentContext } from "./TournamentContext";
 
 
 function EditableCell(props) {
@@ -128,21 +130,6 @@ function SortableTable(props) {
 
 
 function ParticipantTable(props) {
-    //let flatTable = [];
-
-    /*
-    for (let [_, team] of Object.entries(props.participants.teams)) {
-        for (let [_, speaker] of Object.entries(team.members)) {
-            flatTable.push({
-                "uuid": speaker.uuid,
-                "role": team.name,
-                "name": speaker.name,
-                "institutions": speaker.institutions,
-
-            });
-        }
-    }*/
-
     let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
@@ -167,6 +154,12 @@ function ParticipantTable(props) {
         }
     ))
 
+    flatTable = flatTable.map((r) => {
+        let row = {...r};
+        row.institutions = row.institutions.map((i) => i.name).join(", ");
+        return row;
+    });
+
     return <SortableTable data={flatTable} row_id="uuid" columns={
         [
             { "key": "role", "header": "Role", "group": true },
@@ -187,12 +180,273 @@ function ParticipantTable(props) {
 }
 
 
+function DialogWindow(props) {
+    return <div className="bg-white p-8">
+        {props.children}
+    </div>
+}
+
+
+function NumberField(props) {
+    return <input
+    key={props.key}
+    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+    type="number"
+    placeholder={props.def.required ? "Required" : ""}
+    value={props.value ?? ""} onChange={(event) => {
+        if (event.target.value == "") {
+            props.onChange(null);
+            return;
+        }
+        let value = parseInt(event.target.value);
+        if (!isNaN(value)) {
+            props.onChange(value);
+        }
+    }} />
+}
+
+/**
+ * A field that can be either one of a set of options, each of which has a different set of fields.
+ * 
+ * @param {*} props 
+ * @returns 
+ */
+function EitherOrField(props) {
+    let [selectionIndex, setSelectionIndex] = useState(0);
+
+    let selectedOption = props.def.options[selectionIndex];
+
+    return <div key={props.key}>
+        <div className="flex">
+            {props.def.options.map((option, idx) => {
+                return <div key={idx} className="mr-2">
+                    <input className="mr-1" type="radio" onChange={
+                        () => {
+                            setSelectionIndex(idx);
+                            props.onChange({});
+                        }
+                    } checked={selectionIndex == idx} />
+                    <Label>{option.displayName}</Label>
+                </div>
+            })}
+        </div>
+        {
+            <Form fields={selectedOption.fields} values={props.value ?? {}} onValuesChanged={(values) => {
+                props.onChange({...values, type: props.def.options[selectionIndex].key});
+            }} />
+        }
+    </div>
+}
+
+function getFieldFactoryFromType(type) {
+    switch(type) {
+        case "number":
+            return NumberField
+        case "either_or":
+            return EitherOrField
+        default:
+            return () => <div>Unknown field type</div>
+    }
+}
+
+function Label(props) {
+    return  <label className="text-gray-700 text-sm font-bold">
+        {props.children}
+    </label>
+}
+
+function Form(props) {
+    return <div>
+        {
+            props.fields.map((fieldDef, fieldIdx) => {
+                let factory = getFieldFactoryFromType(fieldDef.type);
+                let field = factory({
+                    key: fieldIdx,
+                    value: props.values[fieldDef.key],
+                    def: fieldDef,
+                    onChange: (value) => {
+                        props.onValuesChanged({...props.values, [fieldDef.key]: value});
+                    }
+                });
+                return <div key={fieldIdx} className="mb-2">
+                    <Label>
+                        {fieldDef.displayName}
+                    </Label>
+                    {field}
+              </div>
+            })
+        }
+    </div>
+}
+
+function validateForm(values, formDef) {
+    let errors = {};
+    let hasErrors = false;
+    for (let fieldDef of formDef) {
+        if (fieldDef.type == "either_or") {
+            let validationResult = validateEitherOrField(values[fieldDef.key], fieldDef)
+            errors[fieldDef.key] = validationResult.errors;
+            hasErrors = hasErrors || validationResult.hasErrors;
+        }
+        if (fieldDef.required && values[fieldDef.key] == null) {
+            errors[fieldDef.key] = "Required";
+            hasErrors = true;
+        }
+    }
+    return {errors, hasErrors};
+}
+
+function validateEitherOrField(values, fieldDef) {
+    if (values == null) {
+        return {errors: {"type": "Required"}, hasErrors: true};
+    }
+    let errors = {};
+    let selectedField = fieldDef.options.find(option => option.key == values.type);
+    if (selectedField == null) {
+        errors["type"] = "Required";
+    }
+    else {
+        let optionErrors = validateForm(values, selectedField.fields)
+        for (let key in optionErrors.errors) {
+            errors[key] = optionErrors.errors[key];
+        }    
+    }
+
+    return {errors, hasErrors: Object.keys(errors).length > 0};
+}
+
+function CSVImportDialog(props) {
+    let csvConfigFields = [
+        {
+            type: "either_or",
+            key: "name",
+            displayName: "Name",
+            required: true,
+            options: [
+                {
+                    "displayName": "Full Name",
+                    "key": "full_name",
+                    "fields": [
+                        {
+                            "key": "full_name",
+                            type: "number",
+                            required: true
+                        },
+                    ]
+                },
+                {
+                    "displayName": "First and Last Name",
+                    "key": "first_last_name",
+                    "fields": [
+                        {
+                            "key": "first_name",
+                            type: "number",
+                            "displayName": "First Name",
+                            required: true
+                        },
+                        {
+                            "key": "last_name",
+                            type: "number",
+                            "displayName": "Last Name",
+                            required: true
+                        },
+                    ]
+                },
+            ]
+        },
+        {type: "number", required: true, key: "institution", displayName: "Institution"},
+        {type: "number", required: false, key: "clashes", displayName: "Clashes"},
+    ];
+
+    let [values, setValues] = useState({});
+
+    let {hasErrors} = validateForm(values, csvConfigFields);
+
+    return <DialogWindow>
+        <h1>Select CSV Fields</h1>
+        <Form fields={csvConfigFields} values={values} onValuesChanged={(values) => {
+            setValues(values);
+        }} />
+        <div className="w-full flex justify-right justify-end">
+            <Button onClick={props.onAbort}>Abort</Button>
+            <Button onClick={() => props.onSubmit(values)} disabled={hasErrors} role="primary">Import</Button>
+        </div>
+        
+    </DialogWindow>   
+}
+
+
+function Button(props) {
+    let baseStyle = "ml-1 p-1 text-white rounded";
+
+    let bgColor = "bg-gray-500";
+    if (props.role == "primary") {
+        bgColor = "bg-blue-500";
+    }
+    else if (props.role == "secondary") {
+        bgColor = "bg-gray-500";
+    }
+
+    if (props.disabled) {
+        bgColor = "bg-gray-300";
+    }
+
+    return <button className={`${baseStyle} ${bgColor}`} disabled={props.disabled} onClick={props.onClick}>{props.children}</button>
+}
+
+
+function ModalOverlay(props) {
+    
+}
+
+
 export function ParticipantOverview() {
-    let currentView = {type: "ParticipantsList", tournament_uuid: "00000000-0000-0000-0000-000000000001"};
+    let tournamentContext = useContext(TournamentContext);
+    let currentView = {type: "ParticipantsList", tournament_uuid: tournamentContext.uuid};
 
     let participants = useView(currentView, {"teams": {}, "adjudicators": {}});
+    console.log(participants);
 
-    return <div>
-        <ParticipantTable participants={participants} />
+    let [importDialogState, setImportDialogState] = useState(true);
+
+    let openImportDialog = useCallback(async () => {
+        const selected = await open({
+            multiple: false,
+            filters: [{
+                name: 'csv',
+                extensions: ['csv']
+            }]
+        });
+        if (selected !== null) {
+            setImportDialogState({
+                file: selected[0]
+            });
+        }
+    }, []);
+
+    return <div className="flex flex-col h-full" onKeyDown={(e) => {
+        if (e.nativeEvent.key == "Escape") {
+            setImportDialogState(null);
+        }
+    }}>
+        {
+            importDialogState ?
+            <div className="fixed top-0 left-0 z-50 w-full overflow-x-hidden overflow-y-hidden inset-0 h-full grid place-items-center">
+                <div tabIndex={-1} className={"absolute top-0 left-0 w-full h-full bg-opacity-50 bg-black"} onClick={() => setImportDialogState(null)} />                
+                <div className="z-10">
+                    <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
+                        (values) => console.log(values)
+                    } />    
+                </div>
+            </div>
+            :
+            []
+        }
+        <div className="flex-1 overflow-scroll">
+            <ParticipantTable participants={participants} />
+        </div>
+        <div className="flex-none w-full h-12 bg-gray-200">
+            <button onClick={openImportDialog} className="h-full">Import…</button>
+        </div>
     </div>
 }

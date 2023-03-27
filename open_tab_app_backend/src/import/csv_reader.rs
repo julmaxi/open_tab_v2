@@ -2,9 +2,11 @@ use std::{collections::HashMap, error::Error, fmt::{Formatter, Display}};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::{Regex, RegexBuilder};
+use serde::{Serialize, Deserialize};
 
 use super::{ParticipantFileData, ParticipantData, AdjudicatorData, SpeakerData, TeamData};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CSVReaderConfig {
     name_column: Option<CSVNameCol>,
     role_column: Option<usize>,
@@ -12,7 +14,7 @@ pub struct CSVReaderConfig {
     clashes_column: Option<usize>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 enum CSVNameCol {
     FirstLast{ first: usize, last: usize },
     Full(usize)

@@ -1,3 +1,6 @@
+use itertools::izip;
+use open_tab_entities::schema;
+use sea_orm::ActiveValue;
 use sea_orm::prelude::Uuid;
 use std::{collections::HashMap, error::Error};
 
@@ -72,14 +75,30 @@ pub struct ParticipantEntry {
     pub uuid: Uuid,
     pub name: String,
     #[serde(flatten)]
-    pub role: ParticipantRole
+    pub role: ParticipantRole,
+    pub clashes: Vec<Clash>,
+    pub institutions: Vec<Institution>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Clash {
+    pub target_uuid: Uuid,
+    pub target_name: String,
+    pub clash_strength: i16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Institution {
+    pub uuid: Uuid,
+    pub name: String,
+    pub clash_strength: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ParticipantRole {
     Speaker{team_id: Uuid},
-    Adjudicator{}
+    Adjudicator{chair_skill: i16, panel_skill: i16}
 }
 
 
@@ -87,22 +106,52 @@ impl ParticipantsListView {
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, Box<dyn Error>> where C: ConnectionTrait {
        let participants = domain::participant::Participant::get_all_in_tournament(db, tournament_uuid).await?;
 
+       let all_institutions: Vec<Vec<_>> = participants.iter().map(|p| schema::participant::Model {
+            uuid: p.uuid,
+            tournament_id: Uuid::nil(),
+            name: "".into(),
+        }).collect_vec().load_many(schema::participant_tournament_institution::Entity, db).await?;
+
+        let institution_ids = all_institutions.iter().flatten().map(|i| i.institution_id).collect_vec();
+        let institution_names = schema::tournament_institution::Entity::find().
+            filter(
+                schema::tournament_institution::Column::Uuid.is_in(institution_ids)
+            ).all(db).await?.into_iter().map(|i| (i.uuid, i.name)).collect::<HashMap<_, _>>();
+        
+        let participants = izip![participants, all_institutions].collect_vec();
+
        let (adjudicators, team_members) : (Vec<_>, Vec<_>) = participants.into_iter().partition(|p| 
-        match p.role {
+        match p.0.role {
             domain::participant::ParticipantRole::Adjudicator(_) => true,
             _ => false
         });
 
-        let adjudicators = adjudicators.into_iter().map(|p| {
-            ParticipantEntry {
-                uuid: p.uuid,
-                name: p.name,
-                role: ParticipantRole::Adjudicator {  }
+        let adjudicators = adjudicators.into_iter().filter_map(|(p, institutions)| {
+            match p.role {
+                domain::participant::ParticipantRole::Adjudicator(
+                    Adjudicator { chair_skill, panel_skill }
+                ) => Some(ParticipantEntry {
+                    uuid: p.uuid,
+                    name: p.name,
+                    role: ParticipantRole::Adjudicator {
+                        chair_skill,
+                        panel_skill
+                    },
+                    institutions: institutions.into_iter().map(
+                        |i| Institution {
+                            uuid: i.institution_id,
+                            name: institution_names.get(&i.institution_id).unwrap_or(&"Unknown Institution".to_string()).clone(),
+                            clash_strength: i.clash_strength
+                        }
+                    ).collect_vec(),
+                    clashes: vec![]
+                }),
+                _ => None
             }
         }).collect_vec();
 
         let teams = team_members.into_iter().filter_map(
-            |p| match p.role {
+            |(p, institutions)| match p.role {
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
                 ) => {
@@ -110,7 +159,15 @@ impl ParticipantsListView {
                         Some((team_id, ParticipantEntry {
                             uuid: p.uuid,
                             name: p.name,
-                            role: ParticipantRole::Speaker { team_id  }
+                            role: ParticipantRole::Speaker { team_id  },
+                            institutions: institutions.into_iter().map(
+                                |i| Institution {
+                                    uuid: i.institution_id,
+                                    name: institution_names.get(&i.institution_id).unwrap_or(&"Unknown Institution".to_string()).clone(),
+                                    clash_strength: i.clash_strength
+                                }
+                            ).collect_vec(),
+                            clashes: vec![]
                         }))
                     }
                     else {

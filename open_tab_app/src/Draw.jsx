@@ -152,7 +152,6 @@ function DrawEditor(props) {
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
 
-  console.log(draw);
   return <div>
     <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <table>

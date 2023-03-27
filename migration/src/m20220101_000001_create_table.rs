@@ -63,23 +63,12 @@ enum Ballot {
 }
 
 
-
-
 #[derive(Iden)]
 enum Participant {
     Table,
     Uuid,
     TournamentId,
     Name,
-}
-
-
-#[derive(Iden)]
-pub enum Debate {
-    Table,
-    Uuid,
-    Index,
-    BallotId
 }
 
 
@@ -146,6 +135,8 @@ pub enum BallotAdjudicator {
 pub enum Adjudicator {
     Table,
     Uuid,
+    ChairSkill,
+    PanelSkill,
 }
 
 
@@ -163,6 +154,33 @@ pub enum Team {
     Uuid,
     Name,
     TournamentId,
+}
+
+
+#[derive(Iden)]
+pub enum TournamentInstitution {
+    Table,
+    Uuid,
+    Name,
+    TournamentId,
+}
+
+
+#[derive(Iden)]
+pub enum ParticipantTournamentInstitution {
+    Table,
+    ParticipantId,
+    InstitutionId,
+    ClashStrength
+}
+
+#[derive(Iden)]
+pub enum ParticipantClash {
+    Table,
+    Uuid,
+    DeclaringParticipantId,
+    TargetParticipantId,
+    ClashStrength
 }
 
 
@@ -196,7 +214,6 @@ impl MigrationTrait for Migration {
                 )
                 .to_owned()
         ).await?;
-
 
         manager
         .create_table(
@@ -251,15 +268,134 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(Participant::Name).string().not_null())
                 .to_owned()
         ).await?;
-
         manager.create_index(
             IndexCreateStatement::new()
-            .name("idx-participant_tournament-idx")
+            .name("idx-participant_tournament-id")
             .table(Participant::Table)
             .col(Participant::TournamentId)
             .to_owned()
         ).await?;
-        
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(TournamentInstitution::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentInstitution::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentInstitution::Name).string().not_null())
+                .col(ColumnDef::new(TournamentInstitution::TournamentId).uuid().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-tournament-institution-tournament")
+                    .from_tbl(TournamentInstitution::Table)
+                    .from_col(TournamentInstitution::TournamentId)
+                    .to_tbl(Tournament::Table)
+                    .to_col(Tournament::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-tournament-institution_tournament-id")
+            .table(TournamentInstitution::Table)
+            .col(TournamentInstitution::TournamentId)
+            .to_owned()
+        ).await?;
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(ParticipantTournamentInstitution::Table)
+                .if_not_exists()
+                .primary_key(Index::create().col(ParticipantTournamentInstitution::ParticipantId).col(ParticipantTournamentInstitution::InstitutionId).primary())
+                .col(ColumnDef::new(ParticipantTournamentInstitution::ParticipantId).uuid().not_null())
+                .col(ColumnDef::new(ParticipantTournamentInstitution::InstitutionId).uuid().not_null())
+                .col(ColumnDef::new(ParticipantTournamentInstitution::ClashStrength).integer().small_integer().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-participant-tournament-institution_institution-id")
+                    .from_tbl(ParticipantTournamentInstitution::Table)
+                    .from_col(ParticipantTournamentInstitution::InstitutionId)
+                    .to_tbl(TournamentInstitution::Table)
+                    .to_col(TournamentInstitution::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-participant-tournament-institution_participant-id")
+                    .from_tbl(ParticipantTournamentInstitution::Table)
+                    .from_col(ParticipantTournamentInstitution::ParticipantId)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-participant-tournament-institution_institution-id")
+            .table(ParticipantTournamentInstitution::Table)
+            .col(ParticipantTournamentInstitution::InstitutionId)
+            .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-participant-tournament-institution_participant-id")
+            .table(ParticipantTournamentInstitution::Table)
+            .col(ParticipantTournamentInstitution::ParticipantId)
+            .to_owned()
+        ).await?;
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(ParticipantClash::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(ParticipantClash::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(ParticipantClash::DeclaringParticipantId).uuid().not_null())
+                .col(ColumnDef::new(ParticipantClash::TargetParticipantId).uuid().not_null())
+                .col(ColumnDef::new(ParticipantClash::ClashStrength).integer().small_unsigned().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-clash-declaring-participant")
+                    .from_tbl(ParticipantClash::Table)
+                    .from_col(ParticipantClash::DeclaringParticipantId)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-clash-target-participant")
+                    .from_tbl(ParticipantClash::Table)
+                    .from_col(ParticipantClash::TargetParticipantId)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                )
+                .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-clash-declaring-participant")
+            .table(ParticipantClash::Table)
+            .col(ParticipantClash::DeclaringParticipantId)
+            .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-clash-target-participant")
+            .table(ParticipantClash::Table)
+            .col(ParticipantClash::TargetParticipantId)
+            .to_owned()
+        ).await?;
+
         manager.create_table(
             sea_query::Table::create()
                 .table(TournamentRemote::Table)
@@ -268,25 +404,6 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRemote::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(TournamentRemote::Url).string().not_null())
                 .col(ColumnDef::new(TournamentRemote::LastKnownChange).uuid())
-                .to_owned()
-        ).await?;
-
-        manager
-        .create_table(
-            sea_query::Table::create()
-                .table(Adjudicator::Table)
-                .if_not_exists()
-                .col(ColumnDef::new(Adjudicator::Uuid).uuid().not_null().primary_key())
-                .foreign_key(
-                    ForeignKeyCreateStatement::new()
-                    .name("fk-adjudicator-participant")
-                    .from_tbl(Adjudicator::Table)
-                    .from_col(Adjudicator::Uuid)
-                    .to_tbl(Participant::Table)
-                    .to_col(Participant::Uuid)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .on_update(ForeignKeyAction::Cascade)    
-                )
                 .to_owned()
         ).await?;
 
@@ -309,6 +426,14 @@ impl MigrationTrait for Migration {
                     .on_update(ForeignKeyAction::Cascade)    
                 )
                 .to_owned()
+        ).await?;
+
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-team_tournament-id")
+            .table(Team::Table)
+            .col(Team::TournamentId)
+            .to_owned()
         ).await?;
 
         manager
@@ -340,13 +465,33 @@ impl MigrationTrait for Migration {
                 )
                 .to_owned()
         ).await?;
-
         manager.create_index(
             IndexCreateStatement::new()
             .name("idx-speaker-team-id")
             .table(Speaker::Table)
             .col(Speaker::TeamId)
             .to_owned()
+        ).await?;
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(Adjudicator::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(Adjudicator::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(Adjudicator::ChairSkill).integer().small_integer().not_null())
+                .col(ColumnDef::new(Adjudicator::PanelSkill).integer().small_integer().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-adjudicator-participant")
+                    .from_tbl(Adjudicator::Table)
+                    .from_col(Adjudicator::Uuid)
+                    .to_tbl(Participant::Table)
+                    .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .to_owned()
         ).await?;
 
         manager
@@ -388,36 +533,6 @@ impl MigrationTrait for Migration {
                 )
                 .to_owned()
         ).await?;
-
-        /*
-        manager
-        .create_table(
-            sea_query::Table::create()
-                .table(Debate::Table)
-                .if_not_exists()
-                .col(ColumnDef::new(Debate::Index).big_integer().not_null())
-                .col(ColumnDef::new(Debate::Uuid).uuid().not_null().primary_key())
-                .col(ColumnDef::new(Debate::BallotId).uuid())
-                .foreign_key(
-                    ForeignKeyCreateStatement::new()
-                        .name("fk-debate-ballot")
-                        .from_tbl(Debate::Table)
-                        .from_col(Debate::BallotId)
-                        .to_tbl(Ballot::Table)
-                        .to_col(Ballot::Uuid)
-                        .on_delete(ForeignKeyAction::Cascade)
-                        .on_update(ForeignKeyAction::Cascade)
-                )
-                .to_owned()
-        ).await?;
-
-        manager.create_index(
-            IndexCreateStatement::new()
-            .name("idx-debate-ballot-id")
-            .table(Debate::Table)
-            .col(Debate::BallotId)
-            .to_owned()
-        ).await?;*/
 
         manager
         .create_table(
@@ -465,6 +580,7 @@ impl MigrationTrait for Migration {
             .col(BallotAdjudicator::AdjudicatorId)
             .to_owned()
         ).await?;
+
         manager.create_index(
             IndexCreateStatement::new()
             .name("idx-ballot_adjudicator-adjudicator_id")
@@ -623,6 +739,7 @@ impl MigrationTrait for Migration {
             .col(BallotSpeech::BallotId)
             .to_owned()
         ).await?;
+
         manager.create_index(
             IndexCreateStatement::new()
             .name("idx-speech-speaker_id")

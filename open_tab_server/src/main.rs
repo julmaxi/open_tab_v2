@@ -250,13 +250,6 @@ struct ParticipantHomePageInfo {
 
 #[get("/home/<participant_uuid>")]
 async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnection>) -> Result<Template, Custom<String>> {
-    let participant2 = schema::prelude::Participant::find_by_id(
-        participant_uuid
-    )
-    .one(
-        db.inner()
-    ).await.map_err(handle_error)?;
-
     let participant = domain::participant::Participant::get_many(
         db.inner(),
         vec![participant_uuid]
@@ -404,7 +397,13 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
         
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
@@ -430,10 +429,22 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change1 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
         let change2 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(201), name: "Test 2".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(201),
+                name: "Test 2".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
@@ -458,10 +469,22 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change1 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
         let change2 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(201), name: "Test 2".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(2) }
+            Participant {
+                uuid: Uuid::from_u128(201),
+                name: "Test 2".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(2),
+                institutions: vec![]
+            }
         );
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
@@ -479,10 +502,22 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change1 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
         let change2 = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test 2".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test 2".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
@@ -501,7 +536,13 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
@@ -527,7 +568,13 @@ mod test {
         let client = Client::tracked(rocket).await.expect("valid rocket instance");
 
         let change = Entity::Participant(
-            Participant { uuid: Uuid::from_u128(200), name: "Test".into(), role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {}), tournament_id: Uuid::from_u128(1) }
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
         );
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(

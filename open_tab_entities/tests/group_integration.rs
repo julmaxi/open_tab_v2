@@ -48,7 +48,8 @@ fn make_changeset() -> (EntityGroups, Ballot) {
     changeset.add(Entity::TournamentInstitution(
         TournamentInstitution {
             uuid: Uuid::from_u128(500),
-            name: "Testclub".into()
+            name: "Testclub".into(),
+            tournament_id: Uuid::from_u128(10),
         }
     ));
     changeset.add(Entity::Participant(

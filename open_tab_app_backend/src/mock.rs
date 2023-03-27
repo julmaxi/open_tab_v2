@@ -2,7 +2,7 @@
 use std::{collections::HashMap, error::Error, hash::Hash, fmt::{Display, Formatter}};
 
 use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole}, schema::{adjudicator, self}};
+use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution}, schema::{adjudicator, self}};
 use sea_orm::{prelude::*, Statement, Database};
 use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
@@ -34,6 +34,18 @@ pub fn make_mock_tournament() -> EntityGroups {
 }
 
 pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
+    /*
+    Tournament: 1
+    Teams: 1000
+    Speakers: 2000
+    Adjudicators: 3000
+    Rounds: 100
+    Debates: 200
+    Ballots: 300
+     */
+
+    assert!(options.num_teams % 3 == 0);
+    assert!(options.num_teams >= 3);
     let mut groups = EntityGroups::new();
 
     let tournament_uuid = if options.deterministic_uuids {Uuid::from_u128(1)} else {Uuid::new_v4()};
@@ -41,6 +53,16 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         uuid: tournament_uuid,
         ..Default::default()
     }));
+
+    let institutions = (0..options.num_teams).map(|i| {
+        let uuid = if options.deterministic_uuids {Uuid::from_u128(500 + i as u128)} else {Uuid::new_v4()};
+        let name = format!("Institution {}", uuid);
+        open_tab_entities::domain::tournament_institution::TournamentInstitution {
+            uuid,
+            name,
+            tournament_id: tournament_uuid,
+        }
+    }).collect_vec();
     
     let teams = (0..options.num_teams).map(|i| {
         let uuid = if options.deterministic_uuids {Uuid::from_u128(1000 + i as u128)} else {Uuid::new_v4()};
@@ -56,11 +78,26 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         let members = (0..3).map(|i| {
             let uuid = if options.deterministic_uuids {Uuid::from_u128(2000 + (team_idx as u128) * 10 + i)} else {Uuid::new_v4()};
             let name = format!("Speaker {}", uuid);
+            let mut institutions = vec![
+                ParticipantInstitution {
+                    uuid: Uuid::from_u128(500 + team_idx as u128),
+                    clash_strength: 20
+                }
+            ];
+            if i == 1 {
+                institutions.push(
+                    ParticipantInstitution {
+                        uuid: if team_idx == 0 {Uuid::from_u128(500 + team_idx as u128 + 1)} else {Uuid::from_u128(500 + (team_idx - 1) as u128)},
+                        clash_strength: 20
+                    }
+                );    
+            }
             Participant {
                 uuid,
                 name,
                 tournament_id: tournament_uuid,
                 role: ParticipantRole::Speaker(Speaker { team_id: Some(team.uuid) }),
+                institutions
             }
         }).collect_vec();
 
@@ -74,7 +111,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
                 uuid,
                 name,
                 tournament_id: tournament_uuid,
-                role: ParticipantRole::Adjudicator(Adjudicator { }),
+                role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+                institutions: vec![]
             }
     }).collect_vec();
 
@@ -141,6 +179,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
     speakers.into_iter().flatten().for_each(|speaker| groups.add(Entity::Participant(speaker)));
     adjudicators.into_iter().for_each(|adjudicator| groups.add(Entity::Participant(adjudicator)));
     rounds.into_iter().for_each(|round| groups.add(Entity::TournamentRound(round)));
+    institutions.into_iter().for_each(|i| groups.add(Entity::TournamentInstitution(i)));
 
     groups
 }

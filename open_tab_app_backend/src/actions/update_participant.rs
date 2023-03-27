@@ -31,9 +31,10 @@ impl ActionTrait for UpdateParticipantsAction {
                     name: participant.name,
                     role: match participant.role {
                         crate::participants_list_view::ParticipantRole::Speaker { team_id } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
-                        crate::participants_list_view::ParticipantRole::Adjudicator {  } => ParticipantRole::Adjudicator(Adjudicator { })
+                        crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill })
                     },
-                    tournament_id: self.tournament_id
+                    tournament_id: self.tournament_id,
+                    institutions: vec![]
                 }
             ));
         }

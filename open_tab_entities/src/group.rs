@@ -60,8 +60,14 @@ impl EntityGroups {
     pub async fn get_all_tournaments<C>(&self, db: &C) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
         let mut out = Vec::new();
 
+        out.extend(Tournament::get_many_tournaments(db, &self.tournaments.iter().collect()).await?.into_iter());
         out.extend(Participant::get_many_tournaments(db, &self.participants.iter().collect()).await?.iter());
         out.extend(Ballot::get_many_tournaments(db, &self.ballots.iter().collect()).await?.into_iter());
+        out.extend(TournamentRound::get_many_tournaments(db, &self.rounds.iter().collect()).await?.into_iter());
+        out.extend(TournamentDebate::get_many_tournaments(db, &self.debates.iter().collect()).await?.into_iter());
+        out.extend(Team::get_many_tournaments(db, &self.teams.iter().collect()).await?.into_iter());
+        out.extend(TournamentInstitution::get_many_tournaments(db, &self.tournament_institutions.iter().collect()).await?.into_iter());
+        out.extend(ParticipantClash::get_many_tournaments(db, &self.participant_clashes.iter().collect()).await?.into_iter());
 
         Ok(out)
     }
@@ -72,12 +78,12 @@ impl EntityGroups {
 
     pub async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
         Tournament::save_many(db, guarantee_insert, &self.tournaments.iter().collect()).await?;
+        TournamentInstitution::save_many(db, guarantee_insert, &self.tournament_institutions.iter().collect()).await?;
         Team::save_many(db, guarantee_insert, &self.teams.iter().collect()).await?;
         Participant::save_many(db, guarantee_insert, &self.participants.iter().collect()).await?;
         TournamentRound::save_many(db, guarantee_insert, &self.rounds.iter().collect()).await?;
         Ballot::save_many(db, guarantee_insert, &self.ballots.iter().collect()).await?;
         TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
-        TournamentInstitution::save_many(db, guarantee_insert, &self.tournament_institutions.iter().collect()).await?;
         ParticipantClash::save_many(db, guarantee_insert, &self.participant_clashes.iter().collect()).await?;
         Ok(())
     }
