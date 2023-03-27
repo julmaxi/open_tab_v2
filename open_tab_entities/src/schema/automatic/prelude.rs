@@ -2,11 +2,13 @@
 
 pub use super::adjudicator::Entity as Adjudicator;
 pub use super::ballot_adjudicator::Entity as BallotAdjudicator;
-pub use super::participant::Entity as Participant;
+pub use super::participant_clash::Entity as ParticipantClash;
+pub use super::participant_tournament_institution::Entity as ParticipantTournamentInstitution;
 pub use super::speaker::Entity as Speaker;
 pub use super::team::Entity as Team;
 pub use super::tournament::Entity as Tournament;
 pub use super::tournament_debate::Entity as TournamentDebate;
+pub use super::tournament_institution::Entity as TournamentInstitution;
 pub use super::tournament_log::Entity as TournamentLog;
 pub use super::tournament_remote::Entity as TournamentRemote;
 pub use super::tournament_round::Entity as TournamentRound;

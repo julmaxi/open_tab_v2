@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap, default};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, TournamentEntity, tournament::{Tournament, self}, round::TournamentRound, debate::TournamentDebate}, EntityGroups, Entity, schema::tournament_log};
+use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, TournamentEntity, tournament::{Tournament, self}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution}, EntityGroups, Entity, schema::tournament_log};
 use sea_orm::prelude::*;
 
 
@@ -45,12 +45,21 @@ fn make_changeset() -> (EntityGroups, Ballot) {
     changeset.add(Entity::Ballot(
         ballot.clone()
     ));
+    changeset.add(Entity::TournamentInstitution(
+        TournamentInstitution {
+            uuid: Uuid::from_u128(500),
+            name: "Testclub".into()
+        }
+    ));
     changeset.add(Entity::Participant(
         Participant {
             uuid: Uuid::from_u128(401),
             name: "Judge 1".into(),
             tournament_id: Uuid::from_u128(10),
             role: ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
+            institutions: vec![
+                ParticipantInstitution { uuid: Uuid::from_u128(500), clash_strength: 2 }
+            ]
         }
     ));
     changeset.add(Entity::Team(
@@ -66,8 +75,20 @@ fn make_changeset() -> (EntityGroups, Ballot) {
             name: "Speaker 1".into(),
             tournament_id: Uuid::from_u128(10),
             role: ParticipantRole::Speaker(Speaker { team_id: Some(Uuid::from_u128(200)), ..Default::default() }),
+            institutions: vec![]
         }
     ));
+
+    changeset.add(
+        Entity::ParticipantClash(
+            open_tab_entities::domain::participant_clash::ParticipantClash {
+                uuid: Uuid::from_u128(600),
+                declaring_participant_id: Uuid::from_u128(401),
+                target_participant_id: Uuid::from_u128(402),
+                clash_strength: 2
+            }
+        )
+    );
 
     return (changeset, ballot);
 }
@@ -99,8 +120,7 @@ async fn test_save_full_tournament_updates_log() -> Result<(), Box<dyn Error>> {
         .all(&db)
         .await?;
 
-    dbg!(&logs);
-    assert_eq!(logs.len(), 7);
+    assert_eq!(logs.len(), 9);
 
     Ok(())
 }

@@ -77,26 +77,38 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
         open_tab_entities::schema::adjudicator::Entity::insert_many(vec![
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(400)),
+                chair_skill: ActiveValue::Set(26),
+                panel_skill: ActiveValue::Set(29),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(401)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(402)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(403)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(404)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(405)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             }
         ]).exec(&db).await?;
@@ -107,14 +119,14 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
 async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, as_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
     participant.save(db, as_insert).await?;
 
-    let mut saved_ballot = Participant::get_many(
+    let mut saved_participant = Participant::get_many(
         db,
         vec![participant.uuid]
     ).await?;
 
-    assert_eq!(saved_ballot.len(), 1);
-    let saved_ballot = saved_ballot.pop().unwrap();
-    assert_eq!(participant, saved_ballot);
+    assert_eq!(saved_participant.len(), 1);
+    let saved_participant = saved_participant.pop().unwrap();
+    assert_eq!(participant, saved_participant);
 
     Ok(())
 }
@@ -134,6 +146,7 @@ async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
             team_id: Some(Uuid::from_u128(200))
         }),
         tournament_id: Uuid::from_u128(1),
+        institutions: vec![]
     }, true).await?;
 
     Ok(())
@@ -145,8 +158,10 @@ async fn test_adjudicator_roundtrip() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
         role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+            ..Default::default()
         }),
         tournament_id: Uuid::from_u128(1),
+        institutions: vec![]
     }, true).await?;
 
     Ok(())
@@ -162,11 +177,12 @@ async fn test_make_speaker_into_adjudicator() -> Result<(), Box<dyn Error>> {
             team_id: Some(Uuid::from_u128(200))
         }),
         tournament_id: Uuid::from_u128(1),
+        institutions: vec![]
     };
 
     participant.save(&db, true).await?;
 
-    participant.role = ParticipantRole::Adjudicator(Adjudicator{});
+    participant.role = ParticipantRole::Adjudicator(Adjudicator {..Default::default() });
 
     test_participant_roundtrip_in_db(&db, participant, false).await?;
 
@@ -179,8 +195,9 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), Box<dyn Error>> {
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
-        role: ParticipantRole::Adjudicator(Adjudicator{}),
+        role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
         tournament_id: Uuid::from_u128(1),
+        institutions: vec![]
     };
 
     participant.save(&db, true).await?;
@@ -200,8 +217,9 @@ async fn test_change_participant_name() -> Result<(), Box<dyn Error>> {
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
-        role: ParticipantRole::Adjudicator(Adjudicator{}),
+        role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
         tournament_id: Uuid::from_u128(1),
+        institutions: vec![]
     };
 
     participant.save(&db, true).await?;

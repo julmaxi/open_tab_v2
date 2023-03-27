@@ -3,39 +3,33 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "adjudicator")]
+#[sea_orm(table_name = "participant_clash")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub chair_skill: i16,
-    pub panel_skill: i16,
+    pub declaring_participant_id: Uuid,
+    pub target_participant_id: Uuid,
+    pub clash_strength: i16,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
         belongs_to = "super::participant::Entity",
-        from = "Column::Uuid",
+        from = "Column::DeclaringParticipantId",
         to = "super::participant::Column::Uuid",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
-    Participant,
-}
-
-impl Related<super::participant::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Participant.def()
-    }
-}
-
-impl Related<super::ballot::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::ballot_adjudicator::Relation::Ballot.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::ballot_adjudicator::Relation::Adjudicator.def().rev())
-    }
+    Participant2,
+    #[sea_orm(
+        belongs_to = "super::participant::Entity",
+        from = "Column::TargetParticipantId",
+        to = "super::participant::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Participant1,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -17,6 +17,8 @@ pub enum Relation {
     Adjudicator,
     #[sea_orm(has_one = "super::speaker::Entity")]
     Speaker,
+    #[sea_orm(has_many = "super::participant_tournament_institution::Entity")]
+    TournamentInstitution
 }
 
 impl Related<super::adjudicator::Entity> for Entity {
@@ -30,5 +32,12 @@ impl Related<super::speaker::Entity> for Entity {
         Relation::Speaker.def()
     }
 }
+
+impl Related<super::participant_tournament_institution::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentInstitution.def()
+    }
+}
+
 
 impl ActiveModelBehavior for ActiveModel {}

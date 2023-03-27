@@ -1,4 +1,4 @@
-use std::{fmt::Display, error::Error, collections::HashMap, marker::PhantomData};
+use std::{fmt::Display, error::Error, collections::HashMap, marker::PhantomData, vec};
 
 use async_trait::async_trait;
 use itertools::{izip, Itertools};
@@ -16,7 +16,14 @@ pub struct Participant {
     pub uuid: Uuid,
     pub name: String,
     pub role: ParticipantRole,
-    pub tournament_id: Uuid
+    pub tournament_id: Uuid,
+    pub institutions: Vec<ParticipantInstitution>
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct ParticipantInstitution {
+    pub uuid: Uuid,
+    pub clash_strength: i16
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -32,7 +39,8 @@ pub struct Speaker {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub struct Adjudicator {
-
+    pub chair_skill: i16,
+    pub panel_skill: i16
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -90,9 +98,11 @@ impl Participant {
     async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let adjudicators = participants.load_one(schema::adjudicator::Entity, db).await?;
         let speakers = participants.load_one(schema::speaker::Entity, db).await?;
-        let out : Result<Vec<Participant>, ParticipantParseError> = izip!(participants.into_iter(), speakers.into_iter(), adjudicators.into_iter())
-        .map(|(part, speaker, adj)| {
-            Self::from_rows(part, speaker, adj)
+        let institutions = participants.load_many(schema::participant_tournament_institution::Entity, db).await?;
+        
+        let out : Result<Vec<Participant>, ParticipantParseError> = izip!(participants.into_iter(), speakers.into_iter(), adjudicators.into_iter(), institutions.into_iter())
+        .map(|(part, speaker, adj, inst)| {
+            Self::from_rows(part, speaker, adj, inst)
         })
         .collect();
         out
@@ -102,15 +112,32 @@ impl Participant {
         participant: schema::participant::Model,
         speaker_info: Option<schema::speaker::Model>,
         adjudicator_info: Option<schema::adjudicator::Model>,
+        institution_info: Vec<schema::participant_tournament_institution::Model>
     ) -> Result<Self, ParticipantParseError> {
         let role = match (speaker_info, adjudicator_info) {
             (None, None) => panic!("Database constraint violated. Participant has neither adjudicator nor speaker info"),
-            (None, Some(_adj)) => Ok(ParticipantRole::Adjudicator(Adjudicator{})),
+            (None, Some(adj)) => Ok(ParticipantRole::Adjudicator(Adjudicator{
+                chair_skill: adj.chair_skill,
+                panel_skill: adj.panel_skill
+            })),
             (Some(speaker), None) => Ok(ParticipantRole::Speaker(Speaker{team_id: speaker.team_id})),
             (Some(_), Some(_)) => Err(ParticipantParseError::MultipleRoles),
         }?;
 
-        Ok(Participant { uuid: participant.uuid, name: participant.name, role: role, tournament_id: participant.tournament_id })
+        let institutions = institution_info.into_iter().map(
+            |institution| ParticipantInstitution {
+                uuid: institution.institution_id,
+                clash_strength: institution.clash_strength
+            }
+        ).collect();
+
+        Ok(Participant {
+            uuid: participant.uuid,
+            name: participant.name,
+            role: role,
+            tournament_id: participant.tournament_id,
+            institutions: institutions
+        })
     }
 }
 
@@ -194,12 +221,12 @@ impl TournamentEntity for Participant {
                 match (&ent.role, adj_model, speaker_model) {
                     (_, None, None) => panic!("Participant has no role"),
                     (_, Some(_), Some(_)) => panic!("Participant has two roles"),
-                    (ParticipantRole::Adjudicator(_adj), None, Some(speaker_model)) => {
+                    (ParticipantRole::Adjudicator(adj), None, Some(speaker_model)) => {
                         speaker_changes.delete.push(
                             speaker_model.clone().into()
                         );
                         adj_changes.insert.push(
-                            adjudicator::ActiveModel { uuid: ActiveValue::Set(ent.uuid) }
+                            adjudicator::ActiveModel { uuid: ActiveValue::Set(ent.uuid), chair_skill: ActiveValue::Set(adj.chair_skill), panel_skill: ActiveValue::Set(adj.panel_skill) }
                         );
                     },
                     (ParticipantRole::Adjudicator(_adj), Some(m), None) => {
@@ -237,9 +264,11 @@ impl TournamentEntity for Participant {
                             team_id: ActiveValue::Set(speaker.team_id)
                         });
                     },
-                    ParticipantRole::Adjudicator(_adj) => {
+                    ParticipantRole::Adjudicator(adj) => {
                         adj_changes.insert.push(schema::adjudicator::ActiveModel {
                             uuid: ActiveValue::Set(ent.uuid),
+                            chair_skill: ActiveValue::Set(adj.chair_skill),
+                            panel_skill: ActiveValue::Set(adj.panel_skill),
                         });
                     },
                 }
@@ -272,7 +301,8 @@ fn test_get_speaker() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             team_id: Some(Uuid::from_u128(200)),
         }),
-        None
+        None,
+        vec![]
     )?;
 
     assert_eq!(participant.uuid, Uuid::from_u128(400));
@@ -296,7 +326,8 @@ fn test_get_adjudicator() -> Result<(), ParticipantParseError> {
             name: "Test".into(),
         },
         None,
-        Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400) })
+        Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
+        vec![]
     )?;
 
     assert_eq!(participant.uuid, Uuid::from_u128(400));
@@ -322,10 +353,56 @@ fn test_mixed_role_error() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             team_id: Some(Uuid::from_u128(200)),
         }),
-        Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400) })
+        Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
+        vec![]
     );
 
     assert_eq!(participant, Err(ParticipantParseError::MultipleRoles));
 
     Ok(())
 }
+
+#[test]
+fn test_get_institutions() -> Result<(), ParticipantParseError> {
+    let participant = Participant::from_rows(
+        schema::participant::Model {
+            uuid: Uuid::from_u128(400),
+            tournament_id: Uuid::from_u128(100),
+            name: "Test".into(),
+        },
+        Some(schema::speaker::Model {
+            uuid: Uuid::from_u128(400),
+            team_id: Some(Uuid::from_u128(200)),
+        }),
+        None,
+        vec![
+            schema::participant_tournament_institution::Model {
+                participant_id: Uuid::from_u128(400),
+                institution_id: Uuid::from_u128(500),
+                clash_strength: 200
+            },
+            schema::participant_tournament_institution::Model {
+                participant_id: Uuid::from_u128(400),
+                institution_id: Uuid::from_u128(501),
+                clash_strength: 1
+            }
+        ]
+    )?;
+
+    let mut sorted_institutions = participant.institutions.clone();
+    sorted_institutions.sort_by_key(|p| p.uuid);
+
+    assert_eq!(sorted_institutions, vec![
+        ParticipantInstitution {
+            uuid: Uuid::from_u128(500),
+            clash_strength: 200
+        },
+        ParticipantInstitution {
+            uuid: Uuid::from_u128(501),
+            clash_strength: 1
+        },
+    ]);
+
+    Ok(())
+}
+

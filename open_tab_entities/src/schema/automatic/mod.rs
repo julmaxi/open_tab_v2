@@ -4,10 +4,13 @@ pub mod prelude;
 
 pub mod adjudicator;
 pub mod ballot_adjudicator;
+pub mod participant_clash;
+pub mod participant_tournament_institution;
 pub mod speaker;
 pub mod team;
 pub mod tournament;
 pub mod tournament_debate;
+pub mod tournament_institution;
 pub mod tournament_log;
 pub mod tournament_remote;
 pub mod tournament_round;

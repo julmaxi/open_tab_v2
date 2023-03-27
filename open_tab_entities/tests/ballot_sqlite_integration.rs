@@ -78,26 +78,38 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
         open_tab_entities::schema::adjudicator::Entity::insert_many(vec![
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(400)),
+                chair_skill: ActiveValue::Set(0),
+                panel_skill: ActiveValue::Set(0),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(401)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(402)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(403)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(404)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             },
             open_tab_entities::schema::adjudicator::ActiveModel {
                 uuid: ActiveValue::Set(Uuid::from_u128(405)),
+                chair_skill: ActiveValue::Set(1),
+                panel_skill: ActiveValue::Set(1),
                 ..Default::default()
             }
         ]).exec(&db).await?;

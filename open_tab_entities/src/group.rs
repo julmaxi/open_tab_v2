@@ -4,13 +4,15 @@ use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder, QuerySelect, ActiveValue};
 
-use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team}, schema::tournament_log};
+use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash}, schema::tournament_log};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum Entity {
     Tournament(Tournament),
+    TournamentInstitution(TournamentInstitution),
     Team(Team),
     Participant(Participant),
+    ParticipantClash(ParticipantClash),
     TournamentRound(TournamentRound),
     Ballot(Ballot),
     TournamentDebate(TournamentDebate),
@@ -24,6 +26,8 @@ pub struct EntityGroups {
     pub participants: Vec<Participant>,
     pub ballots: Vec<Ballot>,
     pub teams: Vec<Team>,
+    pub tournament_institutions: Vec<TournamentInstitution>,
+    pub participant_clashes: Vec<ParticipantClash>,
 }
 
 impl EntityGroups {
@@ -35,6 +39,8 @@ impl EntityGroups {
             Entity::TournamentRound(e) => self.rounds.push(e),
             Entity::TournamentDebate(e) => self.debates.push(e),
             Entity::Team(e) => self.teams.push(e),
+            Entity::TournamentInstitution(e) => self.tournament_institutions.push(e),
+            Entity::ParticipantClash(e) => self.participant_clashes.push(e),
         }
     }
 
@@ -46,6 +52,8 @@ impl EntityGroups {
             rounds: vec![],
             debates: vec![],
             teams: vec![],
+            tournament_institutions: vec![],
+            participant_clashes: vec![],
         }
     }
 
@@ -69,6 +77,8 @@ impl EntityGroups {
         TournamentRound::save_many(db, guarantee_insert, &self.rounds.iter().collect()).await?;
         Ballot::save_many(db, guarantee_insert, &self.ballots.iter().collect()).await?;
         TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
+        TournamentInstitution::save_many(db, guarantee_insert, &self.tournament_institutions.iter().collect()).await?;
+        ParticipantClash::save_many(db, guarantee_insert, &self.participant_clashes.iter().collect()).await?;
         Ok(())
     }
 
@@ -90,6 +100,8 @@ impl EntityGroups {
         .chain(self.rounds.into_iter().map(|r| Entity::TournamentRound(r)))
         .chain(self.debates.into_iter().map(|d| Entity::TournamentDebate(d)))
         .chain(self.teams.into_iter().map(|t| Entity::Team(t)))
+        .chain(self.tournament_institutions.into_iter().map(|t| Entity::TournamentInstitution(t)))
+        .chain(self.participant_clashes.into_iter().map(|p| Entity::ParticipantClash(p)))
     }
 
     pub fn get_entity_ids(&self) -> Vec<(String, Uuid)> {
@@ -99,6 +111,8 @@ impl EntityGroups {
         .chain(self.rounds.iter().map(|r| ("TournamentRound".to_string(), r.uuid.clone())))
         .chain(self.debates.iter().map(|d| ("TournamentDebate".to_string(), d.uuid.clone())))
         .chain(self.teams.iter().map(|t| ("Team".to_string(), t.uuid.clone())))
+        .chain(self.tournament_institutions.iter().map(|t| ("TournamentInstitution".to_string(), t.uuid.clone())))
+        .chain(self.participant_clashes.iter().map(|p| ("ParticipantClash".to_string(), p.uuid.clone())))
         .collect_vec()
     }
 
@@ -157,11 +171,13 @@ impl Entity {
     pub fn get_processing_order(&self) -> u64 {
         match self {
             Entity::Tournament(_) => 0,
-            Entity::Team(_) => 1,
-            Entity::Participant(_) => 2,
-            Entity::Ballot(_) => 3,
-            Entity::TournamentRound(_) => 4,
-            Entity::TournamentDebate(_) => 5,
+            Entity::TournamentInstitution(_) => 1,
+            Entity::Team(_) => 2,
+            Entity::Participant(_) => 3,
+            Entity::Ballot(_) => 4,
+            Entity::TournamentRound(_) => 5,
+            Entity::TournamentDebate(_) => 6,
+            Entity::ParticipantClash(_) => 7,
         }
     }
 
@@ -173,6 +189,8 @@ impl Entity {
             Entity::TournamentRound(_) => "TournamentRound".to_string(),
             Entity::TournamentDebate(_) => "TournamentDebate".to_string(),
             Entity::Team(_) => "Team".to_string(),
+            Entity::TournamentInstitution(_) => "TournamentInstitution".to_string(),
+            Entity::ParticipantClash(_) => "ParticipantClash".to_string(),
         }
     }
 
@@ -184,6 +202,8 @@ impl Entity {
             Entity::TournamentRound(e) => e.uuid,
             Entity::TournamentDebate(e) => e.uuid,
             Entity::Team(e) => e.uuid,
+            Entity::TournamentInstitution(e) => e.uuid,
+            Entity::ParticipantClash(e) => e.uuid,
         }
     }
 }
@@ -242,6 +262,8 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             "TournamentRound" => TournamentRound::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentRound(e)).collect_vec(),
             "TournamentDebate" => TournamentDebate::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentDebate(e)).collect_vec(),
             "Team" => Team::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Team(e)).collect_vec(),
+            "TournamentInstitution" => TournamentInstitution::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentInstitution(e)).collect_vec(),
+            "ParticipantClash" => ParticipantClash::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::ParticipantClash(e)).collect_vec(),
             _ => panic!("Unknown entity type {}", type_)
         };
         all_new_entities.extend(new_entities);
