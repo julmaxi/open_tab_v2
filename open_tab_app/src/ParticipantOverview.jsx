@@ -137,7 +137,8 @@ function ParticipantTable(props) {
                 "role": team.name,
                 "name": speaker.name,
                 "institutions": speaker.institutions,
-                "path": ["teams", team_uuid, "members", speaker_uuid]
+                "clashes": speaker.clashes,
+                "path": ["teams", team_uuid, "members", speaker_uuid],
             }
         })
     });
@@ -149,7 +150,8 @@ function ParticipantTable(props) {
                 "role": "Adjudicator",
                 "name": adjudicator.name,
                 "institutions": adjudicator.institutions,
-                "path": ["adjudicators", adjudicator_uuid]
+                "clashes": adjudicator.clashes,
+                "path": ["adjudicators", adjudicator_uuid],
             }
         }
     ))
@@ -157,6 +159,7 @@ function ParticipantTable(props) {
     flatTable = flatTable.map((r) => {
         let row = {...r};
         row.institutions = row.institutions.map((i) => i.name).join(", ");
+        row.clashes = row.clashes.map((i) => i.participant_name).join(", ");
         return row;
     });
 
@@ -174,7 +177,8 @@ function ParticipantTable(props) {
                     }
                 } />
             } },
-            { "key": "institutions", "header": "Institutions" }
+            { "key": "institutions", "header": "Institutions" },
+            { "key": "clashes", "header": "Clashes" },
         ]
     } />
 }

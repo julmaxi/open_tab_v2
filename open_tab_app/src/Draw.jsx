@@ -1,5 +1,5 @@
-import { useState, useId, useMemo, useEffect, useCallback } from "react";
-import reactLogo from "./assets/react.svg";
+//@ts-check
+import React, { useState, useId, useMemo, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
@@ -10,28 +10,70 @@ import {CSS} from '@dnd-kit/utilities';
 import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
+import { executeAction } from "./Action";
 
-function TeamItem(props) {
-  return <div>
-    <div className="bg-gray-100 min-w-[14rem] rounded-md">
-      {props.team.name}
+
+function DragBox(props) {
+  return <div className="flex bg-gray-100 min-w-[14rem] p-1 rounded">
+    <div className="flex-1">
+      {props.children}
+    </div>
+    <div className="flex items-center mr-1">
+        <ClashIndicator />
     </div>
   </div>
 }
 
 
-function SpeakerItem(props) {
-  return <div className="bg-gray-100 min-w-[14rem] rounded-md">
-    <div>{props.speaker.name}</div>
-    <div>{props.speaker.team_name}</div>
+function HorizontalList(props) {
+  return <div className="flex flex-row gap-x-1">
+    {props.children}
+  </div>
+}
+
+function TeamItem(props) {
+  let all_participant_institutions = props.team.members.map((m) => m.institutions).flat().sort((a, b) => a.name.localeCompare(b.name));
+  let unique_participant_institutions = [...new Set(all_participant_institutions.map((i) => i.uuid))].map((uuid) => all_participant_institutions.find((i) => i.uuid === uuid));
+
+  return <DragBox>
+      <div>{props.team.name}</div>
+      <HorizontalList>
+        {props.team.members.map((member) => <div key={member.uuid} className="text-xs">{member.name}</div>)}
+      </HorizontalList>
+      <HorizontalList>
+        {unique_participant_institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
+    </HorizontalList>
+  </DragBox>
+}
+
+
+function ClashIndicator(props) {
+  return <div className="flex h-6 rounded-md overflow-hidden">
+    <div className="h-full flex items-center bg-blue-500 text-white text-sm pl-1 pr-1">1</div>
+    <div className="h-full flex items-center bg-yellow-500 text-white text-sm pl-1 pr-1">2</div>
+    <div className="h-full flex items-center bg-red-500 text-white text-sm pr-1 pl-1">3</div>
   </div>
 }
 
 
+function SpeakerItem(props) {
+  return <DragBox>
+    <div>{props.speaker.name}</div>
+    <div className="text-xs">{props.speaker.team_name}</div>
+    <HorizontalList>
+      {props.speaker.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
+    </HorizontalList>
+  </DragBox>
+}
+
+
 function AdjudicatorItem(props) {
-  return <div className="bg-gray-100 min-w-[14rem] rounded-md m-0">
+  return <DragBox>
     <div>{props.adjudicator.name}</div>
-  </div>
+    <HorizontalList>
+      {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
+    </HorizontalList>
+  </DragBox>
 }
 
 function DebateRow(props) {
@@ -141,7 +183,7 @@ function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
-    executeAction("execute_action", {
+    executeAction("UpdateDraw", {
         updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
     });
   }
@@ -154,7 +196,7 @@ function DrawEditor(props) {
 
   return <div>
     <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd}>
-      <table>
+      <table className="w-full">
         <tbody>
           {debates.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
         </tbody>

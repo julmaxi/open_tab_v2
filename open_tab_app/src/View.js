@@ -8,8 +8,13 @@ export function useView(viewDef, defaultVal) {
 
     useEffect(() => {
         invoke("subscribe_to_view", {view: viewDef}).then((msg) => {
-            let viewResult = JSON.parse(msg["success"]);
-            setView(viewResult);
+            if (msg["success"] === undefined) {
+                console.log("Error", msg);
+            }
+            else {
+                let viewResult = JSON.parse(msg["success"]);
+                setView(viewResult);    
+            }
         });
     }, [viewDef.type, viewDef.uuid]);
 
