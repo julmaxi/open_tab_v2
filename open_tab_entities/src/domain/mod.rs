@@ -7,5 +7,6 @@ pub mod debate;
 pub mod tournament;
 pub mod tournament_institution;
 pub mod participant_clash;
+pub mod debate_backup_ballot;
 
 pub use entity::TournamentEntity;

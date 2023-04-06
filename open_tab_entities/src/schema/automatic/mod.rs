@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod adjudicator;
 pub mod ballot_adjudicator;
+pub mod debate_backup_ballot;
 pub mod participant_clash;
 pub mod participant_tournament_institution;
 pub mod speaker;

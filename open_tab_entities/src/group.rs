@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder, QuerySelect, ActiveValue};
 
-use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash}, schema::tournament_log};
+use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot}, schema::tournament_log};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum Entity {
@@ -16,6 +16,7 @@ pub enum Entity {
     TournamentRound(TournamentRound),
     Ballot(Ballot),
     TournamentDebate(TournamentDebate),
+    DebateBackupBallot(DebateBackupBallot)
 }
 
 
@@ -28,6 +29,7 @@ pub struct EntityGroups {
     pub teams: Vec<Team>,
     pub tournament_institutions: Vec<TournamentInstitution>,
     pub participant_clashes: Vec<ParticipantClash>,
+    pub debate_backup_ballots: Vec<DebateBackupBallot>
 }
 
 impl EntityGroups {
@@ -41,6 +43,7 @@ impl EntityGroups {
             Entity::Team(e) => self.teams.push(e),
             Entity::TournamentInstitution(e) => self.tournament_institutions.push(e),
             Entity::ParticipantClash(e) => self.participant_clashes.push(e),
+            Entity::DebateBackupBallot(e) => self.debate_backup_ballots.push(e)
         }
     }
 
@@ -54,6 +57,7 @@ impl EntityGroups {
             teams: vec![],
             tournament_institutions: vec![],
             participant_clashes: vec![],
+            debate_backup_ballots: vec![]
         }
     }
 
@@ -68,6 +72,7 @@ impl EntityGroups {
         out.extend(Team::get_many_tournaments(db, &self.teams.iter().collect()).await?.into_iter());
         out.extend(TournamentInstitution::get_many_tournaments(db, &self.tournament_institutions.iter().collect()).await?.into_iter());
         out.extend(ParticipantClash::get_many_tournaments(db, &self.participant_clashes.iter().collect()).await?.into_iter());
+        out.extend(DebateBackupBallot::get_many_tournaments(db, &self.debate_backup_ballots.iter().collect()).await?.into_iter());
 
         Ok(out)
     }
@@ -85,6 +90,7 @@ impl EntityGroups {
         Ballot::save_many(db, guarantee_insert, &self.ballots.iter().collect()).await?;
         TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
         ParticipantClash::save_many(db, guarantee_insert, &self.participant_clashes.iter().collect()).await?;
+        DebateBackupBallot::save_many(db, guarantee_insert, &self.debate_backup_ballots.iter().collect()).await?;
         Ok(())
     }
 
@@ -108,6 +114,7 @@ impl EntityGroups {
         .chain(self.teams.into_iter().map(|t| Entity::Team(t)))
         .chain(self.tournament_institutions.into_iter().map(|t| Entity::TournamentInstitution(t)))
         .chain(self.participant_clashes.into_iter().map(|p| Entity::ParticipantClash(p)))
+        .chain(self.debate_backup_ballots.into_iter().map(|d| Entity::DebateBackupBallot(d)))
     }
 
     pub fn get_entity_ids(&self) -> Vec<(String, Uuid)> {
@@ -119,6 +126,7 @@ impl EntityGroups {
         .chain(self.teams.iter().map(|t| ("Team".to_string(), t.uuid.clone())))
         .chain(self.tournament_institutions.iter().map(|t| ("TournamentInstitution".to_string(), t.uuid.clone())))
         .chain(self.participant_clashes.iter().map(|p| ("ParticipantClash".to_string(), p.uuid.clone())))
+        .chain(self.debate_backup_ballots.iter().map(|d| ("DebateBackupBallot".to_string(), d.uuid.clone())))
         .collect_vec()
     }
 
@@ -184,6 +192,7 @@ impl Entity {
             Entity::TournamentRound(_) => 5,
             Entity::TournamentDebate(_) => 6,
             Entity::ParticipantClash(_) => 7,
+            Entity::DebateBackupBallot(_) => 8,
         }
     }
 
@@ -197,6 +206,7 @@ impl Entity {
             Entity::Team(_) => "Team".to_string(),
             Entity::TournamentInstitution(_) => "TournamentInstitution".to_string(),
             Entity::ParticipantClash(_) => "ParticipantClash".to_string(),
+            Entity::DebateBackupBallot(_) => "DebateBackupBallot".to_string(),
         }
     }
 
@@ -210,6 +220,7 @@ impl Entity {
             Entity::Team(e) => e.uuid,
             Entity::TournamentInstitution(e) => e.uuid,
             Entity::ParticipantClash(e) => e.uuid,
+            Entity::DebateBackupBallot(e) => e.uuid,
         }
     }
 }
@@ -270,6 +281,7 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             "Team" => Team::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Team(e)).collect_vec(),
             "TournamentInstitution" => TournamentInstitution::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentInstitution(e)).collect_vec(),
             "ParticipantClash" => ParticipantClash::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::ParticipantClash(e)).collect_vec(),
+            "DebateBackupBallot" => DebateBackupBallot::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::DebateBackupBallot(e)).collect_vec(),
             _ => panic!("Unknown entity type {}", type_)
         };
         all_new_entities.extend(new_entities);

@@ -3,13 +3,13 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "tournament_debate")]
+#[sea_orm(table_name = "debate_backup_ballot")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub round_id: Uuid,
-    pub index: i32,
+    pub debate_id: Uuid,
     pub ballot_id: Uuid,
+    pub timestamp: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -22,16 +22,14 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Ballot,
-    #[sea_orm(has_many = "super::debate_backup_ballot::Entity")]
-    DebateBackupBallot,
     #[sea_orm(
-        belongs_to = "super::tournament_round::Entity",
-        from = "Column::RoundId",
-        to = "super::tournament_round::Column::Uuid",
+        belongs_to = "super::tournament_debate::Entity",
+        from = "Column::DebateId",
+        to = "super::tournament_debate::Column::Uuid",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
-    TournamentRound,
+    TournamentDebate,
 }
 
 impl Related<super::ballot::Entity> for Entity {
@@ -40,15 +38,9 @@ impl Related<super::ballot::Entity> for Entity {
     }
 }
 
-impl Related<super::debate_backup_ballot::Entity> for Entity {
+impl Related<super::tournament_debate::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::DebateBackupBallot.def()
-    }
-}
-
-impl Related<super::tournament_round::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TournamentRound.def()
+        Relation::TournamentDebate.def()
     }
 }
 
