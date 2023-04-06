@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
+use open_tab_entities::domain::tournament_institution::TournamentInstitution;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -26,6 +27,7 @@ pub struct TournamentParticipantsInfo {
     pub teams_by_id: HashMap<Uuid, Team>,
     pub team_members: HashMap<Uuid, Vec<Uuid>>,
     pub speaker_teams: HashMap<Uuid, Uuid>,
+    pub institutions_by_id: HashMap<Uuid, TournamentInstitution>,
 }
 
 impl TournamentParticipantsInfo {
@@ -46,6 +48,7 @@ impl TournamentParticipantsInfo {
         }).into_group_map();
         let teams_by_id = Team::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|team| (team.uuid, team)).collect::<HashMap<_, _>>();
         let participants_by_id = all_participants.into_iter().map(|speaker| (speaker.uuid, speaker)).collect::<HashMap<_, _>>();
+        let institutions_by_id = TournamentInstitution::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|inst| (inst.uuid, inst)).collect::<HashMap<_, _>>();;
 
         let speaker_teams = team_members.iter().flat_map(|(team_id, speakers)| {
             speakers.iter().map(move |speaker_id| (*speaker_id, *team_id))
@@ -55,7 +58,8 @@ impl TournamentParticipantsInfo {
             participants_by_id,
             teams_by_id,
             team_members,
-            speaker_teams
+            speaker_teams,
+            institutions_by_id
         })
     }
 }

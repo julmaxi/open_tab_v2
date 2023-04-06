@@ -109,7 +109,7 @@ function SortableTable(props) {
         </thead>
         <tbody>
             {orderedRows.map((row, rowIdx) => {
-                let className = [selectedRow === rowIdx ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")];
+                let className = [selectedRow === rowIdx ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")].join(" ");
 
                 return <tr key={row[props.row_id]} className={className} onClick={() => setSelectedRow(rowIdx)}>
                     {
@@ -409,9 +409,8 @@ export function ParticipantOverview() {
     let currentView = {type: "ParticipantsList", tournament_uuid: tournamentContext.uuid};
 
     let participants = useView(currentView, {"teams": {}, "adjudicators": {}});
-    console.log(participants);
 
-    let [importDialogState, setImportDialogState] = useState(true);
+    let [importDialogState, setImportDialogState] = useState(false);
 
     let openImportDialog = useCallback(async () => {
         const selected = await open({

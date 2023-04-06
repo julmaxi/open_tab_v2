@@ -9,7 +9,7 @@ pub struct Model {
     pub uuid: Uuid,
     pub declaring_participant_id: Uuid,
     pub target_participant_id: Uuid,
-    pub clash_strength: i16,
+    pub clash_severity: i16,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -7,6 +7,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::{draw_view::DrawBallot, tab_view::TeamRoundRole};
 
+#[derive(Debug, Clone)]
 pub struct ClashMap {
     pub clashes: Vec<Vec<ClashMapEntry>>,
     pub clash_matrix: HashMap<Uuid, HashMap<Uuid, usize>>,
@@ -27,11 +28,12 @@ pub enum ClashType {
     JudgeHasSeenTeamSpeaker{round: Uuid},
     JudgeHasSeenNonAlignedSpeaker{round: Uuid},
     JudgeHasSeenJudge{round: Uuid},
-    DeclaredClash{severity: i16},
-    InstitutionalClash{severity: i16, institution_id: Uuid},
+    DeclaredClash{severity: u16},
+    InstitutionalClash{severity: u16, institution_id: Uuid},
     SameTeamClash
 }
 
+#[derive(Debug, Clone)]
 pub struct ClashMapConfig {
     pub ignore_speaker_adj_clashes: bool,
 }
@@ -86,10 +88,33 @@ impl ClashMap {
             });
         });
 
+        let teams = all_participants_by_id.iter().filter_map(
+            |p| {
+                match &p.1.role {
+                    ParticipantRole::Speaker(speaker) => if let Some(team_id) = speaker.team_id {
+                        Some((team_id, p.1.uuid))
+                    } else {
+                        None
+                    },
+                    _ => None
+                }
+            }
+        ).into_group_map();
+
+        teams.into_values().flat_map(|members| members.into_iter().combinations(2)).for_each(
+            |pair| {
+                let clash_entry = ClashMapEntry {
+                    clash_type: ClashType::SameTeamClash,
+                };
+
+                clash_map.add_clash_entry(pair[0], pair[1], clash_entry);
+            }
+        );
+
         Ok(clash_map)
     }
 
-    pub async fn add_dynamic_clashes_from_round_ballots(&mut self, round_draws: Vec<(Uuid, Vec<DrawBallot>)>) -> Result<(), Box<dyn Error>> {
+    pub async fn add_dynamic_clashes_from_round_ballots(&mut self, round_draws: Vec<(Uuid, &Vec<DrawBallot>)>) -> Result<(), Box<dyn Error>> {
         for (round_id, ballots) in round_draws {
             for ballot in ballots {
                 for adj_pair in ballot.adjudicators.iter().combinations(2) {
@@ -100,8 +125,8 @@ impl ClashMap {
                     self.add_clash_entry(adj_pair[0].uuid, adj_pair[1].uuid, clash_entry);
                 }
 
-                let all_gov_speaker_uuids = ballot.government.map(|t| t.members.iter().map(|m| m.uuid).collect_vec()).into_iter().flatten().collect_vec();
-                let all_opp_speaker_uuids = ballot.opposition.map(|t| t.members.iter().map(|m| m.uuid).collect_vec()).into_iter().flatten().collect_vec();
+                let all_gov_speaker_uuids = ballot.government.as_ref().map(|t| t.members.iter().map(|m| m.uuid).collect_vec()).into_iter().flatten().collect_vec();
+                let all_opp_speaker_uuids = ballot.opposition.as_ref().map(|t| t.members.iter().map(|m| m.uuid).collect_vec()).into_iter().flatten().collect_vec();
                 let all_non_aligned_speaker_uuids = ballot.non_aligned_speakers.iter().map(|m| m.uuid).collect_vec();
 
                 for (gov_speaker, opp_speaker) in all_gov_speaker_uuids.iter().cartesian_product(all_opp_speaker_uuids.iter()) {

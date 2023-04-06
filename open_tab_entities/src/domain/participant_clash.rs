@@ -2,10 +2,15 @@ use std::{error::Error, collections::HashMap, fmt::Display};
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use sea_orm::{prelude::*, ActiveValue};
+use sea_query::{Expr, SimpleExpr, SeaRc, ColumnRef};
+use sea_query::Alias;
+use sea_orm::{prelude::*, ActiveValue, QuerySelect, QueryTrait, DbBackend};
 use serde::{Serialize, Deserialize};
 
 use crate::{schema, utilities::{load_many, BatchLoadError, BatchLoad}};
+
+
+use sea_orm::JoinType;
 
 use super::TournamentEntity;
 
@@ -14,7 +19,7 @@ pub struct ParticipantClash {
     pub uuid: Uuid,
     pub declaring_participant_id: Uuid,
     pub target_participant_id: Uuid,
-    pub clash_strength: i16
+    pub severity: u16
 }
 
 
@@ -60,7 +65,7 @@ impl ParticipantClash {
                 uuid: clash.uuid,
                 declaring_participant_id: clash.declaring_participant_id,
                 target_participant_id: clash.target_participant_id,
-                clash_strength: clash.clash_strength
+                severity: clash.clash_severity as u16
             })
         }).collect())
     }
@@ -76,23 +81,68 @@ impl ParticipantClash {
                 uuid: clash.uuid,
                 declaring_participant_id: clash.declaring_participant_id,
                 target_participant_id: clash.target_participant_id,
-                clash_strength: clash.clash_strength
+                severity: clash.clash_severity as u16
             }
         }).collect())
+    }
+
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, DbErr> where C: ConnectionTrait {
+        let p1_alias = Alias::new("p1");
+        let p2_alias = Alias::new("p2");
+
+        let rows = schema::participant_clash::Entity::find()
+            .join_as(
+                JoinType::InnerJoin,
+                schema::participant_clash::Relation::Participant1.def(),
+                p1_alias.clone()
+            )
+            .join_as(
+                JoinType::InnerJoin,
+                schema::participant_clash::Relation::Participant2.def(),
+                p2_alias.clone()
+            )
+            .filter(
+                SimpleExpr::Column(
+                    ColumnRef::TableColumn(
+                        SeaRc::new(p1_alias),
+                        SeaRc::new(schema::participant::Column::TournamentId)
+                    )
+                ).eq(tournament_id).and(
+                    SimpleExpr::Column(
+                        ColumnRef::TableColumn(
+                            SeaRc::new(p2_alias),
+                            SeaRc::new(schema::participant::Column::TournamentId)
+                        )
+                    ).eq(tournament_id)
+                )
+            ).all(db).await?;
+        Ok(rows.into_iter().map(Self::from_row).collect())
+    }
+
+    fn from_row(row: schema::participant_clash::Model) -> Self {
+        Self {
+            uuid: row.uuid,
+            declaring_participant_id: row.declaring_participant_id,
+            target_participant_id: row.target_participant_id,
+            severity: row.clash_severity as u16
+        }
     }
 }
 
 #[async_trait]
 impl TournamentEntity for ParticipantClash {
     async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
-        let model = schema::tournament::ActiveModel {
+        let model = schema::participant_clash::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
+            declaring_participant_id: ActiveValue::Set(self.declaring_participant_id),
+            target_participant_id: ActiveValue::Set(self.target_participant_id),
+            clash_severity: ActiveValue::Set(self.severity as i16),
         };
         if guarantee_insert {
             model.insert(db).await?;
         }
         else {
-            let existing_model = schema::tournament::Entity::find().filter(schema::tournament::Column::Uuid.eq(self.uuid)).one(db).await?;
+            let existing_model = schema::participant_clash::Entity::find().filter(schema::participant_clash::Column::Uuid.eq(self.uuid)).one(db).await?;
             if let Some(_) = existing_model {
                 model.update(db).await?;
             }
@@ -104,9 +154,13 @@ impl TournamentEntity for ParticipantClash {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
-        return Ok(entities.iter().map(|tournament| {
-            Some(tournament.uuid)
-        }).collect());
+    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+        let participants = schema::participant::Entity::find()
+            .filter(schema::participant::Column::Uuid.is_in(entities.iter().map(|entity| entity.uuid).collect_vec()))
+            .all(db)
+            .await?;
+
+        let tournament_uuids = participants.into_iter().map(|p| Some(p.tournament_id)).collect_vec();
+        Ok(tournament_uuids)
     }
 }

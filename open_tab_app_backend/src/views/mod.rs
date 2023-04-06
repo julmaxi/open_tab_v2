@@ -4,7 +4,7 @@ pub mod rounds_view;
 pub mod participants_list_view;
 mod base;
 
-pub use self::base::LoadedView;
+pub use self::base::{LoadedView, TournamentParticipantsInfo};
 use self::rounds_view::LoadedRoundsView;
 use self::participants_list_view::LoadedParticipantsListView;
 

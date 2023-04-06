@@ -8,11 +8,13 @@ use crate::draw_view::DrawBallot;
 use super::clashes::{ClashMap, ClashType};
 
 
+#[derive(Debug, Clone)]
 pub struct DrawEvaluator {
-    clash_map: ClashMap,
+    pub clash_map: ClashMap,
     config: DrawEvaluatorConfig
 }
 
+#[derive(Debug, Clone)]
 pub struct DrawEvaluatorConfig {
     pub adj_adj_clash_factor: f32,
     pub adj_team_clash_factor: f32,
@@ -20,12 +22,12 @@ pub struct DrawEvaluatorConfig {
     pub team_team_clash_factor: f32,
     pub team_speaker_clash_factor: f32,
     pub speaker_speaker_clash_factor: f32,
-    pub adj_adj_repeat_clash_severity: i16,
-    pub adj_team_repeat_clash_severity: i16,
-    pub adj_non_aligned_speaker_repeat_clash_severity: i16,
-    pub team_team_repeat_clash_severity: i16,
-    pub team_speaker_repeat_clash_severity: i16,
-    pub non_aligned_speakers_repeat_clash_severity: i16,
+    pub adj_adj_repeat_clash_severity: u16,
+    pub adj_team_repeat_clash_severity: u16,
+    pub adj_non_aligned_speaker_repeat_clash_severity: u16,
+    pub team_team_repeat_clash_severity: u16,
+    pub team_speaker_repeat_clash_severity: u16,
+    pub non_aligned_speakers_repeat_clash_severity: u16,
 }
 
 impl Default for DrawEvaluatorConfig {
@@ -59,7 +61,7 @@ pub enum DrawIssueTarget {
 pub struct DrawIssue {
     #[serde(flatten)]
     pub issue_type: ClashType,
-    pub severity: i16,
+    pub severity: u16,
     pub target: DrawIssueTarget
 }
 
@@ -81,6 +83,15 @@ impl BallotEvaluationResult {
     }
 }
 
+impl BallotEvaluationResult {
+    pub fn total_severity(&self) -> u32 {
+        self.government_issues.iter().map(|i| i.severity as u32).sum::<u32 >()
+            + self.opposition_issues.iter().map(|i| i.severity as u32).sum::<u32 >()
+            + self.non_aligned_issues.iter().map(|(_, issues)| issues.iter().map(|i| i.severity as u32 ).sum::<u32 >()).sum::<u32 >()
+            + self.adjudicator_issues.iter().map(|(_, issues)| issues.iter().map(|i| i.severity as u32 ).sum::<u32 >()).sum::<u32 >()
+    }
+}
+
 
 impl DrawEvaluator {
     pub fn new(clash_map: ClashMap, config: DrawEvaluatorConfig) -> Self {
@@ -90,7 +101,7 @@ impl DrawEvaluator {
         }
     }
 
-    pub fn get_base_severity(&self, clash_type: &ClashType) -> i16 {
+    pub fn get_base_severity(&self, clash_type: &ClashType) -> u16 {
         match clash_type {
             ClashType::TeamSpeakerHasSeenTeamSpeaker{..} => self.config.team_team_repeat_clash_severity,
             ClashType::TeamSpeakerHasSeenNonAlignedSpeaker{..} => self.config.team_speaker_repeat_clash_severity,
@@ -121,7 +132,7 @@ impl DrawEvaluator {
             // The clash map is symmetric, so we only need to check one direction
             let clashes = adj_clashes.get(adj_2_id).iter().map(|c| c.iter()).flatten().collect_vec();
             for clash in clashes {
-                let severity = (self.get_base_severity(&clash.clash_type) as f32 * self.config.adj_adj_clash_factor) as i16;
+                let severity = (self.get_base_severity(&clash.clash_type) as f32 * self.config.adj_adj_clash_factor) as u16;
                 issues.adjudicator_issues.entry(*adj_1_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
@@ -139,7 +150,7 @@ impl DrawEvaluator {
             let adj_clashes = self.clash_map.get_clashes_for_participant(adj_id);
             let clashes = adj_clashes.get(speaker_id).iter().map(|c| c.iter()).flatten().collect_vec();
             for clash in clashes {
-                let severity = (self.get_base_severity(&clash.clash_type) as f32 * self.config.adj_speaker_clash_factor) as i16;
+                let severity = (self.get_base_severity(&clash.clash_type) as f32 * self.config.adj_speaker_clash_factor) as u16;
                 issues.adjudicator_issues.entry(*adj_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
@@ -164,7 +175,7 @@ impl DrawEvaluator {
                                 |c| {
                                     DrawIssue {
                                         issue_type: c.clash_type.clone(),
-                                        severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.adj_team_clash_factor) as i16,
+                                        severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.adj_team_clash_factor) as u16,
                                         target: DrawIssueTarget::Team{team_id: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
                                     }
                                 }
@@ -198,7 +209,7 @@ impl DrawEvaluator {
                             |c| {
                                 DrawIssue {
                                     issue_type: c.clash_type.clone(),
-                                    severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_speaker_clash_factor) as i16,
+                                    severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_speaker_clash_factor) as u16,
                                     target: DrawIssueTarget::Team{team_id: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
                                 }
                             }
@@ -224,7 +235,6 @@ impl DrawEvaluator {
 
         for gov_speaker_id in ballot.government.iter().flat_map(|t| t.members.iter().map(|m| m.uuid)) {
             let speaker_clashes = self.clash_map.get_clashes_for_participant(&gov_speaker_id);
-            dbg!(&speaker_clashes);
             ballot.opposition.iter().flat_map(|t| t.members.iter().map(|m| m.uuid)).flat_map(
                 |opp_speaker_id| {
                     speaker_clashes.get(&opp_speaker_id).iter().flat_map(|cs| 
@@ -232,7 +242,7 @@ impl DrawEvaluator {
                             |c| {
                                 DrawIssue {
                                     issue_type: c.clash_type.clone(),
-                                    severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_team_clash_factor) as i16,
+                                    severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_team_clash_factor) as u16,
                                     target: DrawIssueTarget::Team { team_id: ballot.opposition.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()), involved_speakers: vec![opp_speaker_id] }
                                 }
                             }
@@ -268,7 +278,7 @@ fn coalesce_issues(prev: DrawIssue, next: DrawIssue) -> Result<DrawIssue, (DrawI
         ) if round_1 == round_2 => {
             Ok(DrawIssue {
                 issue_type: ClashType::JudgeHasSeenTeamSpeaker { round: *round_1 },
-                severity: i16::max(prev.severity, next.severity),
+                severity: u16::max(prev.severity, next.severity),
                 target: prev.target.clone()
             })
         },
@@ -276,8 +286,8 @@ fn coalesce_issues(prev: DrawIssue, next: DrawIssue) -> Result<DrawIssue, (DrawI
             match (&prev.target, &next.target) {
                 (DrawIssueTarget::Team { team_id: t_id_1, involved_speakers: is_1 }, DrawIssueTarget::Team { team_id: t_id_2, involved_speakers: is_2 }) if t_id_1 == t_id_2 => {
                     Ok(DrawIssue {
-                        issue_type: ClashType::InstitutionalClash { severity: i16::max(*severity_1, *severity_2), institution_id: *i_id_1 },
-                        severity: i16::max(prev.severity, next.severity),
+                        issue_type: ClashType::InstitutionalClash { severity: u16::max(*severity_1, *severity_2), institution_id: *i_id_1 },
+                        severity: u16::max(prev.severity, next.severity),
                         target: DrawIssueTarget::Team { team_id: *t_id_1, involved_speakers: is_1.iter().chain(is_2.iter()).copied().collect_vec() }
                     })
                 },

@@ -2,20 +2,24 @@
 use std::{collections::HashMap, error::Error, hash::Hash, fmt::{Display, Formatter}};
 
 use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution}, schema::{adjudicator, self}};
+use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
 use sea_orm::{prelude::*, Statement, Database};
 use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
 use crate::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, Action};
+use faker_rand::en_us::{names::FullName, company::CompanyName};
+use rand::{Rng, thread_rng};
+
 
 #[derive(Debug)]
 pub struct MockOption {
     pub deterministic_uuids: bool,
     pub num_teams: u32,
     pub num_adjudicators: u32,
-    pub draw_debates: bool
+    pub draw_debates: bool,
+    pub use_random_names: bool
 }
 
 impl Default for MockOption {
@@ -24,7 +28,8 @@ impl Default for MockOption {
             deterministic_uuids: false,
             num_teams: 27,
             num_adjudicators: 27,
-            draw_debates: true
+            draw_debates: true,
+            use_random_names: false
         }
     }
 }
@@ -56,7 +61,13 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
 
     let institutions = (0..options.num_teams).map(|i| {
         let uuid = if options.deterministic_uuids {Uuid::from_u128(500 + i as u128)} else {Uuid::new_v4()};
-        let name = format!("Institution {}", uuid);
+        
+        let name = if options.use_random_names {
+            rand::random::<CompanyName>().to_string()
+        }
+        else {
+            format!("Institution {}", uuid)
+        };
         open_tab_entities::domain::tournament_institution::TournamentInstitution {
             uuid,
             name,
@@ -77,18 +88,24 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
     let speakers = teams.iter().enumerate().map(|(team_idx, team)| {
         let members = (0..3).map(|i| {
             let uuid = if options.deterministic_uuids {Uuid::from_u128(2000 + (team_idx as u128) * 10 + i)} else {Uuid::new_v4()};
-            let name = format!("Speaker {}", uuid);
+
+            let name = if options.use_random_names {
+                rand::random::<FullName>().to_string()
+            }
+            else {
+                format!("Speaker {}", uuid)
+            };
             let mut institutions = vec![
                 ParticipantInstitution {
                     uuid: Uuid::from_u128(500 + team_idx as u128),
-                    clash_strength: 20
+                    clash_severity: 100
                 }
             ];
             if i == 1 {
                 institutions.push(
                     ParticipantInstitution {
                         uuid: if team_idx == 0 {Uuid::from_u128(500 + team_idx as u128 + 1)} else {Uuid::from_u128(500 + (team_idx - 1) as u128)},
-                        clash_strength: 20
+                        clash_severity: 50
                     }
                 );    
             }
@@ -104,16 +121,24 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         members
     }).collect_vec();
 
-    let adjudicators = (0..options.num_adjudicators).map(|i| {
-        let uuid = if options.deterministic_uuids {Uuid::from_u128(3000 + i as u128)} else {Uuid::new_v4()};
-        let name = format!("Adjudicator {}", uuid);
-            Participant {
-                uuid,
-                name,
-                tournament_id: tournament_uuid,
-                role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
-                institutions: vec![]
-            }
+    let adjudicators = (0..options.num_adjudicators).map(|adj_idx| {
+        let uuid = if options.deterministic_uuids {Uuid::from_u128(3000 + adj_idx as u128)} else {Uuid::new_v4()};
+        let name = if options.use_random_names {
+            rand::random::<FullName>().to_string()
+        }
+        else {
+            format!("Adjudicator {}", uuid)
+        };
+        Participant {
+            uuid,
+            name,
+            tournament_id: tournament_uuid,
+            role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
+            institutions: vec![ParticipantInstitution {
+                uuid: Uuid::from_u128(500 + adj_idx as u128),
+                clash_severity: 100
+            }]
+        }
     }).collect_vec();
 
     let rounds = (0..3).map(|i| {
@@ -124,6 +149,33 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
             index: i as u64,
         }
     }).collect_vec();
+
+    let clashes = vec![
+        ParticipantClash {
+            uuid:Uuid::from_u128(600),
+            severity:100,
+            declaring_participant_id: adjudicators[0].uuid,
+            target_participant_id: speakers[0][0].uuid,
+        },
+        ParticipantClash {
+            uuid:Uuid::from_u128(601),
+            severity:100,
+            declaring_participant_id: speakers[0][1].uuid,
+            target_participant_id: adjudicators[1].uuid,
+        },
+        ParticipantClash {
+            uuid:Uuid::from_u128(602),
+            severity:50,
+            declaring_participant_id: speakers[1][1].uuid,
+            target_participant_id: adjudicators[0].uuid,
+        },
+        ParticipantClash {
+            uuid:Uuid::from_u128(603),
+            severity:25,
+            declaring_participant_id: speakers[1][2].uuid,
+            target_participant_id: adjudicators[0].uuid,
+        },
+    ];
 
     if options.draw_debates {
 
@@ -180,6 +232,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
     adjudicators.into_iter().for_each(|adjudicator| groups.add(Entity::Participant(adjudicator)));
     rounds.into_iter().for_each(|round| groups.add(Entity::TournamentRound(round)));
     institutions.into_iter().for_each(|i| groups.add(Entity::TournamentInstitution(i)));
+    clashes.into_iter().for_each(|c| groups.add(Entity::ParticipantClash(c)));
 
     groups
 }

@@ -59,7 +59,7 @@ fn make_changeset() -> (EntityGroups, Ballot) {
             tournament_id: Uuid::from_u128(10),
             role: ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
             institutions: vec![
-                ParticipantInstitution { uuid: Uuid::from_u128(500), clash_strength: 2 }
+                ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
             ]
         }
     ));
@@ -86,7 +86,7 @@ fn make_changeset() -> (EntityGroups, Ballot) {
                 uuid: Uuid::from_u128(600),
                 declaring_participant_id: Uuid::from_u128(401),
                 target_participant_id: Uuid::from_u128(402),
-                clash_strength: 2
+                severity: 2
             }
         )
     );

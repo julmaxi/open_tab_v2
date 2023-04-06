@@ -23,7 +23,7 @@ pub struct Participant {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct ParticipantInstitution {
     pub uuid: Uuid,
-    pub clash_strength: i16
+    pub clash_severity: u16
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -127,7 +127,7 @@ impl Participant {
         let institutions = institution_info.into_iter().map(
             |institution| ParticipantInstitution {
                 uuid: institution.institution_id,
-                clash_strength: institution.clash_strength
+                clash_severity: institution.clash_severity as u16
             }
         ).collect();
 
@@ -263,7 +263,7 @@ impl TournamentEntity for Participant {
                     let mut update = participant_tournament_institution::ActiveModel {
                         participant_id: ActiveValue::Unchanged(ent.uuid),
                         institution_id: ActiveValue::Set(institution.uuid),
-                        clash_strength: ActiveValue::Set(institution.clash_strength)
+                        clash_severity: ActiveValue::Set(institution.clash_severity as i16)
                     };
 
                     if let Some(_) = previous_inst {
@@ -311,7 +311,7 @@ impl TournamentEntity for Participant {
                     |institution| participant_tournament_institution::ActiveModel {
                         participant_id: ActiveValue::Unchanged(ent.uuid),
                         institution_id: ActiveValue::Set(institution.uuid),
-                        clash_strength: ActiveValue::Set(institution.clash_strength)
+                        clash_severity: ActiveValue::Set(institution.clash_severity as i16)
                     }
                 ).collect_vec());
             }
@@ -433,12 +433,12 @@ fn test_get_institutions() -> Result<(), ParticipantParseError> {
             schema::participant_tournament_institution::Model {
                 participant_id: Uuid::from_u128(400),
                 institution_id: Uuid::from_u128(500),
-                clash_strength: 200
+                clash_severity: 200
             },
             schema::participant_tournament_institution::Model {
                 participant_id: Uuid::from_u128(400),
                 institution_id: Uuid::from_u128(501),
-                clash_strength: 1
+                clash_severity: 1
             }
         ]
     )?;
@@ -449,11 +449,11 @@ fn test_get_institutions() -> Result<(), ParticipantParseError> {
     assert_eq!(sorted_institutions, vec![
         ParticipantInstitution {
             uuid: Uuid::from_u128(500),
-            clash_strength: 200
+            clash_severity: 200
         },
         ParticipantInstitution {
             uuid: Uuid::from_u128(501),
-            clash_strength: 1
+            clash_severity: 1
         },
     ]);
 

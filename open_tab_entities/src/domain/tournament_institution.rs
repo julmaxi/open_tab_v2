@@ -54,13 +54,7 @@ impl TournamentInstitution {
     pub async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<TournamentInstitution>>, TournamentInstitutionParseError> where C: ConnectionTrait {
         let institutions = schema::tournament_institution::Entity::batch_load(db, uuids).await?;
 
-        Ok(institutions.into_iter().map(|institution| {
-            institution.map(|institution| TournamentInstitution {
-                uuid: institution.uuid,
-                name: institution.name,
-                tournament_id: institution.tournament_id
-            })
-        }).collect())
+        Ok(institutions.into_iter().map(|r| r.map(Self::from_row)).collect())
     }
 
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<TournamentInstitution>, TournamentInstitutionParseError> where C: ConnectionTrait {
@@ -69,13 +63,20 @@ impl TournamentInstitution {
             BatchLoadError::RowNotFound => TournamentInstitutionParseError::InstitutionDoesNotExist
         })?;
 
-        Ok(institutions.into_iter().map(|institution| {
-            TournamentInstitution {
-                uuid: institution.uuid,
-                name: institution.name,
-                tournament_id: institution.tournament_id
-            }
-        }).collect())
+        Ok(institutions.into_iter().map(Self::from_row).collect())
+    }
+
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentInstitution>, DbErr> where C: ConnectionTrait {
+        let rows = schema::tournament_institution::Entity::find().filter(schema::tournament_institution::Column::TournamentId.eq(tournament_id)).all(db).await?;
+        Ok(rows.into_iter().map(Self::from_row).collect())
+    }
+
+    fn from_row(row: schema::tournament_institution::Model) -> Self {
+        TournamentInstitution {
+            uuid: row.uuid,
+            name: row.name,
+            tournament_id: row.tournament_id
+        }
     }
 }
 

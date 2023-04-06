@@ -171,7 +171,7 @@ pub enum ParticipantTournamentInstitution {
     Table,
     ParticipantId,
     InstitutionId,
-    ClashStrength
+    ClashSeverity
 }
 
 #[derive(Iden)]
@@ -180,7 +180,16 @@ pub enum ParticipantClash {
     Uuid,
     DeclaringParticipantId,
     TargetParticipantId,
-    ClashStrength
+    ClashSeverity
+}
+
+#[derive(Iden)]
+enum DebateBackupBallot {
+    Table,
+    Uuid,
+    DebateId,
+    BallotId,
+    Timestamp
 }
 
 
@@ -312,7 +321,7 @@ impl MigrationTrait for Migration {
                 .primary_key(Index::create().col(ParticipantTournamentInstitution::ParticipantId).col(ParticipantTournamentInstitution::InstitutionId).primary())
                 .col(ColumnDef::new(ParticipantTournamentInstitution::ParticipantId).uuid().not_null())
                 .col(ColumnDef::new(ParticipantTournamentInstitution::InstitutionId).uuid().not_null())
-                .col(ColumnDef::new(ParticipantTournamentInstitution::ClashStrength).integer().small_integer().not_null())
+                .col(ColumnDef::new(ParticipantTournamentInstitution::ClashSeverity).integer().small_integer().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                     .name("fk-participant-tournament-institution_institution-id")
@@ -358,7 +367,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(ParticipantClash::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(ParticipantClash::DeclaringParticipantId).uuid().not_null())
                 .col(ColumnDef::new(ParticipantClash::TargetParticipantId).uuid().not_null())
-                .col(ColumnDef::new(ParticipantClash::ClashStrength).integer().small_unsigned().not_null())
+                .col(ColumnDef::new(ParticipantClash::ClashSeverity).integer().small_unsigned().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                     .name("fk-clash-declaring-participant")
@@ -588,7 +597,6 @@ impl MigrationTrait for Migration {
             .col(BallotAdjudicator::AdjudicatorId)
             .to_owned()
         ).await?;
-
 
         manager
         .create_table(
@@ -820,6 +828,39 @@ impl MigrationTrait for Migration {
             .col(AdjudicatorSpeechScore::BallotId)
             .to_owned()
         ).await?;
+        
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(DebateBackupBallot::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(DebateBackupBallot::Uuid).uuid().primary_key())
+                .col(ColumnDef::new(DebateBackupBallot::DebateId).uuid().not_null())
+                .col(ColumnDef::new(DebateBackupBallot::BallotId).uuid().not_null())
+                .col(ColumnDef::new(DebateBackupBallot::Timestamp).timestamp().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-ballot_backup-ballot")
+                        .from_tbl(DebateBackupBallot::Table)
+                        .from_col(DebateBackupBallot::BallotId)
+                        .to_tbl(Ballot::Table)
+                        .to_col(Ballot::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-ballot_backup-debate")
+                        .from_tbl(DebateBackupBallot::Table)
+                        .from_col(DebateBackupBallot::DebateId)
+                        .to_tbl(TournamentDebate::Table)
+                        .to_col(TournamentDebate::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .to_owned()
+        ).await?;
+
         Result::Ok(())
     }
 

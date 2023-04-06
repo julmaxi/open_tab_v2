@@ -157,7 +157,7 @@ async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
         institutions: vec![
             ParticipantInstitution {
                 uuid: Uuid::from_u128(500),
-                clash_strength: 20
+                clash_severity: 20
             }
         ]
     }, true).await?;

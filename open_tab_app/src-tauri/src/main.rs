@@ -32,7 +32,7 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
         vec![])
     ).await?;
 
-    let mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, ..Default::default() });
+    let mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, ..Default::default() });
     let tournament_uuid = mock_data.tournaments[0].uuid.clone();
     mock_data.save_all_with_options(&db, true).await.unwrap();
     mock_data.save_log_with_tournament_id(&db, tournament_uuid).await.unwrap();

@@ -13,13 +13,13 @@ import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
 
 
-function DragBox(props) {
-  return <div className="flex bg-gray-100 min-w-[14rem] p-1 rounded">
+function DragBox(props) {  
+  return <div className={`flex bg-gray-100 min-w-[14rem] p-1 rounded border ${props.highlightedIssues?.length > 0 ? "border-red-500" : "border-gray-100"}`}>
     <div className="flex-1">
       {props.children}
     </div>
     <div className="flex items-center mr-1">
-        <ClashIndicator />
+        <ClashIndicator issues={props.issues.filter(i => i.is_active)} onHover={props.onHighlightIssues} />
     </div>
   </div>
 }
@@ -35,7 +35,17 @@ function TeamItem(props) {
   let all_participant_institutions = props.team.members.map((m) => m.institutions).flat().sort((a, b) => a.name.localeCompare(b.name));
   let unique_participant_institutions = [...new Set(all_participant_institutions.map((i) => i.uuid))].map((uuid) => all_participant_institutions.find((i) => i.uuid === uuid));
 
-  return <DragBox>
+  let all_participant_issues = props.team.members.map((m) => m.issues).flat();
+  let highlightedIssues = all_participant_issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
+
+  return <DragBox issues={all_participant_issues} onHighlightIssues={(shouldHighlight) => {
+    if (shouldHighlight) {
+      props.onAddIssueHighlightUuids(props.team.members.map((m) => m.uuid));
+    }
+    else {
+      props.onRemoveIssueHighlightUuids(props.team.members.map((m) => m.uuid));
+    }
+  }} highlightedIssues={highlightedIssues}>
       <div>{props.team.name}</div>
       <HorizontalList>
         {props.team.members.map((member) => <div key={member.uuid} className="text-xs">{member.name}</div>)}
@@ -48,16 +58,55 @@ function TeamItem(props) {
 
 
 function ClashIndicator(props) {
-  return <div className="flex h-6 rounded-md overflow-hidden">
-    <div className="h-full flex items-center bg-blue-500 text-white text-sm pl-1 pr-1">1</div>
-    <div className="h-full flex items-center bg-yellow-500 text-white text-sm pl-1 pr-1">2</div>
-    <div className="h-full flex items-center bg-red-500 text-white text-sm pr-1 pl-1">3</div>
-  </div>
+  let issueBuckets = props.issues.reduce((acc, issue) => {
+    if (issue.severity >= 75) {
+      acc.high.push(issue);
+    } else if (issue.severity >= 50) {
+      acc.mid.push(issue);
+    } else if (issue.severity >= 25) {
+      acc.low.push(issue);
+    } else {
+      acc.misc.push(issue);
+    }
+    return acc;
+  }, {misc: [], low: [], mid: [], high: []});
+
+  const issueColors = {
+    misc: "bg-gray-500",
+    low: "bg-blue-500",
+    mid: "bg-yellow-500",
+    high: "bg-red-500"
+  }
+
+  return <div className="flex h-6 rounded-md overflow-hidden w-12" onMouseEnter={() => props.onHover(true)} onMouseLeave={() => props.onHover(false)}>
+    {
+      props.issues.length == 0 ?
+      <div className="h-full flex-1 items-center bg-green-500 text-white text-sm pl-1 pr-1">{"\u2713"}</div>
+      :
+      ["misc", "low", "mid", "high"].map(
+        (key) => {
+          return issueBuckets[key].length > 0 ?
+          <div key={key} className={`h-full flex flex-1 items-center text-white text-sm pl-1 pr-1 ${issueColors[key]}`}>{issueBuckets[key].length}</div>
+          :
+          null
+        }
+      )
+    }
+  </div>;
 }
 
 
 function SpeakerItem(props) {
-  return <DragBox>
+  let highlightedIssues = props.speaker.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
+
+  return <DragBox issues={props.speaker.issues} onHighlightIssues={(shouldHighlight) => {
+    if (shouldHighlight) {
+      props.onAddIssueHighlightUuids([props.speaker.uuid]);
+    }
+    else {
+      props.onRemoveIssueHighlightUuids([props.speaker.uuid]);
+    }
+  }} highlightedIssues={highlightedIssues}>
     <div>{props.speaker.name}</div>
     <div className="text-xs">{props.speaker.team_name}</div>
     <HorizontalList>
@@ -68,7 +117,16 @@ function SpeakerItem(props) {
 
 
 function AdjudicatorItem(props) {
-  return <DragBox>
+  let highlightedIssues = props.adjudicator.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
+
+  return <DragBox issues={props.adjudicator.issues} onHighlightIssues={(shouldHighlight) => {
+    if (shouldHighlight) {
+      props.onAddIssueHighlightUuids([props.adjudicator.uuid]);
+    }
+    else {
+      props.onRemoveIssueHighlightUuids([props.adjudicator.uuid]);
+    }
+  }} highlightedIssues={highlightedIssues}>
     <div>{props.adjudicator.name}</div>
     <HorizontalList>
       {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
@@ -78,25 +136,67 @@ function AdjudicatorItem(props) {
 
 function DebateRow(props) {
   let ballot = props.debate.ballot;
+  let [issueHightlightedParticipantUuids, setIssueHightlightedParticipantUuids] = useState([]);
+
   return (
     <tr>
       <td>
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
-          {ballot.government !== null ? <TeamItem team={ballot.government} /> : []}
+          {ballot.government !== null ? <TeamItem
+            team={ballot.government}
+            onAddIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            }
+            onRemoveIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            }
+            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
+            /> : []}
         </DropWell>
         <br />
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
-          {ballot.opposition !== null ? <TeamItem team={ballot.opposition} /> : []}
+          {ballot.opposition !== null ? <TeamItem
+            team={ballot.opposition}
+            onAddIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            }
+            onRemoveIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            }
+            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}            
+            /> : []}
         </DropWell>
       </td>
       <td>
         <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
-          {ballot.non_aligned_speakers.map((speaker) => <SpeakerItem key={speaker.uuid} speaker={speaker} />)}
+          {ballot.non_aligned_speakers.map((speaker) =>
+            <SpeakerItem
+            key={speaker.uuid}
+            speaker={speaker}
+            onAddIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            }
+            onRemoveIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            }
+            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
+            />)}
         </DropList>
       </td>
       <td>
         <DropList type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
-          {ballot.adjudicators.map((adjudicator) => <AdjudicatorItem key={adjudicator.uuid} adjudicator={adjudicator} />)}
+          {ballot.adjudicators.map((adjudicator) =>
+            <AdjudicatorItem
+            key={adjudicator.uuid}
+            adjudicator={adjudicator}
+            onAddIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            }
+            onRemoveIssueHighlightUuids={
+              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            }
+            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
+          />)}
         </DropList>
       </td>
       <td>
@@ -178,8 +278,6 @@ function simulateDragOutcome(draw, from, to, isSwap) {
 }
 
 function DrawEditor(props) {
-  //const [draw, setDraw] = useState([]);
-
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
@@ -190,6 +288,7 @@ function DrawEditor(props) {
 
   let currentView = {type: "Draw", uuid: props.round_uuid};
   let draw = useView(currentView, {"debates": []});
+  console.log(draw.debates);
   let debates = draw.debates;
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);

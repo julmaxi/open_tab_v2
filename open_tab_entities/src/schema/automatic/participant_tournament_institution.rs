@@ -9,7 +9,7 @@ pub struct Model {
     pub participant_id: Uuid,
     #[sea_orm(primary_key, auto_increment = false)]
     pub institution_id: Uuid,
-    pub clash_strength: i16,
+    pub clash_severity: i16,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
