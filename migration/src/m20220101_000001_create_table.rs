@@ -1,4 +1,4 @@
-use sea_orm_migration::{prelude::*, manager};
+use sea_orm_migration::{prelude::*};
 
 pub struct Migration;
 
@@ -81,15 +81,6 @@ pub enum BallotTeam {
 }
 
 
-/*
-#[derive(Iden)]
-pub enum AdjudicatorTeamScore {
-    Table,
-    BallotTeamId,
-    AdjudicatorId,
-    ManualTotalScore,
-}
- */
 #[derive(Iden)]
 pub enum AdjudicatorTeamScore {
     Table,
@@ -864,7 +855,7 @@ impl MigrationTrait for Migration {
         Result::Ok(())
     }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
         todo!()
     }
 }
