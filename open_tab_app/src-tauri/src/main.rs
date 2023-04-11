@@ -4,7 +4,7 @@
 use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Display, Formatter, format}, sync::Mutex, time::Duration};
 
 use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole}, schema::{adjudicator, self}, get_changed_entities_from_log};
+use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}};
 use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder};
 use tauri::{async_runtime::block_on, State, App, AppHandle, Manager};
@@ -12,7 +12,7 @@ use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action};
 
 
 

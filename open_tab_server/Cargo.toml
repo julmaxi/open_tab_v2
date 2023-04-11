@@ -10,6 +10,7 @@ rocket = { version = "0.5.0-rc.2", features = ["json", "uuid"] }
 
 open_tab_entities = { path = "../open_tab_entities" }
 migration = { path = "../migration" }
+open_tab_app_backend = { path = "../open_tab_app_backend" }
 sea-orm = { version = "0.11.0", features = [ "macros" ] }
 serde = "^1.0.0"
 async-trait = "0.1.64"
@@ -19,7 +20,8 @@ log="*"
 serde_json="*"
 chrono="*"
 tera = "1"
-
+lazy_static = "1.4.0"
+rocket_cors = "0.6.0-alpha2"
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.2"
@@ -32,3 +34,6 @@ features = [
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs/
 ]
+
+[build-dependencies]
+fs_extra = "1.3.0"

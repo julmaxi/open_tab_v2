@@ -18,7 +18,15 @@ pub enum Relation {
     #[sea_orm(has_one = "super::speaker::Entity")]
     Speaker,
     #[sea_orm(has_many = "super::participant_tournament_institution::Entity")]
-    TournamentInstitution
+    TournamentInstitution,
+    #[sea_orm(
+        belongs_to = "super::tournament::Entity",
+        from = "Column::TournamentId",
+        to = "super::tournament::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Tournament,
 }
 
 impl Related<super::adjudicator::Entity> for Entity {
@@ -39,5 +47,10 @@ impl Related<super::participant_tournament_institution::Entity> for Entity {
     }
 }
 
+impl Related<super::tournament::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tournament.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

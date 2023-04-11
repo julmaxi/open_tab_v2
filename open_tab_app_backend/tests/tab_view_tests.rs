@@ -2,11 +2,11 @@ use std::{error::Error, collections::HashMap, default};
 
 use itertools::Itertools;
 use migration::MigratorTrait;
-use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, SpeakerScore, BallotTeam, SpeechRole, TournamentDebate}, EntityGroups, Entity};
+use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, SpeakerScore, BallotTeam, SpeechRole, TournamentDebate}, EntityGroups, Entity, mock::{make_mock_tournament_with_options, MockOption}};
 use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 
 
-use open_tab_app_backend::{UpdateDrawAction, views::LoadedView, views::tab_view::LoadedTabView, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker, LoadedDrawView}, ActionTrait, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_app_backend::{UpdateDrawAction, views::LoadedView, views::tab_view::LoadedTabView, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker, LoadedDrawView}, ActionTrait };
 
 const TAB_TOLERANCE : f64 = 0.0001;
 

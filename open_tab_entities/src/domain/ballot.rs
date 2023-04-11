@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Error, fmt::Display};
+use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
 
 use async_trait::async_trait;
 use sea_orm::JoinType;
@@ -67,15 +67,18 @@ pub struct Ballot {
     pub president: Option<Uuid>
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all="snake_case")]
 pub enum SpeechRole {
     Government,
     Opposition,
     NonAligned
 }
 
-impl SpeechRole {
-    fn from_str(s: &str) -> Result<SpeechRole, BallotParseError> {
+impl FromStr for SpeechRole {
+    type Err = BallotParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "g" => Ok(SpeechRole::Government),
             "o" => Ok(SpeechRole::Opposition),
@@ -83,7 +86,9 @@ impl SpeechRole {
             _ => Err(BallotParseError::UnknownSpeechRole)
         }
     }
+}
 
+impl SpeechRole {
     fn to_str(&self) -> String {
         match self {
             SpeechRole::Government => "g".into(),
@@ -98,6 +103,18 @@ impl SpeechRole {
 pub enum JudgeRole {
     Normal,
     President,
+}
+
+impl FromStr for JudgeRole {
+    type Err = BallotParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "n" => Ok(JudgeRole::Normal),
+            "p" => Ok(JudgeRole::President),
+            _ => Err(BallotParseError::UnknownJudgeRole)
+        }
+    }
 }
 
 impl JudgeRole {
@@ -145,11 +162,11 @@ impl BallotTeam {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum SpeakerScore {
-    Aggregate(i8)
+    Aggregate(i16)
 }
 
 impl SpeakerScore {
-    pub fn total(&self) -> i8 {
+    pub fn total(&self) -> i16{
         match self {
             SpeakerScore::Aggregate(s) => *s,
         }
@@ -275,7 +292,7 @@ impl Ballot {
         for score in  speech_scores.into_iter() {
             speech_score_map.entry((score.speech_role, score.speech_position)).or_insert(HashMap::new()).insert(
                 score.adjudicator_id,
-                SpeakerScore::Aggregate(score.manual_total_score.unwrap() as i8)
+                SpeakerScore::Aggregate(score.manual_total_score.unwrap_or(0) as i16)
             );
         };
 

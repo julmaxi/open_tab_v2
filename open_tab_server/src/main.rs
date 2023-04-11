@@ -1,13 +1,17 @@
 #[macro_use] extern crate rocket;
+use std::collections::hash_map::RandomState;
+use std::path::Path;
 use std::{collections::HashMap, error::Error};
+use open_tab_entities::prelude::SpeechRole;
 use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log, domain};
 use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
 use open_tab_entities::schema::{self, tournament_log, tournament};
+use rocket::fs::{FileServer, relative, NamedFile};
 use rocket::futures::TryFutureExt;
 use rocket::http::hyper::body::HttpBody;
 use rocket::response::status::Custom;
 use rocket::serde::{Deserialize, Serialize, json::Json};
-use migration::{MigratorTrait, Query};
+use migration::{MigratorTrait, Query, JoinType};
 use rocket::State;
 use rocket_dyn_templates::{Template, context};
 use sea_orm::{prelude::*, Database, ConnectionTrait, DbBackend, Statement, QuerySelect, QueryOrder, TransactionTrait, ActiveValue, QueryTrait};
@@ -16,27 +20,13 @@ use rocket::http::Status;
 use rocket::{Rocket, Build};
 use log::{info};
 
-use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
+use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges, handle_error, handle_error_dyn};
 
-
-fn handle_error<E>(e: E) -> Custom<String> where E: Error {
-    handle_error_impl(format!("{}", e))
-}
-
-fn handle_error_dyn<E>(e: Box<E>) -> Custom<String> where E: Error + ?Sized {
-    handle_error_impl(format!("{}", e))
-}
-
-fn handle_error_impl(msg: String) -> Custom<String> {
-    println!("{}", msg);
-    Custom(Status::InternalServerError, msg)
-}
 
 #[post("/tournament/<tournament_id>/update", data="<updates>")]
 async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid, updates: Json<TournamentUpdate>) -> Result<String, Custom<String>> {
     let transaction = db.begin_with_config(Some(sea_orm::IsolationLevel::Serializable), None).await.map_err(handle_error)?;
 
-    dbg!(&updates.expected_log_head);
     if let Some(expected_log_sequence_number) = updates.expected_log_head {
         let latest_log = tournament_log::Entity::find()
             .filter(tournament_log::Column::TournamentId.eq(tournament_id))
@@ -90,7 +80,6 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
 
     Ok(serde_json::to_string(&TournamentUpdateResponse{new_log_head }).map_err(handle_error)?)
 }
-
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -182,8 +171,9 @@ async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament
     ))
 }
 
- #[get("/tournament/<tournament_id>")]
- async fn get_tournament_overview(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Option<&'static str>, Custom<&'static str>> {
+
+#[get("/tournament/<tournament_id>")]
+async fn get_tournament_overview(db: &State<DatabaseConnection>, tournament_id: rocket::serde::uuid::Uuid) -> Result<Option<&'static str>, Custom<&'static str>> {
     info!("{}", tournament_id);
     let t = schema::prelude::Tournament::find_by_id(tournament_id).one(db.inner()).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
     Ok(t.map(|_| "Exists"))
@@ -248,6 +238,22 @@ struct ParticipantHomePageInfo {
     role: String
 }
 
+
+struct ParticipantHomePageRoundInfo {
+    round_number: u32,
+    room_index: u32,
+    role: ParticipantHomePageRoundRoleInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum ParticipantHomePageRoundRoleInfo {
+    TeamSpeaker { team_role: SpeechRole },
+    NonAlignedSpeaker { position: u8 },
+    Adjudicator { room_idx: u32, is_chair: bool },
+    Unknown
+}
+
+
 #[get("/home/<participant_uuid>")]
 async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnection>) -> Result<Template, Custom<String>> {
     let participant = domain::participant::Participant::get_many(
@@ -257,6 +263,8 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
         domain::participant::ParticipantParseError::ParticipantDoesNotExist => Custom(Status::NotFound, "Participant not found".to_string()),
         _ => handle_error(e)
     })?.into_iter().next().expect("List was empty. Apparently uuid missing error failed.");
+
+    let rounds = domain::round::TournamentRound::get_all_in_tournament(db.inner(), participant.tournament_id).await.map_err(handle_error)?;
 
     let mut info = ParticipantHomePageInfo {..Default::default()};
     info.name = participant.name.clone();
@@ -314,20 +322,37 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
 }
 
 
+#[get("/debate/<debate_uuid>/ballot")]
+async fn get_ballot_submission_form(debate_uuid: Uuid) -> Result<rocket::response::content::RawHtml<String>, Custom<String>> {
+    let path = Path::new("static/ballot_submission_form/index.html");
+    Ok(rocket::response::content::RawHtml(std::fs::read_to_string(path).map_err(handle_error)?))
+}
+
+
 async fn config_rocket(db_config: DatabaseConfig) -> rocket::Rocket<rocket::Build> {
     let db = set_up_db(db_config).await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
+
+    let groups = open_tab_entities::mock::make_mock_tournament();
+    dbg!(groups.debates[0].uuid);
+    let e = groups.save_all(&db).await;
+
     rocket::build()
         .attach(Template::fairing())
         .manage(db)
+        .mount("/static", FileServer::from(relative!("static")))
         .mount("/", routes![
             get_tournament_overview,
             update_tournament,
             get_tournament_log,
             get_tournament_changes,
             get_tournament_changes_since,
-            participant_homepage
-        ])
+            participant_homepage,
+            get_ballot_submission_form
+        ]).mount(
+            "/api/v1/",
+            open_tab_server::ballots::routes()
+        )
 }
 
 #[launch]

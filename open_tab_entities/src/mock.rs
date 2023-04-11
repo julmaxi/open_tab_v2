@@ -1,14 +1,12 @@
 
 use std::{collections::HashMap, error::Error, hash::Hash, fmt::{Display, Formatter}};
 
-use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
+use crate::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
 use sea_orm::{prelude::*, Statement, Database};
-use open_tab_entities::prelude::*;
+use crate::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
-use crate::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, Action};
 use faker_rand::en_us::{names::FullName, company::CompanyName};
 use rand::{Rng, thread_rng};
 
@@ -47,7 +45,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
     Rounds: 100
     Debates: 200
     Ballots: 300
-     */
+    */
 
     assert!(options.num_teams % 3 == 0);
     assert!(options.num_teams >= 3);
@@ -68,7 +66,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         else {
             format!("Institution {}", uuid)
         };
-        open_tab_entities::domain::tournament_institution::TournamentInstitution {
+        crate::domain::tournament_institution::TournamentInstitution {
             uuid,
             name,
             tournament_id: tournament_uuid,
@@ -78,7 +76,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
     let teams = (0..options.num_teams).map(|i| {
         let uuid = if options.deterministic_uuids {Uuid::from_u128(1000 + i as u128)} else {Uuid::new_v4()};
         let name = format!("Team {}", i);
-        open_tab_entities::domain::team::Team {
+        crate::domain::team::Team {
             uuid,
             name,
             tournament_id: tournament_uuid,
@@ -95,13 +93,18 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
             else {
                 format!("Speaker {}", uuid)
             };
-            let mut institutions = vec![
-                ParticipantInstitution {
-                    uuid: Uuid::from_u128(500 + team_idx as u128),
-                    clash_severity: 100
-                }
-            ];
-            if i == 1 {
+            let mut institutions = if options.deterministic_uuids {
+                vec![
+                    ParticipantInstitution {
+                        uuid: Uuid::from_u128(500 + team_idx as u128),
+                        clash_severity: 100
+                    }
+                ]
+            }
+            else {
+                vec![]
+            };
+            if options.deterministic_uuids && i == 1 {
                 institutions.push(
                     ParticipantInstitution {
                         uuid: if team_idx == 0 {Uuid::from_u128(500 + team_idx as u128 + 1)} else {Uuid::from_u128(500 + (team_idx - 1) as u128)},
@@ -129,15 +132,23 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         else {
             format!("Adjudicator {}", uuid)
         };
+
+        let institutions = if options.deterministic_uuids {
+            vec![ParticipantInstitution {
+                uuid: Uuid::from_u128(500 + adj_idx as u128),
+                clash_severity: 100
+            }]
+        }
+        else {
+            vec![]
+        };
+
         Participant {
             uuid,
             name,
             tournament_id: tournament_uuid,
             role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
-            institutions: vec![ParticipantInstitution {
-                uuid: Uuid::from_u128(500 + adj_idx as u128),
-                clash_severity: 100
-            }]
+            institutions
         }
     }).collect_vec();
 
@@ -150,60 +161,82 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         }
     }).collect_vec();
 
-    let clashes = vec![
-        ParticipantClash {
-            uuid:Uuid::from_u128(600),
-            severity:100,
-            declaring_participant_id: adjudicators[0].uuid,
-            target_participant_id: speakers[0][0].uuid,
-        },
-        ParticipantClash {
-            uuid:Uuid::from_u128(601),
-            severity:100,
-            declaring_participant_id: speakers[0][1].uuid,
-            target_participant_id: adjudicators[1].uuid,
-        },
-        ParticipantClash {
-            uuid:Uuid::from_u128(602),
-            severity:50,
-            declaring_participant_id: speakers[1][1].uuid,
-            target_participant_id: adjudicators[0].uuid,
-        },
-        ParticipantClash {
-            uuid:Uuid::from_u128(603),
-            severity:25,
-            declaring_participant_id: speakers[1][2].uuid,
-            target_participant_id: adjudicators[0].uuid,
-        },
-    ];
+    let clashes = if options.deterministic_uuids {
+        vec![
+            ParticipantClash {
+                uuid:Uuid::from_u128(600),
+                severity:100,
+                declaring_participant_id: adjudicators[0].uuid,
+                target_participant_id: speakers[0][0].uuid,
+            },
+            ParticipantClash {
+                uuid:Uuid::from_u128(601),
+                severity:100,
+                declaring_participant_id: speakers[0][1].uuid,
+                target_participant_id: adjudicators[1].uuid,
+            },
+            ParticipantClash {
+                uuid:Uuid::from_u128(602),
+                severity:50,
+                declaring_participant_id: speakers[1][1].uuid,
+                target_participant_id: adjudicators[0].uuid,
+            },
+            ParticipantClash {
+                uuid:Uuid::from_u128(603),
+                severity:25,
+                declaring_participant_id: speakers[1][2].uuid,
+                target_participant_id: adjudicators[0].uuid,
+            },
+        ]
+    } else {
+        vec![]
+    };
 
     if options.draw_debates {
-
         let ballots = rounds.iter().enumerate().map(
             |(round_idx, _round)| {
                 (0..9).map(
                     |debate_idx| {
                         let uuid = if options.deterministic_uuids {Uuid::from_u128(400 + (round_idx as u128) * 10 + debate_idx as u128)} else {Uuid::new_v4()};
+                        let mut  speeches = vec![
+                            (crate::domain::ballot::SpeechRole::Government),
+                            (crate::domain::ballot::SpeechRole::Opposition),
+                        ].into_iter().flat_map(
+                            |role| {
+                                (0..3).map(
+                                    move |position| Speech {
+                                        speaker: None,
+                                        role,
+                                        position,
+                                        scores: HashMap::new(),
+                                    }
+                                )
+                            }
+                        ).collect_vec();
+
+                        if round_idx < 2 {
+                            speeches.extend((0..3).map(|speaker_idx| {
+                                Speech {
+                                    speaker:Some(speakers[debate_idx * 3 + 2][speaker_idx].uuid),
+                                    role: crate::domain::ballot::SpeechRole::NonAligned,
+                                    position: speaker_idx as u8,
+                                    scores: HashMap::new(),
+                                }
+                            }))
+                        }
                         Ballot {
                             uuid,
                             adjudicators: if round_idx < 2 {(0..3).map(|i| adjudicators[debate_idx * 3 + i].uuid).collect()} else {vec![]},
                             government: BallotTeam {
                                 // Round 3 has an empty draw for testing purposes
-                                team: if round_idx < 2 {Some(teams[debate_idx * 3].uuid)} else {None},
+                                team: if round_idx < 2 {Some(teams[debate_idx * 2].uuid)} else {None},
                                 ..Default::default()
                             },
                             opposition: BallotTeam {
-                                team: if round_idx < 2 {Some(teams[debate_idx * 3 + 1].uuid)} else {None},
+                                team: if round_idx < 2 {Some(teams[debate_idx * 2 + 1].uuid)} else {None},
                                 ..Default::default()
                             },
-                            speeches: if round_idx < 2 {(0..3).map(|speaker_idx| {
-                                Speech {
-                                    speaker:Some(speakers[debate_idx][speaker_idx].uuid),
-                                    role: open_tab_entities::domain::ballot::SpeechRole::NonAligned,
-                                    position: speaker_idx as u8,
-                                    scores: HashMap::new(),
-                                }
-                                }).collect()} else {vec![]},
+                            speeches,
                             ..Default::default()
                         }
                     }

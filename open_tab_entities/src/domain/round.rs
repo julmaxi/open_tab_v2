@@ -36,6 +36,17 @@ impl TournamentRound {
             index
         }
     }
+
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentRound>, DbErr> where C: ConnectionTrait {
+        let rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::TournamentId.eq(tournament_id)).all(db).await?;
+        rounds.into_iter().map(|round| {
+            Ok(TournamentRound {
+                uuid: round.uuid,
+                tournament_id: round.tournament_id,
+                index: round.index as u64
+            })
+        }).collect()
+    }
 }
 
 #[async_trait]
