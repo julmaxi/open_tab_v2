@@ -4,6 +4,7 @@ use fs_extra::dir::{copy, CopyOptions};
 use std::path::PathBuf;
 
 fn main() {
+    /*
     println!("cargo:rerun-if-changed=src-react/ballot_submission_form");
 
     let app_name = "src-react/ballot_submission_form";
@@ -27,4 +28,5 @@ fn main() {
         ..Default::default()
     };
     copy(format!("{}/build/", app_name), &out_dir, &options).expect("Failed to copy build directory");
+    */
 }

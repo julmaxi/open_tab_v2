@@ -2,14 +2,14 @@ use std::error::Error;
 
 use rocket::{response::status::Custom, http::Status};
 use serde::{Serialize, Deserialize};
-use open_tab_entities::Entity;
+use open_tab_entities::VersionedEntity;
 use uuid::Uuid;
 
 pub mod ballots;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TournamentUpdate {
-    pub changes: Vec<Entity>,
+    pub changes: Vec<VersionedEntity>,
     pub expected_log_head: Option<Uuid>
 }
 
@@ -20,7 +20,7 @@ pub struct TournamentUpdateResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TournamentChanges {
-    pub changes: Vec<Entity>,
+    pub changes: Vec<VersionedEntity>,
     pub log_head: Uuid
 }
 

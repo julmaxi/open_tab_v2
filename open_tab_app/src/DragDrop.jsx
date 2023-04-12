@@ -51,12 +51,16 @@ export function DropList(props) {
     return (
         <div>
             <Placeholder collection={props.collection} index={0} type={props.type} />
-            {props.children.flatMap(
-                (child, idx) => [
-                    <DropSlot key={`item_${idx}`} collection={props.collection} index={idx} type={props.type}>
-                        <DragItem collection={props.collection} index={idx} type={props.type}>{child}</DragItem>
-                    </DropSlot>,
-                    <Placeholder key={`placeholder_${idx}`} collection={props.collection} index={idx + 1} type={props.type} />])}
+            {
+                props.children.flatMap(
+                    (child, idx) => [
+                        <DropSlot key={`item_${idx}`} collection={props.collection} index={idx} type={props.type}>
+                            <DragItem collection={props.collection} index={idx} type={props.type}>{child}</DragItem>
+                        </DropSlot>,
+                        <Placeholder key={`placeholder_${idx}`} collection={props.collection} index={idx + 1} type={props.type} />
+                    ]
+                )
+            }
         </div>
     );
 }

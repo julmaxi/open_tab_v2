@@ -116,6 +116,7 @@ pub struct DrawTeam {
     pub uuid: Uuid,
     pub name: String,
     pub members: Vec<DrawSpeaker>,
+    #[serde(skip_deserializing)]
     pub issues: Vec<DrawIssue>
 }
 
@@ -126,6 +127,7 @@ pub struct DrawSpeaker {
     pub team_id: Option<Uuid>,
     pub team_name: Option<String>,
     pub institutions: Vec<DrawInstitution>,
+    #[serde(skip_deserializing)]
     pub issues: Vec<DrawIssue>
 }
 
@@ -140,6 +142,7 @@ pub struct DrawAdjudicator {
     pub uuid: Uuid,
     pub name: String,
     pub institutions: Vec<DrawInstitution>,
+    #[serde(skip_deserializing)]
     pub issues: Vec<DrawIssue>
 }
 

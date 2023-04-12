@@ -7,6 +7,8 @@ use serde::{Serialize, Deserialize};
 
 use crate::schema;
 
+use crate::utilities::{BatchLoad, BatchLoadError};
+
 use super::TournamentEntity;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
@@ -16,8 +18,8 @@ pub struct Tournament {
 
 
 impl Tournament {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Tournament>, DbErr> where C: ConnectionTrait {
-        let tournaments = schema::tournament::Entity::find().filter(schema::tournament::Column::Uuid.is_in(uuids)).all(db).await?;
+    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Tournament>, BatchLoadError> where C: ConnectionTrait {
+        let tournaments = schema::ballot::Entity::batch_load_all(db, uuids).await?;
         tournaments.into_iter().map(|tournament| {
             Ok(Tournament {
                 uuid: tournament.uuid,

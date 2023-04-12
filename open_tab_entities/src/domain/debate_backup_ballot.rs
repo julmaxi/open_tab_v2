@@ -6,6 +6,7 @@ use sea_orm::{prelude::*, ActiveValue};
 use serde::{Serialize, Deserialize};
 
 use crate::schema;
+use crate::utilities::{BatchLoad, BatchLoadError};
 
 use super::TournamentEntity;
 
@@ -19,8 +20,9 @@ pub struct DebateBackupBallot {
 
 
 impl DebateBackupBallot {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Self>, DbErr> where C: ConnectionTrait {
-        let debates = schema::debate_backup_ballot::Entity::find().filter(schema::debate_backup_ballot::Column::Uuid.is_in(uuids)).all(db).await?;
+    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Self>, BatchLoadError> where C: ConnectionTrait {
+        let debates = schema::debate_backup_ballot::Entity::batch_load_all(db, uuids).await?;
+        
         debates.into_iter().map(|debate| {
             Ok(DebateBackupBallot {
                 uuid: debate.uuid,

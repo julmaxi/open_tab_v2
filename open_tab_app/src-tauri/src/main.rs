@@ -6,7 +6,8 @@ use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Displ
 use migration::{MigratorTrait, async_trait::async_trait};
 use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}};
 use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
-use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder};
+use reqwest::Client;
+use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue};
 use tauri::{async_runtime::block_on, State, App, AppHandle, Manager};
 use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
@@ -199,6 +200,122 @@ enum SyncNotification {
     Alive
 }
 
+#[derive(Debug)]
+enum SyncError {
+    ReqwestError(reqwest::Error),
+    DatabaseError(sea_orm::DbErr),
+    Other(String)
+}
+
+impl From<reqwest::Error> for SyncError {
+    fn from(err: reqwest::Error) -> Self {
+        SyncError::ReqwestError(err)
+    }
+}
+
+impl From<sea_orm::DbErr> for SyncError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        SyncError::DatabaseError(err)
+    }
+}
+
+impl From<Box<dyn Error>> for SyncError {
+    fn from(err: Box<dyn Error>) -> Self {
+        SyncError::Other(err.to_string())
+    }
+}
+
+impl From<String> for SyncError {
+    fn from(err: String) -> Self {
+        SyncError::Other(err)
+    }
+}
+
+impl From<&'static str> for SyncError {
+    fn from(err: &'static str) -> Self {
+        SyncError::Other(err.to_string())
+    }
+}
+
+impl std::fmt::Display for SyncError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SyncError::ReqwestError(err) => write!(f, "Reqwest error: {}", err),
+            SyncError::DatabaseError(err) => write!(f, "Database error: {}", err),
+            SyncError::Other(err) => write!(f, "Other error: {}", err)
+        }
+    }
+}
+
+impl std::error::Error for SyncError {}
+
+
+
+
+async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
+    let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
+    let changes_url = format!("{}/changes", remote_base_url.clone());
+    let changes_url = if let Some(last_know_change) = target_tournament_remote.last_known_change {
+        format!("{}?since={}", changes_url, last_know_change)
+    } else {
+        changes_url
+    };
+
+    let remote_changes : TournamentChanges = client.execute(client.get(changes_url).build()?).await?.json().await?;
+    let transaction = db.begin().await?;
+
+    if remote_changes.changes.len() > 0 {
+        let group = EntityGroups::from(remote_changes.changes);
+        let last_change = group.save_all_and_log_for_tournament(db, target_tournament_remote.tournament_id).await?;    
+        let mut remote_update : schema::tournament_remote::ActiveModel = target_tournament_remote.clone().into_active_model();
+        remote_update.last_known_change = ActiveValue::Set(Some(last_change));
+        remote_update.update(db).await?;
+    }
+    else {
+        // No changes at this point
+        transaction.rollback().await?;
+    }
+
+    Ok(())
+}
+
+async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
+    let transaction = db.begin().await?;
+
+    let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
+    let update_url = format!("{}/update", remote_base_url.clone());
+
+    //TODO: This should be one query
+    let last_sync_idx = schema::tournament_log::Entity::find().filter(
+        schema::tournament_log::Column::Uuid.eq(target_tournament_remote.last_synced_change)
+    ).one(db).await?.ok_or("Could not find last synced change")?.sequence_idx;
+    let new_log_entries = schema::tournament_log::Entity::find().filter(
+        schema::tournament_log::Column::SequenceIdx.gt(last_sync_idx).and(schema::tournament_log::Column::TournamentId.eq(target_tournament_remote.tournament_id))
+    ).order_by_asc(schema::tournament_log::Column::SequenceIdx).all(&transaction).await?;
+    let all_new_local_entities = get_changed_entities_from_log(&transaction, new_log_entries).await?;
+
+    let update_data = open_tab_server::TournamentUpdate {
+        changes: all_new_local_entities,
+        expected_log_head: target_tournament_remote.last_known_change,
+    };
+
+    let res = client.post(update_url)
+    .body(serde_json::to_string(&update_data).unwrap())
+    .send()
+    .await?;
+
+    if res.status().is_success() {
+        let result = res.json::<open_tab_server::TournamentUpdateResponse>().await?;
+        let transaction = db.begin().await?;
+        let mut remote_update : schema::tournament_remote::ActiveModel = target_tournament_remote.clone().into_active_model();
+        remote_update.last_known_change = ActiveValue::Set(Some(result.new_log_head));
+        remote_update.last_synced_change = ActiveValue::Set(Some(result.new_log_head));
+        remote_update.update(db).await?;
+        transaction.commit().await?;
+    }
+
+    Ok(())
+}
 
 fn main() {
     let db = block_on(connect_db()).unwrap();
@@ -211,7 +328,6 @@ fn main() {
         .setup(|app| {
             let app_handle = app.handle();
             let synchronization_function = async move {
-                let mut last_known_log = -1;
                 let target_uuid = Uuid::from_u128(1);
                 let client = reqwest::Client::new();
 
@@ -224,64 +340,21 @@ fn main() {
                         continue;
                     }
                     let target_tournament_remote = target_tournament_remote.unwrap();
-
-                    let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
-
-                    let changes_url = format!("{}/changes", remote_base_url.clone());
-
-                    let changes_url = if let Some(last_know_change) = target_tournament_remote.last_known_change {
-                        format!("{}?since={}", changes_url, last_know_change)
-                    } else {
-                        changes_url
-                    };
-
-                    let remote_changes : TournamentChanges = reqwest::get(changes_url).await.unwrap().json().await.unwrap();
-
-                    let transaction = db.begin().await.unwrap();
-
-                    let new_log_entries = schema::tournament_log::Entity::find().filter(
-                        schema::tournament_log::Column::SequenceIdx.gt(last_known_log).and(schema::tournament_log::Column::TournamentId.eq(target_uuid))
-                    ).order_by_asc(schema::tournament_log::Column::SequenceIdx).all(&transaction).await.unwrap();
-
-                    let update_url = format!("{}/update", remote_base_url.clone());
-
-                    last_known_log = new_log_entries.iter().last().map(|log| log.sequence_idx).unwrap_or(last_known_log);
-                    let all_new_local_entities = get_changed_entities_from_log(&transaction, new_log_entries).await.unwrap();
-                    let locally_changed_entities : HashSet<_> = all_new_local_entities.iter().map(
-                        |e| (e.get_name(), e.get_uuid())
-                    ).collect();
-
-                    // No changes at this point
-                    transaction.rollback().await.unwrap();
-
-                    let update_data = open_tab_server::TournamentUpdate {
-                        changes: all_new_local_entities,
-                        expected_log_head: Some(remote_changes.log_head),
-                    };
-
-                    let res = client.post(update_url)
-                    .body(serde_json::to_string(&update_data).unwrap())
-                    .send()
-                    .await.unwrap();
-
-                    if !res.status().is_success() {
-                        println!("{}", res.text().await.unwrap());
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        continue;
-                    } else {
-                        let transaction = db.begin().await.unwrap();
-                        //let remote_changes_to_keep = remote_changes.changes.into_iter().filter(|e| !locally_changed_entities.contains(&(e.get_name(), e.get_uuid()))).collect_vec();
-
-                        EntityGroups::from(remote_changes.changes).save_all_and_log_for_tournament(&transaction, target_uuid).await.unwrap();
-                        transaction.commit().await.unwrap();
+                    
+                    /*let remote = pull_remote_changes(&target_tournament_remote, &client, db).await;
+                    if !remote.is_ok() {
+                        println!("Error pulling remote changes: {}", remote.err().unwrap());
                     }
-
-                    tokio::time::sleep(Duration::from_secs(1000)).await;
+                    let result = try_push_changes(&target_tournament_remote, &client, db).await;
+                    if !result.is_ok() {
+                        println!("Error pushing local changes: {}", result.err().unwrap());
+                    }*/
+                    tokio::time::sleep(Duration::from_secs(60)).await;
                 }
                 //let emit_result = app_handle.emit_all("app_event", "Hello Tauri!"); // Run this in a loop {} or whatever you want to do with the handle
               };
         
-            //tauri::async_runtime::spawn(synchronization_function);
+            tauri::async_runtime::spawn(synchronization_function);
             Ok(())  
         })
         .run(tauri::generate_context!())

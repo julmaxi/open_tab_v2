@@ -6,6 +6,7 @@ use sea_orm::{prelude::*, ActiveValue};
 use serde::{Serialize, Deserialize};
 
 use crate::schema;
+use crate::utilities::{BatchLoad, BatchLoadError};
 
 use super::TournamentEntity;
 
@@ -18,8 +19,8 @@ pub struct TournamentRound {
 
 
 impl TournamentRound {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<TournamentRound>, DbErr> where C: ConnectionTrait {
-        let rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.is_in(uuids)).all(db).await?;
+    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<TournamentRound>, BatchLoadError> where C: ConnectionTrait {
+        let rounds = schema::tournament_round::Entity::batch_load_all(db, uuids).await?;
         rounds.into_iter().map(|round| {
             Ok(TournamentRound {
                 uuid: round.uuid,

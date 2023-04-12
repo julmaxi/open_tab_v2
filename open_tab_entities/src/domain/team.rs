@@ -6,6 +6,7 @@ use sea_orm::{prelude::*, ActiveValue};
 use serde::{Serialize, Deserialize};
 
 use crate::schema;
+use crate::utilities::{BatchLoad, BatchLoadError};
 
 use super::TournamentEntity;
 
@@ -18,8 +19,8 @@ pub struct Team {
 
 
 impl Team {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Team>, DbErr> where C: ConnectionTrait {
-        let teams = schema::team::Entity::find().filter(schema::team::Column::Uuid.is_in(uuids)).all(db).await?;
+    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Team>, BatchLoadError> where C: ConnectionTrait {
+        let teams = schema::team::Entity::batch_load_all(db, uuids).await?;
         teams.into_iter().map(|team| {
             Ok(Team {
                 uuid: team.uuid,
@@ -29,7 +30,7 @@ impl Team {
         }).collect()
     }
 
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Team>, DbErr> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Team>, BatchLoadError> where C: ConnectionTrait {
         let teams = schema::team::Entity::find().filter(schema::team::Column::TournamentId.eq(tournament_id)).all(db).await?;
         teams.into_iter().map(|team| {
             Ok(Team {

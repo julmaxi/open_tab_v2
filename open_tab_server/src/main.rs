@@ -35,7 +35,6 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
             .one(&transaction)
             .await
             .map_err(handle_error)?;
-        dbg!(&latest_log);
         if let Some(latest_log) = latest_log {
             if latest_log.uuid != expected_log_sequence_number {
                 return Err(Custom(Status::Conflict, "Expected log is not in sequence".into()))
@@ -45,20 +44,34 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
             return Err(Custom(Status::Conflict, "Expected log sequence number is not current log sequence".into()))
         }
     }
+
+    let existing_versions : Vec<(Uuid,)> = tournament_log::Entity::find()
+        .select_only()
+        .column(tournament_log::Column::Uuid)
+        .filter(tournament_log::Column::TournamentId.eq(tournament_id).and(
+            tournament_log::Column::Uuid.is_in(
+                updates.changes.iter().map(|e| e.version).collect_vec()
+            )
+        ))
+        .into_tuple()
+        .all(&transaction)
+        .await
+        .map_err(handle_error)?;
     
     let mut updates : TournamentUpdate = updates.into_inner();
 
-    updates.changes.sort_by_key(|e| e.get_processing_order());
+    updates.changes = updates.changes.into_iter().filter(|e| !existing_versions.contains(&(e.version,))).collect_vec();
+    updates.changes.sort_by_key(|e| e.entity.get_processing_order());
 
     let mut changeset = EntityGroups::new();
     let mut prev_change = None;
     for change in updates.changes.into_iter() {
-        let identity = Some((change.get_name(), change.get_uuid()));
+        let identity = Some((change.entity.get_name(), change.entity.get_uuid()));
         if identity == prev_change {
             return Err(Custom(Status::BadRequest, "Duplicate entity".into()))
         }
         prev_change = identity;
-        changeset.add(change)
+        changeset.add_versioned(change.entity, change.version);
     }
 
     changeset.save_all(&transaction).await.map_err(handle_error_dyn)?;
@@ -87,6 +100,7 @@ struct SerializedTournamentLogEntry {
     sequence_idx: u64,
     #[serde(flatten)]
     entity: EntityId,
+    log_uuid: Uuid,
 }
 
 
@@ -94,6 +108,7 @@ impl From<tournament_log::Model> for SerializedTournamentLogEntry {
     fn from(model: tournament_log::Model) -> SerializedTournamentLogEntry {
         SerializedTournamentLogEntry {
             sequence_idx: model.sequence_idx as u64,
+            log_uuid: model.uuid,
             entity: EntityId::from_type_and_id(&model.target_type, model.target_uuid),
         }
     }
@@ -160,7 +175,13 @@ async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament
     .all(&transaction).await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
     let log_head = log_entries.last().map(|e| e.uuid).unwrap_or(Uuid::nil());
-    let all_new_entities = get_changed_entities_from_log(&transaction, log_entries).map_err(|_| Custom(Status::InternalServerError, "Error".to_string())).await?;
+
+    let mut latest_versions = HashMap::new();
+    for entry in log_entries.into_iter() {
+        latest_versions.insert((entry.target_type.clone(), entry.target_uuid), entry);
+    }
+
+    let all_new_entities = get_changed_entities_from_log(&transaction, latest_versions.into_values().into_iter().collect()).map_err(|_| Custom(Status::InternalServerError, "Error".to_string())).await?;
     transaction.commit().await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
     Ok(Json(
@@ -177,8 +198,7 @@ async fn get_tournament_overview(db: &State<DatabaseConnection>, tournament_id: 
     info!("{}", tournament_id);
     let t = schema::prelude::Tournament::find_by_id(tournament_id).one(db.inner()).await.map_err(|_| Custom(Status::InternalServerError, "Error"))?;
     Ok(t.map(|_| "Exists"))
- }
- 
+}
 
 pub struct DatabaseConfig {
     url: String,
@@ -367,7 +387,7 @@ mod test {
 
     use super::rocket;
     use open_tab_entities::domain::participant::{Participant, Adjudicator};
-    use open_tab_entities::schema;
+    use open_tab_entities::{schema, VersionedEntity};
     use open_tab_server::TournamentChanges;
     use rocket::{State, Rocket, Build};
     use rocket::local::asynchronous::Client;
@@ -433,7 +453,9 @@ mod test {
         
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change], ..Default::default()}
+                &TournamentUpdate{changes: vec![
+                    VersionedEntity { entity: change, version: Uuid::from_u128(1) }
+                ], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -474,7 +496,10 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
+                &TournamentUpdate{changes: vec![
+                    VersionedEntity { entity: change1, version: Uuid::from_u128(1) },
+                    VersionedEntity { entity: change2, version: Uuid::from_u128(2) }
+                ], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -514,7 +539,10 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
+                &TournamentUpdate{changes: vec![
+                    VersionedEntity { entity: change1, version: Uuid::from_u128(1) },
+                    VersionedEntity { entity: change2, version: Uuid::from_u128(2) }
+                ], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -547,7 +575,10 @@ mod test {
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
-                &TournamentUpdate{changes: vec![change1, change2], ..Default::default()}
+                &TournamentUpdate{changes: vec![
+                    VersionedEntity { entity: change1, version: Uuid::from_u128(1) },
+                    VersionedEntity { entity: change2, version: Uuid::from_u128(2) }
+                ], ..Default::default()}
             )
             .unwrap()
         ).dispatch().await;
@@ -569,6 +600,8 @@ mod test {
                 institutions: vec![]
             }
         );
+
+        let change = VersionedEntity { entity: change, version: Uuid::from_u128(1) };
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
@@ -601,6 +634,8 @@ mod test {
                 institutions: vec![]
             }
         );
+
+        let change = VersionedEntity { entity: change, version: Uuid::from_u128(1) };
        
         let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
             serde_json::to_string(
@@ -610,12 +645,88 @@ mod test {
         ).dispatch().await;
         assert_eq!(create_response.status(), Status::Ok);
         
+        let change = Entity::Participant(
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test2".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
+        );
+
+        let change = VersionedEntity { entity: change, version: Uuid::from_u128(2) };
+       
+        let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
+            serde_json::to_string(
+                &TournamentUpdate{changes: vec![change.clone()], ..Default::default()}
+            )
+            .unwrap()
+        ).dispatch().await;
+        assert_eq!(create_response.status(), Status::Ok);
+
+        let response = client.get("/tournament/00000000-0000-0000-0000-000000000001/changes").dispatch().await;
+        assert_eq!(response.status(), Status::Ok);
+
+        let result : TournamentChanges = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+        dbg!(&result);
+
+        assert_eq!(result.changes.len(), 1);
+        assert_eq!(&result.changes[0], &change);
+    }
+
+    #[rocket::async_test]
+    async fn test_duplicate_changes_are_ignored() {
+        let rocket = setup_tournament_test().await;
+        let client = Client::tracked(rocket).await.expect("valid rocket instance");
+
+        let change = Entity::Participant(
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
+        );
+
+        let change = VersionedEntity { entity: change, version: Uuid::from_u128(1) };
+       
+        let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
+            serde_json::to_string(
+                &TournamentUpdate{changes: vec![change.clone()], ..Default::default()}
+            )
+            .unwrap()
+        ).dispatch().await;
+        assert_eq!(create_response.status(), Status::Ok);
+        
+        let change = Entity::Participant(
+            Participant {
+                uuid: Uuid::from_u128(200),
+                name: "Test2".into(),
+                role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
+                tournament_id: Uuid::from_u128(1),
+                institutions: vec![]
+            }
+        );
+
+        let change = VersionedEntity { entity: change, version: Uuid::from_u128(1) };
+       
+        let create_response = client.post("/tournament/00000000-0000-0000-0000-000000000001/update").body(
+            serde_json::to_string(
+                &TournamentUpdate{changes: vec![change.clone()], ..Default::default()}
+            )
+            .unwrap()
+        ).dispatch().await;
+        assert_eq!(create_response.status(), Status::Ok);
+
+
         let response = client.get("/tournament/00000000-0000-0000-0000-000000000001/changes").dispatch().await;
         assert_eq!(response.status(), Status::Ok);
 
         let result : TournamentChanges = serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
 
         assert_eq!(result.changes.len(), 1);
-        assert_eq!(&result.changes[0], &change);
     }
+
 }

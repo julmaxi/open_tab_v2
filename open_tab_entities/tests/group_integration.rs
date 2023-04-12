@@ -125,3 +125,33 @@ async fn test_save_full_tournament_updates_log() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db().await?;
+
+    let mut changeset = EntityGroups::new();
+    changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }), Uuid::from_u128(10));
+    changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0 }), Uuid::from_u128(11));
+
+    changeset.save_all(&db).await?;
+    changeset.save_log_with_tournament_id(&db, Uuid::from_u128(10)).await?;
+    
+    let logs = tournament_log::Entity::find()
+        .all(&db)
+        .await?;
+
+    assert_eq!(logs.len(), 2);
+    assert!(logs.iter().any(
+        |log| {
+            log.uuid == Uuid::from_u128(10) && log.target_uuid == Uuid::from_u128(10)
+        }
+    ));
+    assert!(logs.iter().any(
+        |log| {
+            log.uuid == Uuid::from_u128(11) && log.target_uuid == Uuid::from_u128(20)
+        }
+    ));
+
+    Ok(())
+}

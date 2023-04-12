@@ -1,10 +1,16 @@
-use std::{error::Error, f32::consts::E, collections::HashMap};
+use std::{error::Error, f32::consts::E, collections::HashMap, hash::Hash};
 
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder, QuerySelect, ActiveValue};
 
 use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot}, schema::tournament_log};
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct VersionedEntity {
+    pub version: Uuid,
+    pub entity: Entity
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum Entity {
@@ -19,7 +25,6 @@ pub enum Entity {
     DebateBackupBallot(DebateBackupBallot)
 }
 
-
 pub struct EntityGroups {
     pub tournaments: Vec<Tournament>,
     pub rounds: Vec<TournamentRound>,
@@ -29,7 +34,8 @@ pub struct EntityGroups {
     pub teams: Vec<Team>,
     pub tournament_institutions: Vec<TournamentInstitution>,
     pub participant_clashes: Vec<ParticipantClash>,
-    pub debate_backup_ballots: Vec<DebateBackupBallot>
+    pub debate_backup_ballots: Vec<DebateBackupBallot>,
+    pub versions: HashMap<(String, Uuid), Uuid>
 }
 
 impl EntityGroups {
@@ -47,6 +53,11 @@ impl EntityGroups {
         }
     }
 
+    pub fn add_versioned(&mut self, e: Entity, version: Uuid) {
+        self.versions.insert((e.get_name(), e.get_uuid()), version);
+        self.add(e);
+    }
+
     pub fn new() -> Self {
         EntityGroups {
             participants: vec![],
@@ -57,7 +68,8 @@ impl EntityGroups {
             teams: vec![],
             tournament_institutions: vec![],
             participant_clashes: vec![],
-            debate_backup_ballots: vec![]
+            debate_backup_ballots: vec![],
+            versions: HashMap::new()
         }
     }
 
@@ -94,15 +106,13 @@ impl EntityGroups {
         Ok(())
     }
 
-    pub async fn save_all_and_log_for_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn save_all_and_log_for_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Uuid, Box<dyn Error>> where C: ConnectionTrait {
         self.save_all_with_options_and_log_for_tournament(db, false, tournament_id).await
     }
 
-    pub async fn save_all_with_options_and_log_for_tournament<C>(&self, db: &C, guarantee_insert: bool, tournament_id: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn save_all_with_options_and_log_for_tournament<C>(&self, db: &C, guarantee_insert: bool, tournament_id: Uuid) -> Result<Uuid, Box<dyn Error>> where C: ConnectionTrait {
         self.save_all_with_options(db, guarantee_insert).await?;
-        self.save_log_with_tournament_id(db, tournament_id).await?;
-
-        Ok(())
+        self.save_log_with_tournament_id(db, tournament_id).await
     }
 
     pub fn into_entity_iterator(self) -> impl Iterator<Item=Entity> {
@@ -150,8 +160,9 @@ impl EntityGroups {
         };
 
         let new_entries = self.get_entity_ids().into_iter().enumerate().map(|(idx, (name, uuid))| {
+            let version_uuid = self.versions.get(&(name.clone(), uuid.clone())).map(|u| *u).unwrap_or_else(Uuid::new_v4);
             tournament_log::ActiveModel {
-                uuid: ActiveValue::Set(Uuid::new_v4()),
+                uuid: ActiveValue::Set(version_uuid),
                 timestamp: ActiveValue::Set(chrono::offset::Local::now().naive_local()),
                 sequence_idx: ActiveValue::Set(last_sequence_idx + idx as i32),
                 tournament_id: ActiveValue::Set(tournament_id),
@@ -175,6 +186,18 @@ impl From<Vec<Entity>> for EntityGroups {
 
         for e in entities {
             groups.add(e);
+        }
+
+        groups
+    }
+}
+
+impl From<Vec<VersionedEntity>> for EntityGroups {
+    fn from(entities: Vec<VersionedEntity>) -> Self {
+        let mut groups = EntityGroups::new();
+
+        for e in entities {
+            groups.add_versioned(e.entity, e.version);
         }
 
         groups
@@ -255,15 +278,15 @@ impl EntityId {
 }
 
 
-pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<Entity>, Box<dyn Error>> where C: ConnectionTrait {
-    let mut to_query : HashMap<String, Vec<Uuid>> = HashMap::new();
+pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<VersionedEntity>, Box<dyn Error>> where C: ConnectionTrait {
+    let mut to_query : HashMap<String, Vec<(Uuid, Uuid)>> = HashMap::new();
     log_entries.into_iter().for_each(|e| {
         match to_query.get_mut(&e.target_type) {
             Some(v) => {
-                v.push(e.target_uuid);
+                v.push((e.target_uuid, e.uuid));
             },
             None => {
-                to_query.insert(e.target_type, vec![(e.target_uuid)]);
+                to_query.insert(e.target_type, vec![(e.target_uuid, e.uuid)]);
             }
         }
     });
@@ -271,7 +294,9 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
     // FIXME: This is unelegant
     let mut all_new_entities = Vec::new();
 
-    for (type_, uuids) in to_query.into_iter() {
+    for (type_, found_entities) in to_query.into_iter() {
+        let uuids = found_entities.iter().map(|e| e.0).collect_vec();
+        let versions = found_entities.iter().map(|e| e.1).collect_vec();
         let new_entities = match type_.as_str() {
             "Participant" => Participant::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Participant(e)).collect_vec(),
             "Ballot" => Ballot::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::Ballot(e)).collect_vec(),
@@ -284,7 +309,12 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             "DebateBackupBallot" => DebateBackupBallot::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::DebateBackupBallot(e)).collect_vec(),
             _ => panic!("Unknown entity type {}", type_)
         };
-        all_new_entities.extend(new_entities);
+        all_new_entities.extend(new_entities.into_iter().zip(versions.into_iter()).map(
+            |(entity, version)| VersionedEntity {
+                entity,
+                version
+            }
+        ));
     };
     Ok(all_new_entities)
 }
