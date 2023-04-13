@@ -159,12 +159,12 @@ impl EntityGroups {
             None => Uuid::nil(),
         };
 
-        let new_entries = self.get_entity_ids().into_iter().enumerate().map(|(idx, (name, uuid))| {
+        let new_entries = self.get_entity_ids().into_iter().sorted().enumerate().map(|(idx, (name, uuid))| {
             let version_uuid = self.versions.get(&(name.clone(), uuid.clone())).map(|u| *u).unwrap_or_else(Uuid::new_v4);
             tournament_log::ActiveModel {
                 uuid: ActiveValue::Set(version_uuid),
                 timestamp: ActiveValue::Set(chrono::offset::Local::now().naive_local()),
-                sequence_idx: ActiveValue::Set(last_sequence_idx + idx as i32),
+                sequence_idx: ActiveValue::Set(last_sequence_idx + 1 + idx as i32),
                 tournament_id: ActiveValue::Set(tournament_id),
                 target_type: ActiveValue::Set(name),
                 target_uuid: ActiveValue::Set(uuid)

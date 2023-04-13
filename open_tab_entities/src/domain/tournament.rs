@@ -19,7 +19,7 @@ pub struct Tournament {
 
 impl Tournament {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Tournament>, BatchLoadError> where C: ConnectionTrait {
-        let tournaments = schema::ballot::Entity::batch_load_all(db, uuids).await?;
+        let tournaments = schema::tournament::Entity::batch_load_all(db, uuids).await?;
         tournaments.into_iter().map(|tournament| {
             Ok(Tournament {
                 uuid: tournament.uuid,

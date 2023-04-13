@@ -62,9 +62,9 @@ impl TournamentEntity for TournamentDebate {
         let round_ids = entities.iter().map(|debate| debate.round_id).collect_vec();
         let mut rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.is_in(round_ids)).all(db).await?;
 
-        let uuid_positions : HashMap<Uuid, usize> = entities.iter().enumerate().map(|(i, debate)| (debate.uuid, i)).collect();
+        /*let uuid_positions : HashMap<Uuid, usize> = entities.iter().enumerate().map(|(i, debate)| (debate.round_id, i)).collect();
 
-        rounds.sort_by_key(|round| uuid_positions.get(&round.uuid).unwrap());
+        rounds.sort_by_key(|round| uuid_positions.get(&round.uuid).unwrap());*/
 
         Ok(rounds.into_iter().map(|round| {
             Some(round.tournament_id)

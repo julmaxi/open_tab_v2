@@ -35,9 +35,10 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
             .one(&transaction)
             .await
             .map_err(handle_error)?;
+        dbg!(&latest_log);
         if let Some(latest_log) = latest_log {
             if latest_log.uuid != expected_log_sequence_number {
-                return Err(Custom(Status::Conflict, "Expected log is not in sequence".into()))
+                return Err(Custom(Status::Conflict, "Expected log is not head".into()))
             }
         }
         else if !expected_log_sequence_number.is_nil() {
@@ -88,10 +89,11 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
     }
 
     let new_log_head = changeset.save_log_with_tournament_id(&transaction, tournament_id).await.map_err(handle_error_dyn)?;
+    dbg!(&new_log_head);
 
     transaction.commit().await.map_err(handle_error)?;
 
-    Ok(serde_json::to_string(&TournamentUpdateResponse{new_log_head }).map_err(handle_error)?)
+    Ok(serde_json::to_string(&TournamentUpdateResponse{ new_log_head }).map_err(handle_error)?)
 }
 
 

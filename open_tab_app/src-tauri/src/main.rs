@@ -233,7 +233,7 @@ impl From<String> for SyncError {
 
 impl From<&'static str> for SyncError {
     fn from(err: &'static str) -> Self {
-        SyncError::Other(err.to_string())
+        SyncError::Other(format!("{}", err))
     }
 }
 
@@ -266,10 +266,10 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
 
     if remote_changes.changes.len() > 0 {
         let group = EntityGroups::from(remote_changes.changes);
-        let last_change = group.save_all_and_log_for_tournament(db, target_tournament_remote.tournament_id).await?;    
+        let last_change = group.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;    
         let mut remote_update : schema::tournament_remote::ActiveModel = target_tournament_remote.clone().into_active_model();
         remote_update.last_known_change = ActiveValue::Set(Some(last_change));
-        remote_update.update(db).await?;
+        remote_update.update(&transaction).await?;
     }
     else {
         // No changes at this point
@@ -286,32 +286,52 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
     let update_url = format!("{}/update", remote_base_url.clone());
 
     //TODO: This should be one query
-    let last_sync_idx = schema::tournament_log::Entity::find().filter(
-        schema::tournament_log::Column::Uuid.eq(target_tournament_remote.last_synced_change)
-    ).one(db).await?.ok_or("Could not find last synced change")?.sequence_idx;
-    let new_log_entries = schema::tournament_log::Entity::find().filter(
-        schema::tournament_log::Column::SequenceIdx.gt(last_sync_idx).and(schema::tournament_log::Column::TournamentId.eq(target_tournament_remote.tournament_id))
-    ).order_by_asc(schema::tournament_log::Column::SequenceIdx).all(&transaction).await?;
+    let new_log_entries = if let Some(last_synced_change) = target_tournament_remote.last_synced_change {
+        let last_sync_idx = schema::tournament_log::Entity::find().filter(
+            schema::tournament_log::Column::Uuid.eq(Some(last_synced_change))
+        ).one(&transaction).await?.ok_or("Could not find last synced change")?.sequence_idx;
+        let new_log_entries = schema::tournament_log::Entity::find().filter(
+            schema::tournament_log::Column::SequenceIdx.gt(last_sync_idx).and(schema::tournament_log::Column::TournamentId.eq(target_tournament_remote.tournament_id))
+        ).order_by_asc(schema::tournament_log::Column::SequenceIdx).all(&transaction).await?;
+        new_log_entries
+    } else {
+        let new_log_entries = schema::tournament_log::Entity::find().filter(
+            schema::tournament_log::Column::TournamentId.eq(target_tournament_remote.tournament_id)
+        ).order_by_asc(schema::tournament_log::Column::SequenceIdx).all(&transaction).await?;
+        new_log_entries
+    };
+    let new_log_entries = new_log_entries.into_iter().sorted_by_key(|e| (e.target_uuid, e.sequence_idx)).coalesce(
+        |prev, next| {
+            if prev.target_uuid == next.target_uuid && prev.target_type == next.target_type {
+                Ok(next)
+            } else {
+                Err((prev, next))
+            }
+        }
+    ).collect::<Vec<_>>();
     let all_new_local_entities = get_changed_entities_from_log(&transaction, new_log_entries).await?;
 
     let update_data = open_tab_server::TournamentUpdate {
         changes: all_new_local_entities,
         expected_log_head: target_tournament_remote.last_known_change,
     };
+    transaction.rollback().await?;
 
     let res = client.post(update_url)
     .body(serde_json::to_string(&update_data).unwrap())
     .send()
     .await?;
-
     if res.status().is_success() {
         let result = res.json::<open_tab_server::TournamentUpdateResponse>().await?;
         let transaction = db.begin().await?;
         let mut remote_update : schema::tournament_remote::ActiveModel = target_tournament_remote.clone().into_active_model();
         remote_update.last_known_change = ActiveValue::Set(Some(result.new_log_head));
         remote_update.last_synced_change = ActiveValue::Set(Some(result.new_log_head));
-        remote_update.update(db).await?;
+        remote_update.update(&transaction).await?;
         transaction.commit().await?;
+    }
+    else {
+        dbg!(res.text().await?);
     }
 
     Ok(())
@@ -341,15 +361,15 @@ fn main() {
                     }
                     let target_tournament_remote = target_tournament_remote.unwrap();
                     
-                    /*let remote = pull_remote_changes(&target_tournament_remote, &client, db).await;
+                    let remote = pull_remote_changes(&target_tournament_remote, &client, db).await;
                     if !remote.is_ok() {
                         println!("Error pulling remote changes: {}", remote.err().unwrap());
                     }
                     let result = try_push_changes(&target_tournament_remote, &client, db).await;
                     if !result.is_ok() {
                         println!("Error pushing local changes: {}", result.err().unwrap());
-                    }*/
-                    tokio::time::sleep(Duration::from_secs(60)).await;
+                    }
+                    tokio::time::sleep(Duration::from_secs(10)).await;
                 }
                 //let emit_result = app_handle.emit_all("app_event", "Hello Tauri!"); // Run this in a loop {} or whatever you want to do with the handle
               };
