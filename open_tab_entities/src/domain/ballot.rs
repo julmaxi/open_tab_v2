@@ -18,7 +18,7 @@ pub enum BallotParseError {
     UnknownSpeechRole,
     UnknownJudgeRole,
     TooManyPresidents,
-    BallotDoesNotExist,
+    BallotDoesNotExist(String),
     DbErr(DbErr)
 }
 
@@ -143,8 +143,15 @@ pub struct Speech {
 }
 
 impl Speech {
-    pub fn speaker_score(&self) -> f64 {
-        self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+    pub fn speaker_score(&self) -> Option<f64> {
+        if self.scores.len() > 0 {
+            Some(
+                self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+            )
+        }
+        else {
+            None
+        }
     }
 }
 
@@ -155,8 +162,15 @@ pub struct BallotTeam {
 }
 
 impl BallotTeam {
-    pub fn team_score(&self) -> f64 {
-        self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+    pub fn team_score(&self) -> Option<f64> {
+        if self.scores.len() > 0 {
+            Some(
+                self.scores.values().map(|s| s.total() as f64).sum::<f64>() / self.scores.len() as f64
+            )
+        }
+        else {
+            None
+        }
     }
 }
 
@@ -209,7 +223,7 @@ impl Ballot {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
         let ballots = schema::ballot::Entity::batch_load_all(db, uuids.clone()).await.map_err(|e| match e {
             BatchLoadError::DbErr(e) => BallotParseError::DbErr(e),
-            BatchLoadError::RowNotFound => BallotParseError::BallotDoesNotExist
+            BatchLoadError::RowNotFound { id } => BallotParseError::BallotDoesNotExist(id)
         })?;
 
         Self::get_from_ballots(db, ballots).await
@@ -593,14 +607,12 @@ impl Ballot {
 
             if let Some((prev_speech, prev_scores)) = prev_speech {
                 if prev_speech.speaker_id != speech.speaker {
-                    println!("Change?");
                     schema::ballot_speech::ActiveModel {
                         ballot_id: ActiveValue::Unchanged(self.uuid),
                         position: ActiveValue::Unchanged(prev_speech.position),
                         role: ActiveValue::Unchanged(prev_speech.role.clone()),
                         speaker_id: ActiveValue::Set(speech.speaker)
                     }.update(db).await?;
-                    println!("Not Change.");
                 }
 
                 for (adj, score) in speech.scores.iter() {
@@ -648,6 +660,70 @@ impl Ballot {
         }
 
         Ok(())
+    }
+
+    pub fn government_total(&self) -> Option<f64> {
+        self.team_total(SpeechRole::Government)
+    }
+
+    pub fn government_speech_total(&self) -> Option<f64> {
+        let scores = self.team_speech_scores(SpeechRole::Government);
+        
+        if scores.is_empty() {
+            None
+        }
+        else {
+            Some(scores.into_iter().sum::<f64>())
+        }
+    }
+
+    pub fn opposition_speech_total(&self) -> Option<f64> {
+        let scores = self.team_speech_scores(SpeechRole::Opposition);
+        
+        if scores.is_empty() {
+            None
+        }
+        else {
+            Some(scores.into_iter().sum::<f64>())
+        }
+    }
+
+    pub fn opposition_total(&self) -> Option<f64> {
+        self.team_total(SpeechRole::Opposition)
+    }
+
+    pub fn government_speech_scores(&self) -> Vec<f64> {
+        self.team_speech_scores(SpeechRole::Government)
+    }
+
+    pub fn opposition_speech_scores(&self) -> Vec<f64> {
+        self.team_speech_scores(SpeechRole::Opposition)
+    }
+
+    fn team_speech_scores(&self, role: SpeechRole) -> Vec<f64> {
+        self.speeches.iter().filter(|speech| speech.role == role).filter_map(|speech| speech.speaker_score()).collect()
+    }
+
+
+    fn team_total(&self, role: SpeechRole) -> Option<f64> {
+        let scores = self.team_speech_scores(role);
+        let team_score = match role {
+            SpeechRole::Government => self.government.team_score(),
+            SpeechRole::Opposition => self.opposition.team_score(),
+            SpeechRole::NonAligned => None
+        };
+
+        if scores.len() > 0 || team_score.is_some() {
+            let total = scores.into_iter().sum::<f64>();
+            Some(total + team_score.unwrap_or(0.0))
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn is_scored(&self) -> bool {
+        return self.government_total().is_some() || self.opposition_total().is_some();
     }
 }
 

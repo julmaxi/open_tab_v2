@@ -1,4 +1,5 @@
 #[macro_use] extern crate rocket;
+use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use std::path::Path;
 use std::{collections::HashMap, error::Error};
@@ -35,7 +36,6 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
             .one(&transaction)
             .await
             .map_err(handle_error)?;
-        dbg!(&latest_log);
         if let Some(latest_log) = latest_log {
             if latest_log.uuid != expected_log_sequence_number {
                 return Err(Custom(Status::Conflict, "Expected log is not head".into()))
@@ -62,16 +62,14 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
     let mut updates : TournamentUpdate = updates.into_inner();
 
     updates.changes = updates.changes.into_iter().filter(|e| !existing_versions.contains(&(e.version,))).collect_vec();
-    updates.changes.sort_by_key(|e| e.entity.get_processing_order());
+    //updates.changes.sort_by_key(|e| e.entity.get_processing_order());
 
     let mut changeset = EntityGroups::new();
-    let mut prev_change = None;
+    let mut seen_identities = HashSet::new();
     for change in updates.changes.into_iter() {
-        let identity = Some((change.entity.get_name(), change.entity.get_uuid()));
-        if identity == prev_change {
+        if !seen_identities.insert((change.entity.get_name().clone(), change.entity.get_uuid())) {
             return Err(Custom(Status::BadRequest, "Duplicate entity".into()))
         }
-        prev_change = identity;
         changeset.add_versioned(change.entity, change.version);
     }
 
@@ -183,7 +181,7 @@ async fn get_tournament_changes_since(db: &State<DatabaseConnection>, tournament
         latest_versions.insert((entry.target_type.clone(), entry.target_uuid), entry);
     }
 
-    let all_new_entities = get_changed_entities_from_log(&transaction, latest_versions.into_values().into_iter().collect()).map_err(|_| Custom(Status::InternalServerError, "Error".to_string())).await?;
+    let all_new_entities = get_changed_entities_from_log(&transaction, latest_versions.into_values().into_iter().sorted_by_key(|e| e.sequence_idx).collect()).map_err(|_| Custom(Status::InternalServerError, "Error".to_string())).await?;
     transaction.commit().await.map_err(|_| Custom(Status::InternalServerError, "Error".to_string()))?;
 
     Ok(Json(

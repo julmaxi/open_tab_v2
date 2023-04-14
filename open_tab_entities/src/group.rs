@@ -25,6 +25,7 @@ pub enum Entity {
     DebateBackupBallot(DebateBackupBallot)
 }
 
+#[derive(Debug)]
 pub struct EntityGroups {
     pub tournaments: Vec<Tournament>,
     pub rounds: Vec<TournamentRound>,
@@ -35,11 +36,15 @@ pub struct EntityGroups {
     pub tournament_institutions: Vec<TournamentInstitution>,
     pub participant_clashes: Vec<ParticipantClash>,
     pub debate_backup_ballots: Vec<DebateBackupBallot>,
-    pub versions: HashMap<(String, Uuid), Uuid>
+    
+    pub versions: HashMap<(String, Uuid), Uuid>,
+    pub insertion_order: Vec<(String, Uuid)>,
 }
 
 impl EntityGroups {
     pub fn add(&mut self, e: Entity) {
+        self.insertion_order.push((e.get_name().clone(), e.get_uuid()));
+
         match e {
             Entity::Participant(p) => self.participants.push(p),
             Entity::Ballot(b) => self.ballots.push(b),
@@ -50,7 +55,7 @@ impl EntityGroups {
             Entity::TournamentInstitution(e) => self.tournament_institutions.push(e),
             Entity::ParticipantClash(e) => self.participant_clashes.push(e),
             Entity::DebateBackupBallot(e) => self.debate_backup_ballots.push(e)
-        }
+        };
     }
 
     pub fn add_versioned(&mut self, e: Entity, version: Uuid) {
@@ -69,7 +74,8 @@ impl EntityGroups {
             tournament_institutions: vec![],
             participant_clashes: vec![],
             debate_backup_ballots: vec![],
-            versions: HashMap::new()
+            versions: HashMap::new(),
+            insertion_order: Vec::new()
         }
     }
 
@@ -159,7 +165,7 @@ impl EntityGroups {
             None => Uuid::nil(),
         };
 
-        let new_entries = self.get_entity_ids().into_iter().sorted().enumerate().map(|(idx, (name, uuid))| {
+        let new_entries = self.insertion_order.iter().map(|e| e.clone()).enumerate().map(|(idx, (name, uuid))| {
             let version_uuid = self.versions.get(&(name.clone(), uuid.clone())).map(|u| *u).unwrap_or_else(Uuid::new_v4);
             tournament_log::ActiveModel {
                 uuid: ActiveValue::Set(version_uuid),
@@ -280,15 +286,17 @@ impl EntityId {
 
 pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<VersionedEntity>, Box<dyn Error>> where C: ConnectionTrait {
     let mut to_query : HashMap<String, Vec<(Uuid, Uuid)>> = HashMap::new();
-    log_entries.into_iter().for_each(|e| {
+    let mut original_indices: HashMap<(String, Uuid), usize> = HashMap::new();
+    log_entries.into_iter().enumerate().for_each(|(idx, e)| {
         match to_query.get_mut(&e.target_type) {
             Some(v) => {
                 v.push((e.target_uuid, e.uuid));
             },
             None => {
-                to_query.insert(e.target_type, vec![(e.target_uuid, e.uuid)]);
+                to_query.insert(e.target_type.clone(), vec![(e.target_uuid, e.uuid)]);
             }
         }
+        original_indices.insert((e.target_type, e.target_uuid), idx);
     });
 
     // FIXME: This is unelegant
@@ -316,5 +324,5 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             }
         ));
     };
-    Ok(all_new_entities)
+    Ok(all_new_entities.into_iter().sorted_by_key(|e| original_indices.get(&(e.entity.get_name(), e.entity.get_uuid()))).collect())
 }

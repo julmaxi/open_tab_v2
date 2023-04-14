@@ -16,7 +16,7 @@ export function useView(viewDef, defaultVal) {
                 setView(viewResult);    
             }
         });
-    }, [viewDef.type, viewDef.uuid]);
+    }, [...Object.values(viewDef)]);
 
     useEffect(
         () => {

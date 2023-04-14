@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { ParticipantOverview } from "./ParticipantOverview";
 
+import { RoundResultRoute } from "./Results";
 
 const router = createMemoryRouter([
   {
@@ -17,6 +18,10 @@ const router = createMemoryRouter([
       {
         path: "round/:roundId/draw",
         element: <DrawEditorRoute />,
+      },
+      {
+        path: "round/:roundId/results",
+        element: <RoundResultRoute />,
       },
       {
         index: true,

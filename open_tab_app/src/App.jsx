@@ -1,4 +1,5 @@
 import { useState, useId, useMemo, useEffect, useCallback } from "react";
+import { Children } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
@@ -17,11 +18,12 @@ import { TournamentContext } from "./TournamentContext";
 import { useContext } from 'react';
 import { ParticipantOverview } from "./ParticipantOverview";
 
+
 function NavGroup(props) {
   return <div className="ml-3">
     <h4 className="font-bold">{props.header}</h4>
     <ul>
-      {props.children.map((child, index) => <li key={index}>{child}</li>)}
+      {Children.map(props.children, ((child, index) => <li key={index}>{child}</li>))}
     </ul>
   </div>
 }
@@ -40,9 +42,14 @@ function SideNav(props) {
   let rounds = roundsOverview.rounds;
 
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
-    <NavGroup header="Rounds">
-      {rounds.map((round) => <NavItem href={`/round/${round.uuid}/draw`} key={round.uuid}>{round.name}</NavItem>)}      
-    </NavGroup>
+    {
+      rounds.map((round) => 
+        <NavGroup header={round.name} key={round.uuid}>
+          <NavItem href={`/round/${round.uuid}/draw`}>Draw</NavItem>
+          <NavItem href={`/round/${round.uuid}/results`}>Results</NavItem>
+        </NavGroup>
+      )
+    }
     <NavItem href="/">
       Participants
     </NavItem>

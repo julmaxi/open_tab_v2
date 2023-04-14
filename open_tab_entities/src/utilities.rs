@@ -32,7 +32,7 @@ impl From<Uuid> for SortableValueWrapper {
     }
 }
 
-pub async fn load_many<E, Conn, Col, M, T>(db: &Conn, values: Vec<T>) -> Result<Vec<Option<M>>, DbErr> where E: EntityTrait<Column=Col, Model=M>, M: ModelTrait<Entity = E>, Conn: ConnectionTrait, Col: ColumnTrait, T: Into<<E::PrimaryKey as PrimaryKeyTrait>::ValueType> + Into<sea_orm::Value> + Into<SortableValueWrapper> + Ord + Eq + Hash + Clone + Send + Sync + 'static {
+pub async fn load_many<E, Conn, Col, M, T>(db: &Conn, key_values: Vec<T>) -> Result<Vec<Option<M>>, DbErr> where E: EntityTrait<Column=Col, Model=M>, M: ModelTrait<Entity = E>, Conn: ConnectionTrait, Col: ColumnTrait, T: Into<<E::PrimaryKey as PrimaryKeyTrait>::ValueType> + Into<sea_orm::Value> + Into<SortableValueWrapper> + Ord + Eq + Hash + Clone + Send + Sync + 'static {
     let keys : Vec<Col> = E::PrimaryKey::iter().map(|e| e.into_column()).collect();
 
     if keys.len() != 1 {
@@ -42,14 +42,14 @@ pub async fn load_many<E, Conn, Col, M, T>(db: &Conn, values: Vec<T>) -> Result<
     let key = keys[0];
 
     let s = E::find();
-    let s : Select<E> = s.filter(key.is_in(values.clone()));
+    let s : Select<E> = s.filter(key.is_in(key_values.clone()));
     let models = s.all(db).await?;
 
     let new_positions = models.iter().enumerate().map(|(i, model)| (model.get(key).into(), i)).collect::<HashMap<SortableValueWrapper, usize>>();
 
     let mut out = vec![];
 
-    for value in values {
+    for value in key_values {
         let value_pos = new_positions.get(&value.into());
         match value_pos {
             Some(pos) => {
@@ -67,7 +67,7 @@ pub async fn load_many<E, Conn, Col, M, T>(db: &Conn, values: Vec<T>) -> Result<
 
 #[derive(Debug)]
 pub enum BatchLoadError {
-    RowNotFound,
+    RowNotFound{ id: String },
     DbErr(DbErr)
 }
 
@@ -94,10 +94,11 @@ pub trait BatchLoad {
     async fn batch_load<Conn, T> (db: &Conn, values: Vec<T>) -> Result<Vec<Option<Self::M>>, DbErr> where Conn: sea_orm::ConnectionTrait, T: Into<<<Self::E as EntityTrait>::PrimaryKey as PrimaryKeyTrait>::ValueType> + Into<sea_orm::Value> + Into<SortableValueWrapper> + Ord + Eq + Hash + Clone + Send + Sync + 'static;
 
     async fn batch_load_all<Conn, T> (db: &Conn, values: Vec<T>) -> Result<Vec<Self::M>, BatchLoadError> where Conn: sea_orm::ConnectionTrait, T: Into<<<Self::E as EntityTrait>::PrimaryKey as PrimaryKeyTrait>::ValueType> + Into<sea_orm::Value> + Into<SortableValueWrapper> + Ord + Eq + Hash + Clone + Send + Sync + 'static {
-        let results = Self::batch_load(db, values).await?;
+        let results = Self::batch_load(db, values.clone()).await?;
 
-        results.into_iter().map(|d| {
-            d.ok_or(BatchLoadError::RowNotFound)
+        results.into_iter().zip(values.into_iter()).map(|(d, id)| {
+            let val : Value = id.into();
+            d.ok_or(BatchLoadError::RowNotFound {id: val.to_string() })
         }).collect::<Result<Vec<_>, _>>()
     }
 }

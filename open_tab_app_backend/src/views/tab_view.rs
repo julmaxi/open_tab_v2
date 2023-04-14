@@ -232,7 +232,7 @@ impl TabView {
                         SpeechRole::NonAligned => {
                             match team_entry {
                                 Some(team_entry) => {
-                                    team_entry.speaker_score += speech.speaker_score();
+                                    team_entry.speaker_score += speech.speaker_score().unwrap_or(0.0);
                                 },
                                 None => {
                                     team_tab_entries.insert(
@@ -240,7 +240,7 @@ impl TabView {
                                         round.index as usize,
                                         TeamTabEntryDetailedScore {
                                             team_score: None,
-                                            speaker_score: speech.speaker_score(),
+                                            speaker_score: speech.speaker_score().unwrap_or(0.0),
                                             role: TeamRoundRole::NonAligned
                                         }
                                     );
@@ -253,7 +253,7 @@ impl TabView {
                         &speaker,
                         round.index as usize,
                         SpeakerTabEntryDetailedScore {
-                            score: speech.speaker_score(),
+                            score: speech.speaker_score().unwrap_or(0.0),
                             team_role: match speech.role {
                                 SpeechRole::Government => TeamRoundRole::Government,
                                 SpeechRole::Opposition => TeamRoundRole::Opposition,
@@ -315,13 +315,18 @@ impl TabView {
 
     fn add_scores_for_team(team_tab_entries: &mut VecMap<Uuid, TeamTabEntryDetailedScore>, round: &schema::tournament_round::Model, ballot: &Ballot, ballot_team: &BallotTeam, team_role: TeamRoundRole) {
         if let Some(team) = ballot_team.team {
-            let team_score = ballot_team.team_score();
-            let speaker_score = ballot.speeches.iter().filter(|s| s.role == SpeechRole::Government).map(|s| s.speaker_score()).sum::<f64>();
+            //let team_score = ballot_team.team_score();
+            //let speaker_score = ballot.speeches.iter().filter(|s| s.role == SpeechRole::Government).map(|s| s.speaker_score()).sum::<f64>();
+            let (total_score, speaker_scores) = match team_role {
+                TeamRoundRole::Government => (ballot.government_total(), ballot.government_speech_scores()),
+                TeamRoundRole::Opposition => (ballot.opposition_total(), ballot.opposition_speech_scores()),
+                TeamRoundRole::NonAligned => panic!("Can't compute team score for non-aligned speakers")
+            };
 
             team_tab_entries.insert(
                 &team,
                 round.index as usize,
-                TeamTabEntryDetailedScore { team_score: Some(team_score), speaker_score, role: team_role }
+                TeamTabEntryDetailedScore { team_score: total_score, speaker_score: speaker_scores.into_iter().sum(), role: team_role }
             );
         }
     }

@@ -51,7 +51,7 @@ impl From<DbErr> for TournamentInstitutionParseError {
 
 
 impl TournamentInstitution {
-    pub async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<TournamentInstitution>>, TournamentInstitutionParseError> where C: ConnectionTrait {
+    pub async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, TournamentInstitutionParseError> where C: ConnectionTrait {
         let institutions = schema::tournament_institution::Entity::batch_load(db, uuids).await?;
 
         Ok(institutions.into_iter().map(|r| r.map(Self::from_row)).collect())
@@ -60,7 +60,7 @@ impl TournamentInstitution {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<TournamentInstitution>, TournamentInstitutionParseError> where C: ConnectionTrait {
         let institutions = schema::tournament_institution::Entity::batch_load_all(db, uuids.clone()).await.map_err(|e| match e {
             BatchLoadError::DbErr(e) => TournamentInstitutionParseError::DbErr(e),
-            BatchLoadError::RowNotFound => TournamentInstitutionParseError::InstitutionDoesNotExist
+            BatchLoadError::RowNotFound {..} => TournamentInstitutionParseError::InstitutionDoesNotExist
         })?;
 
         Ok(institutions.into_iter().map(Self::from_row).collect())

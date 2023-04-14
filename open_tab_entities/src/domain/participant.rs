@@ -79,11 +79,10 @@ impl From<DbErr> for ParticipantParseError {
 
 impl Participant {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
-        //let participants = schema::participant::Entity::find().filter(schema::participant::Column::Uuid.is_in(uuids.clone())).all(db).await?;
         let participants = schema::participant::Entity::batch_load_all(db, uuids).await.map_err(
             |e| match e {
                 BatchLoadError::DbErr(e) => ParticipantParseError::DbErr(e),
-                BatchLoadError::RowNotFound => ParticipantParseError::ParticipantDoesNotExist
+                BatchLoadError::RowNotFound {..} => ParticipantParseError::ParticipantDoesNotExist
             }
         )?;
 

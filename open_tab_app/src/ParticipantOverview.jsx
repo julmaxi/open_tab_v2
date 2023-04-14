@@ -7,6 +7,8 @@ import { getPath, useView } from "./View";
 import { open } from '@tauri-apps/api/dialog';
 import { TournamentContext } from "./TournamentContext";
 
+import ModalOverlay from "./Modal";
+import Button from "./Button";
 
 function EditableCell(props) {
     let [edit, setEdit] = useState(false);
@@ -181,13 +183,6 @@ function ParticipantTable(props) {
             { "key": "clashes", "header": "Clashes" },
         ]
     } />
-}
-
-
-function DialogWindow(props) {
-    return <div className="bg-white p-8">
-        {props.children}
-    </div>
 }
 
 
@@ -366,7 +361,7 @@ function CSVImportDialog(props) {
 
     let {hasErrors} = validateForm(values, csvConfigFields);
 
-    return <DialogWindow>
+    return <div>
         <h1>Select CSV Fields</h1>
         <Form fields={csvConfigFields} values={values} onValuesChanged={(values) => {
             setValues(values);
@@ -375,33 +370,10 @@ function CSVImportDialog(props) {
             <Button onClick={props.onAbort}>Abort</Button>
             <Button onClick={() => props.onSubmit(values)} disabled={hasErrors} role="primary">Import</Button>
         </div>
-        
-    </DialogWindow>   
+    </div>   
 }
 
 
-function Button(props) {
-    let baseStyle = "ml-1 p-1 text-white rounded";
-
-    let bgColor = "bg-gray-500";
-    if (props.role == "primary") {
-        bgColor = "bg-blue-500";
-    }
-    else if (props.role == "secondary") {
-        bgColor = "bg-gray-500";
-    }
-
-    if (props.disabled) {
-        bgColor = "bg-gray-300";
-    }
-
-    return <button className={`${baseStyle} ${bgColor}`} disabled={props.disabled} onClick={props.onClick}>{props.children}</button>
-}
-
-
-function ModalOverlay(props) {
-    
-}
 
 
 export function ParticipantOverview() {
@@ -410,7 +382,7 @@ export function ParticipantOverview() {
 
     let participants = useView(currentView, {"teams": {}, "adjudicators": {}});
 
-    let [importDialogState, setImportDialogState] = useState(false);
+    let [importDialogState, setImportDialogState] = useState(null);
 
     let openImportDialog = useCallback(async () => {
         const selected = await open({
@@ -432,19 +404,14 @@ export function ParticipantOverview() {
             setImportDialogState(null);
         }
     }}>
+        <ModalOverlay open={importDialogState !== null}>
         {
-            importDialogState ?
-            <div className="fixed top-0 left-0 z-50 w-full overflow-x-hidden overflow-y-hidden inset-0 h-full grid place-items-center">
-                <div tabIndex={-1} className={"absolute top-0 left-0 w-full h-full bg-opacity-50 bg-black"} onClick={() => setImportDialogState(null)} />                
-                <div className="z-10">
-                    <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
-                        (values) => console.log(values)
-                    } />    
-                </div>
-            </div>
-            :
-            []
+            <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
+                (values) => console.log(values)
+            } />
         }
+        </ModalOverlay>
+        
         <div className="flex-1 overflow-scroll">
             <ParticipantTable participants={participants} />
         </div>

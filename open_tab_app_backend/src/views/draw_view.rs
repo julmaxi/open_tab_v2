@@ -56,7 +56,7 @@ impl LoadedView for LoadedDrawView {
                 indices_to_reload.push(idx);
 
                 if is_debate_changed {
-                    debate.ballot.uuid = debate.uuid; 
+                    debate.ballot.uuid = changed_debates_by_id.get(&debate.uuid).unwrap().current_ballot_uuid; 
                 }
             }
         }

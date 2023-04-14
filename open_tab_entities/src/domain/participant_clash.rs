@@ -73,7 +73,7 @@ impl ParticipantClash {
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<ParticipantClash>, ParticipantClashParseError> where C: ConnectionTrait {
         let institutions = schema::participant_clash::Entity::batch_load_all(db, uuids.clone()).await.map_err(|e| match e {
             BatchLoadError::DbErr(e) => ParticipantClashParseError::DbErr(e),
-            BatchLoadError::RowNotFound => ParticipantClashParseError::ClashDoesNotExist
+            BatchLoadError::RowNotFound {..} => ParticipantClashParseError::ClashDoesNotExist
         })?;
 
         Ok(institutions.into_iter().map(|clash| {

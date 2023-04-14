@@ -31,6 +31,18 @@ impl TournamentDebate {
             })
         }).collect()
     }
+
+    pub async fn get_one<C>(db: &C, uuid: Uuid) -> Result<TournamentDebate, BatchLoadError> where C: ConnectionTrait {
+        let debates = schema::tournament_debate::Entity::batch_load_all(db, vec![uuid]).await?;
+        debates.into_iter().map(|debate| {
+            Ok(TournamentDebate {
+                uuid: debate.uuid,
+                round_id: debate.round_id,
+                current_ballot_uuid: debate.ballot_id,
+                index: debate.index as u64
+            })
+        }).collect::<Result<Vec<TournamentDebate>, BatchLoadError>>().map(|mut debates| debates.pop().unwrap())
+    }
 }
 
 #[async_trait]
