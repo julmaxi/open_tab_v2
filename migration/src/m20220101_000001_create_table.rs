@@ -21,7 +21,7 @@ enum TournamentRound {
     Table,
     Uuid,
     TournamentId,
-    Index
+    Index,
 }
 
 
@@ -183,6 +183,43 @@ enum DebateBackupBallot {
     Timestamp
 }
 
+#[derive(Iden)]
+enum TournamentBreak {
+    Table,
+    Uuid,
+    TournamentId,
+    BreakType,
+}
+
+#[derive(Iden)]
+enum TournamentBreakTeam {
+    Table,
+    TournamentBreakId,
+    TeamId,
+    Position
+}
+
+#[derive(Iden)]
+enum TournamentBreakSpeaker {
+    Table,
+    TournamentBreakId,
+    SpeakerId,
+    Position
+}
+
+#[derive(Iden)]
+enum TournamentBreakChildRound {
+    Table,
+    TournamentBreakId,
+    TournamentRoundId
+}
+
+#[derive(Iden)]
+enum TournamentBreakSourceRound {
+    Table,
+    TournamentBreakId,
+    TournamentRoundId
+}
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -851,6 +888,242 @@ impl MigrationTrait for Migration {
                 )
                 .to_owned()
         ).await?;
+
+    manager.create_table(
+        sea_query::Table::create()
+            .table(TournamentBreak::Table)
+            .if_not_exists()
+            .col(ColumnDef::new(TournamentBreak::Uuid).uuid().primary_key())
+            .col(ColumnDef::new(TournamentBreak::TournamentId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreak::BreakType).string_len(32).not_null())
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break-tournament")
+                    .from_tbl(TournamentBreak::Table)
+                    .from_col(TournamentBreak::TournamentId)
+                    .to_tbl(Tournament::Table)
+                    .to_col(Tournament::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            ).to_owned()
+    ).await?;
+    manager.create_index(
+        IndexCreateStatement::new()
+        .name("idx-tournament_break-tournament_id")
+        .table(TournamentBreak::Table)
+        .col(TournamentBreak::TournamentId)
+        .to_owned()
+    ).await?;
+
+    manager.create_table(
+        sea_query::Table::create()
+            .table(TournamentBreakTeam::Table)
+            .if_not_exists()
+            .col(ColumnDef::new(TournamentBreakTeam::TournamentBreakId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreakTeam::TeamId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreakTeam::Position).integer().not_null())
+            .primary_key(
+                Index::create()
+                    .col(TournamentBreakTeam::TournamentBreakId)
+                    .col(TournamentBreakTeam::Position)
+                    .primary()
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_team-tournament_break")
+                    .from_tbl(TournamentBreakTeam::Table)
+                    .from_col(TournamentBreakTeam::TournamentBreakId)
+                    .to_tbl(TournamentBreak::Table)
+                    .to_col(TournamentBreak::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_team-team")
+                    .from_tbl(TournamentBreakTeam::Table)
+                    .from_col(TournamentBreakTeam::TeamId)
+                    .to_tbl(Team::Table)
+                    .to_col(Team::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            ).to_owned()
+    ).await?;
+    manager.create_index(
+        IndexCreateStatement::new()
+        .name("idx-tournament_break_team-tournament_break_id")
+        .table(TournamentBreakTeam::Table)
+        .col(TournamentBreakTeam::TournamentBreakId)
+        .to_owned()
+    ).await?;
+    manager.create_index(
+        IndexCreateStatement::new()
+        .name("idx-tournament_break_team-team_id")
+        .table(TournamentBreakTeam::Table)
+        .col(TournamentBreakTeam::TeamId)
+        .to_owned()
+    ).await?;
+
+    manager.create_table(
+        sea_query::Table::create()
+            .table(TournamentBreakSpeaker::Table)
+            .if_not_exists()
+            .col(ColumnDef::new(TournamentBreakSpeaker::TournamentBreakId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreakSpeaker::SpeakerId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreakSpeaker::Position).integer().not_null())
+            .primary_key(
+                Index::create()
+                    .col(TournamentBreakSpeaker::TournamentBreakId)
+                    .col(TournamentBreakSpeaker::Position)
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_speaker-tournament_break")
+                    .from_tbl(TournamentBreakSpeaker::Table)
+                    .from_col(TournamentBreakSpeaker::TournamentBreakId)
+                    .to_tbl(TournamentBreak::Table)
+                    .to_col(TournamentBreak::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_speaker-speaker")
+                    .from_tbl(TournamentBreakSpeaker::Table)
+                    .from_col(TournamentBreakSpeaker::SpeakerId)
+                    .to_tbl(Speaker::Table)
+                    .to_col(Speaker::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            ).to_owned()
+    ).await?;
+    manager.create_index(
+        IndexCreateStatement::new()
+        .name("idx-tournament_break_speaker-tournament_break_id")
+        .table(TournamentBreakSpeaker::Table)
+        .col(TournamentBreakSpeaker::TournamentBreakId)
+        .to_owned()
+    ).await?;
+    manager.create_index(
+        IndexCreateStatement::new()
+        .name("idx-tournament_break_speaker-speaker_id")
+        .table(TournamentBreakSpeaker::Table)
+        .col(TournamentBreakSpeaker::SpeakerId)
+        .to_owned()
+    ).await?;
+
+    /*
+#[derive(Iden)]
+enum TournamentBreakChildRound {
+    Table,
+    TournamentBreakId,
+    TournamentRoundId
+}        
+    */
+
+    manager.create_table(
+        sea_query::Table::create()
+            .table(TournamentBreakChildRound::Table)
+            .if_not_exists()
+            .col(ColumnDef::new(TournamentBreakChildRound::TournamentBreakId).uuid().not_null())
+            .col(ColumnDef::new(TournamentBreakChildRound::TournamentRoundId).uuid().not_null())
+            .primary_key(
+                Index::create()
+                    .col(TournamentBreakChildRound::TournamentBreakId)
+                    .col(TournamentBreakChildRound::TournamentRoundId)
+                    .primary()
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_child_round-tournament_break")
+                    .from_tbl(TournamentBreakChildRound::Table)
+                    .from_col(TournamentBreakChildRound::TournamentBreakId)
+                    .to_tbl(TournamentBreak::Table)
+                    .to_col(TournamentBreak::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            )
+            .foreign_key(
+                ForeignKeyCreateStatement::new()
+                    .name("fk-tournament_break_child_round-tournament_round")
+                    .from_tbl(TournamentBreakChildRound::Table)
+                    .from_col(TournamentBreakChildRound::TournamentRoundId)
+                    .to_tbl(TournamentRound::Table)
+                    .to_col(TournamentRound::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+            ).to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-tournament_break_child_round-tournament_break_id")
+            .table(TournamentBreakChildRound::Table)
+            .col(TournamentBreakChildRound::TournamentBreakId)
+            .to_owned()
+        ).await?;
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-tournament_break_child_round-tournament_round_id")
+            .table(TournamentBreakChildRound::Table)
+            .col(TournamentBreakChildRound::TournamentRoundId)
+            .unique()
+            .to_owned()
+        ).await?;
+
+        /*
+        enum TournamentBreakSourceRound {
+    Table,
+    TournamentBreakId,
+    TournamentRoundId
+         */
+
+        manager.create_table(
+            sea_query::Table::create()
+                .table(TournamentBreakSourceRound::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentBreakSourceRound::TournamentBreakId).uuid().not_null())
+                .col(ColumnDef::new(TournamentBreakSourceRound::TournamentRoundId).uuid().not_null())
+                .primary_key(
+                    Index::create()
+                        .col(TournamentBreakSourceRound::TournamentBreakId)
+                        .col(TournamentBreakSourceRound::TournamentRoundId)
+                        .primary()
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-tournament_break_source_round-tournament_break")
+                        .from_tbl(TournamentBreakSourceRound::Table)
+                        .from_col(TournamentBreakSourceRound::TournamentBreakId)
+                        .to_tbl(TournamentBreak::Table)
+                        .to_col(TournamentBreak::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-tournament_break_source_round-tournament_round")
+                        .from_tbl(TournamentBreakSourceRound::Table)
+                        .from_col(TournamentBreakSourceRound::TournamentRoundId)
+                        .to_tbl(TournamentRound::Table)
+                        .to_col(TournamentRound::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                ).to_owned()
+            ).await?;
+            manager.create_index(
+                IndexCreateStatement::new()
+                .name("idx-tournament_break_source_round-tournament_break_id")
+                .table(TournamentBreakSourceRound::Table)
+                .col(TournamentBreakSourceRound::TournamentBreakId)
+                .to_owned()
+            ).await?;
+            manager.create_index(
+                IndexCreateStatement::new()
+                .name("idx-tournament_break_source_round-tournament_round_id")
+                .table(TournamentBreakSourceRound::Table)
+                .col(TournamentBreakSourceRound::TournamentRoundId)
+                .to_owned()
+            ).await?;
 
         Result::Ok(())
     }

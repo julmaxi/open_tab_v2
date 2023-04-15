@@ -3,26 +3,33 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "team")]
+#[sea_orm(table_name = "tournament_break_speaker")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub uuid: Uuid,
-    pub name: String,
-    pub tournament_id: Uuid,
+    pub tournament_break_id: Uuid,
+    pub speaker_id: Uuid,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub position: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::speaker::Entity")]
-    Speaker,
     #[sea_orm(
-        belongs_to = "super::tournament::Entity",
-        from = "Column::TournamentId",
-        to = "super::tournament::Column::Uuid",
+        belongs_to = "super::speaker::Entity",
+        from = "Column::SpeakerId",
+        to = "super::speaker::Column::Uuid",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
-    Tournament,
+    Speaker,
+    #[sea_orm(
+        belongs_to = "super::tournament_break::Entity",
+        from = "Column::TournamentBreakId",
+        to = "super::tournament_break::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    TournamentBreak,
 }
 
 impl Related<super::speaker::Entity> for Entity {
@@ -31,18 +38,9 @@ impl Related<super::speaker::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Tournament.def()
-    }
-}
-
 impl Related<super::tournament_break::Entity> for Entity {
     fn to() -> RelationDef {
-        super::tournament_break_team::Relation::TournamentBreak.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::tournament_break_team::Relation::Team.def().rev())
+        Relation::TournamentBreak.def()
     }
 }
 

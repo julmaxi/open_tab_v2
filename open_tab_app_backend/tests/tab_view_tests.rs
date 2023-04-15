@@ -305,6 +305,7 @@ async fn test_total_team_score_is_correct_for_faction_team() -> Result<(), Box<d
 
     let target_team_entry = view.team_tab.iter().find(|e| e.team_uuid == Uuid::from_u128(1000)).expect("Expected to find team");
 
+    dbg!(&target_team_entry);
     assert!((target_team_entry.total_points - 481.8333333333333).abs() < TAB_TOLERANCE, "Incorrect score: {}", target_team_entry.total_points);
     Ok(())
 }

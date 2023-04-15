@@ -318,8 +318,8 @@ impl TabView {
             //let team_score = ballot_team.team_score();
             //let speaker_score = ballot.speeches.iter().filter(|s| s.role == SpeechRole::Government).map(|s| s.speaker_score()).sum::<f64>();
             let (total_score, speaker_scores) = match team_role {
-                TeamRoundRole::Government => (ballot.government_total(), ballot.government_speech_scores()),
-                TeamRoundRole::Opposition => (ballot.opposition_total(), ballot.opposition_speech_scores()),
+                TeamRoundRole::Government => (ballot.government.team_score(), ballot.government_speech_scores()),
+                TeamRoundRole::Opposition => (ballot.opposition.team_score(), ballot.opposition_speech_scores()),
                 TeamRoundRole::NonAligned => panic!("Can't compute team score for non-aligned speakers")
             };
 

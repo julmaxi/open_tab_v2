@@ -3,12 +3,12 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "tournament_round")]
+#[sea_orm(table_name = "tournament_break")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
     pub tournament_id: Uuid,
-    pub index: i32,
+    pub break_type: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -21,8 +21,6 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tournament,
-    #[sea_orm(has_many = "super::tournament_debate::Entity")]
-    TournamentDebate,
 }
 
 impl Related<super::tournament::Entity> for Entity {
@@ -31,19 +29,39 @@ impl Related<super::tournament::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament_debate::Entity> for Entity {
+impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::TournamentDebate.def()
-    }
-}
-
-impl Related<super::tournament_break::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::tournament_break_child_round::Relation::TournamentBreak.def()
+        super::tournament_break_team::Relation::Team.def()
     }
     fn via() -> Option<RelationDef> {
         Some(
-            super::tournament_break_child_round::Relation::TournamentRound
+            super::tournament_break_team::Relation::TournamentBreak
+                .def()
+                .rev(),
+        )
+    }
+}
+
+impl Related<super::speaker::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::tournament_break_speaker::Relation::Speaker.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::tournament_break_speaker::Relation::TournamentBreak
+                .def()
+                .rev(),
+        )
+    }
+}
+
+impl Related<super::tournament_round::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::tournament_break_child_round::Relation::TournamentRound.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::tournament_break_child_round::Relation::TournamentBreak
                 .def()
                 .rev(),
         )

@@ -91,7 +91,7 @@ async fn test_update_ballot_saves_team() -> Result<(), Box<dyn Error>> {
     assert_eq!(ballot.opposition.team, Some(Uuid::from_u128(1001)));
 
     assert_eq!(ballot.adjudicators.len(), 0);
-    assert_eq!(ballot.speeches.len(), 0);
+    assert_eq!(ballot.speeches.len(), 6);
     assert_eq!(ballot.president, None);
 
     Ok(())
@@ -128,7 +128,7 @@ async fn test_update_ballot_saves_adjudicators() -> Result<(), Box<dyn Error>> {
     assert_eq!(ballot.opposition.team, None);
 
     assert_eq!(ballot.adjudicators, vec![3012, 3001, 3002].into_iter().map(Uuid::from_u128).collect_vec());
-    assert_eq!(ballot.speeches.len(), 0);
+    assert_eq!(ballot.speeches.len(), 6);
     assert_eq!(ballot.president, Some(Uuid::from_u128(3006)));
 
     Ok(())
@@ -174,7 +174,9 @@ async fn test_update_ballot_saves_non_aligned() -> Result<(), Box<dyn Error>> {
     assert_eq!(ballot.opposition.team, None);
 
     assert_eq!(ballot.adjudicators.len(), 0);
-    assert_eq!(ballot.speeches, vec![2002, 2051, 2012].into_iter().enumerate().map(|(idx, id)| {
+    assert_eq!(ballot.speeches.clone().into_iter().filter(
+        |s| s.role == open_tab_entities::prelude::SpeechRole::NonAligned
+    ).collect_vec(), vec![2002, 2051, 2012].into_iter().enumerate().map(|(idx, id)| {
         Speech {
             speaker: Some(Uuid::from_u128(id)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,

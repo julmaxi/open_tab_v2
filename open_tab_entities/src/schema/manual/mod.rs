@@ -5,3 +5,4 @@ pub mod adjudicator_team_score;
 pub mod ballot_team;
 pub mod ballot_speech;
 pub mod participant;
+pub mod missing_relations;

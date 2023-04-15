@@ -8,6 +8,11 @@ pub use super::participant_tournament_institution::Entity as ParticipantTourname
 pub use super::speaker::Entity as Speaker;
 pub use super::team::Entity as Team;
 pub use super::tournament::Entity as Tournament;
+pub use super::tournament_break::Entity as TournamentBreak;
+pub use super::tournament_break_child_round::Entity as TournamentBreakChildRound;
+pub use super::tournament_break_source_round::Entity as TournamentBreakSourceRound;
+pub use super::tournament_break_speaker::Entity as TournamentBreakSpeaker;
+pub use super::tournament_break_team::Entity as TournamentBreakTeam;
 pub use super::tournament_debate::Entity as TournamentDebate;
 pub use super::tournament_institution::Entity as TournamentInstitution;
 pub use super::tournament_log::Entity as TournamentLog;

@@ -49,13 +49,6 @@ impl From<DbErr> for BallotParseError {
 }
 
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum EntityIdentifier<T> {
-    Set(T),
-    Unset
-}
-
-
 #[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize, Clone)]
 pub struct Ballot {
     pub uuid: Uuid,

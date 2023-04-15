@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder, QuerySelect, ActiveValue};
 
-use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot}, schema::tournament_log};
+use crate::{domain::{participant::Participant, ballot::Ballot, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot, tournament_break::TournamentBreak}, schema::tournament_log};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct VersionedEntity {
@@ -22,7 +22,8 @@ pub enum Entity {
     TournamentRound(TournamentRound),
     Ballot(Ballot),
     TournamentDebate(TournamentDebate),
-    DebateBackupBallot(DebateBackupBallot)
+    DebateBackupBallot(DebateBackupBallot),
+    TournamentBreak(TournamentBreak)
 }
 
 #[derive(Debug)]
@@ -36,6 +37,7 @@ pub struct EntityGroups {
     pub tournament_institutions: Vec<TournamentInstitution>,
     pub participant_clashes: Vec<ParticipantClash>,
     pub debate_backup_ballots: Vec<DebateBackupBallot>,
+    pub tournament_breaks: Vec<TournamentBreak>,
     
     pub versions: HashMap<(String, Uuid), Uuid>,
     pub insertion_order: Vec<(String, Uuid)>,
@@ -54,7 +56,8 @@ impl EntityGroups {
             Entity::Team(e) => self.teams.push(e),
             Entity::TournamentInstitution(e) => self.tournament_institutions.push(e),
             Entity::ParticipantClash(e) => self.participant_clashes.push(e),
-            Entity::DebateBackupBallot(e) => self.debate_backup_ballots.push(e)
+            Entity::DebateBackupBallot(e) => self.debate_backup_ballots.push(e),
+            Entity::TournamentBreak(e) => self.tournament_breaks.push(e)
         };
     }
 
@@ -74,8 +77,9 @@ impl EntityGroups {
             tournament_institutions: vec![],
             participant_clashes: vec![],
             debate_backup_ballots: vec![],
+            tournament_breaks: Vec::new(),
             versions: HashMap::new(),
-            insertion_order: Vec::new()
+            insertion_order: Vec::new(),
         }
     }
 
@@ -222,6 +226,7 @@ impl Entity {
             Entity::TournamentDebate(_) => 6,
             Entity::ParticipantClash(_) => 7,
             Entity::DebateBackupBallot(_) => 8,
+            Entity::TournamentBreak(_) => 9,
         }
     }
 
@@ -236,6 +241,7 @@ impl Entity {
             Entity::TournamentInstitution(_) => "TournamentInstitution".to_string(),
             Entity::ParticipantClash(_) => "ParticipantClash".to_string(),
             Entity::DebateBackupBallot(_) => "DebateBackupBallot".to_string(),
+            Entity::TournamentBreak(_) => "TournamentBreak".to_string(),
         }
     }
 
@@ -250,6 +256,7 @@ impl Entity {
             Entity::TournamentInstitution(e) => e.uuid,
             Entity::ParticipantClash(e) => e.uuid,
             Entity::DebateBackupBallot(e) => e.uuid,
+            Entity::TournamentBreak(e) => e.uuid,
         }
     }
 }
@@ -315,6 +322,7 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             "TournamentInstitution" => TournamentInstitution::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentInstitution(e)).collect_vec(),
             "ParticipantClash" => ParticipantClash::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::ParticipantClash(e)).collect_vec(),
             "DebateBackupBallot" => DebateBackupBallot::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::DebateBackupBallot(e)).collect_vec(),
+            "TournamentBreak" => TournamentBreak::get_many(transaction, uuids).await?.into_iter().map(|e| Entity::TournamentBreak(e)).collect_vec(),
             _ => panic!("Unknown entity type {}", type_)
         };
         all_new_entities.extend(new_entities.into_iter().zip(versions.into_iter()).map(

@@ -536,7 +536,7 @@ async fn test_getting_missing_ballot_raises_error() -> Result<(), Box<dyn Error>
 
     assert!(retrieved.is_err());
 
-    if let Err(BallotParseError::BallotDoesNotExist) = retrieved {
+    if let Err(BallotParseError::BallotDoesNotExist {..}) = retrieved {
     }
     else {
         panic!("Expected BallotParseError::BallotDoesNotExist, got {:?} instead", retrieved);
