@@ -2,6 +2,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useState, useEffect } from "react";
+import _ from 'lodash';
 
 export function useView(viewDef, defaultVal) {
     let [view, setView] = useState(defaultVal);
@@ -22,7 +23,7 @@ export function useView(viewDef, defaultVal) {
         () => {
             const unlisten = listen('views-changed', (event) => {
 
-            let relevant_changes = event.payload.changes.filter((change) => change.view.uuid == viewDef.uuid && change.view.type == viewDef.type);
+            let relevant_changes = event.payload.changes.filter((change) => _.isEqual(change.view, viewDef));
 
             if (relevant_changes.length > 0) {
                 console.log(relevant_changes);

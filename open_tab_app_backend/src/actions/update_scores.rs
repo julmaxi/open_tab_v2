@@ -2,7 +2,7 @@ use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
 
 use itertools::{Itertools, izip};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*};
+use open_tab_entities::{prelude::*, domain::debate_backup_ballot::DebateBackupBallot};
 
 use sea_orm::prelude::*;
 
@@ -39,8 +39,15 @@ impl ActionTrait for UpdateScoresAction {
                 let mut ballot : Ballot = display_ballot.into();
                 ballot.uuid = Uuid::new_v4();
                 debate.current_ballot_uuid = ballot.uuid;
+                let backup_ballot = DebateBackupBallot {
+                    uuid: Uuid::new_v4(),
+                    debate_id: self.debate_id,
+                    ballot_id: ballot.uuid,
+                    timestamp: chrono::offset::Local::now().naive_local(),
+                };
                 groups.add(Entity::Ballot(ballot));
                 groups.add(Entity::TournamentDebate(debate));
+                groups.add(Entity::DebateBackupBallot(backup_ballot));
             },
         }
 

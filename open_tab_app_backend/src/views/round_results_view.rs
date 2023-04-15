@@ -186,6 +186,7 @@ impl DisplayBallot {
 
 impl Into<Ballot> for DisplayBallot {
     fn into(self) -> Ballot {
+        dbg!(&self);
         let adjudicators = self.adjudicators.into_iter().map(|adj| adj.uuid).collect_vec();
         let government = BallotTeam {
             team: self.government.uuid,
