@@ -25,4 +25,6 @@ pub struct SpeakerData {
 
 pub struct AdjudicatorData {
     pub participant_data: ParticipantData,
+    pub chair_skill: i16,
+    pub panel_skill: i16,
 }

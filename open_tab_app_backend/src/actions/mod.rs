@@ -27,6 +27,7 @@ pub enum Action {
     UpdateDraw{action: UpdateDrawAction},
     UpdateParticipants{action: UpdateParticipantsAction},
     UpdateScores{action: UpdateScoresAction},
+    UploadParticipantsList{action: UploadParticipantsListAction},
 }
 
 impl Action {
@@ -35,6 +36,7 @@ impl Action {
             Action::UpdateDraw{action} => action.get_changes(db).await,
             Action::UpdateParticipants{action} => action.get_changes(db).await,
             Action::UpdateScores{action} => action.get_changes(db).await,
+            Action::UploadParticipantsList { action } => action.get_changes(db).await,
         }
     }
 }

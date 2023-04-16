@@ -13,7 +13,7 @@ use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action};
+use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig};
 
 use tokio::sync::Mutex;
 
@@ -34,10 +34,17 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
         vec![])
     ).await?;
 
-    let mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, ..Default::default() });
+    let mut mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, ..Default::default() });
     let tournament_uuid = mock_data.tournaments[0].uuid.clone();
+
+    let second_tournament = Tournament {
+        uuid: Uuid::from_u128(2)
+    };
+    mock_data.add(Entity::Tournament(second_tournament));
+
     mock_data.save_all_with_options(&db, true).await.unwrap();
     mock_data.save_log_with_tournament_id(&db, tournament_uuid).await.unwrap();
+
 
     schema::tournament_remote::ActiveModel {
         uuid: sea_orm::ActiveValue::Set(Uuid::new_v4()),
@@ -181,6 +188,7 @@ async fn execute_action(app: AppHandle, action: Action, db: State<'_, DatabaseCo
             }
         },
         Err(err) => {
+            dbg!(&err);
             ActionResponse {
                 success: false,
                 message: Some(err.to_string())
@@ -446,12 +454,20 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
     Ok(())
 }
 
+
+#[tauri::command]
+async fn guess_csv_config(path: String) -> Result<CSVReaderConfig, ()> {
+    let result = open_tab_app_backend::frontend_queries::query_participant_csv_config_proposal(path).await;
+
+    result.map_err(|_| ())
+}
+
 fn main() {
     let db = block_on(connect_db()).unwrap();
     let (sync_notification_send, sync_notification_recv) = tauri::async_runtime::channel::<SyncNotification>(100);
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![subscribe_to_view, execute_action])
+        .invoke_handler(tauri::generate_handler![subscribe_to_view, execute_action, guess_csv_config])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))
         .setup(|app| {
@@ -462,7 +478,7 @@ fn main() {
 
                 tokio::time::sleep(Duration::from_secs(10)).await;
 
-                loop {        
+                loop {
                     let db = &*app_handle.state::<DatabaseConnection>();
 
                     let transaction = db.begin().await.unwrap();

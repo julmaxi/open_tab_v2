@@ -12,17 +12,21 @@ pub struct CSVReaderConfig {
     role_column: Option<usize>,
     institutions_column: Option<usize>,
     clashes_column: Option<usize>,
+    delimiter: Option<u8>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+#[serde(tag = "type")]
 enum CSVNameCol {
     FirstLast{ first: usize, last: usize },
-    Full(usize)
+    Full {column: usize}
 }
 
 #[derive(Debug)]
 pub enum CSVParserErr {
     ParseError(csv::Error),
+    IoError(std::io::Error),
     IndexOutOfBounds{ index: usize },
     BadConfig
 }
@@ -58,13 +62,33 @@ pub enum ParseWarning {
 
 
 impl CSVReaderConfig {
-    pub fn default_from_file<R>(reader: R) -> Result<CSVReaderConfig, CSVParserErr> where R: std::io::Read {
-        let mut reader = csv::Reader::from_reader(reader);
+    pub fn default_from_file<R>(mut reader: R) -> Result<CSVReaderConfig, CSVParserErr> where R: std::io::Read {
+        let delimiter_candidates = [b',', b';', b'\t'];
+        let mut delimiter_counts = [0; 3];
+        let mut buffer = Vec::new();
+
+        let read_result = reader.read_to_end(&mut buffer);
+        if let Err(e) = read_result {
+            return Err(CSVParserErr::IoError(e));
+        }
+
+        for char in buffer.iter() {
+            for (i, delimiter) in delimiter_candidates.iter().enumerate() {
+                if char == delimiter {
+                    delimiter_counts[i] += 1;
+                }
+            }
+        }
+
+        let delimiter = delimiter_counts.into_iter().enumerate().max_by_key(|(_, c)| *c).map(|(i, _)| delimiter_candidates[i]).unwrap_or(b',');
+        let mut reader = csv::ReaderBuilder::new().delimiter(delimiter).from_reader(&buffer[..]);
         let headers = reader.headers().map_err(|e| {
             CSVParserErr::ParseError(e)
         })?;
 
-        Ok(Self::propose_config_from_headers(headers.into_iter()))
+        let mut config = Self::propose_config_from_headers(headers.into_iter());
+        config.delimiter = Some(delimiter);
+        Ok(config)
     }
 
     fn propose_config_from_headers<'a, I>(headers: I) -> CSVReaderConfig where I: Iterator<Item=&'a str> {
@@ -100,7 +124,7 @@ impl CSVReaderConfig {
 
         let name_column = match (proposed_column_assignment.get(&CSVField::FirstName), proposed_column_assignment.get(&CSVField::LastName), proposed_column_assignment.get(&CSVField::FullName)) {
             (Some(first), Some(last), _) => Some(CSVNameCol::FirstLast { first: *first, last: *last }),
-            (_, _, Some(full)) => Some(CSVNameCol::Full(*full)),
+            (_, _, Some(full)) => Some(CSVNameCol::Full {column: *full}),
             (_, _, _) => None
         };
 
@@ -108,12 +132,14 @@ impl CSVReaderConfig {
             name_column,
             role_column: proposed_column_assignment.remove(&CSVField::Role),
             institutions_column: proposed_column_assignment.remove(&CSVField::Institutions),
-            clashes_column: proposed_column_assignment.remove(&CSVField::Conflicts)
+            clashes_column: proposed_column_assignment.remove(&CSVField::Conflicts),
+            delimiter: None
         }
     }
 
     pub fn parse<R>(&self, reader: R) -> Result<ParseResult, CSVParserErr> where R: std::io::Read {
-        let mut reader = csv::Reader::from_reader(reader);
+        let delimiter = self.delimiter.ok_or(CSVParserErr::BadConfig)?;
+        let mut reader = csv::ReaderBuilder::new().delimiter(delimiter).flexible(true).from_reader(reader);
 
         let role_idx = self.role_column.ok_or(CSVParserErr::BadConfig)?;
 
@@ -125,7 +151,7 @@ impl CSVReaderConfig {
             let row = row.map_err(|e| CSVParserErr::ParseError(e))?;
 
             let name = match self.name_column {
-                Some(CSVNameCol::Full(index)) => row.get(index).ok_or(CSVParserErr::IndexOutOfBounds { index })?.to_string(),
+                Some(CSVNameCol::Full {column: index}) => row.get(index).ok_or(CSVParserErr::IndexOutOfBounds { index })?.to_string(),
                 Some(CSVNameCol::FirstLast{first, last }) => {
                     let first_name = row.get(first).ok_or(CSVParserErr::IndexOutOfBounds { index: first })?;
                     let last_name = row.get(last).ok_or(CSVParserErr::IndexOutOfBounds { index: last })?;
@@ -141,12 +167,20 @@ impl CSVReaderConfig {
             }
 
             let institutions = match self.institutions_column {
-                Some(index) => row.get(index).ok_or(CSVParserErr::IndexOutOfBounds { index })?.split(";").map(|i| i.trim().to_string()).collect(),
+                Some(index) => row.get(
+                    index
+                ).map(
+                    |i| i.split(";").map(|i| i.trim().to_string()).collect()
+                ).unwrap_or(vec![]),
                 None => vec![]
             };
 
             let clashes = match self.clashes_column {
-                Some(index) => row.get(index).ok_or(CSVParserErr::IndexOutOfBounds { index })?.split(";").map(|i| i.trim().to_string()).collect(),
+                Some(index) => row.get(
+                    index
+                ).map(
+                    |i| i.split(";").map(|i| i.trim().to_string()).collect()
+                ).unwrap_or(vec![]),
                 None => vec![]
             };
 
@@ -159,7 +193,18 @@ impl CSVReaderConfig {
             let role = row.get(role_idx).ok_or(CSVParserErr::IndexOutOfBounds { index: role_idx })?.to_string();
 
             if role.len() == 0 || role.starts_with("#") {
-                adjudicators.push(AdjudicatorData { participant_data });
+                let (chair_skill, panel_skill) = if role.starts_with("#") && role.len() == 3 {
+                    let chair_skill = role.chars().nth(1).unwrap().to_digit(10);
+                    let panel_skill = role.chars().nth(2).unwrap().to_digit(10);
+
+                    match (chair_skill, panel_skill) {
+                        (Some(chair), Some(panel)) => (chair * 10, panel * 10),
+                        _ => (50, 50)
+                    }
+                } else {
+                    (50, 50)
+                };
+                adjudicators.push(AdjudicatorData { participant_data, chair_skill: chair_skill as i16, panel_skill: panel_skill as i16});
             }
             else {
                 let speaker = SpeakerData { participant_data };
@@ -204,7 +249,7 @@ fn test_propose_with_full_name_header() {
 
     let headers = CSVReaderConfig::propose_config_from_headers(headers.into_iter());
 
-    assert_eq!(headers.name_column, Some(CSVNameCol::Full(0)));
+    assert_eq!(headers.name_column, Some(CSVNameCol::Full {column: 0}));
     assert_eq!(headers.role_column, None);
     assert_eq!(headers.institutions_column, None);
     assert_eq!(headers.clashes_column, None);
@@ -238,10 +283,11 @@ fn test_propose_full_header() {
 #[test]
 fn test_read_valid_data_with_full_name() -> Result<(), Box<dyn Error>> {
     let config = CSVReaderConfig {
-        name_column: Some(CSVNameCol::Full(0)),
+        name_column: Some(CSVNameCol::Full {column: 0}),
         role_column: Some(1),
         institutions_column: Some(2),
         clashes_column: Some(3),
+        delimiter: Some(b',')
     };
 
     let test_file = "Name,Team,Club,Clashes
@@ -266,6 +312,7 @@ fn test_read_valid_data_with_first_and_last_name() -> Result<(), Box<dyn Error>>
         role_column: Some(2),
         institutions_column: Some(3),
         clashes_column: Some(4),
+        delimiter: Some(b',')
     };
 
     let test_file = "Vorname,Name,Team,Club,Clashes

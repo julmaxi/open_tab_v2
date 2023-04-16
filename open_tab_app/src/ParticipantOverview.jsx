@@ -9,6 +9,7 @@ import { TournamentContext } from "./TournamentContext";
 
 import ModalOverlay from "./Modal";
 import Button from "./Button";
+import { invoke } from "@tauri-apps/api/tauri";
 
 function EditableCell(props) {
     let [edit, setEdit] = useState(false);
@@ -318,16 +319,16 @@ function CSVImportDialog(props) {
     let csvConfigFields = [
         {
             type: "either_or",
-            key: "name",
+            key: "name_column",
             displayName: "Name",
             required: true,
             options: [
                 {
                     "displayName": "Full Name",
-                    "key": "full_name",
+                    "key": "full",
                     "fields": [
                         {
-                            "key": "full_name",
+                            "key": "column",
                             type: "number",
                             required: true
                         },
@@ -335,16 +336,16 @@ function CSVImportDialog(props) {
                 },
                 {
                     "displayName": "First and Last Name",
-                    "key": "first_last_name",
+                    "key": "first_last",
                     "fields": [
                         {
-                            "key": "first_name",
+                            "key": "first",
                             type: "number",
                             "displayName": "First Name",
                             required: true
                         },
                         {
-                            "key": "last_name",
+                            "key": "last",
                             type: "number",
                             "displayName": "Last Name",
                             required: true
@@ -353,11 +354,12 @@ function CSVImportDialog(props) {
                 },
             ]
         },
-        {type: "number", required: true, key: "institution", displayName: "Institution"},
-        {type: "number", required: false, key: "clashes", displayName: "Clashes"},
+        {type: "number", required: true, key: "role_column", displayName: "Role"},
+        {type: "number", required: true, key: "institutions_column", displayName: "Institution"},
+        {type: "number", required: false, key: "clashes_column", displayName: "Clashes"},
     ];
 
-    let [values, setValues] = useState({});
+    let [values, setValues] = useState(props.initialConfig || {});
 
     let {hasErrors} = validateForm(values, csvConfigFields);
 
@@ -393,8 +395,11 @@ export function ParticipantOverview() {
             }]
         });
         if (selected !== null) {
+            let proposedConfig = await invoke("guess_csv_config", {path: selected});
+            console.log(proposedConfig);
             setImportDialogState({
-                file: selected[0]
+                file: selected,
+                proposedConfig
             });
         }
     }, []);
@@ -406,9 +411,18 @@ export function ParticipantOverview() {
     }}>
         <ModalOverlay open={importDialogState !== null}>
         {
-            <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
-                (values) => console.log(values)
-            } />
+            importDialogState !== null ? <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
+                (values) => {
+                    executeAction(
+                        "UploadParticipantsList", {
+                            tournament_id: tournamentContext.uuid,
+                            path: importDialogState.file,
+                            parser_config: values
+                        }
+                    );
+                    setImportDialogState(null);
+                }
+            } initialConfig={importDialogState.proposedConfig} /> : []
         }
         </ModalOverlay>
         
