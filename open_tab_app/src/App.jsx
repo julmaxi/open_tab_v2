@@ -50,17 +50,18 @@ function SideNav(props) {
         </NavGroup>
       )
     }
-    <NavItem href="/">
+    <NavItem href="/participants">
       Participants
+    </NavItem>
+    <NavItem href="/rounds">
+      Rounds
     </NavItem>
   </nav>
 }
 
 function Main(props) {
   return <div className="flex-1 flex h-full overflow-hidden">
-    <div className="flex-1 overflow-y-scroll">
       {props.children}
-    </div>
   </div>
 }
 

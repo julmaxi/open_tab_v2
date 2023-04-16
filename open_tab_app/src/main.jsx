@@ -9,6 +9,7 @@ import {
 import { ParticipantOverview } from "./ParticipantOverview";
 
 import { RoundResultRoute } from "./Results";
+import { RoundsEditorRoute } from "./RoundsEditor";
 
 const router = createMemoryRouter([
   {
@@ -24,8 +25,13 @@ const router = createMemoryRouter([
         element: <RoundResultRoute />,
       },
       {
-        index: true,
+        path: "participants",
         element: <ParticipantOverview />
+      },
+      {
+        index: true,
+        path: "rounds",
+        element: <RoundsEditorRoute />
       }
     ],
   },

@@ -277,6 +277,40 @@ function simulateDragOutcome(draw, from, to, isSwap) {
   }
 }
 
+
+function TabGroup(props) {
+  let [activeTab, setActiveTab] = useState(0);
+
+  let children = React.Children.toArray(props.children);
+  let displayChild = children[activeTab];
+
+  return <div className="w-full h-full">
+    <div className="flex">
+      {React.Children.map(props.children, (tab, i) => <button className={"flex-1 text-center p-2 font-semibold text-sm" + (i == activeTab ? " bg-blue-500 text-white" : " bg-gray-100")} onClick={() => setActiveTab(i)}>{tab.props.name}</button>)}
+    </div>
+    <div className="h-full overflow-scroll">
+      {displayChild}
+    </div>
+  </div>
+}
+
+
+function Tab(props) {
+  return <div>
+    {props.children}
+  </div>
+}
+
+
+function DrawToolTray(props) {
+  return <div className="w-72 border-l h-full">
+    <TabGroup>
+      <Tab name="Adjudicators"></Tab>
+      <Tab name="Teams"></Tab>
+    </TabGroup>
+  </div>
+}
+
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
@@ -293,13 +327,16 @@ function DrawEditor(props) {
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
 
-  return <div>
+  return <div className="flex flex-row w-full h-full">
     <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd}>
-      <table className="w-full">
-        <tbody>
-          {debates.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
-        </tbody>
-      </table>
+      <div className="flex-1 overflow-y-scroll">
+        <table className="w-full">
+          <tbody>
+            {debates.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
+          </tbody>
+        </table>
+      </div>
+      <DrawToolTray />
     </DndContext>
   </div>
   }
