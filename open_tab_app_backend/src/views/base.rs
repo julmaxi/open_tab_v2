@@ -48,7 +48,7 @@ impl TournamentParticipantsInfo {
         }).into_group_map();
         let teams_by_id = Team::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|team| (team.uuid, team)).collect::<HashMap<_, _>>();
         let participants_by_id = all_participants.into_iter().map(|speaker| (speaker.uuid, speaker)).collect::<HashMap<_, _>>();
-        let institutions_by_id = TournamentInstitution::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|inst| (inst.uuid, inst)).collect::<HashMap<_, _>>();;
+        let institutions_by_id = TournamentInstitution::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|inst| (inst.uuid, inst)).collect::<HashMap<_, _>>();
 
         let speaker_teams = team_members.iter().flat_map(|(team_id, speakers)| {
             speakers.iter().map(move |speaker_id| (*speaker_id, *team_id))

@@ -75,7 +75,7 @@ function WindowFrame(props) {
 }
 
 export function App() {
-  return <TournamentContext.Provider value={({uuid: "00000000-0000-0000-0000-000000000002"})}>
+  return <TournamentContext.Provider value={({uuid: "00000000-0000-0000-0000-000000000001"})}>
     <div className="overscroll-none">
       <WindowFrame />
     </div>

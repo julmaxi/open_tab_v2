@@ -284,9 +284,9 @@ mod test {
         let generator = PreliminaryRoundGenerator {..Default::default()};
 
         let rounds = vec![
-            TournamentRound { uuid: Uuid::from_u128(10), tournament_id: Uuid::from_u128(0), index: 0 },
-            TournamentRound { uuid: Uuid::from_u128(11), tournament_id: Uuid::from_u128(0), index: 0 },
-            TournamentRound { uuid: Uuid::from_u128(12), tournament_id: Uuid::from_u128(0), index: 0 },
+            TournamentRound { uuid: Uuid::from_u128(10), tournament_id: Uuid::from_u128(0), index: 0, draw_type: None },
+            TournamentRound { uuid: Uuid::from_u128(11), tournament_id: Uuid::from_u128(0), index: 0, draw_type: None },
+            TournamentRound { uuid: Uuid::from_u128(12), tournament_id: Uuid::from_u128(0), index: 0, draw_type: None },
         ];
 
         let mut clash_map = ClashMap::new(Default::default());

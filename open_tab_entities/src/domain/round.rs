@@ -10,11 +10,19 @@ use crate::utilities::{BatchLoad, BatchLoadError};
 
 use super::TournamentEntity;
 
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub enum DrawType {
+    StandardPreliminaryDraw,
+    KnockoutDraw,
+}
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct TournamentRound {
     pub uuid: Uuid,
     pub tournament_id: Uuid,
-    pub index: u64
+    pub index: u64,
+    pub draw_type: Option<DrawType>
 }
 
 
@@ -25,7 +33,8 @@ impl TournamentRound {
             Ok(TournamentRound {
                 uuid: round.uuid,
                 tournament_id: round.tournament_id,
-                index: round.index as u64
+                index: round.index as u64,
+                draw_type: round.draw_type.map(|r| serde_json::from_str(&r).ok()).flatten()
             })
         }).collect()
     }
@@ -34,7 +43,8 @@ impl TournamentRound {
         TournamentRound {
             uuid: Uuid::new_v4(),
             tournament_id,
-            index
+            index,
+            draw_type: None
         }
     }
 
@@ -44,7 +54,8 @@ impl TournamentRound {
             Ok(TournamentRound {
                 uuid: round.uuid,
                 tournament_id: round.tournament_id,
-                index: round.index as u64
+                index: round.index as u64,
+                draw_type: round.draw_type.map(|r| serde_json::from_str(&r).ok()).flatten()
             })
         }).collect()
     }
@@ -56,7 +67,8 @@ impl TournamentEntity for TournamentRound {
         let model = schema::tournament_round::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
             tournament_id: ActiveValue::Set(self.tournament_id),
-            index: ActiveValue::Set(self.index as i32)
+            index: ActiveValue::Set(self.index as i32),
+            draw_type: ActiveValue::Set(serde_json::to_string(&self.draw_type).ok())
         };
         if guarantee_insert {
             model.insert(db).await?;

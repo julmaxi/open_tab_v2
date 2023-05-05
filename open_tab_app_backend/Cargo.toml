@@ -20,6 +20,7 @@ faker_rand = "0.1.1"
 rand = "0.8.5"
 sparse_linear_assignment="0.1.5"
 chrono = "*"
+thiserror = "1.0"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

@@ -470,7 +470,8 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
     let round = TournamentRound {
         uuid: Uuid::from_u128(21),
         tournament_id: tournament.uuid,
-        index: 0
+        index: 0,
+        draw_type: None
     };
     round.save(&db, true).await?;
 

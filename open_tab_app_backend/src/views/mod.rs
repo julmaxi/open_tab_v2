@@ -3,12 +3,16 @@ pub mod tab_view;
 pub mod rounds_view;
 pub mod participants_list_view;
 pub mod round_results_view;
+pub mod tournament_tree_view;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
 use self::rounds_view::LoadedRoundsView;
 use self::participants_list_view::LoadedParticipantsListView;
 use self::round_results_view::LoadedRoundResultsView;
+use self::tab_view::LoadedTabView;
+use self::tournament_tree_view::LoadedTournamentTreeView;
+
 
 use std::error::Error;
 
@@ -24,7 +28,9 @@ pub enum View {
     Draw{uuid: Uuid},
     RoundsOverview{tournament_uuid: Uuid},
     ParticipantsList{tournament_uuid: Uuid},
-    RoundResults{round_uuid: Uuid}
+    RoundResults{round_uuid: Uuid},
+    Tab{tournament_uuid: Uuid},
+    TournamentTree{tournament_uuid: Uuid},
 }
 
 impl View {
@@ -46,7 +52,13 @@ impl View {
             },
             View::RoundResults { round_uuid } => {
                 Box::new(LoadedRoundResultsView::load(db, *round_uuid).await?)
-            }
+            },
+            View::Tab { tournament_uuid } => {
+                Box::new(LoadedTabView::load(db, *tournament_uuid).await?)
+            },
+            View::TournamentTree { tournament_uuid } => {
+                Box::new(LoadedTournamentTreeView::load(db, *tournament_uuid).await?)
+            },
         })
     }
 }

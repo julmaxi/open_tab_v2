@@ -396,7 +396,6 @@ export function ParticipantOverview() {
         });
         if (selected !== null) {
             let proposedConfig = await invoke("guess_csv_config", {path: selected});
-            console.log(proposedConfig);
             setImportDialogState({
                 file: selected,
                 proposedConfig
@@ -404,7 +403,7 @@ export function ParticipantOverview() {
         }
     }, []);
 
-    return <div className="flex flex-col h-full" onKeyDown={(e) => {
+    return <div className="flex flex-col h-full w-full" onKeyDown={(e) => {
         if (e.nativeEvent.key == "Escape") {
             setImportDialogState(null);
         }
@@ -427,7 +426,15 @@ export function ParticipantOverview() {
         </ModalOverlay>
         
         <div className="flex-1 overflow-scroll">
-            <ParticipantTable participants={participants} />
+            {
+                Object.entries(participants.teams).length + Object.entries(participants.adjudicators).length > 0 ?
+                <ParticipantTable participants={participants} />
+                :
+                <div className="flex flex-col items-center justify-center h-full">
+                    <div className="text-2xl text-gray-500">No participants</div>
+                    <div className="text-gray-500">Click the button below to import a participants from a csv file</div>
+                </div>
+            }
         </div>
         <div className="flex-none w-full h-12 bg-gray-200">
             <button onClick={openImportDialog} className="h-full">Import…</button>

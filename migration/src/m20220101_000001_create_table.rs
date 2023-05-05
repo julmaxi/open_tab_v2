@@ -22,6 +22,7 @@ enum TournamentRound {
     Uuid,
     TournamentId,
     Index,
+    DrawType
 }
 
 
@@ -218,7 +219,8 @@ enum TournamentBreakChildRound {
 enum TournamentBreakSourceRound {
     Table,
     TournamentBreakId,
-    TournamentRoundId
+    TournamentRoundId,
+    DependencyType
 }
 
 #[async_trait::async_trait]
@@ -239,6 +241,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRound::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(TournamentRound::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(TournamentRound::Index).unsigned().not_null())
+                .col(ColumnDef::new(TournamentRound::DrawType).string_len(32))
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-round-tournament")
@@ -1083,6 +1086,7 @@ enum TournamentBreakChildRound {
                 .if_not_exists()
                 .col(ColumnDef::new(TournamentBreakSourceRound::TournamentBreakId).uuid().not_null())
                 .col(ColumnDef::new(TournamentBreakSourceRound::TournamentRoundId).uuid().not_null())
+                .col(ColumnDef::new(TournamentBreakSourceRound::DependencyType).string_len(32).not_null())
                 .primary_key(
                     Index::create()
                         .col(TournamentBreakSourceRound::TournamentBreakId)

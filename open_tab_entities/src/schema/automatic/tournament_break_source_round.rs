@@ -9,6 +9,7 @@ pub struct Model {
     pub tournament_break_id: Uuid,
     #[sea_orm(primary_key, auto_increment = false)]
     pub tournament_round_id: Uuid,
+    pub dependency_type: String
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

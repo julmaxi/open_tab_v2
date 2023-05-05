@@ -10,6 +10,8 @@ use serde::{Serialize, Deserialize};
 use faker_rand::en_us::{names::FullName, company::CompanyName};
 use rand::{Rng, thread_rng};
 
+use crate::domain::round::DrawType;
+
 
 #[derive(Debug)]
 pub struct MockOption {
@@ -158,6 +160,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
             uuid,
             tournament_id: tournament_uuid,
             index: i as u64,
+            draw_type: Some(DrawType::StandardPreliminaryDraw)
         }
     }).collect_vec();
 

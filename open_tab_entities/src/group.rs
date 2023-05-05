@@ -95,6 +95,7 @@ impl EntityGroups {
         out.extend(TournamentInstitution::get_many_tournaments(db, &self.tournament_institutions.iter().collect()).await?.into_iter());
         out.extend(ParticipantClash::get_many_tournaments(db, &self.participant_clashes.iter().collect()).await?.into_iter());
         out.extend(DebateBackupBallot::get_many_tournaments(db, &self.debate_backup_ballots.iter().collect()).await?.into_iter());
+        out.extend(TournamentBreak::get_many_tournaments(db, &self.tournament_breaks.iter().collect()).await?.into_iter());
 
         Ok(out)
     }
@@ -113,6 +114,7 @@ impl EntityGroups {
         TournamentDebate::save_many(db, guarantee_insert, &self.debates.iter().collect()).await?;
         ParticipantClash::save_many(db, guarantee_insert, &self.participant_clashes.iter().collect()).await?;
         DebateBackupBallot::save_many(db, guarantee_insert, &self.debate_backup_ballots.iter().collect()).await?;
+        TournamentBreak::save_many(db, guarantee_insert, &self.tournament_breaks.iter().collect()).await?;
         Ok(())
     }
 
@@ -147,6 +149,7 @@ impl EntityGroups {
         .chain(self.tournament_institutions.iter().map(|t| ("TournamentInstitution".to_string(), t.uuid.clone())))
         .chain(self.participant_clashes.iter().map(|p| ("ParticipantClash".to_string(), p.uuid.clone())))
         .chain(self.debate_backup_ballots.iter().map(|d| ("DebateBackupBallot".to_string(), d.uuid.clone())))
+        .chain(self.tournament_breaks.iter().map(|t| ("TournamentBreak".to_string(), t.uuid.clone())))
         .collect_vec()
     }
 

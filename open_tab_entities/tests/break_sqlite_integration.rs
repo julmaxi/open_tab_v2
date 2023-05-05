@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_break::BreakType}, mock::{self, MockOption}};
+use open_tab_entities::{domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_break::{BreakType, TournamentBreakSourceRoundType}}, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
 
@@ -189,8 +189,14 @@ async fn test_save_rounds() {
             break_type: BreakType::MinorBreak,
             breaking_teams: vec![],
             source_rounds: vec![
-                Uuid::from_u128(100),
-                Uuid::from_u128(101),
+                open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                    uuid: Uuid::from_u128(100),
+                    break_type: TournamentBreakSourceRoundType::Tab
+                },
+                open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                    uuid: Uuid::from_u128(101),
+                    break_type: TournamentBreakSourceRoundType::Tab
+                }
             ],
             child_rounds: vec![
                 Uuid::from_u128(102),
@@ -212,7 +218,10 @@ async fn test_add_child_round() -> Result<(), Box<dyn Error>> {
         break_type: BreakType::MinorBreak,
         breaking_teams: vec![],
         source_rounds: vec![
-            Uuid::from_u128(100),
+            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                uuid: Uuid::from_u128(100),
+                break_type: TournamentBreakSourceRoundType::Tab
+            },
         ],
         child_rounds: vec![
             Uuid::from_u128(102),
@@ -243,7 +252,10 @@ async fn test_add_source_round() -> Result<(), Box<dyn Error>> {
         break_type: BreakType::MinorBreak,
         breaking_teams: vec![],
         source_rounds: vec![
-            Uuid::from_u128(100),
+            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                uuid: Uuid::from_u128(100),
+                break_type: TournamentBreakSourceRoundType::Tab
+            },
         ],
         child_rounds: vec![
             Uuid::from_u128(102),
@@ -253,9 +265,15 @@ async fn test_add_source_round() -> Result<(), Box<dyn Error>> {
     tournament_break.save(&db, true).await?;
 
     tournament_break.source_rounds = vec![
-        Uuid::from_u128(100),
-        Uuid::from_u128(101),
-    ];
+        open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+            uuid: Uuid::from_u128(100),
+            break_type: TournamentBreakSourceRoundType::Tab
+        },
+        open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+            uuid: Uuid::from_u128(101),
+            break_type: TournamentBreakSourceRoundType::Tab
+        },
+];
     
     test_break_roundtrip(
         tournament_break,
@@ -274,7 +292,10 @@ async fn test_delete_child_round() -> Result<(), Box<dyn Error>> {
         break_type: BreakType::MinorBreak,
         breaking_teams: vec![],
         source_rounds: vec![
-            Uuid::from_u128(100),
+            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                uuid: Uuid::from_u128(100),
+                break_type: TournamentBreakSourceRoundType::Tab
+            },
         ],
         child_rounds: vec![
             Uuid::from_u128(102),
@@ -304,7 +325,10 @@ async fn test_delete_source_round() -> Result<(), Box<dyn Error>> {
         break_type: BreakType::MinorBreak,
         breaking_teams: vec![],
         source_rounds: vec![
-            Uuid::from_u128(100),
+            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
+                uuid: Uuid::from_u128(100),
+                break_type: TournamentBreakSourceRoundType::Tab
+            },
         ],
         child_rounds: vec![
             Uuid::from_u128(102),
