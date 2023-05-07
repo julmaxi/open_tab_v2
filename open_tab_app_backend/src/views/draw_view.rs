@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::default;
 use std::fmt::Display;
 use std::hash::Hash;
@@ -50,6 +51,23 @@ impl LoadedView for LoadedDrawView {
         let changed_ballots_by_id : HashMap<_, _> = changes.ballots.iter().map(|b| (b.uuid, b)).collect();
         let mut indices_to_reload : Vec<usize> = vec![];
 
+        let know_debate_uuids = self.view.debates.iter().map(|d| d.uuid).collect::<HashSet<_>>();
+        dbg!(&changed_debates_by_id);
+        let has_new_debate = changed_debates_by_id.iter().any(
+            |(uuid, _)| !know_debate_uuids.contains(uuid)
+        );
+        dbg!(has_new_debate);
+
+        if has_new_debate {
+            let mut out: HashMap<String, Json> = HashMap::new();
+            let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
+            self.view = DrawView::load_from_round(db, round).await?;
+            out.insert(".".to_string(), serde_json::to_value(&self.view)?);
+    
+            return Ok(Some(out))
+        }
+        
+
         for (idx, debate) in self.view.debates.iter_mut().enumerate() {
             let is_debate_changed = changed_debates_by_id.contains_key(&debate.uuid);
             if is_debate_changed || changed_ballots_by_id.contains_key(&debate.ballot.uuid) {
@@ -60,6 +78,7 @@ impl LoadedView for LoadedDrawView {
                 }
             }
         }
+
 
         if indices_to_reload.len() > 0 {
             let clash_map = ClashMap::new_for_tournament(Default::default(), self.tournament_id, db).await?;
@@ -109,6 +128,44 @@ pub struct DrawBallot {
     pub non_aligned_speakers: Vec<DrawSpeaker>,
     pub adjudicators: Vec<DrawAdjudicator>,
     pub president: Option<DrawAdjudicator>
+}
+
+impl Into<Ballot> for DrawBallot {
+    fn into(self) -> Ballot {
+        let mut speeches = vec![
+            (open_tab_entities::domain::ballot::SpeechRole::Government),
+            (open_tab_entities::domain::ballot::SpeechRole::Opposition),
+        ].into_iter().flat_map(
+            |role| {
+                (0..3).map(
+                    move |position| Speech {
+                        speaker: None,
+                        role,
+                        position,
+                        scores: HashMap::new(),
+                    }
+                )
+            }
+        ).collect_vec();
+        speeches.extend(
+            self.non_aligned_speakers.into_iter().enumerate().map(
+                |(idx, u)| Speech {
+                    speaker: Some(u.uuid),
+                    role: SpeechRole::NonAligned,
+                    position: idx as u8,
+                    scores: HashMap::new()
+                }
+            )
+        );
+        Ballot {
+            uuid: self.uuid,
+            government: BallotTeam { team: self.government.map(|t| t.uuid), scores: HashMap::new() },
+            opposition: BallotTeam { team: self.opposition.map(|t| t.uuid), scores: HashMap::new() },
+            speeches,
+            adjudicators: self.adjudicators.into_iter().map(|a| a.uuid).collect(),
+            president: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

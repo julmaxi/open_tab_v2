@@ -5,7 +5,7 @@ use std::{collections::HashMap, error::Error};
 use migration::async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, QueryOrder};
 use open_tab_entities::prelude::*;
 
 use open_tab_entities::schema::{self, tournament_round};
@@ -73,7 +73,7 @@ impl RoundsView {
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<RoundsView, Box<dyn Error>> where C: ConnectionTrait {
         let rounds = schema::tournament_round::Entity::find().filter(
             tournament_round::Column::TournamentId.eq(tournament_uuid)
-        ).all(db).await?;
+        ).order_by_asc(tournament_round::Column::Index).all(db).await?;
 
         let round_overviews = rounds.into_iter().map(|round| {
             RoundOverview {

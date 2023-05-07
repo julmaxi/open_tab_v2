@@ -32,6 +32,25 @@ impl TournamentDebate {
         }).collect()
     }
 
+    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<Vec<TournamentDebate>>, BatchLoadError> where C: ConnectionTrait {
+        // TODO: We can do this in one query
+
+        let mut round_debates = vec![];
+        for round_uuid in round_uuids {
+            let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round_uuid)).all(db).await?;
+            round_debates.push(debates.into_iter().map(|debate| {
+                TournamentDebate {
+                    uuid: debate.uuid,
+                    round_id: debate.round_id,
+                    current_ballot_uuid: debate.ballot_id,
+                    index: debate.index as u64
+                }
+            }).collect_vec())
+        }
+
+        Ok(round_debates)
+    }
+
     pub async fn get_one<C>(db: &C, uuid: Uuid) -> Result<TournamentDebate, BatchLoadError> where C: ConnectionTrait {
         let debates = schema::tournament_debate::Entity::batch_load_all(db, vec![uuid]).await?;
         debates.into_iter().map(|debate| {

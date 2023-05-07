@@ -55,7 +55,7 @@ async fn test_save_empty_break() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::MinorBreak,
+            break_type: BreakType::TabBreak,
             breaking_teams: vec![],
             source_rounds: vec![],
             child_rounds: vec![],
@@ -71,7 +71,7 @@ async fn test_save_teams() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::MinorBreak,
+            break_type: BreakType::TabBreak,
             breaking_teams: vec![
                 Uuid::from_u128(1004),
                 Uuid::from_u128(1002),
@@ -93,7 +93,7 @@ async fn test_delete_teams() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![
             Uuid::from_u128(1004),
             Uuid::from_u128(1002),
@@ -126,7 +126,7 @@ async fn test_add_teams() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![
             Uuid::from_u128(1004),
             Uuid::from_u128(1002),
@@ -163,7 +163,7 @@ async fn test_save_speakers() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::MinorBreak,
+            break_type: BreakType::TabBreak,
             breaking_teams: vec![
             ],
             source_rounds: vec![],
@@ -186,7 +186,7 @@ async fn test_save_rounds() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::MinorBreak,
+            break_type: BreakType::TabBreak,
             breaking_teams: vec![],
             source_rounds: vec![
                 open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
@@ -215,7 +215,7 @@ async fn test_add_child_round() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![],
         source_rounds: vec![
             open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
@@ -249,7 +249,7 @@ async fn test_add_source_round() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![],
         source_rounds: vec![
             open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
@@ -289,7 +289,7 @@ async fn test_delete_child_round() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![],
         source_rounds: vec![
             open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
@@ -322,7 +322,7 @@ async fn test_delete_source_round() -> Result<(), Box<dyn Error>> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::MinorBreak,
+        break_type: BreakType::TabBreak,
         breaking_teams: vec![],
         source_rounds: vec![
             open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {

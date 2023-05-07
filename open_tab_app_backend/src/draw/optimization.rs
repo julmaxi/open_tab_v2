@@ -25,7 +25,7 @@ pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evalu
             solver.add_value(option_idx as u32, ballot_idx as u32, weight.into())?;
         }
     }
-    solver.solve(&mut solution, true, None)?;
+    solver.solve(&mut solution, false, None)?;
 
     Ok(solution.object_to_person.iter().enumerate().map(
         |(option_idx, ballot_idx)| {

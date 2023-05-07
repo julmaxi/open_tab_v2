@@ -154,8 +154,8 @@ struct ActionResponse {
 async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache: &mut ViewCache) -> Result<Vec<ChangeNotification>, Box<dyn Error>> {
     let transaction = db.begin().await?;
     let changes = action.execute(&transaction).await?;
-    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().filter_map(|s| s).next().unwrap();
-    changes.save_all_and_log_for_tournament(&transaction, tournament).await?;
+    changes.save_all(&transaction).await?;
+    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().filter_map(|s| s).next().unwrap();    changes.save_log_with_tournament_id(&transaction, tournament).await?;
 
     transaction.commit().await?;
     let transaction = db.begin().await?;

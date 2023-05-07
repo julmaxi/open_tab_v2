@@ -42,7 +42,7 @@ impl LoadedView for LoadedParticipantsListView {
         if changes.participants.len() > 0 || changes.teams.len() > 0 {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
-            let mut out = HashMap::new();
+            let mut out: HashMap<String, Json> = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);
 
             Ok(Some(out))

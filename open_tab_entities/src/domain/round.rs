@@ -15,6 +15,11 @@ use super::TournamentEntity;
 pub enum DrawType {
     StandardPreliminaryDraw,
     KnockoutDraw,
+    PowerPaired,
+    InversePowerPaired,
+    BalancedPowerPaired,
+    Randomized,
+    BalancedRandomized
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]

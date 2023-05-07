@@ -1,8 +1,10 @@
-use std::{default, error::Error, fmt::Display};
+use std::{default, error::Error, fmt::Display, collections::HashMap};
 
-use open_tab_entities::prelude::TournamentRound;
+use open_tab_entities::{prelude::{TournamentRound, Ballot, Speech, SpeechRole, BallotTeam}, domain::round::DrawType};
 use rand::{thread_rng, seq::SliceRandom, Rng};
 use sea_orm::prelude::Uuid;
+use serde::{Serialize, Deserialize};
+use thiserror::Error;
 
 use crate::{participants_list_view::{TeamEntry, ParticipantEntry}, draw_view::{DrawBallot, DrawTeam, DrawSpeaker}, tab_view::TeamRoundRole};
 
@@ -14,13 +16,13 @@ use super::{evaluation::DrawEvaluator, optimization::find_best_ballot_assignment
 
 
 pub struct RoundGenerationContext {
-    teams: Vec<DrawTeamInfo>,
-    adjudicators: Vec<Uuid>,
+    pub teams: Vec<DrawTeamInfo>,
+    pub adjudicators: Vec<Uuid>,
 }
 
 pub struct DrawTeamInfo {
-    uuid: Uuid,
-    member_ids: Vec<Uuid>
+    pub uuid: Uuid,
+    pub member_ids: Vec<Uuid>
 }
 
 
@@ -29,11 +31,33 @@ pub enum PreliminariesDrawMode {
     AvoidClashes
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum MinorBreakRoundDrawType {
+    PowerPaired,
+    InversePowerPaired,
+    BalancedPowerPaired,
+    Randomized,
+    BalancedRandomized
+}
+
+impl Into<DrawType> for MinorBreakRoundDrawType {
+    fn into(self) -> DrawType {
+        match self {
+            MinorBreakRoundDrawType::PowerPaired => DrawType::PowerPaired,
+            MinorBreakRoundDrawType::InversePowerPaired => DrawType::InversePowerPaired,
+            MinorBreakRoundDrawType::BalancedPowerPaired => DrawType::BalancedPowerPaired,
+            MinorBreakRoundDrawType::Randomized => DrawType::Randomized,
+            MinorBreakRoundDrawType::BalancedRandomized => DrawType::BalancedRandomized
+        }
+    }
+}
+
 
 pub struct PreliminaryRoundGenerator {
     pub draw_mode: PreliminariesDrawMode,
     pub randomization_scale: f64,
 }
+
 
 impl Default for PreliminaryRoundGenerator {
     fn default() -> Self {
@@ -45,37 +69,19 @@ impl Default for PreliminaryRoundGenerator {
 }
 
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum PreliminaryDrawError {
+    #[error("Incorrect number of teams: {0}")]
     IncorrectTeamCount(usize),
+    #[error("Incorrect number of rounds: {0}")]
     IncorrectRoundCount(usize),
-    Other(Box<dyn Error>)
-}
-
-impl Display for PreliminaryDrawError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PreliminaryDrawError::IncorrectTeamCount(count) => write!(f, "Incorrect number of teams: {}", count),
-            PreliminaryDrawError::IncorrectRoundCount(count) => write!(f, "Incorrect number of rounds: {}", count),
-            PreliminaryDrawError::Other(e) => write!(f, "Other error: {}", e)
-        }
+    #[error("Other error: {source}")]
+    Other {
+        #[from]
+        source: Box<dyn Error>
     }
 }
 
-impl Error for PreliminaryDrawError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            PreliminaryDrawError::Other(e) => Some(e.as_ref()),
-            _ => None
-        }
-    }
-}
-
-impl From<Box<dyn Error>> for PreliminaryDrawError {
-    fn from(e: Box<dyn Error>) -> Self {
-        PreliminaryDrawError::Other(e)
-    }
-}
 
 impl PreliminaryRoundGenerator {
     pub fn generate_draw_for_rounds(
@@ -88,7 +94,7 @@ impl PreliminaryRoundGenerator {
             return Err(PreliminaryDrawError::IncorrectRoundCount(rounds.len()));
         }
 
-        if context.teams.len() % 3 != 0 {
+        if context.teams.len() % 3 != 0 || context.teams.len() == 0 {
             return Err(PreliminaryDrawError::IncorrectTeamCount(context.teams.len()));
         }
 
@@ -102,6 +108,8 @@ impl PreliminaryRoundGenerator {
         let mut role_sequence = [TeamRoundRole::Government, TeamRoundRole::Opposition, TeamRoundRole::NonAligned];
         role_sequence.shuffle(&mut rng);
         let mut evaluator = evaluator.clone();
+
+        let teams = context.teams.iter().map(|t| (t.uuid, t.member_ids.clone())).collect::<HashMap<_, _>>();
 
         let round_ballots : Result<Vec<Vec<DrawBallot>>, _> = rounds.iter().enumerate().map(
             |(round_idx, round)| {
@@ -128,7 +136,29 @@ impl PreliminaryRoundGenerator {
                 let ballots = self.assign_teams_to_ballots(&ballots, gov_bucket, opp_bucket, non_aligned_bucket, &evaluator);
 
                 if let Ok(ballots) = ballots.as_ref() {
-                    evaluator.clash_map.add_dynamic_clashes_from_round_ballots(vec![(round.uuid, ballots)]);
+                    let draw_ballots = ballots.iter().map(|b| 
+                        Ballot {
+                            uuid: Uuid::nil(),
+                            speeches: b.non_aligned_speakers.iter().enumerate().map(|(idx, s)| Speech {
+                                speaker: Some(s.uuid),
+                                role: SpeechRole::NonAligned,
+                                position: idx as u8,
+                                scores: HashMap::new()
+                            }).collect(),
+                            government: BallotTeam {
+                                team: b.government.as_ref().map(|t| t.uuid),
+                                scores: HashMap::new()
+                            },
+                            opposition: BallotTeam {
+                                team: b.opposition.as_ref().map(|t| t.uuid),
+                                scores: HashMap::new()
+                            },
+                            adjudicators: vec![],
+                            president: None
+                        }
+                    ).collect::<Vec<Ballot>>();
+
+                    evaluator.clash_map.add_dynamic_clashes_from_round_ballots(vec![(&round.uuid, &draw_ballots)], &teams)?;
                 }
                 ballots
             }

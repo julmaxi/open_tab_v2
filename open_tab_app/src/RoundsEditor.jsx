@@ -39,24 +39,56 @@ function RoundBreakHierarchy(props) {
 }
 
 function RoundContainer(props) {
-    return <div className="bg-gray-300 p-1 text-center w-24">
+    return <div className="bg-gray-300 p-1 text-center w-28">
         {props.round.name}
     </div>
 }
 
 function RoundsContainer(props) {
-    return <div className="overflow-clip rounded">
+    let tournamentContext = useContext(TournamentContext);
+    return <div className="overflow-clip rounded bg-gray-300">
         {
             props.rounds.map((round) => 
                 <RoundContainer round={round} key={round.uuid} />
             )
         }
+        <button className="text-xs text-center w-full" onClick={
+            (e) => {
+                executeAction(
+                    "GenerateDraw",
+                    {
+                        "draw_rounds": props.rounds.map((round) => round.uuid),
+                        "tournament_id": tournamentContext.uuid
+                    }
+                );
+            }
+        }>
+            Generate Draw
+        </button>
     </div>
 }
 
 function BreakContainer(props) {
-    return <div className="rounded border-2 p-1 text-center w-24">
+    console.log(props)
+    return <div className="rounded border-2 p-1 text-center w-28">
         Break
+
+        <div className="text-sm text-center w-full">
+            {props.break.break_description}
+        </div>
+
+        <button className="text-xs text-center w-full" onClick={
+            (e) => {
+                executeAction(
+                    "MakeBreak",
+                    {
+                        "break_id": props.break.uuid
+                    }
+                );
+            }
+        }>
+            Generate Break
+        </button>
     </div>
 }
 
@@ -161,7 +193,6 @@ function Popover(props) {
                 props.trigger,
                 getReferenceProps({
                   ref: refs.setReference,
-                  ...props,
                   ...props.trigger.props,
                   "data-state": context.open ? "open" : "closed"
             }))
@@ -249,13 +280,7 @@ function RoundsOverview(props) {
     let tournamentTree = tree;
     console.log(tournamentTree);
 
-
-
     return tournamentTree != null ? <TournamentSubtree tree={tournamentTree.tree} /> : <div>Loading...</div>;
-
-    /*return <div>
-        <RoundBreakHierarchy rounds={roundsHierarchy.rounds} breaks={roundsHierarchy.breaks}/>
-    </div>*/
 }
 
 

@@ -3,6 +3,7 @@ use open_tab_entities::domain::tournament_break::{TournamentBreakSourceRoundType
 use sea_orm::prelude::Uuid;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::vec;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -16,6 +17,7 @@ use open_tab_entities::domain;
 use itertools::izip;
 use itertools::Itertools;
 
+use crate::draw::preliminary::MinorBreakRoundDrawType;
 use crate::{LoadedView, EditTreeActionType};
 
 pub struct LoadedTournamentTreeView {
@@ -92,7 +94,8 @@ struct RoundInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BreakInfo {
-
+    uuid: Uuid,
+    break_description: String
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,6 +106,7 @@ struct RoundGroupInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum TournamentTreeNodeContent {
+    Root,
     Round(RoundInfo),
     RoundGroup(RoundGroupInfo),
     Break(BreakInfo),
@@ -154,68 +158,82 @@ impl TournamentTreeView {
             }
         ).into_group_map();
 
-        for entry in rounds_by_break_requirements.iter_mut() {
-            entry.1.sort_by_key(|r| r.index);
-        }
+        let tree_children = if rounds_by_break_requirements.len() > 0 {
 
-        let mut children = HashMap::new();
-
-        //Every break is a child of the last round before it
-        for (break_uuid, round_uuid) in last_rounds_before_break_map? {
-            children.entry(round_uuid).or_insert_with(Vec::new).push(
-                break_uuid
-            );
-        }
-
-        //Every round is a child of the round immediately preceding it according to index
-        //provided it is in the same break
-        for (_, rounds) in rounds_by_break_requirements.iter() {
-            let mut rounds = rounds.into_iter().peekable();
-            while let Some(round) = rounds.next() {
-                if let Some(next_round) = rounds.peek() {
-                    children.entry(round.uuid).or_insert_with(Vec::new).push(
-                        next_round.uuid
+            for entry in rounds_by_break_requirements.iter_mut() {
+                entry.1.sort_by_key(|r| r.index);
+            }
+    
+            let mut children = HashMap::new();
+    
+            //Every break is a child of the last round before it
+            for (break_uuid, round_uuid) in last_rounds_before_break_map? {
+                children.entry(round_uuid).or_insert_with(Vec::new).push(
+                    break_uuid
+                );
+            }
+    
+            //Every round is a child of the round immediately preceding it according to index
+            //provided it is in the same break
+            for (_, rounds) in rounds_by_break_requirements.iter() {
+                let mut rounds = rounds.into_iter().peekable();
+                while let Some(round) = rounds.next() {
+                    if let Some(next_round) = rounds.peek() {
+                        children.entry(round.uuid).or_insert_with(Vec::new).push(
+                            next_round.uuid
+                        );
+                    }
+                }
+            }
+    
+            let first_round_uuid = rounds_by_break_requirements.get(&None).and_then(|r| r.first()).map(|r| r.uuid);
+    
+            if !first_round_uuid.is_some() {
+                return Err("No first round".into());
+            }
+            let first_round_uuid = first_round_uuid.unwrap();
+    
+            let breaks_and_round_by_uuid = breaks.into_iter().map(
+                |b| {
+                    (b.uuid, BreakOrRound::Break(b))
+                }
+            ).chain(
+                rounds.clone().into_iter().map(
+                    |r| {
+                        (r.0, BreakOrRound::Round(r.1))
+                    }
+                )
+            ).collect::<HashMap<_, _>>();
+    
+            //The first round in a break is a child of the break
+            for (break_uuid, rounds) in rounds_by_break_requirements {
+                if break_uuid.is_none() {
+                    continue;
+                }
+                let mut rounds = rounds.into_iter().sorted_by_key(|r| r.index).peekable();
+                if let Some(round) = rounds.next() {
+                    children.entry(break_uuid.unwrap()).or_insert_with(Vec::new).push(
+                        round.uuid
                     );
                 }
             }
+            vec![Box::new(Self::subtree_from_node(first_round_uuid, &children, &breaks_and_round_by_uuid))]
         }
-
-        let first_round_uuid = rounds_by_break_requirements.get(&None).and_then(|r| r.first()).map(|r| r.uuid);
-
-        if !first_round_uuid.is_some() {
-            return Err("No first round".into());
-        }
-        let first_round_uuid = first_round_uuid.unwrap();
-
-        let mut breaks_and_round_by_uuid = breaks.into_iter().map(
-            |b| {
-                (b.uuid, BreakOrRound::Break(b))
-            }
-        ).chain(
-            rounds.clone().into_iter().map(
-                |r| {
-                    (r.0, BreakOrRound::Round(r.1))
-                }
-            )
-        ).collect::<HashMap<_, _>>();
-
-        //The first round in a break is a child of the break
-        for (break_uuid, rounds) in rounds_by_break_requirements {
-            if break_uuid.is_none() {
-                continue;
-            }
-            let mut rounds = rounds.into_iter().sorted_by_key(|r| r.index).peekable();
-            if let Some(round) = rounds.next() {
-                children.entry(break_uuid.unwrap()).or_insert_with(Vec::new).push(
-                    round.uuid
-                );
-            }
-        }
-
-        let tree = Self::subtree_from_node(first_round_uuid, &children, &breaks_and_round_by_uuid);
+        else {
+            vec![]
+        };
         
         Ok(TournamentTreeView {
-            tree
+            tree: TournamentTreeNode {
+                content: TournamentTreeNodeContent::Root,
+                children: tree_children,
+                available_actions: vec![
+                    AvailableAction {
+                        description: "Add Three Preliminary Rounds".to_string(),
+                        action: EditTreeActionType::AddThreePreliminaryRounds { parent: None }
+                    },
+                ],
+            }
         })
     }
     
@@ -291,7 +309,10 @@ impl TournamentTreeView {
         }
         else if let Some(BreakOrRound::Break(parent_break)) = content {
             TournamentTreeNodeContent::Break(
-                BreakInfo {  }
+                BreakInfo {
+                    uuid: parent_break.uuid,
+                    break_description: parent_break.break_type.human_readable_description(),
+                }
             )
         }
         else  {
@@ -310,7 +331,7 @@ impl TournamentTreeView {
                 TournamentTreeNodeContent::RoundGroup(g) => Self::get_standard_round_actions(g.rounds.last().unwrap().uuid),
                 TournamentTreeNodeContent::Round(r) => Self::get_standard_round_actions(r.uuid),
                 TournamentTreeNodeContent::Break(_b) => vec![],
-                TournamentTreeNodeContent::Error => vec![],
+                _ => vec![] // These never appear in this recursion
             },
             content: node_content,
         }
@@ -343,7 +364,7 @@ impl TournamentTreeView {
         vec![
             AvailableAction {
                 description: "Add Three Preliminary Rounds".to_string(),
-                action: EditTreeActionType::AddThreePreliminaryRounds { parent: round_uuid }
+                action: EditTreeActionType::AddThreePreliminaryRounds { parent: Some(round_uuid) }
             },
             AvailableAction {
                 description: "Add Finals".to_string(),
@@ -360,6 +381,36 @@ impl TournamentTreeView {
             AvailableAction {
                 description: "Add Octo-Finals".to_string(),
                 action: EditTreeActionType::AddKOStage { parent: round_uuid, num_stages: 4 }
+            },
+            AvailableAction {
+                description: "Add Minor Break (1 round)".to_string(),
+                action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
+                    MinorBreakRoundDrawType::PowerPaired
+                ] }
+            },
+            AvailableAction {
+                description: "Add Minor Break (1 round, balanced)".to_string(),
+                action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
+                    MinorBreakRoundDrawType::BalancedPowerPaired
+                ] }
+            },
+            AvailableAction {
+                description: "Add Minor Break (2 rounds)".to_string(),
+                action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
+                    MinorBreakRoundDrawType::InversePowerPaired,
+                    MinorBreakRoundDrawType::PowerPaired
+                ] }
+            },
+            AvailableAction {
+                description: "Add Minor Break (2 rounds, balanced)".to_string(),
+                action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
+                    MinorBreakRoundDrawType::InversePowerPaired,
+                    MinorBreakRoundDrawType::BalancedPowerPaired
+                ] }
+            },
+            AvailableAction {
+                description: "Add Reitze Break".to_string(),
+                action: EditTreeActionType::AddTimBreakRounds { parent: round_uuid }
             },
         ]
     }

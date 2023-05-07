@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
+use std::{collections::{HashMap, HashSet}, iter::{zip, self}, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
 
 use async_trait::async_trait;
 use sea_orm::JoinType;
@@ -220,6 +220,25 @@ impl Ballot {
         })?;
 
         Self::get_from_ballots(db, ballots).await
+    }
+
+    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Ballot)>, BallotParseError> where C: ConnectionTrait {
+        //TODO: With a little work, could do this in one query for the rounds.
+        //Custom return values are a bit annoying though, so we leave this for later.
+
+        let mut rounds = vec![];
+        let mut ballots = vec![];
+        for round_id in round_uuids {
+            let round_ballots = schema::ballot::Entity::find().inner_join(
+                schema::tournament_debate::Entity
+            ).filter(
+                schema::tournament_debate::Column::RoundId.eq(round_id)
+            ).all(db).await.map_err(|e| BallotParseError::DbErr(e))?;
+
+            rounds.extend(itertools::repeat_n(round_id, round_ballots.len()));
+            ballots.extend(round_ballots);
+        }
+        Ok(zip(rounds, Self::get_from_ballots(db, ballots).await?).collect_vec())
     }
 
     async fn get_from_ballots<C>(db: &C, ballots: Vec<schema::ballot::Model>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {

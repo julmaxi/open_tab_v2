@@ -179,12 +179,10 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
 }
 
 impl TabView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<TabView, Box<dyn Error>> where C: ConnectionTrait {
-        let speaker_info = super::base::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
-
+    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::base::TournamentParticipantsInfo) -> Result<TabView, Box<dyn Error>> where C: ConnectionTrait {
         let relevant_ballots = schema::tournament_debate::Entity::find()
         .inner_join(schema::tournament_round::Entity)
-        .filter(schema::tournament_round::Column::TournamentId.eq(tournament_uuid))
+        .filter(schema::tournament_round::Column::Uuid.is_in(round_ids))
         .find_with_related(schema::ballot::Entity)
             .all(db)
             .await?;
@@ -311,6 +309,15 @@ impl TabView {
         Ok(
             TabView { team_tab, speaker_tab }
         )
+    }
+
+    pub async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<TabView, Box<dyn Error>> where C: ConnectionTrait {
+        let speaker_info = super::base::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
+        let rounds = schema::tournament_round::Entity::find().filter(
+            schema::tournament_round::Column::TournamentId.eq(tournament_uuid)
+        ).all(db).await?;
+
+        Self::load_from_rounds(db, rounds.into_iter().map(|r| r.uuid).collect(), &speaker_info).await
     }
 
     fn add_scores_for_team(team_tab_entries: &mut VecMap<Uuid, TeamTabEntryDetailedScore>, round: &schema::tournament_round::Model, ballot: &Ballot, ballot_team: &BallotTeam, team_role: TeamRoundRole) {

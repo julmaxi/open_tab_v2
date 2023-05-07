@@ -111,7 +111,7 @@ impl DrawEvaluator {
             ClashType::JudgeHasSeenJudge{..} => self.config.adj_adj_repeat_clash_severity,
             ClashType::DeclaredClash{severity} => *severity,
             ClashType::InstitutionalClash{severity, ..} => *severity,
-            ClashType::SameTeamClash => 1
+            ClashType::SameTeamClash => 1000
         }
     }
 
@@ -230,6 +230,24 @@ impl DrawEvaluator {
                     },
                     _ => unreachable!()
                 }
+            });
+
+            non_aligned_ids.iter().filter(|id| *id != non_aligned_id).map(
+                |other_id| {
+                    non_aligned_clashes.get(other_id).iter().map(|cs| 
+                        cs.iter().map(
+                            |c| {
+                                DrawIssue {
+                                    issue_type: c.clash_type.clone(),
+                                    severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.speaker_speaker_clash_factor) as u16,
+                                    target: DrawIssueTarget::Speaker(*other_id)
+                                }
+                            }
+                        ).collect_vec()
+                    ).flatten().sorted().coalesce(coalesce_issues).collect_vec()
+                }
+            ).flatten().for_each(|issue| {
+                issues.non_aligned_issues.entry(*non_aligned_id).or_insert_with(Vec::new).push(issue.clone());
             });
         }
 

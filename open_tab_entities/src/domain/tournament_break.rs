@@ -15,9 +15,10 @@ use super::TournamentEntity;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum BreakType {
-    TabBreak,
+    TabBreak{num_debates: u16},
+    TwoThirdsBreak,
     KOBreak,
-    MinorBreak,
+    TimBreak
 }
 
 
@@ -32,6 +33,18 @@ impl FromStr for BreakType {
 impl ToString for BreakType {
     fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+}
+
+
+impl BreakType {
+    pub fn human_readable_description(&self) -> String {
+        match self {
+            BreakType::TabBreak{num_debates} => format!("Top {0} break", num_debates * 2),
+            BreakType::TwoThirdsBreak => "Upper 2/3rds break".to_string(),
+            BreakType::KOBreak => "Debate winners break".to_string(),
+            BreakType::TimBreak => "Upper 1/3rd breaks, along with non-aligned".to_string(),
+        }
     }
 }
 
