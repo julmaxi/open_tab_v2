@@ -31,6 +31,19 @@ pub struct TournamentParticipantsInfo {
 }
 
 impl TournamentParticipantsInfo {
+    pub fn get_adjudicators(&self) -> Vec<&Participant> {
+        self.participants_by_id.values().filter(|participant| {
+            if let ParticipantRole::Adjudicator(_) = &participant.role {
+                true
+            }
+            else {
+                false
+            }
+        }).collect()
+    }
+}
+
+impl TournamentParticipantsInfo {
     pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
         let all_participants = Participant::get_all_in_tournament(db, tournament_id).await?;
         let team_members = all_participants.iter().filter_map(|speaker| {

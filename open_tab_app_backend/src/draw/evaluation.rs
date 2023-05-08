@@ -119,7 +119,7 @@ impl DrawEvaluator {
         let gov_member_ids = ballot.government.as_ref().iter().flat_map(|t| t.members.iter().map(|s| s.uuid)).collect::<Vec<_>>();
         let opp_member_ids = ballot.opposition.as_ref().iter().flat_map(|t| t.members.iter().map(|s| s.uuid)).collect::<Vec<_>>();
         let non_aligned_ids = ballot.non_aligned_speakers.iter().map(|s| s.uuid).collect::<Vec<_>>();
-        let adjudicator_ids = ballot.adjudicators.iter().map(|a| a.uuid).collect::<Vec<_>>();
+        let adjudicator_ids = ballot.adjudicators.iter().map(|a| a.adjudicator.uuid).collect::<Vec<_>>();
 
         //let mut issues = HashMap::new();
         let mut issues = BallotEvaluationResult::new();
@@ -342,7 +342,9 @@ mod test {
         );
 
         let ballot = DrawBallot {
-            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}, DrawAdjudicator {uuid: Uuid::from_u128(601), ..Default::default()}],
+            adjudicators: vec![DrawAdjudicator {
+                uuid: Uuid::from_u128(600),
+                ..Default::default()}.into(), DrawAdjudicator {uuid: Uuid::from_u128(601), ..Default::default()}.into()],
             ..Default::default()
         };
 
@@ -377,7 +379,7 @@ mod test {
         );
 
         let ballot = DrawBallot {
-            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}],
+            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}.into()],
             non_aligned_speakers: vec![DrawSpeaker {uuid: Uuid::from_u128(700), ..Default::default()}],
             ..Default::default()
         };
@@ -413,7 +415,7 @@ mod test {
         );
 
         let ballot = DrawBallot {
-            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}],
+            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}.into()],
             government: Some(DrawTeam {
                 members: vec![DrawSpeaker {uuid: Uuid::from_u128(700), ..Default::default()}],
                 uuid: Uuid::from_u128(800),
@@ -463,7 +465,7 @@ mod test {
         );
 
         let ballot = DrawBallot {
-            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}],
+            adjudicators: vec![DrawAdjudicator {uuid: Uuid::from_u128(600), ..Default::default()}.into()],
             government: Some(DrawTeam {
                 members: vec![DrawSpeaker {uuid: Uuid::from_u128(700), ..Default::default()}, DrawSpeaker {uuid: Uuid::from_u128(701), ..Default::default()}],
                 uuid: Uuid::from_u128(800),

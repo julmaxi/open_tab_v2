@@ -74,10 +74,10 @@ impl ActionTrait for UpdateDrawAction {
             let old_adjudicators = new_ballot.adjudicators.clone();
             for (i, adjudicator) in debate.adjudicators.iter().enumerate() {
                 if i < new_ballot.adjudicators.len() {
-                    new_ballot.adjudicators[i] = adjudicator.uuid;
+                    new_ballot.adjudicators[i] = adjudicator.adjudicator.uuid;
                 }
                 else {
-                    new_ballot.adjudicators.push(adjudicator.uuid);
+                    new_ballot.adjudicators.push(adjudicator.adjudicator.uuid);
                 }
             }
 
@@ -91,7 +91,7 @@ impl ActionTrait for UpdateDrawAction {
                 });
             }
 
-            new_ballot.president = if let Some(president) = &debate.president {Some(president.uuid)} else {None};
+            new_ballot.president = if let Some(president) = &debate.president {Some(president.adjudicator.uuid)} else {None};
 
             groups.add(Entity::Ballot(new_ballot));
         }

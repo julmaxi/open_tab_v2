@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 
 
-function DragItem(props) {
+export function DragItem(props) {
     const id = useId();
 
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -20,15 +20,24 @@ function DragItem(props) {
     } : undefined;
 
 
-    return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-            {props.children}
-        </div>
-    );
+    if (props.content_type == "tr") {
+        return (
+            <tr ref={setNodeRef} style={style} {...listeners} {...attributes}>
+                {props.children}
+            </tr>
+        );    
+    }
+    else {
+        return (
+            <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+                {props.children}
+            </div>
+        );    
+    }
 }
 
 
-function DropSlot(props) {
+export function DropSlot(props) {
     const id = useId();
 
     const { isOver, setNodeRef } = useDroppable({
@@ -49,7 +58,7 @@ function DropSlot(props) {
 
 export function DropList(props) {
     return (
-        <div>
+        <div style={{minWidth: props.minWidth}}>
             <Placeholder collection={props.collection} index={0} type={props.type} />
             {
                 props.children.flatMap(
@@ -68,7 +77,7 @@ export function DropList(props) {
 
 export function DropWell(props) {
     return (
-        <div>
+        <div style={{minWidth: props.minWidth}}>
             <DropSlot collection={props.collection} type={props.type}>
                 {Children.count(props.children) > 0 ? <DragItem collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
             </DropSlot>
@@ -106,7 +115,6 @@ function Placeholder(props) {
 
 export function makeDragHandler(f) {
     return (event) => {
-        console.log(event.active.data.current, event.over.data.current);
         if (event.active.data.current.type != event.over.data.current.type) {
             return;
         }

@@ -6,7 +6,7 @@ use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, Speaker
 use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 
 
-use open_tab_app_backend::{UpdateDrawAction, views::LoadedView, views::tab_view::LoadedTabView, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker, LoadedDrawView}, ActionTrait };
+use open_tab_app_backend::{UpdateDrawAction, views::LoadedView, views::tab_view::LoadedTabView, draw_view::{DrawBallot, DrawTeam, SetDrawAdjudicator, DrawSpeaker, LoadedDrawView}, ActionTrait };
 
 const TAB_TOLERANCE : f64 = 0.0001;
 

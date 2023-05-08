@@ -52,11 +52,9 @@ impl LoadedView for LoadedDrawView {
         let mut indices_to_reload : Vec<usize> = vec![];
 
         let know_debate_uuids = self.view.debates.iter().map(|d| d.uuid).collect::<HashSet<_>>();
-        dbg!(&changed_debates_by_id);
         let has_new_debate = changed_debates_by_id.iter().any(
             |(uuid, _)| !know_debate_uuids.contains(uuid)
         );
-        dbg!(has_new_debate);
 
         if has_new_debate {
             let mut out: HashMap<String, Json> = HashMap::new();
@@ -95,6 +93,10 @@ impl LoadedView for LoadedDrawView {
                 out.insert(format!("debates.{}.ballot", idx), serde_json::to_value(&self.view.debates[idx].ballot)?);
             }
 
+            let index = DrawView::construct_adjudicator_index(&info, &self.view.debates);
+            out.insert("adjudicator_index".into(), serde_json::to_value(&index)?);
+            self.view.adjudicator_index = index;
+
             Ok(Some(out))
         }
         else {
@@ -110,8 +112,35 @@ impl LoadedView for LoadedDrawView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawView {
     round_uuid: Uuid,
-    debates: Vec<DrawDebate>
+    debates: Vec<DrawDebate>,
+    adjudicator_index: Vec<AdjudicatorIndexEntry>
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AdjudicatorIndexEntry {
+    adjudicator: DrawAdjudicator,
+    is_available: bool,
+    position: AdjudictorPosition
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum AdjudicatorPositionRole {
+    President,
+    Panel {position: usize}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum AdjudictorPosition {
+    NotSet,
+    Set {
+        debate_uuid: Uuid,
+        debate_index: usize,
+        position: AdjudicatorPositionRole
+    },
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawDebate {
@@ -126,8 +155,8 @@ pub struct DrawBallot {
     pub government: Option<DrawTeam>,
     pub opposition: Option<DrawTeam>,
     pub non_aligned_speakers: Vec<DrawSpeaker>,
-    pub adjudicators: Vec<DrawAdjudicator>,
-    pub president: Option<DrawAdjudicator>
+    pub adjudicators: Vec<SetDrawAdjudicator>,
+    pub president: Option<SetDrawAdjudicator>
 }
 
 impl Into<Ballot> for DrawBallot {
@@ -162,7 +191,7 @@ impl Into<Ballot> for DrawBallot {
             government: BallotTeam { team: self.government.map(|t| t.uuid), scores: HashMap::new() },
             opposition: BallotTeam { team: self.opposition.map(|t| t.uuid), scores: HashMap::new() },
             speeches,
-            adjudicators: self.adjudicators.into_iter().map(|a| a.uuid).collect(),
+            adjudicators: self.adjudicators.into_iter().map(|a| a.adjudicator.uuid).collect(),
             president: None,
         }
     }
@@ -195,12 +224,27 @@ pub struct DrawInstitution {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SetDrawAdjudicator {
+    #[serde(flatten)]
+    pub adjudicator: DrawAdjudicator,
+    #[serde(skip_deserializing)]
+    pub issues: Vec<DrawIssue>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DrawAdjudicator {
     pub uuid: Uuid,
     pub name: String,
     pub institutions: Vec<DrawInstitution>,
-    #[serde(skip_deserializing)]
-    pub issues: Vec<DrawIssue>
+}
+
+impl From<DrawAdjudicator> for SetDrawAdjudicator {
+    fn from(adjudicator: DrawAdjudicator) -> Self {
+        SetDrawAdjudicator {
+            adjudicator,
+            issues: vec![]
+        }
+    }
 }
 
 /*
@@ -294,7 +338,6 @@ impl DrawView {
                 uuid: i.uuid,
                 name: info.institutions_by_id.get(&i.uuid).map(|i| i.name.clone()).unwrap_or_else(|| "Unknown".to_string())
             }).collect(),
-            issues: vec![]
         }
     }
 
@@ -388,10 +431,10 @@ impl DrawView {
                 }
             }).collect(),
             adjudicators: ballot.adjudicators.iter().map(|adjudicator_uuid| {
-                Self::draw_adjudicator_from_uuid(*adjudicator_uuid, info)
+                Self::draw_adjudicator_from_uuid(*adjudicator_uuid, info).into()
             }).collect(),
             president: ballot.president.map(|president_uuid| {
-                Self::draw_adjudicator_from_uuid(president_uuid, info)
+                Self::draw_adjudicator_from_uuid(president_uuid, info).into()
             })
         };
         let ballot_evaluation = evaluator.find_issues_in_ballot(&ballot);
@@ -406,7 +449,7 @@ impl DrawView {
         }
 
         ballot.adjudicators.iter_mut().for_each(|adjudicator| {
-            adjudicator.issues = ballot_evaluation.adjudicator_issues.get(&adjudicator.uuid).unwrap_or(&vec![]).clone();
+            adjudicator.issues = ballot_evaluation.adjudicator_issues.get(&adjudicator.adjudicator.uuid).unwrap_or(&vec![]).clone();
         });
         ballot.non_aligned_speakers.iter_mut().for_each(|speaker| {
             speaker.issues = ballot_evaluation.non_aligned_issues.get(&speaker.uuid).unwrap_or(&vec![]).clone();
@@ -419,6 +462,44 @@ impl DrawView {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
 
         return Self::load_from_round(db, round).await;
+    }
+
+    fn construct_adjudicator_index(
+        info: &TournamentParticipantsInfo,
+        debates: &Vec<DrawDebate>,
+    ) -> Vec<AdjudicatorIndexEntry> {
+        let adjudicators = info.get_adjudicators();
+
+        let mut adj_positions = HashMap::new();
+
+        debates.iter().for_each(|debate| {
+            debate.ballot.adjudicators.iter().enumerate().for_each(|(adj_idx, adjudicator)| {
+                adj_positions.insert(adjudicator.adjudicator.uuid, AdjudictorPosition::Set {
+                    debate_uuid: debate.uuid,
+                    debate_index: debate.index,
+                    position: AdjudicatorPositionRole::Panel { position: adj_idx }
+                });
+             });
+
+            if let Some(president) = &debate.ballot.president {
+                adj_positions.insert(president.adjudicator.uuid, AdjudictorPosition::Set {
+                    debate_uuid: debate.uuid,
+                    debate_index: debate.index,
+                    position: AdjudicatorPositionRole::President
+                });
+            }
+        });
+
+        adjudicators.into_iter().map(
+            |adj| {
+                let draw_adj = Self::draw_adjudicator_from_uuid(adj.uuid, info);
+                AdjudicatorIndexEntry {
+                    is_available: true,
+                    adjudicator: draw_adj,
+                    position: adj_positions.get(&adj.uuid).cloned().unwrap_or(AdjudictorPosition::NotSet)
+                }
+            }
+        ).sorted_by(|e1, e2| e1.adjudicator.name.cmp(&e2.adjudicator.name)).collect()
     }
 
     async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, Box<dyn Error>> where C: ConnectionTrait {
@@ -445,6 +526,6 @@ impl DrawView {
             }
         ).collect();
 
-        Ok(DrawView { round_uuid: round.uuid, debates })
+        Ok(DrawView { adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates), round_uuid: round.uuid, debates })
     }
 }

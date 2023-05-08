@@ -108,11 +108,11 @@ async fn test_update_ballot_saves_adjudicators() -> Result<(), Box<dyn Error>> {
             opposition: None,
             non_aligned_speakers: vec![],
             adjudicators: vec![
-                DrawAdjudicator { uuid: Uuid::from_u128(3012), ..Default::default() },
-                DrawAdjudicator { uuid: Uuid::from_u128(3001), ..Default::default() },
-                DrawAdjudicator { uuid: Uuid::from_u128(3002), ..Default::default() },
+                DrawAdjudicator { uuid: Uuid::from_u128(3012), ..Default::default() }.into(),
+                DrawAdjudicator { uuid: Uuid::from_u128(3001), ..Default::default() }.into(),
+                DrawAdjudicator { uuid: Uuid::from_u128(3002), ..Default::default() }.into(),
             ],
-            president: Some(DrawAdjudicator { uuid: Uuid::from_u128(3006), ..Default::default()})
+            president: Some(DrawAdjudicator { uuid: Uuid::from_u128(3006), ..Default::default()}.into())
         }]
     };
 
@@ -214,7 +214,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
             government: None,
             opposition: None,
             non_aligned_speakers: vec![],
-            adjudicators: vec![3002, 3001, 3003].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }).collect_vec(),
+            adjudicators: vec![3002, 3001, 3003].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }.into()).collect_vec(),
             president: None
         }]
     };
@@ -256,7 +256,7 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dy
             government: None,
             opposition: None,
             non_aligned_speakers: vec![],
-            adjudicators: vec![3002, 3001].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }).collect_vec(),
+            adjudicators: vec![3002, 3001].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }.into()).collect_vec(),
             president: None
         }]
     };

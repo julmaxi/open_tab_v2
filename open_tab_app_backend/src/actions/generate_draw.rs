@@ -32,8 +32,6 @@ impl ActionTrait for GenerateDrawAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
         let mut changes = EntityGroups::new();
 
-        //let rounds = TournamentRound::get_many(db, self.draw_rounds).await?.into_iter().sorted_by_key(|r| r.index).collect_vec();
-
         let all_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
 
         let (rounds, other_rounds) : (Vec<_>, Vec<_>) = all_rounds.into_iter().partition(

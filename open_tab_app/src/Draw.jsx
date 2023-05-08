@@ -4,14 +4,15 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
 
-import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
+import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin, DragOverlay} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
 
-import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
+import {DragItem, DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
 
+const TRAY_DRAG_PATH = "__tray__";
 
 function DragBox(props) {  
   return <div className={`flex bg-gray-100 min-w-[14rem] p-1 rounded border ${props.highlightedIssues?.length > 0 ? "border-red-500" : "border-gray-100"}`}>
@@ -140,7 +141,7 @@ function DebateRow(props) {
 
   return (
     <tr>
-      <td>
+      <td className="border">
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
           {ballot.government !== null ? <TeamItem
             team={ballot.government}
@@ -167,7 +168,7 @@ function DebateRow(props) {
             /> : []}
         </DropWell>
       </td>
-      <td>
+      <td className="border">
         <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
           {ballot.non_aligned_speakers.map((speaker) =>
             <SpeakerItem
@@ -183,8 +184,8 @@ function DebateRow(props) {
             />)}
         </DropList>
       </td>
-      <td>
-        <DropList type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
+      <td className="border">
+        <DropList minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
           {ballot.adjudicators.map((adjudicator) =>
             <AdjudicatorItem
             key={adjudicator.uuid}
@@ -199,14 +200,63 @@ function DebateRow(props) {
           />)}
         </DropList>
       </td>
-      <td>
-        <DropWell type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
+      <td className="border">
+        <DropWell minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
       </td>
     </tr>
   );
 }
 
 function simulateDragOutcome(draw, from, to, isSwap) {
+  if (from.collection === TRAY_DRAG_PATH) {
+    if (to.collection == TRAY_DRAG_PATH) {
+      return {}
+    }
+
+    let val = draw.adjudicator_index.find(
+      (adjudicator) => adjudicator.adjudicator.uuid == from.index
+    );
+
+    if (val === undefined) {
+      console.warn(`Could not find ${from.index}`);
+      console.info(
+        draw.adjudicator_index
+      );
+      return {};
+    }
+
+    if (val.position.type === "NotSet") {
+      let to_collection = getPath(draw, to.collection);
+      let to_debate = clone(draw.debates[to.collection[1]]);
+      
+      if (to.index !== undefined) {
+        if (isSwap) {
+          to_collection[to.index] = val.adjudicator;
+        }
+        else {
+          to_collection.splice(to.index, 0, val.adjudicator);
+        }
+      }
+      else {
+        to_collection = val.adjudicator;
+      }
+  
+      updatePath(to_debate, to.collection.slice(2), to_collection);
+    
+      return {[to.collection[1]]: to_debate};  
+    }
+    else {
+      if (val.position.position.type === "Panel") {
+        from.collection = ["debates", val.position.debate_index, "ballot", "adjudicators"];
+        from.index = val.position.position.position;
+      }
+      else if (val.position.position.type === "President") {
+        from.collection = ["debates", val.position.debate_index, "ballot", "president"];
+        from.index = undefined;
+      }
+    }
+  }
+
   var from_debate = clone(draw.debates[from.collection[1]]);
 
   var to_debate;
@@ -273,7 +323,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     return {[from.collection[1]]: from_debate};
   }
   else {
-    return {[from.collection[1]]: from_debate, [to.collection[0]]: to_debate};
+    return {[from.collection[1]]: from_debate, [to.collection[1]]: to_debate};
   }
 }
 
@@ -302,10 +352,52 @@ function Tab(props) {
 }
 
 
-function DrawToolTray(props) {
+function adjPositionToStr(position) {
+  if (position.type == "NotSet") {
+    return "-"
+  }
+  else {
+    let chairStr = "";
+    
+    if (position.position.type == "President") {
+      chairStr = "Pres.";
+    }
+    else {
+      let isChair = position.position.position == 0;
+      chairStr = isChair ? "Chair" : "Panel";
+    }
+
+    return `${chairStr} ${position.debate_index + 1}`
+
+  }
+}
+
+
+function DrawToolTray({adjudicator_index, ...props}) {
   return <div className="w-72 border-l h-full">
     <TabGroup>
-      <Tab name="Adjudicators"></Tab>
+      <Tab name="Adjudicators">
+        <table className="w-full h-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Position</th>
+            </tr>
+          </thead>
+          <tbody className="w-full h-full overflow-scroll">
+          {
+            adjudicator_index.map(
+              (adj, idx) => {
+                return <DragItem content_type="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
+                  <td>{adj.adjudicator.name}</td>
+                  <td>{adjPositionToStr(adj.position)}</td>
+                </DragItem>
+              }
+            )
+          }
+          </tbody>
+        </table>
+      </Tab>
       <Tab name="Teams"></Tab>
     </TabGroup>
   </div>
@@ -314,6 +406,7 @@ function DrawToolTray(props) {
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
+    console.log(changedDebates);
 
     executeAction("UpdateDraw", {
         updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
@@ -321,8 +414,7 @@ function DrawEditor(props) {
   }
 
   let currentView = {type: "Draw", uuid: props.round_uuid};
-  let draw = useView(currentView, {"debates": []});
-  console.log(draw.debates);
+  let draw = useView(currentView, {"debates": [], "adjudicator_index": []});
   let debates = draw.debates;
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
@@ -336,7 +428,7 @@ function DrawEditor(props) {
           </tbody>
         </table>
       </div>
-      <DrawToolTray />
+      <DrawToolTray adjudicator_index={draw.adjudicator_index} />
     </DndContext>
   </div>
   }
