@@ -1,5 +1,5 @@
 //@ts-check
-import React, { useState, useId, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useId, useMemo, useEffect, useCallback, useContext } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
@@ -11,6 +11,7 @@ import {DragItem, DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
+import { TournamentContext } from "./TournamentContext";
 
 const TRAY_DRAG_PATH = "__tray__";
 
@@ -34,7 +35,6 @@ function DragBox(props) {
   let maxIssueSeverity = sortedIssues.length > 0 ? sortedIssues[0].severity : 0;
   let severityBucket = severityToBucket(maxIssueSeverity);
   let issueColor = ISSUE_COLORS_BORDER[severityBucket];
-  console.log((props.highlightedIssues || [0])[0]);
   return <div className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded ${props.highlightedIssues?.length > 100 ? issueColor + " border-4 " : "border-gray-100 border"}`}>
     <div className="flex-1">
       {props.children}
@@ -182,14 +182,15 @@ function filter_issues_by_target(issues, target_uuid) {
 }
 
 function DebateRow(props) {
-  console.log(props.debate)
   let ballot = props.debate.ballot;
-  let [highlightedIssues, setHighlightedIssues] = useState({
+  let [localHighlightedIssues, setLocalHighlightedIssues] = useState({
     "government": [],
     "opposition": [],
     "adjudicators": [],
     "non_aligned_speakers": []
   });
+
+  let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
   
   return (
     <tr>
@@ -198,7 +199,7 @@ function DebateRow(props) {
           {ballot.government !== null ? <TeamItem
             team={ballot.government}
             onHighlightIssues={
-              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
             highlightedIssues={
               highlightedIssues.government
@@ -210,7 +211,7 @@ function DebateRow(props) {
           {ballot.opposition !== null ? <TeamItem
             team={ballot.opposition}
             onHighlightIssues={
-              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
             highlightedIssues={
               highlightedIssues.opposition
@@ -225,7 +226,7 @@ function DebateRow(props) {
             key={speaker.uuid}
             speaker={speaker}
             onHighlightIssues={
-              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
             highlightedIssues={
               highlightedIssues.non_aligned_speakers[idx]
@@ -241,7 +242,7 @@ function DebateRow(props) {
             adjudicator={adjudicator}
             onHighlightIssues={
               (uuid) => {
-                setHighlightedIssues(find_issues_with_target(ballot, uuid));
+                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid));
               }
             }
             highlightedIssues={
@@ -251,7 +252,7 @@ function DebateRow(props) {
         </DropList>
       </td>
       <td className="border">
-        <DropWell minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} /> : []}</DropWell>
+        <DropWell minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => {}} /> : []}</DropWell>
       </td>
     </tr>
   );
@@ -276,7 +277,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     }
 
     if (val.position.type === "NotSet") {
-      let to_collection = getPath(draw, to.collection);
+      let to_collection = clone(getPath(draw, to.collection));
       let to_debate = clone(draw.debates[to.collection[1]]);
       
       if (to.index !== undefined) {
@@ -317,14 +318,14 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     to_debate = clone(draw.debates[to.collection[1]]);
   }
 
-  var from_collection = getPath(draw, from.collection);
+  var from_collection = clone(getPath(draw, from.collection));
   var to_collection;
 
   if (from.collection == to.collection) {
     to_collection = from_collection
   }
   else {
-    to_collection = getPath(draw, to.collection);
+    to_collection = clone(getPath(draw, to.collection));
   }
 
   if (to.index !== undefined && from.index !== undefined) {
@@ -455,6 +456,7 @@ function DrawToolTray({adjudicator_index, ...props}) {
 
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
+    setDragHighlightedIssues(null);
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
     executeAction("UpdateDraw", {
@@ -466,14 +468,47 @@ function DrawEditor(props) {
   let draw = useView(currentView, {"debates": [], "adjudicator_index": []});
   let debates = draw.debates;
 
+  let roundId = props.round_uuid;
+
+  let tournament = useContext(TournamentContext);
+
+  let [dragHighlightedIssues, setDragHighlightedIssues] = useState(null);
+
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
+  let dragStart = useCallback((x) => {
+    if (x.active.data.current.type != "adjudicator") {
+      return;
+    }
+
+    let simulatedBallots = [];
+
+    for (let i = 0; i < debates.length; i++) {
+      let outcome = simulateDragOutcome(
+        draw,
+        x.active.data.current,
+        {
+          index: 0,
+          collection: ["debates", i, "ballot", "adjudicators"] 
+        },
+        false
+      );
+      simulatedBallots.push(outcome[i].ballot);
+    }
+    invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: simulatedBallots, targetUuid: simulatedBallots[0].adjudicators[0].uuid}).then(
+      (issues) => {
+        setDragHighlightedIssues(issues);
+      }
+    );
+  }, [draw, roundId]);
+
+  console.log(dragHighlightedIssues ? dragHighlightedIssues[0] : [])
 
   return <div className="flex flex-row w-full h-full">
-    <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd}>
+    <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragStart={dragStart}>
       <div className="flex-1 overflow-y-scroll">
         <table className="w-full">
           <tbody>
-            {debates.map((debate) => <DebateRow key={debate.uuid} debate={debate} />)}
+            {debates.map((debate, debate_idx) => <DebateRow key={debate.uuid} debate={debate} dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debate_idx] : null} />)}
           </tbody>
         </table>
       </div>

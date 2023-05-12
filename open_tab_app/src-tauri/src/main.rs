@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Display, Formatter, format}, sync::{PoisonError}, time::Duration, borrow::Borrow};
+use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Display, Formatter, format}, sync::{PoisonError}, time::Duration, borrow::Borrow, iter::zip};
 
 use migration::{MigratorTrait, async_trait::async_trait};
 use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
@@ -13,7 +13,7 @@ use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::DrawIssue};
+use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}};
 
 use tokio::sync::Mutex;
 
@@ -462,8 +462,27 @@ struct FlatBallotEvaluationResult {
 }
 
 #[tauri::command]
-async fn evaluate_ballots(ballots: Vec<DrawBallot>) -> Result<FlatBallotEvaluationResult, ()> {
-    todo!()
+async fn evaluate_ballots(db: State<'_, DatabaseConnection>, tournament_id: Uuid, round_id: Uuid, ballots: Vec<DrawBallot>, target_uuid: Uuid) -> Result<Vec<FlatBallotEvaluationResult>, ()> {
+    let evaluator = DrawEvaluator::new_from_other_rounds(
+        db.inner(),
+        tournament_id,
+        round_id,
+    ).await.map_err(|_| ())?;
+
+    let eval_results = ballots.iter().map(|b| evaluator.find_issues_in_ballot(b));
+
+    Ok(zip(ballots.iter(), eval_results).map(
+        |(b, r)| FlatBallotEvaluationResult {
+            government: r.government_issues.into_iter().filter(
+                |i| i.target.uuid() == target_uuid
+            ).collect_vec(),
+            opposition: r.opposition_issues.into_iter().filter(
+                |i| i.target.uuid() == target_uuid
+            ).collect_vec(),
+            non_aligned_speakers: b.non_aligned_speakers.iter().map(|s| r.non_aligned_issues.get(&s.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
+            adjudicators: b.adjudicators.iter().map(|s| r.adjudicator_issues.get(&s.adjudicator.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
+        }
+    ).collect())
 }
 
 #[tauri::command]

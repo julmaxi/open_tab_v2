@@ -60,6 +60,17 @@ pub enum DrawIssueTarget {
 }
 
 
+impl DrawIssueTarget {
+    pub fn uuid(&self) -> Uuid {
+        match self {
+            DrawIssueTarget::Adjudicator{uuid} => *uuid,
+            DrawIssueTarget::Speaker{uuid} => *uuid,
+            DrawIssueTarget::Team{uuid, ..} => *uuid
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DrawIssue {
     #[serde(flatten)]

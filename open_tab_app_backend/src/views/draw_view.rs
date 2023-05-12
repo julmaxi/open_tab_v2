@@ -77,7 +77,6 @@ impl LoadedView for LoadedDrawView {
             }
         }
 
-
         if indices_to_reload.len() > 0 {
             //let clash_map = ClashMap::new_for_tournament(Default::default(), self.tournament_id, db).await?;
             let evaluator = DrawEvaluator::new_from_other_rounds(db, self.tournament_id, self.view.round_uuid).await?;
