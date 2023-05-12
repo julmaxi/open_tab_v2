@@ -42,7 +42,7 @@ impl ActionTrait for GenerateDrawAction {
             return  Err(Box::new(GenerateDrawActionError::RoundIsNotInTournament { tournament_id: self.tournament_id }));
         }
 
-        let prev_rounds_ballots = Ballot::get_all_in_rounds(db, other_rounds.iter().map(|r| r.uuid).collect()).await?.into_iter().into_group_map();
+        let prev_rounds_ballots = Ballot::get_all_in_rounds(db, other_rounds.iter().map(|r| r.uuid).collect()).await?;//.into_iter().into_group_map();
 
         let tournament_info = TournamentParticipantsInfo::load(db, self.tournament_id).await?;
 
@@ -80,12 +80,18 @@ impl ActionTrait for GenerateDrawAction {
                 db
             ).await?;
 
-            clash_map.add_dynamic_clashes_from_round_ballots(prev_rounds_ballots.iter().collect(), &tournament_info.team_members)?;
+            let evaluator = DrawEvaluator::new_from_rounds(db, self.tournament_id, &other_rounds).await?;
 
-            let evaluator = DrawEvaluator::new(
+            /*clash_map.add_dynamic_clashes_from_round_ballots(prev_rounds_ballots.iter().flat_map(
+                |(uuid, bs)| {
+                    bs.iter().map(|b| (uuid, b))
+                }
+            ).collect(), &tournament_info.team_members)?;*/
+
+            /*let evaluator = DrawEvaluator::new(
                 clash_map,
                 Default::default()
-            );
+            );*/
 
             let ballots = generator.generate_draw_for_rounds(&context, rounds.iter().collect(), &evaluator)?;
             ballots

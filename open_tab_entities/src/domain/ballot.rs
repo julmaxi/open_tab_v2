@@ -222,7 +222,7 @@ impl Ballot {
         Self::get_from_ballots(db, ballots).await
     }
 
-    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Ballot)>, BallotParseError> where C: ConnectionTrait {
+    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Vec<Ballot>)>, BallotParseError> where C: ConnectionTrait {
         //TODO: With a little work, could do this in one query for the rounds.
         //Custom return values are a bit annoying though, so we leave this for later.
 
@@ -238,7 +238,9 @@ impl Ballot {
             rounds.extend(itertools::repeat_n(round_id, round_ballots.len()));
             ballots.extend(round_ballots);
         }
-        Ok(zip(rounds, Self::get_from_ballots(db, ballots).await?).collect_vec())
+        let ballots = zip(rounds, Self::get_from_ballots(db, ballots).await?).collect_vec();
+
+        ballots.into_iter().into_group_map().into_iter().map(|(round, ballots)| Ok((round, ballots))).collect()
     }
 
     async fn get_from_ballots<C>(db: &C, ballots: Vec<schema::ballot::Model>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {

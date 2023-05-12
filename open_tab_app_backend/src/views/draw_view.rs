@@ -79,8 +79,8 @@ impl LoadedView for LoadedDrawView {
 
 
         if indices_to_reload.len() > 0 {
-            let clash_map = ClashMap::new_for_tournament(Default::default(), self.tournament_id, db).await?;
-            let evaluator = DrawEvaluator::new(clash_map, Default::default());
+            //let clash_map = ClashMap::new_for_tournament(Default::default(), self.tournament_id, db).await?;
+            let evaluator = DrawEvaluator::new_from_other_rounds(db, self.tournament_id, self.view.round_uuid).await?;
 
             let info = TournamentParticipantsInfo::load(db, self.tournament_id).await?;
             let mut out : HashMap<String, serde_json::Value> = HashMap::new();
@@ -514,7 +514,12 @@ impl DrawView {
         let participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 
         let clash_map = crate::draw::clashes::ClashMap::new_for_tournament(Default::default(), round.tournament_id, db).await?;
-        let evaluator = crate::draw::evaluation::DrawEvaluator::new(clash_map, Default::default());
+
+        //clash_map.add_dynamic_clashes_from_round_ballots(round_draws, &participant_info.team_members);
+        //let evaluator = crate::draw::evaluation::DrawEvaluator::new(clash_map, Default::default());
+        //let evaluator = DrawEvaluator::new_from_rounds(db, round.tournament_id, &other_rounds).await?;
+        let evaluator = DrawEvaluator::new_from_other_rounds(db, round.tournament_id, round.uuid).await?;
+
 
         let debates = izip![debates, ballots.into_iter()].map(
             |(debate, debate_ballot)| {

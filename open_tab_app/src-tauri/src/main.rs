@@ -13,7 +13,7 @@ use open_tab_entities::prelude::*;
 use itertools::{Itertools, izip};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig};
+use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::DrawIssue};
 
 use tokio::sync::Mutex;
 
@@ -289,7 +289,6 @@ async fn auto_accept_ballots<C>(changes: &EntityGroups, db: &C) -> Result<Option
     let new_ballots_by_id = Ballot::get_many(db, changes.debate_backup_ballots.iter().map(|b| b.ballot_id).collect_vec()).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
     println!("Loaded {} backup ballots", current_debate_ballots_by_id.len());    
 
-
     let mut new_changes = EntityGroups::new();
     for new_backup_ballot in changes.debate_backup_ballots.iter() {
         let old_debate = debates_by_id.get(&new_backup_ballot.debate_id).unwrap();
@@ -454,6 +453,18 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FlatBallotEvaluationResult {
+    government: Vec<DrawIssue>,
+    opposition: Vec<DrawIssue>,
+    non_aligned_speakers: Vec<Vec<DrawIssue>>,
+    adjudicators: Vec<Vec<DrawIssue>>,
+}
+
+#[tauri::command]
+async fn evaluate_ballots(ballots: Vec<DrawBallot>) -> Result<FlatBallotEvaluationResult, ()> {
+    todo!()
+}
 
 #[tauri::command]
 async fn guess_csv_config(path: String) -> Result<CSVReaderConfig, ()> {
@@ -467,7 +478,7 @@ fn main() {
     let (sync_notification_send, sync_notification_recv) = tauri::async_runtime::channel::<SyncNotification>(100);
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![subscribe_to_view, execute_action, guess_csv_config])
+        .invoke_handler(tauri::generate_handler![subscribe_to_view, execute_action, guess_csv_config, evaluate_ballots])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))
         .setup(|app| {

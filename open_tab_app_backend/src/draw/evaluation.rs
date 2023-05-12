@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use sea_orm::prelude::Uuid;
+use open_tab_entities::{prelude::{TournamentRound, Ballot}, domain::ballot::BallotParseError};
+use sea_orm::{prelude::Uuid, ConnectionTrait};
 use serde::{Serialize, Deserialize};
-use crate::draw_view::DrawBallot;
+use thiserror::Error;
+use crate::{draw_view::DrawBallot, TournamentParticipantsInfo};
 
-use super::clashes::{ClashMap, ClashType};
+use super::clashes::{ClashMap, ClashType, ClashMapConfig};
 
 
 #[derive(Debug, Clone)]
@@ -50,10 +52,11 @@ impl Default for DrawEvaluatorConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum DrawIssueTarget {
-    Adjudicator(Uuid),
-    Speaker(Uuid),
-    Team{team_id: Uuid, involved_speakers: Vec<Uuid>}
+    Adjudicator{uuid: Uuid},
+    Speaker{uuid: Uuid},
+    Team{uuid: Uuid, involved_speakers: Vec<Uuid>}
 }
 
 
@@ -65,6 +68,7 @@ pub struct DrawIssue {
     pub target: DrawIssueTarget
 }
 
+#[derive(Debug)]
 pub struct BallotEvaluationResult {
     pub government_issues: Vec<DrawIssue>,
     pub opposition_issues: Vec<DrawIssue>,
@@ -92,6 +96,17 @@ impl BallotEvaluationResult {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum DrawEvaluationError {
+    #[error("Rounds are not in same tournament")]
+    RoundsTournamentMismatch,
+    #[error("Ballot Parse Error")]
+    BallotParseError(#[from] BallotParseError),
+    #[error("SeaORM Error")]
+    SeaORMError(#[from] sea_orm::error::DbErr),
+    #[error("Other")]
+    Other(#[from] Box<dyn std::error::Error>),
+}
 
 impl DrawEvaluator {
     pub fn new(clash_map: ClashMap, config: DrawEvaluatorConfig) -> Self {
@@ -99,6 +114,33 @@ impl DrawEvaluator {
             clash_map,
             config
         }
+    }
+
+    pub async fn new_from_rounds<C>(db: &C, tournament_id: Uuid, rounds: &Vec<TournamentRound>) -> Result<Self, DrawEvaluationError> where C: ConnectionTrait {
+        if !rounds.iter().all(|r| r.tournament_id == tournament_id) {
+            return Err(DrawEvaluationError::RoundsTournamentMismatch);
+        }
+
+        let mut clash_map = ClashMap::new_for_tournament(
+            ClashMapConfig::default(),
+            tournament_id,
+            db
+        ).await?;
+        let draws = Ballot::get_all_in_rounds(db, rounds.iter().map(|r| r.uuid).collect()).await?;
+        let participant_info = TournamentParticipantsInfo::load(db, tournament_id).await?;
+        clash_map.add_dynamic_clashes_from_round_ballots(draws.iter().collect_vec(), &participant_info.team_members)?;
+
+        let evaluator = DrawEvaluator::new(clash_map, DrawEvaluatorConfig::default());
+
+        Ok(evaluator)
+    }
+
+    pub async fn new_from_other_rounds<C>(db: &C, tournament_id: Uuid, target_round_uuid: Uuid) -> Result<Self, DrawEvaluationError> where C: ConnectionTrait {
+        let rounds = TournamentRound::get_all_in_tournament(db, tournament_id).await?.into_iter().filter(
+            |r| r.uuid != target_round_uuid
+        ).collect_vec();
+        
+        Self::new_from_rounds(db, tournament_id, &rounds).await
     }
 
     pub fn get_base_severity(&self, clash_type: &ClashType) -> u16 {
@@ -136,12 +178,12 @@ impl DrawEvaluator {
                 issues.adjudicator_issues.entry(*adj_1_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
-                    target: DrawIssueTarget::Adjudicator(*adj_2_id)
+                    target: DrawIssueTarget::Adjudicator{uuid: *adj_2_id}
                 });
                 issues.adjudicator_issues.entry(*adj_2_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
-                    target: DrawIssueTarget::Adjudicator(*adj_1_id)
+                    target: DrawIssueTarget::Adjudicator{uuid: *adj_1_id}
                 });
             }
         }
@@ -154,12 +196,12 @@ impl DrawEvaluator {
                 issues.adjudicator_issues.entry(*adj_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
-                    target: DrawIssueTarget::Speaker(*speaker_id)
+                    target: DrawIssueTarget::Speaker{uuid: *speaker_id}
                 });
                 issues.non_aligned_issues.entry(*speaker_id).or_insert_with(Vec::new).push(DrawIssue {
                     issue_type: clash.clash_type.clone(),
                     severity: severity,
-                    target: DrawIssueTarget::Adjudicator(*adj_id)
+                    target: DrawIssueTarget::Adjudicator{uuid: *adj_id}
                 });
             }
         }
@@ -176,7 +218,7 @@ impl DrawEvaluator {
                                     DrawIssue {
                                         issue_type: c.clash_type.clone(),
                                         severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.adj_team_clash_factor) as u16,
-                                        target: DrawIssueTarget::Team{team_id: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
+                                        target: DrawIssueTarget::Team{uuid: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
                                     }
                                 }
                             ).collect_vec()
@@ -186,11 +228,11 @@ impl DrawEvaluator {
             }).flatten().for_each(|issue| {
                 issues.adjudicator_issues.entry(*adj_id).or_insert_with(Vec::new).push(issue.clone());
                 match &issue.target {
-                    DrawIssueTarget::Team { team_id, .. } => {
+                    DrawIssueTarget::Team { uuid: team_id, .. } => {
                         if *team_id == ballot.government.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()) {
-                            issues.government_issues.push(DrawIssue {target: DrawIssueTarget::Adjudicator(*adj_id), ..issue});
+                            issues.government_issues.push(DrawIssue {target: DrawIssueTarget::Adjudicator{uuid: *adj_id}, ..issue});
                         } else if *team_id == ballot.opposition.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()) {
-                            issues.opposition_issues.push(DrawIssue {target: DrawIssueTarget::Adjudicator(*adj_id), ..issue});
+                            issues.opposition_issues.push(DrawIssue {target: DrawIssueTarget::Adjudicator{uuid: *adj_id}, ..issue});
                         } else {
                             unreachable!()
                         }
@@ -210,7 +252,7 @@ impl DrawEvaluator {
                                 DrawIssue {
                                     issue_type: c.clash_type.clone(),
                                     severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_speaker_clash_factor) as u16,
-                                    target: DrawIssueTarget::Team{team_id: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
+                                    target: DrawIssueTarget::Team{uuid: team_id.as_ref().unwrap().uuid, involved_speakers: vec![*member_id]}
                                 }
                             }
                         ).collect_vec()
@@ -219,11 +261,11 @@ impl DrawEvaluator {
             }).flatten().for_each(|issue| {
                 issues.non_aligned_issues.entry(*non_aligned_id).or_insert_with(Vec::new).push(issue.clone());
                 match &issue.target {
-                    DrawIssueTarget::Team { team_id, .. } => {
+                    DrawIssueTarget::Team { uuid: team_id, .. } => {
                         if *team_id == ballot.government.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()) {
-                            issues.government_issues.push(DrawIssue {target: DrawIssueTarget::Speaker(*non_aligned_id), ..issue});
+                            issues.government_issues.push(DrawIssue {target: DrawIssueTarget::Speaker{uuid: *non_aligned_id}, ..issue});
                         } else if *team_id == ballot.opposition.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()) {
-                            issues.opposition_issues.push(DrawIssue {target: DrawIssueTarget::Speaker(*non_aligned_id), ..issue});
+                            issues.opposition_issues.push(DrawIssue {target: DrawIssueTarget::Speaker{uuid: *non_aligned_id}, ..issue});
                         } else {
                             unreachable!()
                         }
@@ -240,7 +282,7 @@ impl DrawEvaluator {
                                 DrawIssue {
                                     issue_type: c.clash_type.clone(),
                                     severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.speaker_speaker_clash_factor) as u16,
-                                    target: DrawIssueTarget::Speaker(*other_id)
+                                    target: DrawIssueTarget::Speaker{uuid: *other_id}
                                 }
                             }
                         ).collect_vec()
@@ -261,7 +303,7 @@ impl DrawEvaluator {
                                 DrawIssue {
                                     issue_type: c.clash_type.clone(),
                                     severity: (self.get_base_severity(&c.clash_type) as f32 * self.config.team_team_clash_factor) as u16,
-                                    target: DrawIssueTarget::Team { team_id: ballot.opposition.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()), involved_speakers: vec![opp_speaker_id] }
+                                    target: DrawIssueTarget::Team { uuid: ballot.opposition.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()), involved_speakers: vec![opp_speaker_id] }
                                 }
                             }
                         ).collect_vec()
@@ -271,7 +313,7 @@ impl DrawEvaluator {
                 |issue| {
                     issues.government_issues.push(issue.clone());
                     issues.opposition_issues.push(DrawIssue {
-                        target: DrawIssueTarget::Team { team_id: ballot.government.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()), involved_speakers: vec![gov_speaker_id] },
+                        target: DrawIssueTarget::Team { uuid: ballot.government.as_ref().map(|t| t.uuid).unwrap_or(Uuid::nil()), involved_speakers: vec![gov_speaker_id] },
                         ..issue
                     });
                 }
@@ -302,11 +344,11 @@ fn coalesce_issues(prev: DrawIssue, next: DrawIssue) -> Result<DrawIssue, (DrawI
         },
         (ClashType::InstitutionalClash { severity: severity_1, institution_id: i_id_1 }, ClashType::InstitutionalClash { severity: severity_2, institution_id: i_id_2 }) if i_id_1 == i_id_2 => {
             match (&prev.target, &next.target) {
-                (DrawIssueTarget::Team { team_id: t_id_1, involved_speakers: is_1 }, DrawIssueTarget::Team { team_id: t_id_2, involved_speakers: is_2 }) if t_id_1 == t_id_2 => {
+                (DrawIssueTarget::Team { uuid: t_id_1, involved_speakers: is_1 }, DrawIssueTarget::Team { uuid: t_id_2, involved_speakers: is_2 }) if t_id_1 == t_id_2 => {
                     Ok(DrawIssue {
                         issue_type: ClashType::InstitutionalClash { severity: u16::max(*severity_1, *severity_2), institution_id: *i_id_1 },
                         severity: u16::max(prev.severity, next.severity),
-                        target: DrawIssueTarget::Team { team_id: *t_id_1, involved_speakers: is_1.iter().chain(is_2.iter()).copied().collect_vec() }
+                        target: DrawIssueTarget::Team { uuid: *t_id_1, involved_speakers: is_1.iter().chain(is_2.iter()).copied().collect_vec() }
                     })
                 },
                 _ => Err((prev, next))
@@ -356,11 +398,11 @@ mod test {
 
         assert_eq!(
             issues.adjudicator_issues.get(&Uuid::from_u128(600)).unwrap(),
-            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator(Uuid::from_u128(601)) }]
+            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator{uuid: Uuid::from_u128(601)} }]
         );
         assert_eq!(
             issues.adjudicator_issues.get(&Uuid::from_u128(601)).unwrap(),
-            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator(Uuid::from_u128(600)) }]
+            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator{uuid: Uuid::from_u128(600)} }]
         );
     }
 
@@ -392,11 +434,11 @@ mod test {
 
         assert_eq!(
             issues.adjudicator_issues.get(&Uuid::from_u128(600)).unwrap(),
-            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Speaker(Uuid::from_u128(700)) }]
+            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Speaker{uuid: Uuid::from_u128(700) }}]
         );
         assert_eq!(
             issues.non_aligned_issues.get(&Uuid::from_u128(700)).unwrap(),
-            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator(Uuid::from_u128(600)) }]
+            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator{uuid: Uuid::from_u128(600) }}]
         );
     }
 
@@ -432,11 +474,11 @@ mod test {
 
         assert_eq!(
             issues.adjudicator_issues.get(&Uuid::from_u128(600)).unwrap(),
-            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {team_id: Uuid::from_u128(800), involved_speakers: vec![Uuid::from_u128(700)] } }]
+            &vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {uuid: Uuid::from_u128(800), involved_speakers: vec![Uuid::from_u128(700)] } }]
         );
         assert_eq!(
             issues.government_issues,
-            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator(Uuid::from_u128(600)) }]
+            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator{uuid: Uuid::from_u128(600) } }]
         );
     }
 
@@ -491,7 +533,7 @@ mod test {
             _ => panic!("Incorrect Clash typee"),
         }
         match &adj_issues[0].target {
-            crate::draw::evaluation::DrawIssueTarget::Team { involved_speakers, team_id } => {
+            crate::draw::evaluation::DrawIssueTarget::Team { uuid: team_id, involved_speakers } => {
                 assert_eq!(involved_speakers.iter().map(|u| *u).sorted().collect_vec(), vec![Uuid::from_u128(700), Uuid::from_u128(701)]);
                 assert_eq!(team_id, &Uuid::from_u128(800));
             },
@@ -500,7 +542,7 @@ mod test {
 
         assert_eq!(
             issues.government_issues,
-            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator(Uuid::from_u128(600)) }]
+            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Adjudicator{uuid: Uuid::from_u128(600) } }]
         );
     }
 
@@ -540,11 +582,11 @@ mod test {
 
         assert_eq!(
             issues.government_issues,
-            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {team_id: Uuid::from_u128(801), involved_speakers: vec![Uuid::from_u128(710)] } }]
+            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {uuid: Uuid::from_u128(801), involved_speakers: vec![Uuid::from_u128(710)] } }]
         );
         assert_eq!(
             issues.opposition_issues,
-            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {team_id: Uuid::from_u128(800), involved_speakers: vec![Uuid::from_u128(700)] } }]
+            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Team {uuid: Uuid::from_u128(800), involved_speakers: vec![Uuid::from_u128(700)] } }]
         );
     }
 
@@ -590,7 +632,7 @@ mod test {
 
         assert_eq!(
             issues.opposition_issues,
-            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Speaker(Uuid::from_u128(720)) }]
+            vec![DrawIssue { issue_type: ClashType::InstitutionalClash { severity: 90, institution_id: Uuid::from_u128(100) }, severity: 180, target: crate::draw::evaluation::DrawIssueTarget::Speaker{uuid: Uuid::from_u128(720)} }]
         );
         
         match issues.non_aligned_issues.get(&Uuid::from_u128(720)).unwrap()[0].issue_type {
@@ -603,7 +645,7 @@ mod test {
         }
 
         match &issues.non_aligned_issues.get(&Uuid::from_u128(720)).unwrap()[0].target {
-            crate::draw::evaluation::DrawIssueTarget::Team { involved_speakers, team_id } => {
+            crate::draw::evaluation::DrawIssueTarget::Team { uuid: team_id, involved_speakers } => {
                 assert_eq!(involved_speakers.iter().map(|u| *u).sorted().collect_vec(), vec![Uuid::from_u128(710), Uuid::from_u128(711)]);
                 assert_eq!(team_id, &Uuid::from_u128(801));
             },

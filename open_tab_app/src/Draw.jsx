@@ -14,14 +14,40 @@ import { executeAction } from "./Action";
 
 const TRAY_DRAG_PATH = "__tray__";
 
-function DragBox(props) {  
-  return <div className={`flex bg-gray-100 min-w-[14rem] p-1 rounded border ${props.highlightedIssues?.length > 0 ? "border-red-500" : "border-gray-100"}`}>
+const ISSUE_COLORS_BG = {
+  misc: "bg-gray-500",
+  low: "bg-blue-500",
+  mid: "bg-yellow-500",
+  high: "bg-red-500"
+}
+
+const ISSUE_COLORS_BORDER = {
+  misc: "border-gray-500",
+  low: "border-blue-500",
+  mid: "border-yellow-500",
+  high: "border-red-500"
+}
+
+function DragBox(props) {
+  let highlightedIssues = props.highlightedIssues || [];
+  let sortedIssues = highlightedIssues.sort((a, b) => b.severity - a.severity);
+  let maxIssueSeverity = sortedIssues.length > 0 ? sortedIssues[0].severity : 0;
+  let severityBucket = severityToBucket(maxIssueSeverity);
+  let issueColor = ISSUE_COLORS_BORDER[severityBucket];
+  console.log((props.highlightedIssues || [0])[0]);
+  return <div className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded ${props.highlightedIssues?.length > 100 ? issueColor + " border-4 " : "border-gray-100 border"}`}>
     <div className="flex-1">
       {props.children}
     </div>
     <div className="flex items-center mr-1">
-        <ClashIndicator issues={props.issues.filter(i => i.is_active)} onHover={props.onHighlightIssues} />
+        <ClashIndicator issues={props.issues} onHover={props.onHighlightIssues} />
     </div>
+    {props.highlightedIssues?.length > 0 ? <div className={`absolute w-full h-full top-0 left-0 rounded border-4 text-white ${issueColor}`}>
+      <div className={`absolute top-0 right-0 text-xs p-0.5 rounded-bl ${ISSUE_COLORS_BG[severityBucket]}`}>
+        <p>{props.highlightedIssues[0].type}</p>
+        {props.highlightedIssues.length > 1 ? `+${props.highlightedIssues.length - 1} more`: []}
+      </div>
+    </div>: []}
   </div>
 }
 
@@ -36,17 +62,21 @@ function TeamItem(props) {
   let all_participant_institutions = props.team.members.map((m) => m.institutions).flat().sort((a, b) => a.name.localeCompare(b.name));
   let unique_participant_institutions = [...new Set(all_participant_institutions.map((i) => i.uuid))].map((uuid) => all_participant_institutions.find((i) => i.uuid === uuid));
 
-  let all_participant_issues = props.team.members.map((m) => m.issues).flat();
-  let highlightedIssues = all_participant_issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
+  //let highlightedIssues = all_participant_issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
 
-  return <DragBox issues={all_participant_issues} onHighlightIssues={(shouldHighlight) => {
-    if (shouldHighlight) {
-      props.onAddIssueHighlightUuids(props.team.members.map((m) => m.uuid));
-    }
-    else {
-      props.onRemoveIssueHighlightUuids(props.team.members.map((m) => m.uuid));
-    }
-  }} highlightedIssues={highlightedIssues}>
+  return <DragBox
+    issues={props.team.issues}
+    onHighlightIssues={(shouldHighlight) => {
+      if (shouldHighlight) {
+        //props.onHighlightIssues(props.team.members.map((m) => m.uuid));
+        props.onHighlightIssues(props.team.uuid);
+      }
+      else {
+        props.onHighlightIssues(null);
+      }
+    }}
+    highlightedIssues={props.highlightedIssues}
+  >
       <div>{props.team.name}</div>
       <HorizontalList>
         {props.team.members.map((member) => <div key={member.uuid} className="text-xs">{member.name}</div>)}
@@ -58,28 +88,33 @@ function TeamItem(props) {
 }
 
 
-function ClashIndicator(props) {
-  let issueBuckets = props.issues.reduce((acc, issue) => {
-    if (issue.severity >= 75) {
-      acc.high.push(issue);
-    } else if (issue.severity >= 50) {
-      acc.mid.push(issue);
-    } else if (issue.severity >= 25) {
-      acc.low.push(issue);
-    } else {
-      acc.misc.push(issue);
-    }
+function severityToBucket(severity) {
+  if (severity >= 75) {
+    return "high";
+  } else if (severity >= 50) {
+    return "mid";
+  } else if (severity >= 25) {
+    return "low";
+  } else {
+    return "misc";
+  }
+}
+
+
+function bucketIssuesBySeverity(issues) {
+  let issueBuckets = issues.reduce((acc, issue) => {
+    let bucket = severityToBucket(issue.severity);
+    acc[bucket].push(issue);
     return acc;
   }, {misc: [], low: [], mid: [], high: []});
+  return issueBuckets;
+}
 
-  const issueColors = {
-    misc: "bg-gray-500",
-    low: "bg-blue-500",
-    mid: "bg-yellow-500",
-    high: "bg-red-500"
-  }
 
-  return <div className="flex h-6 rounded-md overflow-hidden w-12" onMouseEnter={() => props.onHover(true)} onMouseLeave={() => props.onHover(false)}>
+function ClashIndicator(props) {
+  let issueBuckets = bucketIssuesBySeverity(props.issues);
+
+  return <div className="flex h-6 rounded-md overflow-hidden w-12 border border-gray-600" onMouseEnter={() => props.onHover(true)} onMouseLeave={() => props.onHover(false)}>
     {
       props.issues.length == 0 ?
       <div className="h-full flex-1 items-center bg-green-500 text-white text-sm pl-1 pr-1">{"\u2713"}</div>
@@ -87,7 +122,7 @@ function ClashIndicator(props) {
       ["misc", "low", "mid", "high"].map(
         (key) => {
           return issueBuckets[key].length > 0 ?
-          <div key={key} className={`h-full flex flex-1 items-center text-white text-sm pl-1 pr-1 ${issueColors[key]}`}>{issueBuckets[key].length}</div>
+          <div key={key} className={`h-full flex flex-1 items-center text-white text-sm pl-1 pr-1 ${ISSUE_COLORS_BG[key]}`}>{issueBuckets[key].length}</div>
           :
           null
         }
@@ -98,16 +133,14 @@ function ClashIndicator(props) {
 
 
 function SpeakerItem(props) {
-  let highlightedIssues = props.speaker.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
-
   return <DragBox issues={props.speaker.issues} onHighlightIssues={(shouldHighlight) => {
     if (shouldHighlight) {
-      props.onAddIssueHighlightUuids([props.speaker.uuid]);
+      props.onHighlightIssues(props.speaker.uuid);
     }
     else {
-      props.onRemoveIssueHighlightUuids([props.speaker.uuid]);
+      props.onHighlightIssues(null);
     }
-  }} highlightedIssues={highlightedIssues}>
+  }} highlightedIssues={props.highlightedIssues}>
     <div>{props.speaker.name}</div>
     <div className="text-xs">{props.speaker.team_name}</div>
     <HorizontalList>
@@ -118,16 +151,16 @@ function SpeakerItem(props) {
 
 
 function AdjudicatorItem(props) {
-  let highlightedIssues = props.adjudicator.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
+  //let highlightedIssues = props.adjudicator.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
 
   return <DragBox issues={props.adjudicator.issues} onHighlightIssues={(shouldHighlight) => {
     if (shouldHighlight) {
-      props.onAddIssueHighlightUuids([props.adjudicator.uuid]);
+      props.onHighlightIssues(props.adjudicator.uuid);
     }
     else {
-      props.onRemoveIssueHighlightUuids([props.adjudicator.uuid]);
+      props.onHighlightIssues(null);
     }
-  }} highlightedIssues={highlightedIssues}>
+  }} highlightedIssues={props.highlightedIssues}>
     <div>{props.adjudicator.name}</div>
     <HorizontalList>
       {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
@@ -135,68 +168,85 @@ function AdjudicatorItem(props) {
   </DragBox>
 }
 
-function DebateRow(props) {
-  let ballot = props.debate.ballot;
-  let [issueHightlightedParticipantUuids, setIssueHightlightedParticipantUuids] = useState([]);
+function find_issues_with_target(ballot, target_uuid) {
+  return {
+    "government": ballot.government !== null ? filter_issues_by_target(ballot.government.issues, target_uuid) : [],
+    "opposition": ballot.opposition !== null ? filter_issues_by_target(ballot.opposition.issues, target_uuid) : [],
+    "adjudicators": ballot.adjudicators !== null ? ballot.adjudicators.map(adj => filter_issues_by_target(adj.issues, target_uuid)) : [],
+    "non_aligned_speakers": ballot.non_aligned_speakers !== null ? ballot.non_aligned_speakers.map(speaker => filter_issues_by_target(speaker.issues, target_uuid)) : []
+  }
+}
 
+function filter_issues_by_target(issues, target_uuid) {
+  return issues.filter((i) => i.target.uuid === target_uuid);
+}
+
+function DebateRow(props) {
+  console.log(props.debate)
+  let ballot = props.debate.ballot;
+  let [highlightedIssues, setHighlightedIssues] = useState({
+    "government": [],
+    "opposition": [],
+    "adjudicators": [],
+    "non_aligned_speakers": []
+  });
+  
   return (
     <tr>
       <td className="border">
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
           {ballot.government !== null ? <TeamItem
             team={ballot.government}
-            onAddIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            onHighlightIssues={
+              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
-            onRemoveIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            highlightedIssues={
+              highlightedIssues.government
             }
-            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
             /> : []}
         </DropWell>
         <br />
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
           {ballot.opposition !== null ? <TeamItem
             team={ballot.opposition}
-            onAddIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            onHighlightIssues={
+              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
-            onRemoveIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            highlightedIssues={
+              highlightedIssues.opposition
             }
-            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}            
             /> : []}
         </DropWell>
       </td>
       <td className="border">
         <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
-          {ballot.non_aligned_speakers.map((speaker) =>
+          {ballot.non_aligned_speakers.map((speaker, idx) =>
             <SpeakerItem
             key={speaker.uuid}
             speaker={speaker}
-            onAddIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            onHighlightIssues={
+              (uuid) => setHighlightedIssues(find_issues_with_target(ballot, uuid))
             }
-            onRemoveIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            highlightedIssues={
+              highlightedIssues.non_aligned_speakers[idx]
             }
-            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
             />)}
         </DropList>
       </td>
       <td className="border">
         <DropList minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
-          {ballot.adjudicators.map((adjudicator) =>
+          {ballot.adjudicators.map((adjudicator, idx) =>
             <AdjudicatorItem
             key={adjudicator.uuid}
             adjudicator={adjudicator}
-            onAddIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids([...issueHightlightedParticipantUuids, ...uuids])
+            onHighlightIssues={
+              (uuid) => {
+                setHighlightedIssues(find_issues_with_target(ballot, uuid));
+              }
             }
-            onRemoveIssueHighlightUuids={
-              (uuids) => setIssueHightlightedParticipantUuids(issueHightlightedParticipantUuids.filter((uuid) => !uuids.includes(uuid)))
+            highlightedIssues={
+              highlightedIssues.adjudicators[idx]
             }
-            issueHightlightedParticipantUuids={issueHightlightedParticipantUuids}
           />)}
         </DropList>
       </td>
@@ -406,7 +456,6 @@ function DrawToolTray({adjudicator_index, ...props}) {
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
-    console.log(changedDebates);
 
     executeAction("UpdateDraw", {
         updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
@@ -431,7 +480,7 @@ function DrawEditor(props) {
       <DrawToolTray adjudicator_index={draw.adjudicator_index} />
     </DndContext>
   </div>
-  }
+}
 
 
 export default DrawEditor;

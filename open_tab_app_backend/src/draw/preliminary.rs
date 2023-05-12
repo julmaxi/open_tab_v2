@@ -1,7 +1,7 @@
 use std::{default, error::Error, fmt::Display, collections::HashMap};
 
 use open_tab_entities::{prelude::{TournamentRound, Ballot, Speech, SpeechRole, BallotTeam}, domain::round::DrawType};
-use rand::{thread_rng, seq::SliceRandom, Rng};
+use rand::{thread_rng, seq::SliceRandom, Rng, SeedableRng, rngs::StdRng};
 use sea_orm::prelude::Uuid;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
@@ -90,6 +90,7 @@ impl PreliminaryRoundGenerator {
         rounds: Vec<&TournamentRound>,
         evaluator: &DrawEvaluator
     ) -> Result<Vec<Vec<DrawBallot>>, PreliminaryDrawError> {
+        dbg!(&self.randomization_scale);
         if rounds.len() % 3 != 0 {
             return Err(PreliminaryDrawError::IncorrectRoundCount(rounds.len()));
         }
@@ -100,7 +101,8 @@ impl PreliminaryRoundGenerator {
 
         let num_debates = context.teams.len() / 3;
 
-        let mut rng = thread_rng();
+        //let mut rng = thread_rng();
+        let mut rng : StdRng = SeedableRng::from_seed([0; 32]);
         let mut shuffled_teams = context.teams.iter().collect::<Vec<_>>();
         shuffled_teams.shuffle(&mut rng);
 
@@ -158,7 +160,7 @@ impl PreliminaryRoundGenerator {
                         }
                     ).collect::<Vec<Ballot>>();
 
-                    evaluator.clash_map.add_dynamic_clashes_from_round_ballots(vec![(&round.uuid, &draw_ballots)], &teams)?;
+                    evaluator.clash_map.add_dynamic_clashes_from_round_ballots(vec![&(round.uuid, draw_ballots)], &teams)?;
                 }
                 ballots
             }
@@ -214,13 +216,13 @@ impl PreliminaryRoundGenerator {
                 out_ballots = find_best_ballot_assignments(&possible_ballots, evaluator, self.randomization_scale)?;
 
                 for non_aligned_position in 0..3 {
+                    println!("------{}-------", non_aligned_position);
                     let possible_ballots = non_aligned_bucket_position_buckets[non_aligned_position].iter().map(
                         |speaker_id| {
                             out_ballots.iter().map(
                                 |ballot| {
                                     let mut new_non_aligned = ballot.non_aligned_speakers.clone();
                                     new_non_aligned.push(DrawSpeaker{uuid: speaker_id.clone(), ..Default::default()});
-
                                     DrawBallot {
                                         non_aligned_speakers: new_non_aligned,
                                         ..ballot.clone()
