@@ -38,7 +38,7 @@ impl LoadedParticipantsListView {
 
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
         if changes.participants.len() > 0 || changes.teams.len() > 0 {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 

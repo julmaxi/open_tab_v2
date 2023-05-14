@@ -2,7 +2,7 @@ use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap, cmp::Or
 
 use itertools::{Itertools, izip};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::tournament_break::TournamentBreakSourceRoundType};
+use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreakSourceRoundType, entity::LoadEntity}};
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
@@ -84,8 +84,8 @@ fn find_speakers_not_in_teams(
 
 #[async_trait]
 impl ActionTrait for MakeBreakAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut groups = EntityGroups::new();
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut groups = EntityGroup::new();
 
         let mut break_ = TournamentBreak::get_many(db, vec![self.break_id]).await?.pop().unwrap();
 
@@ -139,7 +139,7 @@ impl ActionTrait for MakeBreakAction {
                 let mut team_breaking_ids = vec![];
 
                 let debates = TournamentDebate::get_all_in_rounds(db, vec![relevant_round.uuid]).await?.pop().unwrap();
-                let ballots = Ballot::get_many(db, debates.iter().sorted_by_key(|d| d.index).map(|d| d.current_ballot_uuid).collect()).await?;
+                let ballots = Ballot::get_many(db, debates.iter().sorted_by_key(|d| d.index).map(|d| d.ballot_id).collect()).await?;
 
                 for ballot in ballots {
                     let winning_role = match (ballot.government_total(), ballot.opposition_total()) {

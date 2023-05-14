@@ -23,8 +23,8 @@ pub struct UploadParticipantsListAction {
 
 #[async_trait]
 impl ActionTrait for UploadParticipantsListAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut groups = EntityGroups::new();
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut groups = EntityGroup::new();
         let file = std::fs::File::open(self.path.clone())?;
         let parse_result = self.parser_config.parse(&file)?;
 
@@ -161,7 +161,7 @@ impl UploadParticipantsListAction {
                             uuid: clash_uuid,
                             declaring_participant_id: uuid,
                             target_participant_id,
-                            severity: 100,
+                            clash_severity: 100,
                         }
                     ));
                 }

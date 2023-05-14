@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap, default};
 
 use itertools::Itertools;
 use migration::MigratorTrait;
-use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, SpeakerScore}, EntityGroups, Entity, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_entities::{prelude::*, EntityGroup, Entity, mock::{make_mock_tournament_with_options, MockOption}};
 use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 
 
@@ -37,7 +37,7 @@ async fn test_view_updates_when_ballot_updates() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let mut changes = EntityGroups::new();
+    let mut changes = EntityGroup::new();
     changes.add(Entity::Ballot(changed_ballot));
 
     let transaction = db.begin().await?;

@@ -17,7 +17,7 @@ use itertools::Itertools;
 #[async_trait]
 pub trait LoadedView : Sync + Send {
     // We can't use a connection trait here, since otherwise the trait is not object safe
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>>;
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>>;
     async fn view_string(&self) -> Result<String, Box<dyn Error>>;
 }
 

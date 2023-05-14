@@ -1,13 +1,12 @@
-use core::num;
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
+use std::error::Error;
 
-use itertools::{Itertools, izip};
+use itertools::Itertools;
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}}};
 
 use sea_orm::prelude::*;
 
-use crate::{draw_view::DrawBallot, participants_list_view::ParticipantEntry, draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, preliminary::MinorBreakRoundDrawType}};
+use crate::draw::preliminary::MinorBreakRoundDrawType;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
@@ -28,27 +27,16 @@ pub enum EditTreeActionType {
     AddKOStage { parent: Uuid, num_stages: u64 },
 }
 
-
-fn shift_round_indices(rounds: &mut Vec<TournamentRound>, start: u64, shift: u64) {
-    for round in rounds.iter_mut() {
-        if round.index >= start {
-            round.index += shift;
-        }
-    }
-}
-
-
 #[derive(Error, Debug)]
 pub enum EditTreeActionError {
     #[error("the parent round does not exist")]
     ParentRoundDoesNotExist {uuid: Uuid},
 }
 
-
 #[async_trait]
 impl ActionTrait for EditTreeAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut groups = EntityGroups::new();
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut groups = EntityGroup::new();
 
         let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
 
@@ -127,7 +115,7 @@ impl ActionTrait for EditTreeAction {
                                 uuid: Uuid::new_v4(),
                                 round_id: round.uuid,
                                 index: room_index as u64,
-                                current_ballot_uuid: ballot.uuid,
+                                ballot_id: ballot.uuid,
                             };
                             groups.add(Entity::TournamentDebate(debate));
                             groups.add(Entity::Ballot(ballot));

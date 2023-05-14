@@ -1,12 +1,12 @@
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap, iter::zip};
+use std::{error::Error, iter::zip};
 
 use itertools::{Itertools, izip};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::round::{DrawType, self}};
+use open_tab_entities::{prelude::*, domain::round::DrawType};
 
 use sea_orm::prelude::*;
 
-use crate::{draw_view::DrawBallot, draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, clashes::{ClashMap, ClashMapConfig}, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}}, TournamentParticipantsInfo};
+use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}}, TournamentParticipantsInfo};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
@@ -29,8 +29,8 @@ pub enum GenerateDrawActionError {
 
 #[async_trait]
 impl ActionTrait for GenerateDrawAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut changes = EntityGroups::new();
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut changes = EntityGroup::new();
 
         let all_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
 
@@ -74,26 +74,7 @@ impl ActionTrait for GenerateDrawAction {
                 randomization_scale: 0.5
             };
 
-            let mut clash_map = ClashMap::new_for_tournament(
-                ClashMapConfig::default(),
-                self.tournament_id,
-                db
-            ).await?;
-
-            let evaluator = DrawEvaluator::new_from_rounds(db, self.tournament_id, &other_rounds).await?;
-
-            /*clash_map.add_dynamic_clashes_from_round_ballots(prev_rounds_ballots.iter().flat_map(
-                |(uuid, bs)| {
-                    bs.iter().map(|b| (uuid, b))
-                }
-            ).collect(), &tournament_info.team_members)?;*/
-
-            /*let evaluator = DrawEvaluator::new(
-                clash_map,
-                Default::default()
-            );*/
-
-            let ballots = generator.generate_draw_for_rounds(&context, rounds.iter().collect(), &evaluator)?;
+            let evaluator = DrawEvaluator::new_from_rounds(db, self.tournament_id, &other_rounds).await?;            let ballots = generator.generate_draw_for_rounds(&context, rounds.iter().collect(), &evaluator)?;
             ballots
 
         } else {
@@ -109,7 +90,7 @@ impl ActionTrait for GenerateDrawAction {
                         uuid: Uuid::new_v4(),
                         round_id: round.uuid,
                         index: index as u64,
-                        current_ballot_uuid: Uuid::nil()
+                        ballot_id: Uuid::nil()
                     }
                 );
                 round_existing_debates.into_iter().chain(
@@ -123,7 +104,7 @@ impl ActionTrait for GenerateDrawAction {
             for (mut debate, ballot) in zip(debates.into_iter(), round_new_ballots.into_iter()) {
                 let mut real_ballot : Ballot = ballot.into();
                 real_ballot.uuid = Uuid::new_v4();
-                debate.current_ballot_uuid = real_ballot.uuid;
+                debate.ballot_id = real_ballot.uuid;
 
                 changes.add(Entity::Ballot(real_ballot));
                 changes.add(Entity::TournamentDebate(debate));

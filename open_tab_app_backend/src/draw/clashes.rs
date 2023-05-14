@@ -185,7 +185,7 @@ impl ClashMap {
         }
         else {
             let clash_entry = ClashMapEntry {
-                clash_type: ClashType::DeclaredClash{severity: clash.severity},
+                clash_type: ClashType::DeclaredClash{severity: clash.clash_severity},
             };
 
             self.add_clash_entry_for_participants(declaring_participant, target_participant, clash_entry);

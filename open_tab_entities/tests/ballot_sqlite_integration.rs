@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate};
+use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
 
@@ -487,7 +487,7 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
         uuid: Uuid::from_u128(30),
         round_id: round.uuid,
         index: 0,
-        current_ballot_uuid: ballot.uuid
+        ballot_id: ballot.uuid
     };
     debate.save(&db, true).await?;
 
@@ -537,10 +537,20 @@ async fn test_getting_missing_ballot_raises_error() -> Result<(), Box<dyn Error>
 
     assert!(retrieved.is_err());
 
-    if let Err(BallotParseError::BallotDoesNotExist {..}) = retrieved {
+    if let Err(v) = retrieved {
+        let err : Result<Box<LoadError>, _> = v.downcast();
+        let err: Box<LoadError> = err.expect("Expected BallotParseError, got something else");
+
+        if let LoadError::EntitiesNotFound {..} = err.as_ref() {
+            // pass
+        }
+        else {
+            panic!("Expected BallotParseError::BallotDoesNotExist");
+        }
+        
     }
     else {
-        panic!("Expected BallotParseError::BallotDoesNotExist, got {:?} instead", retrieved);
+        panic!("Expected BallotParseError::BallotDoesNotExist");
     }
 
     Ok(())

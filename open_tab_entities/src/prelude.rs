@@ -1,2 +1,2 @@
 pub use crate::domain::{participant::{Participant, ParticipantRole, Speaker, Adjudicator}, ballot::{Ballot, BallotTeam, Speech, SpeakerScore, TeamScore, SpeechRole}, TournamentEntity, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team};
-pub use crate::group::{EntityGroups, Entity};
+pub use crate::group::{EntityGroup, Entity, EntityGroupTrait};

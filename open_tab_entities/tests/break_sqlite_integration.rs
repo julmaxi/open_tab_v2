@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_break::{BreakType, TournamentBreakSourceRoundType}}, mock::{self, MockOption}};
+use open_tab_entities::{prelude::*, domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_break::{BreakType, TournamentBreakSourceRoundType}}, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
 

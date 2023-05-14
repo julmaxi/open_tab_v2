@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap, error::Error, hash::Hash, fmt::{Display, Formatter}};
 
-use crate::{EntityGroups, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
+use crate::{EntityGroup, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
 use sea_orm::{prelude::*, Statement, Database};
 use crate::prelude::*;
 use itertools::{Itertools, izip};
@@ -9,6 +9,7 @@ use serde::{Serialize, Deserialize};
 
 use faker_rand::en_us::{names::FullName, company::CompanyName};
 use rand::{Rng, thread_rng};
+use crate::group::EntityGroupTrait;
 
 use crate::domain::round::DrawType;
 
@@ -34,11 +35,11 @@ impl Default for MockOption {
     }
 }
 
-pub fn make_mock_tournament() -> EntityGroups {
+pub fn make_mock_tournament() -> EntityGroup {
     return make_mock_tournament_with_options(Default::default());
 }
 
-pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
+pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     /*
     Tournament: 1
     Teams: 1000
@@ -51,7 +52,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
 
     assert!(options.num_teams % 3 == 0);
     assert!(options.num_teams >= 3);
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
 
     let tournament_uuid = if options.deterministic_uuids {Uuid::from_u128(1)} else {Uuid::new_v4()};
     groups.add(Entity::Tournament(Tournament {
@@ -168,25 +169,25 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
         vec![
             ParticipantClash {
                 uuid:Uuid::from_u128(600),
-                severity:100,
+                clash_severity:100,
                 declaring_participant_id: adjudicators[0].uuid,
                 target_participant_id: speakers[0][0].uuid,
             },
             ParticipantClash {
                 uuid:Uuid::from_u128(601),
-                severity:100,
+                clash_severity:100,
                 declaring_participant_id: speakers[0][1].uuid,
                 target_participant_id: adjudicators[1].uuid,
             },
             ParticipantClash {
                 uuid:Uuid::from_u128(602),
-                severity:50,
+                clash_severity:50,
                 declaring_participant_id: speakers[1][1].uuid,
                 target_participant_id: adjudicators[0].uuid,
             },
             ParticipantClash {
                 uuid:Uuid::from_u128(603),
-                severity:25,
+                clash_severity:25,
                 declaring_participant_id: speakers[1][2].uuid,
                 target_participant_id: adjudicators[0].uuid,
             },
@@ -252,7 +253,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroups {
                 TournamentDebate {
                     uuid,
                     round_id: rounds[round_idx].uuid,
-                    current_ballot_uuid: ballot.uuid,
+                    ballot_id: ballot.uuid,
                     index: debate_idx as u64
                 }
             }).collect_vec();

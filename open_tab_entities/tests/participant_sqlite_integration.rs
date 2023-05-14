@@ -2,7 +2,7 @@ use std::error::Error;
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity};
+use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 

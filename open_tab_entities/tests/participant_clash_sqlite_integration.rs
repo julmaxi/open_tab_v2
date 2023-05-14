@@ -2,7 +2,7 @@ use std::error::Error;
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash};
+use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 
@@ -93,7 +93,7 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(600),
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(400),
-        severity: 20,
+        clash_severity: 20,
     };
     clash.save(&db, true).await?;
 
@@ -101,7 +101,7 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(601),
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(401),
-        severity: 20,
+        clash_severity: 20,
     };
     clash.save(&db, true).await?;
 
@@ -121,7 +121,7 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(600),
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(401),
-        severity: 20,
+        clash_severity: 20,
     };
     clash.save(&db, true).await?;
 
@@ -130,7 +130,7 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(600),
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(400),
-        severity: 20,
+        clash_severity: 20,
     };
     clash.save(&db, true).await?;
 

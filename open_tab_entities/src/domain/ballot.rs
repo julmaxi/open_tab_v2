@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, iter::{zip, self}, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
+use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
 
 use async_trait::async_trait;
 use sea_orm::JoinType;
@@ -9,8 +9,8 @@ use crate::schema::{self};
 
 use itertools::{izip, Itertools};
 
-use super::TournamentEntity;
-use crate::utilities::{BatchLoad, BatchLoadError};
+use super::{TournamentEntity, entity::LoadEntity};
+use crate::utilities::BatchLoad;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BallotParseError {
@@ -193,12 +193,9 @@ impl TeamScore {
     }
 }
 
-impl Ballot {
-    pub async fn get_one(db: &impl ConnectionTrait, uuid: Uuid) -> Result<Ballot, BallotParseError> {
-        Self::get_many(db, vec![uuid]).await.map(|r| r.into_iter().next().unwrap())
-    }
-
-    pub async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, BallotParseError> where C: ConnectionTrait {
+#[async_trait]
+impl LoadEntity for Ballot {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, Box<dyn Error>> where C: ConnectionTrait {
         let ballots = schema::ballot::Entity::batch_load(db, uuids.clone()).await?;
         let has_value = ballots.iter().map(|b| b.is_some()).collect_vec();
         let mut retrieved_ballots_iter = Self::get_from_ballots(db, ballots.into_iter().filter(|b| b.is_some()).map(|b| b.unwrap()).collect()).await?.into_iter();
@@ -212,16 +209,9 @@ impl Ballot {
             }
         }).collect())
     }
+}
 
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
-        let ballots = schema::ballot::Entity::batch_load_all(db, uuids.clone()).await.map_err(|e| match e {
-            BatchLoadError::DbErr(e) => BallotParseError::DbErr(e),
-            BatchLoadError::RowNotFound { id } => BallotParseError::BallotDoesNotExist(id)
-        })?;
-
-        Self::get_from_ballots(db, ballots).await
-    }
-
+impl Ballot {
     pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Vec<Ballot>)>, BallotParseError> where C: ConnectionTrait {
         //TODO: With a little work, could do this in one query for the rounds.
         //Custom return values are a bit annoying though, so we leave this for later.
@@ -254,7 +244,7 @@ impl Ballot {
 
         let ballots : Result<Vec<_>, _> = izip!(ballots.into_iter(), teams.into_iter(), adjudicators.into_iter(), team_scores.into_iter(), speeches.into_iter(), speech_scores.into_iter()).map(|
             (b, t, a, s, sp, sps)
-        | Ballot::from_rows(b, t, a, s, sp, sps)).collect();
+        | Ballot::from_models(b, t, a, s, sp, sps)).collect();
         
         ballots
     }
@@ -267,7 +257,7 @@ impl Ballot {
     /// 3. A speech that does not exists can have no scores
     /// 4. A team that does not exists can have no scores
     /// 5. An adjudicator not in adjudicators can not give scores
-    fn from_rows(
+    fn from_models(
         ballot: schema::ballot::Model,
         teams: Vec<schema::ballot_team::Model>,
         mut adjudicators: Vec<schema::ballot_adjudicator::Model>,
@@ -760,7 +750,7 @@ impl TournamentEntity for Ballot {
 
 #[test]
 fn test_get_empty_ballot() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         }
@@ -779,7 +769,7 @@ fn test_get_empty_ballot() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_with_gov_only() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         }
@@ -803,7 +793,7 @@ fn test_get_ballot_with_gov_only() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_with_opp_only() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         }
@@ -826,7 +816,7 @@ fn test_get_ballot_with_opp_only() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_with_randomly_ordered_adjudicators() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -867,7 +857,7 @@ fn test_get_ballot_with_randomly_ordered_adjudicators() -> Result<(), BallotPars
 
 #[test]
 fn test_get_ballot_with_position_gaps() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -908,7 +898,7 @@ fn test_get_ballot_with_position_gaps() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_with_president() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -954,7 +944,7 @@ fn test_get_ballot_with_president() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_with_two_presidents() -> Result<(), BallotParseError> {
-    let result = Ballot::from_rows(
+    let result = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -981,7 +971,7 @@ fn test_get_ballot_with_two_presidents() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_speech_order() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -1069,7 +1059,7 @@ fn test_get_ballot_speech_order() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_missing_speeches() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -1100,7 +1090,7 @@ fn test_get_ballot_missing_speeches() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_speech_scores() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },
@@ -1129,7 +1119,7 @@ fn test_get_ballot_speech_scores() -> Result<(), BallotParseError> {
 
 #[test]
 fn test_get_ballot_team_scores() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_rows(
+    let ballot = Ballot::from_models(
         schema::ballot::Model {
             uuid: Uuid::from_u128(100),
         },

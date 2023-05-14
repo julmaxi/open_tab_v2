@@ -4,7 +4,7 @@
 use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Display, Formatter, format}, sync::{PoisonError}, time::Duration, borrow::Borrow, iter::zip};
 
 use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroups, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
 use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
@@ -103,7 +103,7 @@ impl ViewCache {
         Ok(view_str)
     }
 
-    pub async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroups) -> Result<Vec<ChangeNotification>, Box<dyn Error>> {
+    pub async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroup) -> Result<Vec<ChangeNotification>, Box<dyn Error>> {
         let mut out = vec![];
         for (view, loaded_view) in self.cached_views.iter_mut() {
             let changes = loaded_view.update_and_get_changes(db, changes).await?;
@@ -155,7 +155,8 @@ async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache
     let transaction = db.begin().await?;
     let changes = action.execute(&transaction).await?;
     changes.save_all(&transaction).await?;
-    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().filter_map(|s| s).next().unwrap();    changes.save_log_with_tournament_id(&transaction, tournament).await?;
+    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().filter_map(|s| s).next().unwrap();
+    changes.save_log_with_tournament_id(&transaction, tournament).await?;
 
     transaction.commit().await?;
     let transaction = db.begin().await?;
@@ -273,7 +274,7 @@ impl std::fmt::Display for SyncError {
 
 impl std::error::Error for SyncError {}
 
-async fn auto_accept_ballots<C>(changes: &EntityGroups, db: &C) -> Result<Option<EntityGroups>, SyncError> where C: ConnectionTrait {
+async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<EntityGroup>, SyncError> where C: ConnectionTrait {
     if changes.debate_backup_ballots.is_empty() {
         return Ok(None);
     }
@@ -282,17 +283,17 @@ async fn auto_accept_ballots<C>(changes: &EntityGroups, db: &C) -> Result<Option
     println!("Loaded {} debates", debates_by_id.len());
     let current_debate_ballots_by_id = Ballot::get_many(
         db,
-        debates_by_id.values().map(|d| d.current_ballot_uuid).collect_vec()
+        debates_by_id.values().map(|d| d.ballot_id).collect_vec()
     ).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
     println!("Loaded {} debate ballots", current_debate_ballots_by_id.len());
 
     let new_ballots_by_id = Ballot::get_many(db, changes.debate_backup_ballots.iter().map(|b| b.ballot_id).collect_vec()).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
     println!("Loaded {} backup ballots", current_debate_ballots_by_id.len());    
 
-    let mut new_changes = EntityGroups::new();
+    let mut new_changes = EntityGroup::new();
     for new_backup_ballot in changes.debate_backup_ballots.iter() {
         let old_debate = debates_by_id.get(&new_backup_ballot.debate_id).unwrap();
-        let old_ballot = current_debate_ballots_by_id.get(&old_debate.current_ballot_uuid).unwrap();
+        let old_ballot = current_debate_ballots_by_id.get(&old_debate.ballot_id).unwrap();
         let new_ballot = new_ballots_by_id.get(&new_backup_ballot.ballot_id).unwrap();
 
         if !old_ballot.is_scored()
@@ -307,7 +308,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroups, db: &C) -> Result<Option
         }).collect_vec()
          {
             new_changes.add(Entity::TournamentDebate(TournamentDebate {
-                current_ballot_uuid: new_ballot.uuid,
+                ballot_id: new_ballot.uuid,
                 ..old_debate.clone()
             }));
         }
@@ -316,7 +317,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroups, db: &C) -> Result<Option
     Ok(Some(new_changes))
 }
 
-async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C, view_cache: &Mutex<ViewCache>, app_handle: &AppHandle) -> Result<Option<EntityGroups>, SyncError> where C: ConnectionTrait + TransactionTrait {
+async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C, view_cache: &Mutex<ViewCache>, app_handle: &AppHandle) -> Result<Option<EntityGroup>, SyncError> where C: ConnectionTrait + TransactionTrait {
     let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
     let changes_url = format!("{}/changes", remote_base_url.clone());
     let changes_url = if let Some(last_know_change) = target_tournament_remote.last_known_change {
@@ -330,7 +331,7 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
 
     if remote_changes.changes.len() > 0 {
         println!("Pulling {} changes from remote", remote_changes.changes.len());
-        let group = EntityGroups::from(remote_changes.changes);
+        let group = EntityGroup::from(remote_changes.changes);
 
         let last_change = group.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;    
         let mut remote_update : schema::tournament_remote::ActiveModel = target_tournament_remote.clone().into_active_model();

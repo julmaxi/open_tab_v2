@@ -17,12 +17,10 @@ pub struct UpdateParticipantsAction {
     tournament_id: Uuid
 }
 
-
-
 #[async_trait]
 impl ActionTrait for UpdateParticipantsAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut groups = EntityGroups::new();
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {
             groups.add(Entity::Participant(

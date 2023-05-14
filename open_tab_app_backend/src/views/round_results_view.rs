@@ -1,5 +1,6 @@
 use itertools::izip;
 use open_tab_entities::domain::ballot::Ballot;
+use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::schema;
 use sea_orm::ActiveValue;
 use sea_orm::QueryOrder;
@@ -37,8 +38,8 @@ impl LoadedRoundResultsView {
 
 #[async_trait]
 impl LoadedView for LoadedRoundResultsView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
-        if changes.debates.len() > 0 || changes.ballots.len() > 0 || changes.teams.len() > 0 || changes.participants.len() > 0 {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+        if changes.tournament_debates.len() > 0 || changes.ballots.len() > 0 || changes.teams.len() > 0 || changes.participants.len() > 0 {
             println!("Refreshing round results view {}", self.round_id);
             self.view = RoundResultsView::load(db, self.round_id).await?;
 

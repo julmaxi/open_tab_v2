@@ -3,8 +3,9 @@ use std::collections::hash_map::RandomState;
 use std::{collections::HashMap, error::Error};
 use chrono::Utc;
 use open_tab_entities::domain::ballot;
-use open_tab_entities::prelude::SpeechRole;
-use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log, domain};
+use open_tab_entities::domain::entity::LoadEntity;
+use open_tab_entities::prelude::*;
+use open_tab_entities::{Entity, EntityGroup, get_changed_entities_from_log, domain};
 use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
 use open_tab_entities::schema::{self, tournament_log, tournament};
 use rocket::fs::{FileServer, relative};
@@ -67,7 +68,7 @@ struct DisplayBallotSpeech {
 
 impl DisplayBallot {
     async fn from_id<C>(ballot_id: Uuid, db: &C) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
-        let ballot = Ballot::get_one(db, ballot_id).await?;
+        let ballot = Ballot::get(db, ballot_id).await?;
 
         let teams = ballot.government.team.iter().chain(ballot.opposition.team.iter()).map(|u| *u).collect_vec();
     
@@ -228,7 +229,7 @@ async fn submit_ballot(
     
     let ballot = ballot.into_inner();
 
-    let base_ballot = domain::ballot::Ballot::get_one(db, debate.ballot_id).await.map_err(handle_error)?;
+    let base_ballot = domain::ballot::Ballot::get(db, debate.ballot_id).await.map_err(handle_error_dyn)?;
 
     let new_ballot = ballot::Ballot {
         uuid: Uuid::new_v4(),
@@ -260,7 +261,7 @@ async fn submit_ballot(
         timestamp: chrono::offset::Local::now().naive_local(),
     };
 
-    let mut groups = open_tab_entities::EntityGroups::new();
+    let mut groups = open_tab_entities::EntityGroup::new();
     groups.add(Entity::Ballot(new_ballot));
     groups.add(Entity::DebateBackupBallot(ballot_entry));
     groups.save_all_and_log_for_tournament(db, tournament_id).await.map_err(handle_error_dyn)?;

@@ -8,6 +8,7 @@ use sea_orm::prelude::*;
 
 use crate::{round_results_view::DisplayBallot};
 use serde::{Serialize, Deserialize};
+use open_tab_entities::domain::entity::LoadEntity;
 
 use super::ActionTrait;
 
@@ -27,18 +28,18 @@ pub enum ScoreUpdate {
 
 #[async_trait]
 impl ActionTrait for UpdateScoresAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
-        let mut groups = EntityGroups::new();
-        let mut debate = open_tab_entities::domain::debate::TournamentDebate::get_one(db, self.debate_id).await?;
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+        let mut groups = EntityGroup::new();
+        let mut debate = open_tab_entities::domain::debate::TournamentDebate::get(db, self.debate_id).await?;
         match self.update {
             ScoreUpdate::SetBallot(uuid) => {
-                debate.current_ballot_uuid = uuid;
+                debate.ballot_id = uuid;
                 groups.add(Entity::TournamentDebate(debate));
             },
             ScoreUpdate::NewBallot(display_ballot) => {
                 let mut ballot : Ballot = display_ballot.into();
                 ballot.uuid = Uuid::new_v4();
-                debate.current_ballot_uuid = ballot.uuid;
+                debate.ballot_id = ballot.uuid;
                 let backup_ballot = DebateBackupBallot {
                     uuid: Uuid::new_v4(),
                     debate_id: self.debate_id,

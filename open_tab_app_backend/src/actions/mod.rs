@@ -41,7 +41,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub async fn execute<C>(self, db: &C) -> Result<EntityGroups, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn execute<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
         match self {
             Action::UpdateDraw{action} => action.get_changes(db).await,
             Action::UpdateParticipants{action} => action.get_changes(db).await,

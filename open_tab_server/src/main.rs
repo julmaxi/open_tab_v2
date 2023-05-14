@@ -3,8 +3,9 @@ use std::collections::HashSet;
 use std::collections::hash_map::RandomState;
 use std::path::Path;
 use std::{collections::HashMap, error::Error};
-use open_tab_entities::prelude::SpeechRole;
-use open_tab_entities::{Entity, EntityGroups, EntityId, get_changed_entities_from_log, domain};
+use open_tab_entities::domain::entity::LoadEntity;
+use open_tab_entities::prelude::*;
+use open_tab_entities::{Entity, EntityGroup, get_changed_entities_from_log, domain};
 use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
 use open_tab_entities::schema::{self, tournament_log, tournament};
 use rocket::fs::{FileServer, relative, NamedFile};
@@ -64,7 +65,7 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
     updates.changes = updates.changes.into_iter().filter(|e| !existing_versions.contains(&(e.version,))).collect_vec();
     //updates.changes.sort_by_key(|e| e.entity.get_processing_order());
 
-    let mut changeset = EntityGroups::new();
+    let mut changeset = EntityGroup::new();
     let mut seen_identities = HashSet::new();
     for change in updates.changes.into_iter() {
         if !seen_identities.insert((change.entity.get_name().clone(), change.entity.get_uuid())) {
@@ -98,8 +99,8 @@ async fn update_tournament(db: &State<DatabaseConnection>, tournament_id: rocket
 #[derive(Debug, Serialize, Deserialize)]
 struct SerializedTournamentLogEntry {
     sequence_idx: u64,
-    #[serde(flatten)]
-    entity: EntityId,
+    entity_type: String,
+    entity_uuid: Uuid,
     log_uuid: Uuid,
 }
 
@@ -109,7 +110,8 @@ impl From<tournament_log::Model> for SerializedTournamentLogEntry {
         SerializedTournamentLogEntry {
             sequence_idx: model.sequence_idx as u64,
             log_uuid: model.uuid,
-            entity: EntityId::from_type_and_id(&model.target_type, model.target_uuid),
+            entity_type: model.target_type,
+            entity_uuid: model.target_uuid,
         }
     }
 }
@@ -273,15 +275,18 @@ enum ParticipantHomePageRoundRoleInfo {
     Unknown
 }
 
-
 #[get("/home/<participant_uuid>")]
 async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnection>) -> Result<Template, Custom<String>> {
     let participant = domain::participant::Participant::get_many(
         db.inner(),
         vec![participant_uuid]
-    ).await.map_err(|e| match e {
-        domain::participant::ParticipantParseError::ParticipantDoesNotExist => Custom(Status::NotFound, "Participant not found".to_string()),
-        _ => handle_error(e)
+    ).await.map_err(|e| {
+        let cast_e = e.downcast_ref::<domain::participant::ParticipantParseError>();
+
+        match cast_e {
+            Some(&domain::participant::ParticipantParseError::ParticipantDoesNotExist) => Custom(Status::NotFound, "Participant not found".to_string()),
+            _ => handle_error_dyn(e)
+        }
     })?.into_iter().next().expect("List was empty. Apparently uuid missing error failed.");
 
     let rounds = domain::round::TournamentRound::get_all_in_tournament(db.inner(), participant.tournament_id).await.map_err(handle_error)?;
@@ -354,7 +359,7 @@ async fn config_rocket(db_config: DatabaseConfig) -> rocket::Rocket<rocket::Buil
     migration::Migrator::up(&db, None).await.unwrap();
 
     let groups = open_tab_entities::mock::make_mock_tournament();
-    dbg!(groups.debates[0].uuid);
+    dbg!(groups.tournament_debates[0].uuid);
     let e = groups.save_all(&db).await;
 
     rocket::build()

@@ -38,8 +38,8 @@ impl LoadedTournamentTreeView {
 
 #[async_trait]
 impl LoadedView for LoadedTournamentTreeView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
-        if changes.rounds.len() > 0 {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+        if changes.tournament_rounds.len() > 0 {
             self.view = TournamentTreeView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out = HashMap::new();

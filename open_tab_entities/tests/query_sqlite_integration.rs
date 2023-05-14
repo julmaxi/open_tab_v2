@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash, self}, mock::{self, MockOption}, queries::{query_all_participant_roles, ParticipantRoundRole}, prelude::{BallotTeam, Speech, SpeechRole}, EntityGroups, Entity};
+use open_tab_entities::{prelude::*, domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash, self}, mock::{self, MockOption}, queries::{query_all_participant_roles, ParticipantRoundRole}, prelude::{BallotTeam, Speech, SpeechRole}, EntityGroup, Entity};
 use sea_orm::prelude::*;
 
 
@@ -33,7 +33,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(200),
         round_id: Uuid::from_u128(100),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(300),
+        ballot_id: Uuid::from_u128(300),
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -50,7 +50,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(201),
         round_id: Uuid::from_u128(101),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(301),
+        ballot_id: Uuid::from_u128(301),
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -61,7 +61,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -88,7 +88,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(200),
         round_id: Uuid::from_u128(100),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(300),
+        ballot_id: Uuid::from_u128(300),
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -106,7 +106,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(201),
         round_id: Uuid::from_u128(101),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(301),
+        ballot_id: Uuid::from_u128(301),
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -121,7 +121,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -148,7 +148,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(200),
         round_id: Uuid::from_u128(100),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(300),
+        ballot_id: Uuid::from_u128(300),
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -161,7 +161,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(201),
         round_id: Uuid::from_u128(101),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(301),
+        ballot_id: Uuid::from_u128(301),
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -169,7 +169,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -195,7 +195,7 @@ async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(200),
         round_id: Uuid::from_u128(100),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(300),
+        ballot_id: Uuid::from_u128(300),
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -208,14 +208,14 @@ async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(201),
         round_id: Uuid::from_u128(101),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(301),
+        ballot_id: Uuid::from_u128(301),
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
         ..Default::default()
     };
 
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -239,7 +239,7 @@ async fn test_multiple_roles() -> Result<(), Box<dyn Error>> {
         uuid: Uuid::from_u128(200),
         round_id: Uuid::from_u128(100),
         index: 0,
-        current_ballot_uuid: Uuid::from_u128(300),
+        ballot_id: Uuid::from_u128(300),
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -258,7 +258,7 @@ async fn test_multiple_roles() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroups::new();
+    let mut groups = EntityGroup::new();
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::Ballot(ballot_1));
 

@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap, default};
 
 use itertools::Itertools;
 use migration::MigratorTrait;
-use open_tab_entities::{prelude::{Ballot, Tournament, Speech, TeamScore, SpeakerScore, BallotTeam, SpeechRole, TournamentDebate}, EntityGroups, Entity, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_entities::{prelude::*, EntityGroup, Entity, mock::{make_mock_tournament_with_options, MockOption}};
 use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 
 
@@ -250,13 +250,13 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
             TournamentDebate {
                 uuid: Uuid::from_u128(200),
                 round_id: Uuid::from_u128(100),
-                current_ballot_uuid: ballots[0].uuid,
+                ballot_id: ballots[0].uuid,
                 index: 0
             },
             TournamentDebate {
                 uuid: Uuid::from_u128(210),
                 round_id: Uuid::from_u128(101),
-                current_ballot_uuid: ballots[1].uuid,
+                ballot_id: ballots[1].uuid,
                 index: 0
             }
         ];

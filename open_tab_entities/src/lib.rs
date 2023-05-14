@@ -7,3 +7,4 @@ pub mod queries;
 pub mod mock;
 
 pub use group::*;
+pub use group::EntityGroupTrait;

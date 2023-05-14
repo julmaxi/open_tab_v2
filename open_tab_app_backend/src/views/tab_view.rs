@@ -4,6 +4,7 @@ use std::iter::{zip, self};
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
+use open_tab_entities::domain::entity::LoadEntity;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -36,7 +37,7 @@ impl LoadedTabView {
 
 #[async_trait]
 impl LoadedView for LoadedTabView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
         if changes.ballots.len() > 0 {
             self.view = TabView::load_from_tournament(db, self.tournament_uuid).await?;
 

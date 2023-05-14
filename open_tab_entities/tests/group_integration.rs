@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap, default};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, TournamentEntity, tournament::{Tournament, self}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution}, EntityGroups, Entity, schema::tournament_log};
+use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, TournamentEntity, tournament::{Tournament, self}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, Entity, schema::tournament_log, prelude::*};
 use sea_orm::prelude::*;
 
 
@@ -19,11 +19,11 @@ pub async fn set_up_db() -> Result<DatabaseConnection, DbErr> {
     Ok(db)
 }
 
-fn make_changeset() -> (EntityGroups, Ballot) {
-    let mut changeset = EntityGroups::new();
+fn make_changeset() -> (EntityGroup, Ballot) {
+    let mut changeset = EntityGroup::new();
     changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }));
     changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None }));
-    changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, current_ballot_uuid: Uuid::from_u128(100) }));
+    changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100) }));
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=401).map(|u| Uuid::from_u128(u as u128)).collect(),
@@ -86,7 +86,7 @@ fn make_changeset() -> (EntityGroups, Ballot) {
                 uuid: Uuid::from_u128(600),
                 declaring_participant_id: Uuid::from_u128(401),
                 target_participant_id: Uuid::from_u128(402),
-                severity: 2
+                clash_severity: 2
             }
         )
     );
@@ -130,7 +130,7 @@ async fn test_save_full_tournament_updates_log() -> Result<(), Box<dyn Error>> {
 async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
     let db = set_up_db().await?;
 
-    let mut changeset = EntityGroups::new();
+    let mut changeset = EntityGroup::new();
     changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }), Uuid::from_u128(10));
     changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None }), Uuid::from_u128(11));
 

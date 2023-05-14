@@ -5,6 +5,7 @@ use std::hash::Hash;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
+use open_tab_entities::domain::entity::LoadEntity;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -45,9 +46,9 @@ impl LoadedDrawView {
 
 #[async_trait]
 impl LoadedView for LoadedDrawView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroups) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
         // TODO: We assume, the debate index never changes, even though it could in theory
-        let changed_debates_by_id : HashMap<_, _> = changes.debates.iter().map(|d| (d.uuid, d)).collect();
+        let changed_debates_by_id : HashMap<_, _> = changes.tournament_debates.iter().map(|d| (d.uuid, d)).collect();
         let changed_ballots_by_id : HashMap<_, _> = changes.ballots.iter().map(|b| (b.uuid, b)).collect();
         let mut indices_to_reload : Vec<usize> = vec![];
 
@@ -72,7 +73,7 @@ impl LoadedView for LoadedDrawView {
                 indices_to_reload.push(idx);
 
                 if is_debate_changed {
-                    debate.ballot.uuid = changed_debates_by_id.get(&debate.uuid).unwrap().current_ballot_uuid; 
+                    debate.ballot.uuid = changed_debates_by_id.get(&debate.uuid).unwrap().ballot_id; 
                 }
             }
         }

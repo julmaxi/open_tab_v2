@@ -9,7 +9,7 @@ use sea_query::ValueTuple;
 
 use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution}, utilities::{BatchLoad, BatchLoadError}};
 
-use super::TournamentEntity;
+use super::{TournamentEntity, entity::LoadEntity};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Participant {
@@ -43,52 +43,39 @@ pub struct Adjudicator {
     pub panel_skill: i16
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum ParticipantParseError {
-    DbErr(DbErr),
+    #[error("Database error: {0}")]
+    DbErr(#[from] DbErr),
+    #[error("Multiple roles for participant")]
     MultipleRoles,
+    #[error("Participant does not exist")]
     ParticipantDoesNotExist
 }
 
-impl Display for ParticipantParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{:?}", self))?;
-        Ok(())
-    }
-}
+#[async_trait]
+impl LoadEntity for Participant {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Participant>>, Box<dyn Error>> where C: ConnectionTrait {
+        let participants = schema::participant::Entity::batch_load(db, uuids).await?;
 
-impl Error for ParticipantParseError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ParticipantParseError::DbErr(e) => Some(e),
-            _ => None
-        }
-    }
+        let has_value = participants.iter().map(|b| b.is_some()).collect_vec();
 
-    fn cause(&self) -> Option<&dyn Error> {
-        self.source()
-    }
-}
+        let mut participants = Self::load_participants(db, participants.into_iter().filter_map(|val| val).collect()).await?.into_iter();
 
-impl From<DbErr> for ParticipantParseError {
-    fn from(value: DbErr) -> Self {
-        ParticipantParseError::DbErr(value)
+        let out = has_value.into_iter().map(|has_v| {
+            if has_v {
+                participants.next()
+            }
+            else {
+                None
+            }
+        });
+        Ok(out.collect())
     }
 }
 
 
 impl Participant {
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
-        let participants = schema::participant::Entity::batch_load_all(db, uuids).await.map_err(
-            |e| match e {
-                BatchLoadError::DbErr(e) => ParticipantParseError::DbErr(e),
-                BatchLoadError::RowNotFound {..} => ParticipantParseError::ParticipantDoesNotExist
-            }
-        )?;
-
-        Self::load_participants(db, participants).await
-    }
-
     pub async fn get_all_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let participants = schema::participant::Entity::find().filter(schema::participant::Column::TournamentId.eq(Some(tournament_uuid))).all(db).await?;
         Self::load_participants(db, participants).await
@@ -166,8 +153,6 @@ impl<A, C, E, P> ChangeSet<A, C> where A: ActiveModelTrait<Entity = E> + IntoAct
         E::delete_many().filter(
             self.primary_key_col.is_in(c)
         ).exec(db).await?;
-
-//        E::insert_many(self.insert.clone()).exec(db).await?;
         
         for e in self.insert.clone().into_iter() {
             E::insert(e).exec(db).await?;
@@ -335,7 +320,7 @@ impl TournamentEntity for Participant {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
         Ok(Some(self.tournament_id))
     }
 
