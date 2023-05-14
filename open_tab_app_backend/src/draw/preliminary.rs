@@ -90,7 +90,6 @@ impl PreliminaryRoundGenerator {
         rounds: Vec<&TournamentRound>,
         evaluator: &DrawEvaluator
     ) -> Result<Vec<Vec<DrawBallot>>, PreliminaryDrawError> {
-        dbg!(&self.randomization_scale);
         if rounds.len() % 3 != 0 {
             return Err(PreliminaryDrawError::IncorrectRoundCount(rounds.len()));
         }
@@ -216,7 +215,6 @@ impl PreliminaryRoundGenerator {
                 out_ballots = find_best_ballot_assignments(&possible_ballots, evaluator, self.randomization_scale)?;
 
                 for non_aligned_position in 0..3 {
-                    println!("------{}-------", non_aligned_position);
                     let possible_ballots = non_aligned_bucket_position_buckets[non_aligned_position].iter().map(
                         |speaker_id| {
                             out_ballots.iter().map(
