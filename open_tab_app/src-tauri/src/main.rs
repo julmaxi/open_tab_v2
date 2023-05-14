@@ -1,19 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap, HashSet}, error::Error, hash::Hash, fmt::{Display, Formatter, format}, sync::{PoisonError}, time::Duration, borrow::Borrow, iter::zip};
+use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync::{PoisonError}, time::Duration, iter::zip};
 
-use migration::{MigratorTrait, async_trait::async_trait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{adjudicator, self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
-use open_tab_server::{TournamentUpdate, TournamentUpdateResponse, TournamentChanges};
+use migration::{MigratorTrait};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
+use open_tab_server::{TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
-use tauri::{async_runtime::block_on, State, App, AppHandle, Manager};
+use tauri::{async_runtime::block_on, State, AppHandle, Manager};
 use open_tab_entities::prelude::*;
-use itertools::{Itertools, izip};
+use itertools::{Itertools};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawDebate, DrawBallot, DrawView}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}};
+use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}};
 
 use tokio::sync::Mutex;
 
@@ -495,7 +495,7 @@ async fn guess_csv_config(path: String) -> Result<CSVReaderConfig, ()> {
 
 fn main() {
     let db = block_on(connect_db()).unwrap();
-    let (sync_notification_send, sync_notification_recv) = tauri::async_runtime::channel::<SyncNotification>(100);
+    let (_sync_notification_send, _sync_notification_recv) = tauri::async_runtime::channel::<SyncNotification>(100);
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![subscribe_to_view, execute_action, guess_csv_config, evaluate_ballots])
@@ -503,7 +503,7 @@ fn main() {
         .manage(Mutex::new(ViewCache::new()))
         .setup(|app| {
             let app_handle = app.handle();
-            let synchronization_function = async move {
+            let _synchronization_function = async move {
                 let target_uuid = Uuid::from_u128(1);
                 let client = reqwest::Client::new();
 

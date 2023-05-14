@@ -1,8 +1,8 @@
-use std::{error::Error, collections::HashMap, default};
+use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
 use migration::MigratorTrait;
-use open_tab_entities::{prelude::*, EntityGroup, Entity, mock::{make_mock_tournament_with_options, MockOption}, domain::entity::LoadEntity};
+use open_tab_entities::{prelude::*, mock::{make_mock_tournament_with_options, MockOption}, domain::entity::LoadEntity};
 use sea_orm::{prelude::*, Database, Statement};
 
 
@@ -12,7 +12,7 @@ use open_tab_app_backend::{actions::UpdateDrawAction, draw_view::{DrawBallot, Dr
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])
