@@ -337,7 +337,7 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
                     }
                 }
             },
-            open_tab_entities::prelude::ParticipantRole::Adjudicator(adj) => {
+            open_tab_entities::prelude::ParticipantRole::Adjudicator(_adj) => {
 
             },
         }
@@ -349,6 +349,7 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
 
 #[get("/debate/<debate_uuid>/ballot")]
 async fn get_ballot_submission_form(debate_uuid: Uuid) -> Result<rocket::response::content::RawHtml<String>, Custom<String>> {
+    dbg!(&debate_uuid);
     let path = Path::new("static/ballot_submission_form/index.html");
     Ok(rocket::response::content::RawHtml(std::fs::read_to_string(path).map_err(handle_error)?))
 }
@@ -360,7 +361,7 @@ async fn config_rocket(db_config: DatabaseConfig) -> rocket::Rocket<rocket::Buil
 
     let groups = open_tab_entities::mock::make_mock_tournament();
     dbg!(groups.tournament_debates[0].uuid);
-    let e = groups.save_all(&db).await;
+    groups.save_all(&db).await.unwrap();
 
     rocket::build()
         .attach(Template::fairing())
