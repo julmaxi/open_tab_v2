@@ -2,14 +2,14 @@ use std::error::Error;
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash, entity::LoadEntity};
+use open_tab_entities::domain::{participant::{Participant}, TournamentEntity, participant_clash::ParticipantClash, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])
@@ -106,7 +106,7 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), Box<dyn Error>> {
     clash.save(&db, true).await?;
 
 
-    let clashes = ParticipantClash::get_all_in_tournament(&db, Uuid::from_u128(1)).await?;
+    let _clashes = ParticipantClash::get_all_in_tournament(&db, Uuid::from_u128(1)).await?;
     let clashes = ParticipantClash::get_all_in_tournament(&db, Uuid::from_u128(2)).await?;
 
     assert_eq!(clashes.len(), 1);

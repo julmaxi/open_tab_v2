@@ -1,8 +1,8 @@
-use std::{error::Error, collections::HashMap, default};
+use std::{error::Error, collections::HashMap};
 
 use migration::MigratorTrait;
-use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, TournamentEntity, tournament::{Tournament, self}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, Entity, schema::tournament_log, prelude::*};
+use sea_orm::{DbErr, Database, Statement};
+use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, tournament::{Tournament}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, Entity, schema::tournament_log, prelude::*};
 use sea_orm::prelude::*;
 
 
@@ -10,7 +10,7 @@ pub async fn set_up_db() -> Result<DatabaseConnection, DbErr> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
 
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])

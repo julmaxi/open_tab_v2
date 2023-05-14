@@ -1,11 +1,11 @@
-use std::{collections::{HashMap, HashSet}, error::Error};
+use std::{collections::{HashMap}, error::Error};
 use itertools::Itertools;
 use sea_orm::prelude::*;
 
 use open_tab_entities::{domain::participant_clash::ParticipantClash, prelude::{Participant, Ballot, SpeechRole}, domain::participant::ParticipantRole};
 use serde::{Serialize, Deserialize};
 
-use crate::{draw_view::DrawBallot, tab_view::TeamRoundRole};
+
 
 #[derive(Debug, Clone)]
 pub struct ClashMap {

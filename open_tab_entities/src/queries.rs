@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use sea_query::PostgresQueryBuilder;
+
 use uuid::Uuid;
-use sea_orm::{ConnectionTrait, prelude::*, QuerySelect, QueryTrait};
+use sea_orm::{ConnectionTrait, prelude::*, QuerySelect};
 
 use crate::{schema, prelude::SpeechRole, domain::ballot::JudgeRole};
 

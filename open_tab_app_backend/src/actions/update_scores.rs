@@ -1,6 +1,6 @@
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
+use std::{error::Error};
 
-use itertools::{Itertools, izip};
+use itertools::{Itertools};
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::debate_backup_ballot::DebateBackupBallot};
 

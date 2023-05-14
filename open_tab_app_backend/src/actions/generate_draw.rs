@@ -42,7 +42,7 @@ impl ActionTrait for GenerateDrawAction {
             return  Err(Box::new(GenerateDrawActionError::RoundIsNotInTournament { tournament_id: self.tournament_id }));
         }
 
-        let prev_rounds_ballots = Ballot::get_all_in_rounds(db, other_rounds.iter().map(|r| r.uuid).collect()).await?;//.into_iter().into_group_map();
+        let _prev_rounds_ballots = Ballot::get_all_in_rounds(db, other_rounds.iter().map(|r| r.uuid).collect()).await?;//.into_iter().into_group_map();
 
         let tournament_info = TournamentParticipantsInfo::load(db, self.tournament_id).await?;
 

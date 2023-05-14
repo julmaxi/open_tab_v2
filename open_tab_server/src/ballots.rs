@@ -1,26 +1,26 @@
 
 use std::collections::hash_map::RandomState;
 use std::{collections::HashMap, error::Error};
-use chrono::Utc;
+
 use open_tab_entities::domain::ballot;
 use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::prelude::*;
-use open_tab_entities::{Entity, EntityGroup, get_changed_entities_from_log, domain};
-use open_tab_entities::domain::{ballot::Ballot, participant::Participant, TournamentEntity};
-use open_tab_entities::schema::{self, tournament_log, tournament};
-use rocket::fs::{FileServer, relative};
+use open_tab_entities::{Entity, domain};
+use open_tab_entities::domain::{ballot::Ballot};
+use open_tab_entities::schema::{self};
+
 use rocket::futures::TryFutureExt;
 use rocket::http::hyper::body::HttpBody;
 use rocket::response::status::Custom;
 use rocket::serde::{Deserialize, Serialize, json::Json};
-use migration::{MigratorTrait, Query, JoinType};
+use migration::{JoinType};
 use rocket::{State, get, post, routes, Route};
-use rocket_dyn_templates::{Template, context};
-use sea_orm::{prelude::*, Database, ConnectionTrait, DbBackend, Statement, QuerySelect, QueryOrder, TransactionTrait, ActiveValue, QueryTrait};
+
+use sea_orm::{prelude::*, ConnectionTrait, QuerySelect};
 use itertools::Itertools;
 use rocket::http::Status;
-use rocket::{Rocket, Build};
-use log::{info};
+
+
 
 use crate::handle_error_dyn;
 

@@ -1,5 +1,5 @@
 use sea_orm::prelude::Uuid;
-use std::fmt::Display;
+
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -10,8 +10,8 @@ use open_tab_entities::prelude::*;
 
 use open_tab_entities::schema::{self, tournament_round};
 
-use itertools::izip;
-use itertools::Itertools;
+
+
 
 use crate::LoadedView;
 

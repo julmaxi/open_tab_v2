@@ -1,8 +1,8 @@
 use open_tab_entities::domain::round::DrawType;
-use open_tab_entities::domain::tournament_break::{TournamentBreakSourceRoundType, TournamentBreak};
+use open_tab_entities::domain::tournament_break::{TournamentBreak};
 use sea_orm::prelude::Uuid;
-use std::fmt::Display;
-use std::hash::Hash;
+
+
 use std::vec;
 use std::{collections::HashMap, error::Error};
 
@@ -14,7 +14,7 @@ use open_tab_entities::prelude::*;
 
 use open_tab_entities::domain;
 
-use itertools::izip;
+
 use itertools::Itertools;
 
 use crate::draw::preliminary::MinorBreakRoundDrawType;

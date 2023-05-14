@@ -1,12 +1,12 @@
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
+use std::{error::Error};
 
-use itertools::{Itertools, izip};
+
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*};
 
 use sea_orm::prelude::*;
 
-use crate::{draw_view::DrawBallot, participants_list_view::ParticipantEntry};
+use crate::{participants_list_view::ParticipantEntry};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
@@ -19,7 +19,7 @@ pub struct UpdateParticipantsAction {
 
 #[async_trait]
 impl ActionTrait for UpdateParticipantsAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {

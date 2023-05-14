@@ -1,16 +1,16 @@
-use std::{default, error::Error, fmt::Display, collections::HashMap};
+use std::{error::Error, collections::HashMap};
 
 use open_tab_entities::{prelude::{TournamentRound, Ballot, Speech, SpeechRole, BallotTeam}, domain::round::DrawType};
-use rand::{thread_rng, seq::SliceRandom, Rng, SeedableRng, rngs::StdRng};
+use rand::{thread_rng, seq::SliceRandom, SeedableRng, rngs::StdRng};
 use sea_orm::prelude::Uuid;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
-use crate::{participants_list_view::{TeamEntry, ParticipantEntry}, draw_view::{DrawBallot, DrawTeam, DrawSpeaker}, tab_view::TeamRoundRole};
+use crate::{draw_view::{DrawBallot, DrawTeam, DrawSpeaker}, tab_view::TeamRoundRole};
 
 use itertools::Itertools;
 
-use sparse_linear_assignment::{KhoslaSolver, AuctionSolver};
+use sparse_linear_assignment::{AuctionSolver};
 
 use super::{evaluation::DrawEvaluator, optimization::find_best_ballot_assignments};
 

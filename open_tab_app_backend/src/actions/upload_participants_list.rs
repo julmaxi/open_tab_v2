@@ -1,12 +1,12 @@
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
+use std::{error::Error, collections::HashMap};
 
-use itertools::{Itertools, izip};
+use itertools::{Itertools};
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
 use sea_orm::prelude::*;
 
-use crate::{draw_view::DrawBallot, participants_list_view::ParticipantEntry, import::{CSVReaderConfig, ParticipantData}};
+use crate::{import::{CSVReaderConfig, ParticipantData}};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;

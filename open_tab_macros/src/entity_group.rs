@@ -9,7 +9,7 @@ use quote::quote;
 pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let name = quote!{input.ident};
+    let _name = quote!{input.ident};
 
     let variants_with_content_type = match input.data.clone() {
         syn::Data::Enum(e) => {
@@ -39,7 +39,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     }).collect::<HashMap<_, _>>();
 
     let entity_vec_declarations = 
-        variants_with_content_type.iter().enumerate().map(|(i, (variant, content_type))| {
+        variants_with_content_type.iter().enumerate().map(|(_i, (variant, content_type))| {
         let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
         quote! {
             pub #vec_ident : Vec<#content_type>
@@ -75,7 +75,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
     let id = input.ident.clone();
 
-    let add_match_fn = variants_with_content_type.iter().map(|(variant, content_type)| {
+    let add_match_fn = variants_with_content_type.iter().map(|(variant, _content_type)| {
         let vec_ident = entity_vec_idents.get(&variant.to_string()).expect("No vec ident found");
         quote! {
             #id::#variant(entity) => {
@@ -122,7 +122,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
         }
     };
 
-    let get_entity_statements = variants_with_content_type.iter().map(|(variant, content_type)| {
+    let get_entity_statements = variants_with_content_type.iter().map(|(variant, _content_type)| {
         let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
         let name_as_string = format!("\"{}\"", variant);
         quote! {
@@ -253,7 +253,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<(Ident, Type)>) -> TokenStream {
     let entity_ident = &input.ident;
 
-    let get_proc_order_arms = variants_with_content_type.iter().enumerate().map(|(idx, (variant, content_type))| {
+    let get_proc_order_arms = variants_with_content_type.iter().enumerate().map(|(idx, (variant, _content_type))| {
         let idx_lit = syn::LitInt::new(&idx.to_string(), entity_ident.span());
         quote! {
             #entity_ident::#variant(_) => #idx_lit,
@@ -268,7 +268,7 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
         }
     };
 
-    let get_name_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
+    let get_name_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
         let name_as_string = format!("{}", variant);
         quote! {
             #entity_ident::#variant(_) => #name_as_string.to_string(),
@@ -283,7 +283,7 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
         }
     };
 
-    let get_uuid_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
+    let get_uuid_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
         quote! {
             #entity_ident::#variant(e) => e.uuid,
         }

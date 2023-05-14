@@ -1,6 +1,6 @@
 use itertools::izip;
 use open_tab_entities::schema;
-use sea_orm::ActiveValue;
+
 use sea_orm::prelude::Uuid;
 use std::{collections::HashMap, error::Error};
 

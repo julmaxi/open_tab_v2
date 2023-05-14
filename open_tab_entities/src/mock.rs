@@ -1,14 +1,14 @@
 
-use std::{collections::HashMap, error::Error, hash::Hash, fmt::{Display, Formatter}};
+use std::{collections::HashMap};
 
-use crate::{EntityGroup, domain::{tournament::Tournament, ballot::SpeechRole, participant::ParticipantInstitution, participant_clash::ParticipantClash}, schema::{adjudicator, self}};
-use sea_orm::{prelude::*, Statement, Database};
+use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash}};
+use sea_orm::{prelude::*};
 use crate::prelude::*;
-use itertools::{Itertools, izip};
-use serde::{Serialize, Deserialize};
+use itertools::{Itertools};
+
 
 use faker_rand::en_us::{names::FullName, company::CompanyName};
-use rand::{Rng, thread_rng};
+
 use crate::group::EntityGroupTrait;
 
 use crate::domain::round::DrawType;

@@ -1,13 +1,13 @@
-use std::{fmt::Display, error::Error, collections::{HashMap, HashSet, hash_map::RandomState}, marker::PhantomData, vec};
+use std::{error::Error, collections::{HashMap, hash_map::RandomState}, vec};
 
 use async_trait::async_trait;
 use itertools::{izip, Itertools};
-use sea_orm::{prelude::*, Database, IntoActiveModel, ActiveValue};
+use sea_orm::{prelude::*, IntoActiveModel, ActiveValue};
 use serde::{Serialize, Deserialize};
 use sea_query::ValueTuple;
 
 
-use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution}, utilities::{BatchLoad, BatchLoadError}};
+use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution}, utilities::{BatchLoad}};
 
 use super::{TournamentEntity, entity::LoadEntity};
 

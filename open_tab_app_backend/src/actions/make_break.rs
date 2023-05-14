@@ -1,13 +1,13 @@
-use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap, cmp::Ordering};
+use std::{error::Error, collections::HashMap, cmp::Ordering};
 
-use itertools::{Itertools, izip};
+use itertools::{Itertools};
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreakSourceRoundType, entity::LoadEntity}};
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
 
-use crate::{draw_view::DrawBallot, participants_list_view::ParticipantEntry, views, TournamentParticipantsInfo};
+use crate::{views, TournamentParticipantsInfo};
 use serde::{Serialize, Deserialize};
 use open_tab_entities::domain::tournament_break::TournamentBreak;
 use super::ActionTrait;

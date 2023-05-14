@@ -1,15 +1,15 @@
 use std::{error::Error, collections::HashMap};
 
 use migration::MigratorTrait;
-use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::{prelude::*, domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::Ballot, TournamentEntity, participant_clash::ParticipantClash, self}, mock::{self, MockOption}, queries::{query_all_participant_roles, ParticipantRoundRole}, prelude::{BallotTeam, Speech, SpeechRole}, EntityGroup, Entity};
+use sea_orm::{Database, Statement};
+use open_tab_entities::{prelude::*, domain::{self}, mock::{self, MockOption}, queries::{query_all_participant_roles, ParticipantRoundRole}, prelude::{BallotTeam, Speech, SpeechRole}, EntityGroup, Entity};
 use sea_orm::prelude::*;
 
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])

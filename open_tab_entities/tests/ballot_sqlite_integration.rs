@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
+use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::{MigratorTrait};
 
@@ -10,7 +10,7 @@ use open_tab_entities::domain::TournamentEntity;
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])

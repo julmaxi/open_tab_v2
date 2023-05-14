@@ -1,7 +1,7 @@
 use std::collections::HashSet;
-use std::default;
+
 use std::fmt::Display;
-use std::hash::Hash;
+
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -16,7 +16,7 @@ use open_tab_entities::schema::{self, tournament_round};
 use itertools::izip;
 use itertools::Itertools;
 
-use crate::draw::clashes::{ClashMap, ClashMapConfig};
+
 use crate::draw::evaluation::{DrawEvaluator, DrawIssue};
 
 use super::base::{LoadedView, TournamentParticipantsInfo};
@@ -346,7 +346,7 @@ impl DrawView {
         info: &TournamentParticipantsInfo,
         evaluator: &DrawEvaluator
     ) -> DrawBallot {
-        let all_ballot_participant_uuids = ballot.speeches.iter().filter_map(|speech| {
+        let _all_ballot_participant_uuids = ballot.speeches.iter().filter_map(|speech| {
             if speech.role == SpeechRole::NonAligned {
                 if let Some(speaker_uuid) = speech.speaker {
                     Some(speaker_uuid)
@@ -513,7 +513,7 @@ impl DrawView {
         // from the tournament.
         let participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 
-        let clash_map = crate::draw::clashes::ClashMap::new_for_tournament(Default::default(), round.tournament_id, db).await?;
+        let _clash_map = crate::draw::clashes::ClashMap::new_for_tournament(Default::default(), round.tournament_id, db).await?;
 
         //clash_map.add_dynamic_clashes_from_round_ballots(round_draws, &participant_info.team_members);
         //let evaluator = crate::draw::evaluation::DrawEvaluator::new(clash_map, Default::default());

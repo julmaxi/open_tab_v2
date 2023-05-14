@@ -1,8 +1,8 @@
-use std::{error::Error, collections::HashMap};
+use std::{error::Error};
 
-use itertools::Itertools;
-use open_tab_entities::{prelude::*, domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore, BallotParseError}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_break::{BreakType, TournamentBreakSourceRoundType}}, mock::{self, MockOption}};
-use sea_orm::{prelude::*, Database, Statement, ActiveValue};
+
+use open_tab_entities::{prelude::*, domain::{tournament_break::{BreakType, TournamentBreakSourceRoundType}}, mock::{self, MockOption}};
+use sea_orm::{prelude::*, Database, Statement};
 use migration::{MigratorTrait};
 
 use open_tab_entities::domain::tournament_break::TournamentBreak;
@@ -11,7 +11,7 @@ use open_tab_entities::domain::TournamentEntity;
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let r = db.execute(Statement::from_sql_and_values(
+    let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])

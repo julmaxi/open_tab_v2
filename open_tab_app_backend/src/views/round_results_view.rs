@@ -1,8 +1,8 @@
-use itertools::izip;
+
 use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::schema;
-use sea_orm::ActiveValue;
+
 use sea_orm::QueryOrder;
 use sea_orm::prelude::Uuid;
 use std::{collections::HashMap, error::Error};
@@ -13,7 +13,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use open_tab_entities::prelude::*;
 
-use open_tab_entities::domain;
+
 
 use itertools::Itertools;
 

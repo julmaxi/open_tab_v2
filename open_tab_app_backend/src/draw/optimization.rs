@@ -1,12 +1,12 @@
-use std::{default, error::Error, fmt::Display, collections::{VecDeque, HashMap}, iter::zip};
+use std::{error::Error, collections::{VecDeque}, iter::zip};
 
-use open_tab_entities::prelude::TournamentRound;
-use rand::{thread_rng, seq::SliceRandom, Rng};
-use sea_orm::prelude::Uuid;
 
-use crate::{participants_list_view::{TeamEntry, ParticipantEntry}, draw_view::{DrawBallot, DrawTeam, DrawSpeaker}, tab_view::TeamRoundRole};
+use rand::{thread_rng};
 
-use itertools::Itertools;
+
+use crate::{draw_view::{DrawBallot}};
+
+
 
 use sparse_linear_assignment::{ForwardAuctionSolver, AuctionSolver};
 
@@ -57,7 +57,7 @@ fn auction_algorithm(
     for _ in 0..10000 {
         if let Some(next) = queue.pop_front() {
             let bids = weights.get_option_ballots(next);
-            let (best_bid, _) = zip(bids.iter(), prices.iter()).map(|(weight, price)| weight - price).enumerate().filter(|(idx, b)| b > &0.0).max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap();
+            let (best_bid, _) = zip(bids.iter(), prices.iter()).map(|(weight, price)| weight - price).enumerate().filter(|(_idx, b)| b > &0.0).max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap();
 
             if owners[best_bid] == usize::MAX {
                 owners[best_bid] = next;
@@ -74,8 +74,8 @@ fn auction_algorithm(
     owners.into_iter().enumerate().map(|(obj, owner)| (owner, obj)).collect()
 }
 
-pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
-    let mut rng = thread_rng();
+pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
+    let _rng = thread_rng();
     let mut matrix = Matrix::new(ballots.len(), ballots[0].len());
     for (option_idx, ballot_options) in ballots.iter().enumerate() {
         for (ballot_idx, ballot) in ballot_options.iter().enumerate() {
@@ -109,11 +109,11 @@ pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evalu
 }
 
 
-pub(crate) fn find_best_ballot_assignments_old(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
+pub(crate) fn find_best_ballot_assignments_old(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
     let (mut solver, mut solution) = ForwardAuctionSolver::new(ballots.len().into(), ballots[0].len().into(), (ballots.len() * ballots[0].len()).into());
 
     solver.init(ballots.len() as u32, ballots[0].len() as u32)?;
-    let mut rng = thread_rng();
+    let _rng = thread_rng();
     for (option_idx, ballot_options) in ballots.iter().enumerate() {
         for (ballot_idx, ballot) in ballot_options.iter().enumerate() {
             let issues = evaluator.find_issues_in_ballot(ballot);
