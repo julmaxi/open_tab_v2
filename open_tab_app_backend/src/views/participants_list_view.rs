@@ -1,3 +1,5 @@
+use base64::Engine;
+use base64::engine::general_purpose;
 use itertools::izip;
 use open_tab_entities::schema;
 
@@ -77,7 +79,8 @@ pub struct ParticipantEntry {
     #[serde(flatten)]
     pub role: ParticipantRole,
     pub clashes: Vec<Clash>,
-    pub institutions: Vec<Institution>
+    pub institutions: Vec<Institution>,
+    pub registration_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +122,7 @@ impl ParticipantsListView {
             uuid: p.uuid,
             tournament_id: Uuid::nil(),
             name: "".into(),
+            registration_key: None,
         }).collect_vec().load_many(schema::participant_tournament_institution::Entity, db).await?;
 
         let all_clashes = schema::participant_clash::Entity::find()
@@ -174,7 +178,8 @@ impl ParticipantsListView {
                         panel_skill
                     },
                     institutions,
-                    clashes
+                    clashes,
+                    registration_key: p.registration_key.map(|k| general_purpose::STANDARD_NO_PAD.encode(k))
                 }),
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
@@ -185,7 +190,8 @@ impl ParticipantsListView {
                             name: p.name,
                             role: ParticipantRole::Speaker { team_id  },
                             institutions,
-                            clashes
+                            clashes,
+                            registration_key: p.registration_key.map(|k| general_purpose::STANDARD_NO_PAD.encode(k))
                         })    
                     }
                     else {

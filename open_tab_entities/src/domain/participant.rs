@@ -18,7 +18,7 @@ pub struct Participant {
     pub role: ParticipantRole,
     pub tournament_id: Uuid,
     pub institutions: Vec<ParticipantInstitution>,
-    pub registration_key: Option<String>,
+    pub registration_key: Option<Vec<u8>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -203,7 +203,8 @@ impl TournamentEntity for Participant {
             let mut participant_change = schema::participant::ActiveModel {
                 uuid: ActiveValue::Unchanged(ent.uuid),
                 tournament_id: ActiveValue::Set(ent.tournament_id),
-                name: ActiveValue::Set(ent.name.clone())
+                name: ActiveValue::Set(ent.name.clone()),
+                ..Default::default()
             };
 
             if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
@@ -336,6 +337,7 @@ fn test_get_speaker() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
+            registration_key: None
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),
@@ -364,6 +366,7 @@ fn test_get_adjudicator() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
+            registration_key: None
         },
         None,
         Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
@@ -388,6 +391,7 @@ fn test_mixed_role_error() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
+            registration_key: None
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),
@@ -409,6 +413,7 @@ fn test_get_institutions() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
+            registration_key: None
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),

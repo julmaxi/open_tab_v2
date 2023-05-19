@@ -1,9 +1,11 @@
 use std::{error::Error, collections::HashMap};
 
+use base64::{engine::general_purpose, Engine};
 use itertools::{Itertools};
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
+use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
 
 use crate::{import::{CSVReaderConfig, ParticipantData}};
@@ -139,6 +141,8 @@ impl UploadParticipantsListAction {
                         clash_severity: 100
                     }
                 }).collect::<Vec<_>>();
+
+            let registration_key : [u8; 32] = thread_rng().gen();
  
             let out_participant_entity = open_tab_entities::domain::participant::Participant {
                 uuid: uuid,
@@ -146,6 +150,7 @@ impl UploadParticipantsListAction {
                 role,
                 institutions,
                 tournament_id: self.tournament_id,
+                registration_key: Some(registration_key.to_vec())
             };
 
             out_entities.push(Entity::Participant(out_participant_entity));

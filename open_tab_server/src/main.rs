@@ -463,7 +463,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
         
@@ -497,7 +498,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
         let change2 = Entity::Participant(
@@ -506,7 +508,8 @@ mod test {
                 name: "Test 2".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
        
@@ -540,7 +543,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
         let change2 = Entity::Participant(
@@ -549,7 +553,8 @@ mod test {
                 name: "Test 2".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(2),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
        
@@ -576,7 +581,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
         let change2 = Entity::Participant(
@@ -585,7 +591,8 @@ mod test {
                 name: "Test 2".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
        
@@ -613,7 +620,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
 
@@ -647,7 +655,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
 
@@ -667,7 +676,8 @@ mod test {
                 name: "Test2".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
 
@@ -702,7 +712,8 @@ mod test {
                 name: "Test".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
 
@@ -722,7 +733,8 @@ mod test {
                 name: "Test2".into(),
                 role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {..Default::default()}),
                 tournament_id: Uuid::from_u128(1),
-                institutions: vec![]
+                institutions: vec![],
+                registration_key: None
             }
         );
 

@@ -120,7 +120,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                 name,
                 tournament_id: tournament_uuid,
                 role: ParticipantRole::Speaker(Speaker { team_id: Some(team.uuid) }),
-                institutions
+                institutions,
+                registration_key: None
             }
         }).collect_vec();
 
@@ -151,7 +152,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             name,
             tournament_id: tournament_uuid,
             role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
-            institutions
+            institutions,
+            registration_key: None
         }
     }).collect_vec();
 

@@ -1,6 +1,7 @@
 use std::{error::Error};
 
 
+use base64::{engine::general_purpose, Engine};
 use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*};
 
@@ -32,7 +33,8 @@ impl ActionTrait for UpdateParticipantsAction {
                         crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill })
                     },
                     tournament_id: self.tournament_id,
-                    institutions: vec![]
+                    institutions: vec![],
+                    registration_key: participant.registration_key.map(|r| general_purpose::STANDARD_NO_PAD.decode(r)).transpose()?
                 }
             ));
         }

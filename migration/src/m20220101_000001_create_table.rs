@@ -70,6 +70,7 @@ enum Ballot {
 enum Participant {
     Table,
     Uuid,
+    RegistrationKey,
     TournamentId,
     Name,
     Secret
@@ -310,6 +311,7 @@ impl MigrationTrait for Migration {
                 .if_not_exists()
                 .col(ColumnDef::new(Participant::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(Participant::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(Participant::RegistrationKey).binary_len(32))
                 .col(ColumnDef::new(Participant::Name).string().not_null())
                 .col(ColumnDef::new(Participant::Secret).binary_len(64))
                 .to_owned()
