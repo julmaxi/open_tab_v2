@@ -181,13 +181,13 @@ async fn test_ballot_teams_roundtrip() -> Result<(), Box<dyn Error>> {
         government: BallotTeam {
             team: Some(Uuid::from_u128(200)),
             scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(402), TeamScore::Aggregate(140)), (Uuid::from_u128(403), TeamScore::Aggregate(143))].into_iter()
+                vec![(Uuid::from_u128(402), TeamScore::Aggregate { total: 140 }), (Uuid::from_u128(403), TeamScore::Aggregate { total: 143 })].into_iter()
             ),
             ..Default::default()
         },
         opposition: BallotTeam {
             team: Some(Uuid::from_u128(201)),
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate(140))].into_iter())
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate { total: 140 })].into_iter())
         },
         ..Default::default()
     }, true).await?;
@@ -219,7 +219,7 @@ async fn judge_not_in_adjudicators_can_not_score_team() -> Result<(), Box<dyn Er
         government: BallotTeam {
             team: Some(Uuid::from_u128(200)),
             scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(405), TeamScore::Aggregate(54))].into_iter(),
+                vec![(Uuid::from_u128(405), TeamScore::Aggregate { total: 54 })].into_iter(),
             )
         },
         ..Default::default()
@@ -238,7 +238,7 @@ async fn test_speeches_roundtrip() -> Result<(), Box<dyn Error>> {
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
         speeches: vec![
             Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(401), SpeakerScore::Aggregate(54)), (Uuid::from_u128(402), SpeakerScore::Aggregate(32))].into_iter(),
+                vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 54 }), (Uuid::from_u128(402), SpeakerScore::Aggregate { total: 32 })].into_iter(),
             )
         }],
         ..Default::default()
@@ -255,7 +255,7 @@ async fn test_judge_not_in_adjudicators_can_not_score_speech() -> Result<(), Box
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
         speeches: vec![
             Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(405), SpeakerScore::Aggregate(54))].into_iter(),
+                vec![(Uuid::from_u128(405), SpeakerScore::Aggregate { total: 54 })].into_iter(),
             )
         }],
         ..Default::default()
@@ -358,14 +358,14 @@ async fn test_reorder_annotators_keeps_scores_with_judges() -> Result<(), Box<dy
         adjudicators: vec![Uuid::from_u128(401), Uuid::from_u128(402)],
         government: BallotTeam {
             team: None,
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate(23))])
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate { total: 23 })])
         },
         opposition: BallotTeam {
             team: None,
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(402), TeamScore::Aggregate(53))])
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(402), TeamScore::Aggregate { total: 53 })])
         },
         speeches: vec![
-            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(vec![(Uuid::from_u128(401), SpeakerScore::Aggregate(43))]) }
+            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]) }
         ],
         ..Default::default()
     };
@@ -388,7 +388,7 @@ async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), Box<dyn Er
         adjudicators: vec![Uuid::from_u128(401), Uuid::from_u128(402)],
         government: BallotTeam {
             team: None,
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate(23)), (Uuid::from_u128(402), TeamScore::Aggregate(53))])
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(401), TeamScore::Aggregate { total: 23 }), (Uuid::from_u128(402), TeamScore::Aggregate { total: 53 })])
         },
         speeches: vec![
             Speech {
@@ -396,7 +396,7 @@ async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), Box<dyn Er
                 role: ballot::SpeechRole::Government,
                 position: 0,
                 scores: HashMap::from_iter(
-                    vec![(Uuid::from_u128(401), SpeakerScore::Aggregate(43))]
+                    vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]
                 )
             }
         ],
@@ -426,7 +426,7 @@ async fn test_remove_adjudicators_deletes_speech_scores() -> Result<(), Box<dyn 
                 role: ballot::SpeechRole::Government,
                 position: 0,
                 scores: HashMap::from_iter(
-                    vec![(Uuid::from_u128(402), SpeakerScore::Aggregate(43)), (Uuid::from_u128(401), SpeakerScore::Aggregate(43))]
+                    vec![(Uuid::from_u128(402), SpeakerScore::Aggregate { total: 43 }), (Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]
                 )
             }
         ],
@@ -471,7 +471,8 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
         uuid: Uuid::from_u128(21),
         tournament_id: tournament.uuid,
         index: 0,
-        draw_type: None
+        draw_type: None,
+        ..Default::default()
     };
     round.save(&db, true).await?;
 

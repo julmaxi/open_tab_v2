@@ -15,6 +15,7 @@ use rocket::response::status::Custom;
 use rocket::serde::{Deserialize, Serialize, json::Json};
 use migration::{MigratorTrait, Query, JoinType};
 use rocket::State;
+use rocket_cors::{AllowedOrigins, Method};
 use rocket_dyn_templates::{Template, context};
 use sea_orm::{prelude::*, Database, ConnectionTrait, DbBackend, Statement, QuerySelect, QueryOrder, TransactionTrait, ActiveValue, QueryTrait};
 use itertools::Itertools;
@@ -349,7 +350,6 @@ async fn participant_homepage(participant_uuid: Uuid, db: &State<DatabaseConnect
 
 #[get("/debate/<debate_uuid>/ballot")]
 async fn get_ballot_submission_form(debate_uuid: Uuid) -> Result<rocket::response::content::RawHtml<String>, Custom<String>> {
-    dbg!(&debate_uuid);
     let path = Path::new("static/ballot_submission_form/index.html");
     Ok(rocket::response::content::RawHtml(std::fs::read_to_string(path).map_err(handle_error)?))
 }
@@ -363,8 +363,18 @@ async fn config_rocket(db_config: DatabaseConfig) -> rocket::Rocket<rocket::Buil
     dbg!(groups.tournament_debates[0].uuid);
     groups.save_all(&db).await.unwrap();
 
+    let allowed_origins = AllowedOrigins::All;
+
+    // You can also deserialize this
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        ..Default::default()
+    }
+    .to_cors().unwrap();
+
     rocket::build()
         .attach(Template::fairing())
+        .attach(cors)
         .manage(db)
         .mount("/static", FileServer::from(relative!("static")))
         .mount("/", routes![

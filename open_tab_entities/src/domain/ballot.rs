@@ -168,27 +168,29 @@ impl BallotTeam {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag="type")]
 pub enum SpeakerScore {
-    Aggregate(i16)
+    Aggregate { total: i16 }
 }
 
 impl SpeakerScore {
     pub fn total(&self) -> i16{
         match self {
-            SpeakerScore::Aggregate(s) => *s,
+            SpeakerScore::Aggregate { total: s } => *s,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag="type")]
 pub enum TeamScore {
-    Aggregate(i16)
+    Aggregate { total: i16 }
 }
 
 impl TeamScore {
     pub fn total(&self) -> i16 {
         match self {
-            TeamScore::Aggregate(s) => *s,
+            TeamScore::Aggregate { total: s } => *s,
         }
     }
 }
@@ -286,10 +288,10 @@ impl Ballot {
         let opp_team_id = opp_team_id.flatten();
 
         let gov_scores : HashMap<Uuid, TeamScore> = team_scores.iter().filter(|s| s.role_id == "g").map(
-            |score| (score.adjudicator_id, TeamScore::Aggregate(score.manual_total_score.unwrap() as i16))
+            |score| (score.adjudicator_id, TeamScore::Aggregate { total: score.manual_total_score.unwrap() as i16 })
         ).collect();
         let opp_scores : HashMap<Uuid, TeamScore> = team_scores.iter().filter(|s| s.role_id == "o").map(
-            |score| (score.adjudicator_id, TeamScore::Aggregate(score.manual_total_score.unwrap() as i16))
+            |score| (score.adjudicator_id, TeamScore::Aggregate { total: score.manual_total_score.unwrap() as i16 })
         ).collect();
 
         if gov_scores.len() + opp_scores.len() != team_scores.len() {
@@ -310,7 +312,7 @@ impl Ballot {
         for score in  speech_scores.into_iter() {
             speech_score_map.entry((score.speech_role, score.speech_position)).or_insert(HashMap::new()).insert(
                 score.adjudicator_id,
-                SpeakerScore::Aggregate(score.manual_total_score.unwrap_or(0) as i16)
+                SpeakerScore::Aggregate { total: score.manual_total_score.unwrap_or(0) as i16 }
             );
         };
 
@@ -1112,7 +1114,7 @@ fn test_get_ballot_speech_scores() -> Result<(), BallotParseError> {
                 speech_role: "g".into(), speech_position: 0, manual_total_score: Some(72) }
         ])?;
 
-    assert_eq!(ballot.speeches[0].scores, HashMap::from_iter(vec![(Uuid::from_u128(301), SpeakerScore::Aggregate(72))].into_iter()));
+    assert_eq!(ballot.speeches[0].scores, HashMap::from_iter(vec![(Uuid::from_u128(301), SpeakerScore::Aggregate { total: 72 })].into_iter()));
 
     Ok(())
 }
@@ -1133,7 +1135,7 @@ fn test_get_ballot_team_scores() -> Result<(), BallotParseError> {
         vec![],
         vec![])?;
 
-    assert_eq!(ballot.government.scores, HashMap::from_iter(vec![(Uuid::from_u128(301), TeamScore::Aggregate(32))].into_iter()));
+    assert_eq!(ballot.government.scores, HashMap::from_iter(vec![(Uuid::from_u128(301), TeamScore::Aggregate { total: 32 })].into_iter()));
 
     Ok(())
 }

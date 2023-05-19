@@ -17,7 +17,8 @@ pub struct Participant {
     pub name: String,
     pub role: ParticipantRole,
     pub tournament_id: Uuid,
-    pub institutions: Vec<ParticipantInstitution>
+    pub institutions: Vec<ParticipantInstitution>,
+    pub registration_key: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -120,6 +121,7 @@ impl Participant {
         Ok(Participant {
             uuid: participant.uuid,
             name: participant.name,
+            registration_key: participant.registration_key,
             role: role,
             tournament_id: participant.tournament_id,
             institutions: institutions

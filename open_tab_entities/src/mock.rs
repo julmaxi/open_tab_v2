@@ -161,7 +161,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             uuid,
             tournament_id: tournament_uuid,
             index: i as u64,
-            draw_type: Some(DrawType::StandardPreliminaryDraw)
+            draw_type: Some(DrawType::StandardPreliminaryDraw),
+            ..Default::default()
         }
     }).collect_vec();
 

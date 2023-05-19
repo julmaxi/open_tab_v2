@@ -203,7 +203,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
             speaker: None,
             role: open_tab_entities::prelude::SpeechRole::Government,
             position: 0,
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate(61))].into_iter()),
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate { total: 61 })].into_iter()),
         }
     ];
     prev_ballot.save(&db, false).await?;
@@ -224,7 +224,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
 
     let ballot = &Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?[0];
 
-    assert_eq!(ballot.speeches[0].scores.get(&Uuid::from_u128(3003)), Some(&SpeakerScore::Aggregate(61)));
+    assert_eq!(ballot.speeches[0].scores.get(&Uuid::from_u128(3003)), Some(&SpeakerScore::Aggregate { total: 61 }));
     assert_eq!(ballot.government.scores.get(&Uuid::from_u128(3003)), Some(&TeamScore::Aggregate(123)));
     assert_eq!(ballot.president, None);
 
@@ -245,7 +245,7 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dy
             speaker: None,
             role: open_tab_entities::prelude::SpeechRole::Government,
             position: 0,
-            scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate(61))].into_iter()),
+            scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate { total: 61 })].into_iter()),
         }
     ];
     prev_ballot.save(&db, false).await?;

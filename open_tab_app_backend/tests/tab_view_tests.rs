@@ -28,18 +28,18 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
             government: BallotTeam {
                 team: Some(Uuid::from_u128(1000)),
                 scores: vec![
-                    (Uuid::from_u128(3000), TeamScore::Aggregate(120)),
-                    (Uuid::from_u128(3001), TeamScore::Aggregate(20)),
-                    (Uuid::from_u128(3002), TeamScore::Aggregate(100)),
+                    (Uuid::from_u128(3000), TeamScore::Aggregate { total: 120 }),
+                    (Uuid::from_u128(3001), TeamScore::Aggregate { total: 20 }),
+                    (Uuid::from_u128(3002), TeamScore::Aggregate { total: 100 }),
                 ].into_iter().collect(),
                 ..Default::default()
             },
             opposition: BallotTeam {
                 team: Some(Uuid::from_u128(1001)),
                 scores: vec![
-                    (Uuid::from_u128(3000), TeamScore::Aggregate(100)),
-                    (Uuid::from_u128(3001), TeamScore::Aggregate(100)),
-                    (Uuid::from_u128(3002), TeamScore::Aggregate(100)),
+                    (Uuid::from_u128(3000), TeamScore::Aggregate { total: 100 }),
+                    (Uuid::from_u128(3001), TeamScore::Aggregate { total: 100 }),
+                    (Uuid::from_u128(3002), TeamScore::Aggregate { total: 100 }),
                 ].into_iter().collect(),
                 ..Default::default()
             },
@@ -49,9 +49,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(53)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(60)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(70)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 53 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 60 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 70 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -59,9 +59,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -69,9 +69,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(20)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(21)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(20)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 20 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 21 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 20 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -79,9 +79,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -89,9 +89,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(80)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(70)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(70)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 80 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 70 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 70 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -99,9 +99,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(80)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(70)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(71)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 80 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 70 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 71 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -109,9 +109,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(51)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 51 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -119,9 +119,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -129,9 +129,9 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3002), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3002), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
             ],
@@ -144,16 +144,16 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
             government: BallotTeam {
                 team: Some(Uuid::from_u128(1003)),
                 scores: vec![
-                    (Uuid::from_u128(3000), TeamScore::Aggregate(100)),
-                    (Uuid::from_u128(3001), TeamScore::Aggregate(100)),
+                    (Uuid::from_u128(3000), TeamScore::Aggregate { total: 100 }),
+                    (Uuid::from_u128(3001), TeamScore::Aggregate { total: 100 }),
                 ].into_iter().collect(),
                 ..Default::default()
             },
             opposition: BallotTeam {
                 team: Some(Uuid::from_u128(1000)),
                 scores: vec![
-                    (Uuid::from_u128(3000), TeamScore::Aggregate(120)),
-                    (Uuid::from_u128(3001), TeamScore::Aggregate(121)),
+                    (Uuid::from_u128(3000), TeamScore::Aggregate { total: 120 }),
+                    (Uuid::from_u128(3001), TeamScore::Aggregate { total: 121 }),
                 ].into_iter().collect(),
                 ..Default::default()
             },
@@ -163,8 +163,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -172,8 +172,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -181,8 +181,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -190,8 +190,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -199,8 +199,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 0,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -208,8 +208,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 1,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -217,8 +217,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::NonAligned,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -226,8 +226,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Opposition,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
                 Speech {
@@ -235,8 +235,8 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                     role: SpeechRole::Government,
                     position: 2,
                     scores: vec![
-                        (Uuid::from_u128(3000), SpeakerScore::Aggregate(50)),
-                        (Uuid::from_u128(3001), SpeakerScore::Aggregate(50)),
+                        (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
+                        (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
                     ].into_iter().collect()
                 },
             ],

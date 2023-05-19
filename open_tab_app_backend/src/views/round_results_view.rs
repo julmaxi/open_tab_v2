@@ -5,6 +5,7 @@ use open_tab_entities::schema;
 
 use sea_orm::QueryOrder;
 use sea_orm::prelude::Uuid;
+use std::path::Display;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -87,6 +88,7 @@ pub struct DisplayBallot {
     pub uuid: Uuid,
 
     pub adjudicators: Vec<DisplayAdjudicator>,
+    pub president: Option<DisplayAdjudicator>,
     pub government: DisplayBallotTeam,
     pub opposition: DisplayBallotTeam,
 
@@ -131,6 +133,11 @@ impl DisplayBallot {
             uuid: *adjudicator,
             name: info.participants_by_id.get(adjudicator).map(|adj| adj.name.clone()).unwrap_or("Unknown".into())
         }).collect_vec();
+
+        let president = ballot.president.map(|president| DisplayAdjudicator {
+            uuid: president,
+            name: info.participants_by_id.get(&president).map(|adj| adj.name.clone()).unwrap_or("Unknown".into())
+        });
 
         let government = DisplayBallotTeam {
             uuid: ballot.government.team,
@@ -180,7 +187,8 @@ impl DisplayBallot {
             adjudicators,
             government,
             opposition,
-            speeches
+            speeches,
+            president
         }
     }
 }
@@ -191,17 +199,17 @@ impl Into<Ballot> for DisplayBallot {
         let adjudicators = self.adjudicators.into_iter().map(|adj| adj.uuid).collect_vec();
         let government = BallotTeam {
             team: self.government.uuid,
-            scores: self.government.scores.into_iter().map(|(adj, score)| (adj, TeamScore::Aggregate(score))).collect()
+            scores: self.government.scores.into_iter().map(|(adj, score)| (adj, TeamScore::Aggregate { total: score })).collect()
         };
         let opposition = BallotTeam {
             team: self.opposition.uuid,
-            scores: self.opposition.scores.into_iter().map(|(adj, score)| (adj, TeamScore::Aggregate(score))).collect()
+            scores: self.opposition.scores.into_iter().map(|(adj, score)| (adj, TeamScore::Aggregate { total: score })).collect()
         };
         let speeches = self.speeches.into_iter().map(|speech| Speech {
             speaker: speech.speaker.map(|speaker| speaker.uuid),
             position: speech.position,
             role: speech.role,
-            scores: speech.scores.into_iter().map(|(adj, score)| (adj, SpeakerScore::Aggregate(score))).collect()
+            scores: speech.scores.into_iter().map(|(adj, score)| (adj, SpeakerScore::Aggregate { total: score })).collect()
         }).collect_vec();
 
         Ballot {

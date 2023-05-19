@@ -18,7 +18,7 @@ pub enum DrawType {
     BalancedRandomized
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, SimpleEntity)]
+#[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize, Clone, SimpleEntity)]
 #[module_path = "crate::schema::tournament_round"]
 #[tournament_id = "tournament_id"]
 pub struct TournamentRound {
@@ -26,7 +26,9 @@ pub struct TournamentRound {
     pub tournament_id: Uuid,
     pub index: u64,
     #[serialize]
-    pub draw_type: Option<DrawType>
+    pub draw_type: Option<DrawType>,
+    pub motion: Option<String>,
+    pub info_slide: Option<String>,
 }
 
 impl TournamentRound {
@@ -35,7 +37,8 @@ impl TournamentRound {
             uuid: Uuid::new_v4(),
             tournament_id,
             index,
-            draw_type: None
+            draw_type: None,
+            ..Default::default()
         }
     }
 
@@ -46,7 +49,8 @@ impl TournamentRound {
                 uuid: round.uuid,
                 tournament_id: round.tournament_id,
                 index: round.index as u64,
-                draw_type: round.draw_type.map(|r| serde_json::from_str(&r).ok()).flatten()
+                draw_type: round.draw_type.map(|r| serde_json::from_str(&r).ok()).flatten(),
+                ..Default::default()
             })
         }).collect()
     }

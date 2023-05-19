@@ -22,7 +22,9 @@ enum TournamentRound {
     Uuid,
     TournamentId,
     Index,
-    DrawType
+    DrawType,
+    Motion,
+    InfoSlide
 }
 
 
@@ -70,6 +72,7 @@ enum Participant {
     Uuid,
     TournamentId,
     Name,
+    Secret
 }
 
 
@@ -242,6 +245,8 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRound::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(TournamentRound::Index).unsigned().not_null())
                 .col(ColumnDef::new(TournamentRound::DrawType).string_len(32))
+                .col(ColumnDef::new(TournamentRound::Motion).string())
+                .col(ColumnDef::new(TournamentRound::InfoSlide).string())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-round-tournament")
@@ -306,6 +311,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(Participant::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(Participant::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(Participant::Name).string().not_null())
+                .col(ColumnDef::new(Participant::Secret).binary_len(64))
                 .to_owned()
         ).await?;
         manager.create_index(

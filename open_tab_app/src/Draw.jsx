@@ -501,8 +501,6 @@ function DrawEditor(props) {
     );
   }, [draw, roundId]);
 
-  console.log(dragHighlightedIssues ? dragHighlightedIssues[0] : [])
-
   return <div className="flex flex-row w-full h-full">
     <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragStart={dragStart}>
       <div className="flex-1 overflow-y-scroll">

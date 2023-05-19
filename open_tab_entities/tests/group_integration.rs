@@ -22,7 +22,7 @@ pub async fn set_up_db() -> Result<DatabaseConnection, DbErr> {
 fn make_changeset() -> (EntityGroup, Ballot) {
     let mut changeset = EntityGroup::new();
     changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }));
-    changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None }));
+    changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }));
     changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100) }));
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -30,13 +30,13 @@ fn make_changeset() -> (EntityGroup, Ballot) {
         government: BallotTeam {
             team: Some(Uuid::from_u128(200)),
             scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(401), TeamScore::Aggregate(140))].into_iter()
+                vec![(Uuid::from_u128(401), TeamScore::Aggregate { total: 140 })].into_iter()
             ),
             ..Default::default()
         },
         speeches: vec![
             Speech { speaker: Some(Uuid::from_u128(402)), role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
-                vec![(Uuid::from_u128(401), SpeakerScore::Aggregate(54))]
+                vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 54 })]
             )
         }],
         ..Default::default()
@@ -132,7 +132,7 @@ async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
 
     let mut changeset = EntityGroup::new();
     changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }), Uuid::from_u128(10));
-    changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None }), Uuid::from_u128(11));
+    changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }), Uuid::from_u128(11));
 
     changeset.save_all(&db).await?;
     changeset.save_log_with_tournament_id(&db, Uuid::from_u128(10)).await?;

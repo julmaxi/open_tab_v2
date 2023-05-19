@@ -21,6 +21,8 @@ pub enum Relation {
     TournamentLog,
     #[sea_orm(has_many = "super::tournament_round::Entity")]
     TournamentRound,
+    #[sea_orm(has_many = "super::user_tournament::Entity")]
+    UserTournament,
 }
 
 impl Related<super::team::Entity> for Entity {
@@ -50,6 +52,12 @@ impl Related<super::tournament_log::Entity> for Entity {
 impl Related<super::tournament_round::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TournamentRound.def()
+    }
+}
+
+impl Related<super::user_tournament::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserTournament.def()
     }
 }
 

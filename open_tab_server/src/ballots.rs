@@ -11,7 +11,7 @@ use open_tab_entities::schema::{self};
 
 use rocket::futures::TryFutureExt;
 use rocket::http::hyper::body::HttpBody;
-use rocket::response::status::Custom;
+use rocket::response::status::{Custom, self};
 use rocket::serde::{Deserialize, Serialize, json::Json};
 use migration::{JoinType};
 use rocket::{State, get, post, routes, Route};
@@ -32,6 +32,7 @@ struct DisplayBallot {
     uuid: uuid::Uuid,
 
     adjudicators: Vec<DisplayAdjudicator>,
+    president: Option<DisplayAdjudicator>,
     government: DisplayBallotTeam,
     opposition: DisplayBallotTeam,
 
@@ -171,6 +172,10 @@ impl DisplayBallot {
                     position: s.position,
                 }
             }).collect_vec(),
+            president: ballot.president.as_ref().map(|president_id| DisplayAdjudicator {
+                uuid: *president_id,
+                name: participant_name_map.get(president_id).unwrap_or(&"Unknown".to_string()).clone(),
+            }),
         })
     }
 }
@@ -183,6 +188,58 @@ async fn get_ballot(
     let display_ballot = DisplayBallot::from_id(ballot_id, db.inner()).await.map_err(handle_error_dyn)?;
 
     Ok(Json(display_ballot))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SubmissionResponse {
+    uuid: Uuid,
+    debate_id: Uuid,
+    ballot: DisplayBallot,
+}
+
+#[get("/ballot-submission/<submission_id>")]
+async fn get_ballot_submission(
+    db: &State<DatabaseConnection>,
+    submission_id: rocket::serde::uuid::Uuid) -> Result<Json<SubmissionResponse>, Custom<String>> {
+    
+    let submission = schema::debate_backup_ballot::Entity::find_by_id(submission_id).one(db.inner()).await.map_err(handle_error)?;
+
+    if let Some(submission) = submission {
+        let ballot = DisplayBallot::from_id(submission.ballot_id, db.inner()).await.map_err(handle_error_dyn)?;
+
+        Ok(Json(SubmissionResponse { uuid: submission_id, ballot, debate_id: submission.debate_id }))    
+    }
+    else {
+        return Err(Custom(Status::NotFound, "Submission not found".to_string()));
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DebateInfo {
+    uuid: Uuid,
+    ballot: DisplayBallot
+}
+
+#[get("/debate/<debate_id>")]
+async fn get_debate(
+    db: &State<DatabaseConnection>,
+    debate_id: rocket::serde::uuid::Uuid) -> Result<Json<DebateInfo>, Custom<String>> {
+    
+    let debate = schema::tournament_debate::Entity::find()
+        .filter(schema::tournament_debate::Column::Uuid.eq(debate_id))
+        .one(db.inner())
+        .await
+        .map_err(handle_error)?.ok_or(Custom(Status::InternalServerError, "Debate not found".to_string()))?;
+
+    let display_ballot = DisplayBallot::from_id(debate.ballot_id, db.inner()).await.map_err(handle_error_dyn)?;
+
+    Ok(Json(
+        DebateInfo {
+            uuid: debate_id,
+            ballot: display_ballot
+        }
+    ))
 }
 
 #[get("/debate/<debate_id>/ballot")]
@@ -207,6 +264,7 @@ struct CreateDebateBallotResponse {
     debate_ballot_uuid: Uuid
 }
 
+/*
 #[post("/debate/<debate_id>/ballots", data = "<ballot>")]
 async fn submit_ballot(
     db: &State<DatabaseConnection>,
@@ -268,7 +326,94 @@ async fn submit_ballot(
 
     Ok(Json(CreateDebateBallotResponse{debate_ballot_uuid: entry_uuid}))
 }
+ */
+
+ #[post("/debate/<debate_id>/ballots", data = "<ballot>")]
+ async fn submit_ballot(
+     db: &State<DatabaseConnection>,
+     debate_id: rocket::serde::uuid::Uuid,
+     ballot: Json<Ballot>,
+ ) -> Result<Json<CreateDebateBallotResponse>, Custom<String>> {
+    let db = db.inner();
+    let tournament = schema::tournament::Entity::find()
+     .inner_join(schema::tournament_round::Entity)
+     .join(JoinType::InnerJoin, schema::tournament_round::Relation::TournamentDebate.def())
+     .filter(schema::tournament_debate::Column::Uuid.eq(debate_id)).one(db).await.map_err(handle_error)?;
+
+    if tournament.is_none() {
+        return Err(Custom(Status::NotFound, "Debate not found".to_string()));
+    }
+
+    let tournament = tournament.unwrap();
+
+    let mut ballot = ballot.into_inner();
+    ballot.uuid = Uuid::new_v4();
+    let debate_ballot_uuid = Uuid::new_v4();
+    let ballot_entry = domain::debate_backup_ballot::DebateBackupBallot {
+        uuid: debate_ballot_uuid,
+        ballot_id: ballot.uuid,
+        debate_id,
+        timestamp: chrono::offset::Local::now().naive_local(),
+    };
+
+    let mut groups = open_tab_entities::EntityGroup::new();
+    groups.add(Entity::Ballot(ballot));
+    groups.add(Entity::DebateBackupBallot(ballot_entry));
+    groups.save_all_and_log_for_tournament(db, tournament.uuid).await.map_err(handle_error_dyn)?;
+
+    /*
+     let debate = schema::tournament_debate::Entity::find()
+         .filter(schema::tournament_debate::Column::Uuid.eq(debate_id))
+         .one(db)
+         .await
+         .map_err(handle_error)?.ok_or(Custom(Status::InternalServerError, "Debate not found".to_string()))?;
+ 
+     let tournament_id = tournament.ok_or(Custom(Status::NotFound, "Tournament not found".to_string()))?.uuid;
+     
+     let ballot = ballot.into_inner();
+ 
+     let base_ballot = domain::ballot::Ballot::get(db, debate.ballot_id).await.map_err(handle_error_dyn)?;
+ 
+     let new_ballot = ballot::Ballot {
+         uuid: Uuid::new_v4(),
+         speeches: ballot.speeches.into_iter().map(
+             |s| ballot::Speech {
+                 speaker: s.speaker,
+                 role: s.role,
+                 position: s.position,
+                 scores: s.scores.into_iter().map(|(adj, score)| (adj, ballot::SpeakerScore::Aggregate(score))).collect()
+             }
+         ).collect_vec(),
+         government: ballot::BallotTeam {
+             team: Some(ballot.government.uuid),
+             scores: ballot.government.scores.into_iter().map(|(adj, score)| (adj, ballot::TeamScore::Aggregate(score))).collect()
+         },
+         opposition: ballot::BallotTeam {
+             team: Some(ballot.opposition.uuid),
+             scores: ballot.opposition.scores.into_iter().map(|(adj, score)| (adj, ballot::TeamScore::Aggregate(score))).collect()
+         },
+         adjudicators: ballot.adjudicators.into_iter().map(|a| a.uuid).collect_vec(),
+         president: base_ballot.president
+     };
+ 
+     let entry_uuid = Uuid::new_v4();
+     let ballot_entry = domain::debate_backup_ballot::DebateBackupBallot {
+         uuid: entry_uuid,
+         ballot_id: new_ballot.uuid,
+         debate_id,
+         timestamp: chrono::offset::Local::now().naive_local(),
+     };
+ 
+     let mut groups = open_tab_entities::EntityGroup::new();
+     groups.add(Entity::Ballot(new_ballot));
+     groups.add(Entity::DebateBackupBallot(ballot_entry));
+     groups.save_all_and_log_for_tournament(db, tournament_id).await.map_err(handle_error_dyn)?;
+
+      */
+ 
+     Ok(Json(CreateDebateBallotResponse{debate_ballot_uuid: debate_ballot_uuid}))
+ }
 
 pub fn routes() -> Vec<Route> {
-    routes![get_ballot, submit_ballot, get_debate_current_ballot]
+    routes![get_ballot, get_debate, submit_ballot, get_debate_current_ballot, get_ballot_submission]
 }

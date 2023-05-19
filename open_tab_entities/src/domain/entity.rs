@@ -9,6 +9,7 @@ pub trait TournamentEntity: Send + Sync {
     async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
         Self::save_many(db, guarantee_insert, &vec![self]).await
     }
+    
     async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
         for entity in entities.iter() {
             entity.save(db, guarantee_insert).await?;

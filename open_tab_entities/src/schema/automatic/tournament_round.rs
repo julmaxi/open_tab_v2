@@ -10,6 +10,8 @@ pub struct Model {
     pub tournament_id: Uuid,
     pub index: i32,
     pub draw_type: Option<String>,
+    pub motion: Option<String>,
+    pub info_slide: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -38,17 +40,5 @@ impl Related<super::tournament_debate::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament_break::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::tournament_break_child_round::Relation::TournamentBreak.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(
-            super::tournament_break_child_round::Relation::TournamentRound
-                .def()
-                .rev(),
-        )
-    }
-}
 
 impl ActiveModelBehavior for ActiveModel {}

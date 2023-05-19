@@ -64,6 +64,7 @@ impl ActionTrait for EditTreeAction {
                         tournament_id: self.tournament_id,
                         index,
                         draw_type: Some(DrawType::StandardPreliminaryDraw),
+                        ..Default::default()
                     }
                 ).collect_vec();
 
@@ -105,6 +106,7 @@ impl ActionTrait for EditTreeAction {
                         tournament_id: self.tournament_id,
                         index: start_index + index,
                         draw_type: Some(DrawType::KnockoutDraw),
+                        ..Default::default()
                     };
 
                     (0..(2 as u32).pow((num_stages - index - 1) as u32)).for_each(
@@ -200,6 +202,7 @@ impl ActionTrait for EditTreeAction {
                         tournament_id: self.tournament_id,
                         index: start_index + idx as u64,
                         draw_type: Some(draw_type),
+                        ..Default::default()
                     };
 
                     break_.child_rounds.push(round.uuid);
@@ -237,7 +240,8 @@ impl ActionTrait for EditTreeAction {
                     uuid: Uuid::new_v4(),
                     tournament_id: self.tournament_id,
                     index: start_index,
-                    draw_type: Some(DrawType::Randomized)
+                    draw_type: Some(DrawType::Randomized),
+                    ..Default::default()
                 };
 
                 break_after_tab.child_rounds.push(first_round.uuid);
@@ -260,7 +264,8 @@ impl ActionTrait for EditTreeAction {
                     uuid: Uuid::new_v4(),
                     tournament_id: self.tournament_id,
                     index: start_index + 1,
-                    draw_type: Some(DrawType::BalancedRandomized)
+                    draw_type: Some(DrawType::BalancedRandomized),
+                    ..Default::default()
                 };
 
                 second_break.child_rounds.push(second_round.uuid);

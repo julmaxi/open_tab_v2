@@ -55,17 +55,4 @@ impl Related<super::speaker::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament_round::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::tournament_break_child_round::Relation::TournamentRound.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(
-            super::tournament_break_child_round::Relation::TournamentBreak
-                .def()
-                .rev(),
-        )
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}
