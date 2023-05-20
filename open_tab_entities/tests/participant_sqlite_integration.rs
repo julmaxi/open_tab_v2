@@ -159,7 +159,8 @@ async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
                 uuid: Uuid::from_u128(500),
                 clash_severity: 20
             }
-        ]
+        ],
+        registration_key: None,
     }, true).await?;
 
     Ok(())
@@ -174,7 +175,8 @@ async fn test_adjudicator_roundtrip() -> Result<(), Box<dyn Error>> {
             ..Default::default()
         }),
         tournament_id: Uuid::from_u128(1),
-        institutions: vec![]
+        institutions: vec![],
+        registration_key: None,
     }, true).await?;
 
     Ok(())
@@ -190,7 +192,8 @@ async fn test_make_speaker_into_adjudicator() -> Result<(), Box<dyn Error>> {
             team_id: Some(Uuid::from_u128(200))
         }),
         tournament_id: Uuid::from_u128(1),
-        institutions: vec![]
+        institutions: vec![],
+        registration_key: None,
     };
 
     participant.save(&db, true).await?;
@@ -210,7 +213,8 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), Box<dyn Error>> {
         name: "Test".into(),
         role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
         tournament_id: Uuid::from_u128(1),
-        institutions: vec![]
+        institutions: vec![],
+        registration_key: None,
     };
 
     participant.save(&db, true).await?;
@@ -232,7 +236,8 @@ async fn test_change_participant_name() -> Result<(), Box<dyn Error>> {
         name: "Test".into(),
         role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
         tournament_id: Uuid::from_u128(1),
-        institutions: vec![]
+        institutions: vec![],
+        registration_key: None,
     };
 
     participant.save(&db, true).await?;

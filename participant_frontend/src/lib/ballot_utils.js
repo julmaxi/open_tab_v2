@@ -1,4 +1,7 @@
 
+/**
+ * @param {number[]} scores
+ */
 export function computeScoreTotal(scores) {
     let assignedScores = scores.filter(
         (score) => score !== null && score !== undefined
@@ -9,6 +12,9 @@ export function computeScoreTotal(scores) {
     return assignedScores.length > 0 ? sum / assignedScores.length : null;
 }
 
+/**
+ * @param {string} role
+ */
 export function roleToColor(role) {
     switch (role) {
         case "government":

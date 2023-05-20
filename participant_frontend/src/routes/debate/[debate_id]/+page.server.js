@@ -2,6 +2,13 @@ import { env } from '$env/dynamic/public'
 import { redirect } from '@sveltejs/kit';
 
 
+/**
+ * @param {{ [x: string]: any; }} obj
+ * @param {string | any[]} path
+ * @param {string | any[]} permissibleFields
+ * 
+ * @returns {any}
+ */
 function getPathAndCreateIntermediary(obj, path, permissibleFields) {
     if (path.length == 0) {
         return obj;
@@ -18,9 +25,17 @@ function getPathAndCreateIntermediary(obj, path, permissibleFields) {
 }
 
 
+/**
+ * @param {any[] | FormData} formData
+ * @param {string | any[]} permissibleFields
+ * @param {number} maxDepth
+ * 
+ * @returns {any}
+ */
 function parseFormToObject(formData, permissibleFields, maxDepth) {
     let out = {};
     for (let [key, val] of formData.entries()) {        
+        // @ts-ignore
         let parts = key.split('.');
         if (parts.length > maxDepth) {
             throw new Error("Form data too deep");
@@ -35,6 +50,11 @@ function parseFormToObject(formData, permissibleFields, maxDepth) {
     return out;
 }
 
+/**
+ * @param {string[]} scoresList
+ * @param {string[]} adjudicators
+ * 
+ */
 function parseScores(scoresList, adjudicators) {
     let scores = {};
     for (let i = 0; i < adjudicators.length; i++) {
@@ -42,6 +62,7 @@ function parseScores(scoresList, adjudicators) {
         let score = scoresList[i];
 
         if (score !== undefined && score !== null && score !== "") {
+            // @ts-ignore
             scores[adj] = {
                 "total": parseInt(score),
                 "type": "Aggregate"
@@ -69,7 +90,6 @@ export const actions = {
             },
             adjudicators: [],
             speeches: [],
-
             president: formData.get("president") || null,
         };
 

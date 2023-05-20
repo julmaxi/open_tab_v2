@@ -22,6 +22,7 @@ chrono="*"
 tera = "1"
 lazy_static = "1.4.0"
 rocket_cors = "0.6.0-alpha2"
+base64 = "0.21.0"
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.2"

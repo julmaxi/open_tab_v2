@@ -60,7 +60,8 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             role: ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
             institutions: vec![
                 ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
-            ]
+            ],
+            registration_key: None,
         }
     ));
     changeset.add(Entity::Team(
@@ -76,7 +77,8 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             name: "Speaker 1".into(),
             tournament_id: Uuid::from_u128(10),
             role: ParticipantRole::Speaker(Speaker { team_id: Some(Uuid::from_u128(200)), ..Default::default() }),
-            institutions: vec![]
+            institutions: vec![],
+            registration_key: None,
         }
     ));
 

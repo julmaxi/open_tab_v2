@@ -196,7 +196,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();
     prev_ballot.adjudicators = vec![3003, 3001, 3002].into_iter().map(Uuid::from_u128).collect_vec();
-    prev_ballot.government.scores.insert(Uuid::from_u128(3003), TeamScore::Aggregate(123));
+    prev_ballot.government.scores.insert(Uuid::from_u128(3003), TeamScore::Aggregate{total: 123});
     
     prev_ballot.speeches = vec![
         Speech {
@@ -225,7 +225,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
     let ballot = &Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?[0];
 
     assert_eq!(ballot.speeches[0].scores.get(&Uuid::from_u128(3003)), Some(&SpeakerScore::Aggregate { total: 61 }));
-    assert_eq!(ballot.government.scores.get(&Uuid::from_u128(3003)), Some(&TeamScore::Aggregate(123)));
+    assert_eq!(ballot.government.scores.get(&Uuid::from_u128(3003)), Some(&TeamScore::Aggregate{total: 123}));
     assert_eq!(ballot.president, None);
 
     Ok(())
@@ -238,7 +238,7 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dy
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();
     prev_ballot.adjudicators = vec![3003, 3001, 3002].into_iter().map(Uuid::from_u128).collect_vec();
-    prev_ballot.government.scores.insert(Uuid::from_u128(3003), TeamScore::Aggregate(123));
+    prev_ballot.government.scores.insert(Uuid::from_u128(3003), TeamScore::Aggregate{total: 123});
     
     prev_ballot.speeches = vec![
         Speech {

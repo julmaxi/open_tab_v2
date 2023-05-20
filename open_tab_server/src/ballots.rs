@@ -11,20 +11,91 @@ use open_tab_entities::schema::{self};
 
 use rocket::futures::TryFutureExt;
 use rocket::http::hyper::body::HttpBody;
+use rocket::request::FromRequest;
 use rocket::response::status::{Custom, self};
 use rocket::serde::{Deserialize, Serialize, json::Json};
 use migration::{JoinType};
-use rocket::{State, get, post, routes, Route};
+use rocket::{State, get, post, routes, Route, Request};
 
 use sea_orm::{prelude::*, ConnectionTrait, QuerySelect};
 use itertools::Itertools;
 use rocket::http::Status;
 
+use base64::{Engine as _, engine::general_purpose};
+
 
 
 use crate::handle_error_dyn;
-
 use super::handle_error;
+
+
+struct LoggedInParticipant {
+    participant_id: Uuid,
+}
+
+async fn parse_participant_header(header: &str, db: &DatabaseConnection) -> Result<Option<LoggedInParticipant>, Box<dyn Error>> {
+    let parts = header.split(" ").collect::<Vec<_>>();
+
+    if parts.len() == 2 {
+        let auth_str = general_purpose::URL_SAFE.decode(parts[1].as_bytes())?;
+        let auth_str = String::from_utf8(auth_str)?;
+        let parts = auth_str.split(":").collect::<Vec<_>>();
+        if parts.len() == 2 {
+            let participant_id : Uuid = parts[0].parse()?;
+
+            let participant = open_tab_entities::schema::participant::Entity::find_by_id(
+                participant_id
+            ).one(db).await?;
+
+            if let Some(participant) = participant {
+                let registration_key = general_purpose::URL_SAFE.decode(parts[1].as_bytes())?;
+                if participant.registration_key == Some(registration_key) {
+                    Ok(Some(LoggedInParticipant {
+                        participant_id: participant_id,
+                    }))
+                }
+                else {
+                    Ok(None)
+                }
+            }
+            else {
+                Ok(None)
+            }
+
+        }
+        else {
+            Err("Too many parts".into())
+        }
+    }
+    else {
+        Err("Too short".into())
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for LoggedInParticipant {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+        let header = request.headers().get_one("Authorization");
+        let db = request.rocket().state::<DatabaseConnection>().unwrap();
+        
+        let participant = match header {
+            Some(header) => match parse_participant_header(header, db).await {
+                Ok(participant) => participant,
+                Err(err) => {
+                    eprintln!("Error parsing participant header: {}", err);
+                    None
+                }
+            },
+            None => None
+        };
+        match participant {
+            Some(participant) => rocket::outcome::Outcome::Success(participant),
+            None => rocket::outcome::Outcome::Failure((Status::Unauthorized, ()))
+        }
+    }
+}
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -224,7 +295,9 @@ struct DebateInfo {
 #[get("/debate/<debate_id>")]
 async fn get_debate(
     db: &State<DatabaseConnection>,
-    debate_id: rocket::serde::uuid::Uuid) -> Result<Json<DebateInfo>, Custom<String>> {
+    debate_id: rocket::serde::uuid::Uuid,
+    user: LoggedInParticipant
+) -> Result<Json<DebateInfo>, Custom<String>> {
     
     let debate = schema::tournament_debate::Entity::find()
         .filter(schema::tournament_debate::Column::Uuid.eq(debate_id))
