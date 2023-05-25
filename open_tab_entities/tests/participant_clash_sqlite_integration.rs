@@ -70,6 +70,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
     Ok(db)
 }
 
+
 async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
     clash.save(db, as_insert).await?;
 

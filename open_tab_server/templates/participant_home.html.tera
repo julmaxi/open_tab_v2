@@ -1,8 +1,0 @@
-<html>
-
-<body>
-{{ participant.name }}
-{{ participant.team_name }}
-</body>
-
-</html>

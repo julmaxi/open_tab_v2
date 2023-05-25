@@ -1,5 +1,0 @@
-/target
-/Cargo.lock
-server.sqlite3
-./static/ballot_submission_form
-./src-react/ballot_submission_form/public
