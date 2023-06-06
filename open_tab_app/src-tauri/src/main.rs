@@ -5,7 +5,7 @@ use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync:
 
 use migration::{MigratorTrait};
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
-use open_tab_server::{TournamentChanges};
+//use open_tab_server::{TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
 use tauri::{async_runtime::block_on, State, AppHandle, Manager};
@@ -318,6 +318,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
 }
 
 async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C, view_cache: &Mutex<ViewCache>, app_handle: &AppHandle) -> Result<Option<EntityGroup>, SyncError> where C: ConnectionTrait + TransactionTrait {
+    /*
     let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
     let changes_url = format!("{}/changes", remote_base_url.clone());
     let changes_url = if let Some(last_know_change) = target_tournament_remote.last_known_change {
@@ -386,10 +387,13 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
         transaction.rollback().await?;
         Ok(None)
     }
+     */
+
+    todo!();
 }
 
 async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
-    let transaction = db.begin().await?;
+    /*let transaction = db.begin().await?;
 
     let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
     let update_url = format!("{}/update", remote_base_url.clone());
@@ -451,7 +455,9 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
         transaction.rollback().await?;
     }
 
-    Ok(())
+    Ok(())*/
+
+    todo!();
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

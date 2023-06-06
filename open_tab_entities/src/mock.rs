@@ -47,7 +47,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     Adjudicators: 3000
     Rounds: 100
     Debates: 200
-    Ballots: 300
+    Ballots: 400
     */
 
     assert!(options.num_teams % 3 == 0);

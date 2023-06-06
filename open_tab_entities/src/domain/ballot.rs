@@ -174,6 +174,10 @@ pub enum SpeakerScore {
 }
 
 impl SpeakerScore {
+    pub fn new_aggregate(total: i16) -> SpeakerScore {
+        SpeakerScore::Aggregate { total }
+    }
+
     pub fn total(&self) -> i16{
         match self {
             SpeakerScore::Aggregate { total: s } => *s,
@@ -188,6 +192,9 @@ pub enum TeamScore {
 }
 
 impl TeamScore {
+    pub fn new_aggregate(total: i16) -> TeamScore {
+        TeamScore::Aggregate { total }
+    }
     pub fn total(&self) -> i16 {
         match self {
             TeamScore::Aggregate { total: s } => *s,

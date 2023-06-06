@@ -50,6 +50,12 @@ pub trait EntityGroupTrait {
         self.save_all_with_options(db, guarantee_insert).await?;
         self.save_log_with_tournament_id(db, tournament_id).await
     }
+
+    fn new_with_entities(entities: Vec<Entity>) -> Self where Self: Sized {
+        let mut group = Self::new();
+        entities.into_iter().for_each(|e| group.add(e));
+        group
+    }
 }
 
 pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<VersionedEntity<Entity>>, Box<dyn Error>> where C: ConnectionTrait {
