@@ -10,6 +10,12 @@ enum Tournament {
 }
 
 #[derive(Iden)]
+enum Participant {
+    Table,
+    Uuid
+}
+
+#[derive(Iden)]
 enum User {
     Table,
     Uuid,
@@ -21,6 +27,13 @@ enum UserTournament {
     Table,
     UserId,
     TournamentId
+}
+
+#[derive(Iden)]
+enum UserParticipant {
+    Table,
+    UserId,
+    ParticipantId
 }
 
 #[derive(Iden)]
@@ -113,6 +126,7 @@ impl MigrationTrait for Migration {
                             .uuid()
                             .not_null()
                     )
+                    .primary_key(Index::create().col(UserTournament::UserId).col(UserTournament::TournamentId).primary())
                     .foreign_key(
                         ForeignKeyCreateStatement::new()
                             .name("fk-user-tournament_user")
@@ -137,16 +151,59 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+            manager
+            .create_table(
+                Table::create()
+                    .table(UserParticipant::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(UserParticipant::UserId)
+                            .uuid()
+                            .not_null()
+                    )
+                    .col(
+                        ColumnDef::new(UserParticipant::ParticipantId)
+                            .uuid()
+                            .not_null()
+                    )
+                    .primary_key(Index::create().col(UserParticipant::UserId).col(UserParticipant::ParticipantId).primary())
+                    .foreign_key(
+                        ForeignKeyCreateStatement::new()
+                            .name("fk-user_participant-user")
+                            .from_tbl(UserTournament::Table)
+                            .from_col(UserTournament::UserId)
+                            .to_tbl(User::Table)
+                            .to_col(User::Uuid)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade)
+                    )
+                    .foreign_key(
+                        ForeignKeyCreateStatement::new()
+                            .name("fk-user_participant-participant")
+                            .from_tbl(UserParticipant::Table)
+                            .from_col(UserParticipant::ParticipantId)
+                            .to_tbl(Participant::Table)
+                            .to_col(Participant::Uuid)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade)
+                    )
+                    .to_owned()
+            )
+            .await?;
+
+            manager.create_index(
+                IndexCreateStatement::new()
+                .name("idx-user_participant-participant_id")
+                .table(UserParticipant::Table)
+                .col(UserParticipant::ParticipantId)
+                .to_owned()
+            ).await?;
+
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Replace the sample below with your own migration scripts
         todo!();
-
-        manager
-            .drop_table(Table::drop().table(Post::Table).to_owned())
-            .await
     }
 }
 

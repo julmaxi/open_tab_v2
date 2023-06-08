@@ -21,8 +21,8 @@ pub enum Relation {
     TournamentLog,
     #[sea_orm(has_many = "super::tournament_round::Entity")]
     TournamentRound,
-    #[sea_orm(has_many = "super::user_tournament::Entity")]
-    UserTournament,
+    #[sea_orm(has_many = "super::user_access_key::Entity")]
+    UserAccessKey,
 }
 
 impl Related<super::team::Entity> for Entity {
@@ -55,9 +55,18 @@ impl Related<super::tournament_round::Entity> for Entity {
     }
 }
 
-impl Related<super::user_tournament::Entity> for Entity {
+impl Related<super::user_access_key::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::UserTournament.def()
+        Relation::UserAccessKey.def()
+    }
+}
+
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::user_tournament::Relation::User.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::user_tournament::Relation::Tournament.def().rev())
     }
 }
 

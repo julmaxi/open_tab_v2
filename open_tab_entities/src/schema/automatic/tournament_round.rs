@@ -12,6 +12,8 @@ pub struct Model {
     pub draw_type: Option<String>,
     pub motion: Option<String>,
     pub info_slide: Option<String>,
+    pub state: String,
+    pub is_silent: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

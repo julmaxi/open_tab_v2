@@ -18,6 +18,33 @@ pub enum DrawType {
     BalancedRandomized
 }
 
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub enum RoundState {
+    NotStarted,
+    InProgress,
+    Finished,
+}
+
+impl Default for RoundState {
+    fn default() -> Self {
+        RoundState::NotStarted
+    }
+}
+
+impl From<String> for RoundState {
+    fn from(s: String) -> Self {
+        // TODO: We need to find a general solution here
+        let s = s.strip_prefix("\"").unwrap_or(&s).strip_suffix("\"").unwrap_or(&s);
+        match s {
+            "NotStarted" => RoundState::NotStarted,
+            "InProgress" => RoundState::InProgress,
+            "Finished" => RoundState::Finished,
+            _ => panic!("Invalid round state {}", s)
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize, Clone, SimpleEntity)]
 #[module_path = "crate::schema::tournament_round"]
 #[tournament_id = "tournament_id"]
@@ -27,8 +54,11 @@ pub struct TournamentRound {
     pub index: u64,
     #[serialize]
     pub draw_type: Option<DrawType>,
+    #[serialize]
+    pub state: RoundState,
     pub motion: Option<String>,
     pub info_slide: Option<String>,
+    pub is_silent: bool,
 }
 
 impl TournamentRound {

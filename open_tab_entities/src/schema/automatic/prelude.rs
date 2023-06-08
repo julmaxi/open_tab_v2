@@ -20,4 +20,5 @@ pub use super::tournament_remote::Entity as TournamentRemote;
 pub use super::tournament_round::Entity as TournamentRound;
 pub use super::user::Entity as User;
 pub use super::user_access_key::Entity as UserAccessKey;
+pub use super::user_participant::Entity as UserParticipant;
 pub use super::user_tournament::Entity as UserTournament;

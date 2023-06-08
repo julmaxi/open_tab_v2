@@ -115,13 +115,16 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                     }
                 );    
             }
+            let mut registration_key = [0; 32];
+            registration_key[0] = 1;
+            registration_key[1] = 2;
             Participant {
                 uuid,
                 name,
                 tournament_id: tournament_uuid,
                 role: ParticipantRole::Speaker(Speaker { team_id: Some(team.uuid) }),
                 institutions,
-                registration_key: None
+                registration_key: Some(registration_key.to_vec())
             }
         }).collect_vec();
 
@@ -146,6 +149,9 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
         else {
             vec![]
         };
+        let mut registration_key = [0; 32];
+        registration_key[0] = 1;
+        registration_key[1] = 2;
 
         Participant {
             uuid,
@@ -153,7 +159,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             tournament_id: tournament_uuid,
             role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
             institutions,
-            registration_key: None
+            registration_key: Some(registration_key.to_vec())
         }
     }).collect_vec();
 

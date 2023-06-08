@@ -3,24 +3,24 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "user_access_key")]
+#[sea_orm(table_name = "user_participant")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub key_hash: String,
     pub user_id: Uuid,
-    pub tournament_id: Option<Uuid>,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub participant_id: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::tournament::Entity",
-        from = "Column::TournamentId",
-        to = "super::tournament::Column::Uuid",
+        belongs_to = "super::participant::Entity",
+        from = "Column::ParticipantId",
+        to = "super::participant::Column::Uuid",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
-    Tournament,
+    Participant,
     #[sea_orm(
         belongs_to = "super::user::Entity",
         from = "Column::UserId",
@@ -31,9 +31,9 @@ pub enum Relation {
     User,
 }
 
-impl Related<super::tournament::Entity> for Entity {
+impl Related<super::participant::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Tournament.def()
+        Relation::Participant.def()
     }
 }
 

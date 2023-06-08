@@ -5,8 +5,16 @@ use core::panic;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Path};
+use syn::{parse_macro_input, DeriveInput, Path, Type};
 
+fn check_is_option(ty: &Type) -> bool {
+    match ty {
+        Type::Path(p) => {
+            p.path.segments.len() == 1 && p.path.segments[0].ident == "Option"
+        },
+        _ => false
+    }
+}
 
 pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
@@ -54,11 +62,18 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         }
     };
 
-    let active_value_assignment = field_names_and_types.iter().map(|(f, _ty, serialize)| {
+    let active_value_assignment = field_names_and_types.iter().map(|(f, ty, serialize)| {
         if *serialize {
-            quote! {
-                #f: sea_orm::ActiveValue::Set(serde_json::to_string(&self.#f).ok())
-            }    
+            if check_is_option(ty) {
+                quote! {
+                    #f: sea_orm::ActiveValue::Set(serde_json::to_string(&self.#f).ok())
+                }    
+            }
+            else {
+                quote! {
+                    #f: sea_orm::ActiveValue::Set(serde_json::to_string(&self.#f).unwrap())
+                }
+            }
         }
         else {
             quote! {
@@ -67,10 +82,17 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         }
     }).collect::<Vec<_>>();
 
-    let raw_attr_assignment = field_names_and_types.iter().map(|(f, _, serialize)| {
+    let raw_attr_assignment = field_names_and_types.iter().map(|(f, ty, serialize)| {
         if *serialize {
-            quote! {
-                #f: model.#f.map(|v| serde_json::from_str(&v).ok()).flatten()
+            if check_is_option(ty) {
+                quote! {
+                    #f: model.#f.map(|v| serde_json::from_str(&v).ok()).flatten()
+                }    
+            }
+            else {
+                quote! {
+                    #f: serde_json::from_str(&model.#f).unwrap()
+                }
             }
         }
         else {

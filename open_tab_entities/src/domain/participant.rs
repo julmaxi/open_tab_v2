@@ -1,6 +1,7 @@
 use std::{error::Error, collections::{HashMap, hash_map::RandomState}, vec};
 
 use async_trait::async_trait;
+use base64::Engine;
 use itertools::{izip, Itertools};
 use sea_orm::{prelude::*, IntoActiveModel, ActiveValue};
 use serde::{Serialize, Deserialize};
@@ -77,6 +78,21 @@ impl LoadEntity for Participant {
 
 
 impl Participant {
+    pub fn encode_registration_key(uuid: Uuid, key: &[u8]) -> String {
+        let mut registration_secret = [0; 48];
+        registration_secret[0..16].copy_from_slice(uuid.as_bytes());
+        registration_secret[16..48].copy_from_slice(key);
+
+        base64::engine::general_purpose::STANDARD_NO_PAD.encode(&registration_secret)
+    }
+
+    pub fn decode_registration_key(key: String) -> Result<(Uuid, Vec<u8>), Box<dyn Error>> {
+        let decoded = base64::engine::general_purpose::STANDARD_NO_PAD.decode(&key)?;
+        let uuid = Uuid::from_slice(&decoded[0..16])?;
+        let key = decoded[16..48].to_vec();
+        Ok((uuid, key))
+    }
+
     pub async fn get_all_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let participants = schema::participant::Entity::find().filter(schema::participant::Column::TournamentId.eq(Some(tournament_uuid))).all(db).await?;
         Self::load_participants(db, participants).await
@@ -204,7 +220,7 @@ impl TournamentEntity for Participant {
                 uuid: ActiveValue::Unchanged(ent.uuid),
                 tournament_id: ActiveValue::Set(ent.tournament_id),
                 name: ActiveValue::Set(ent.name.clone()),
-                ..Default::default()
+                registration_key: ActiveValue::Set(ent.registration_key.clone())
             };
 
             if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
