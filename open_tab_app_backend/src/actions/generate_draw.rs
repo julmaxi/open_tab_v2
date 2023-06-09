@@ -90,7 +90,9 @@ impl ActionTrait for GenerateDrawAction {
                         uuid: Uuid::new_v4(),
                         round_id: round.uuid,
                         index: index as u64,
-                        ballot_id: Uuid::nil()
+                        ballot_id: Uuid::nil(),
+                        is_motion_released_to_non_aligned: false,
+                        venue_id: None
                     }
                 );
                 round_existing_debates.into_iter().chain(

@@ -20,6 +20,7 @@ pub mod tournament_institution;
 pub mod tournament_log;
 pub mod tournament_remote;
 pub mod tournament_round;
+pub mod tournament_venue;
 pub mod user;
 pub mod user_access_key;
 pub mod user_participant;

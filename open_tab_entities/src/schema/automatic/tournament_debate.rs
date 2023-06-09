@@ -10,6 +10,8 @@ pub struct Model {
     pub round_id: Uuid,
     pub index: i32,
     pub ballot_id: Uuid,
+    pub venue_id: Option<Uuid>,
+    pub is_motion_released_to_non_aligned: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

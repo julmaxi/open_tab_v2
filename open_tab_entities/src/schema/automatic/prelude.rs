@@ -18,6 +18,7 @@ pub use super::tournament_institution::Entity as TournamentInstitution;
 pub use super::tournament_log::Entity as TournamentLog;
 pub use super::tournament_remote::Entity as TournamentRemote;
 pub use super::tournament_round::Entity as TournamentRound;
+pub use super::tournament_venue::Entity as TournamentVenue;
 pub use super::user::Entity as User;
 pub use super::user_access_key::Entity as UserAccessKey;
 pub use super::user_participant::Entity as UserParticipant;

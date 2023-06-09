@@ -25,10 +25,19 @@ enum TournamentRound {
     DrawType,
     Motion,
     InfoSlide,
-    State,
+    DrawReleaseTime,
+    TeamMotionReleaseTime,
+    FullMotionReleaseTime,
     IsSilent
 }
 
+#[derive(Iden)]
+enum TournamentVenue {
+    Table,
+    Uuid,
+    TournamentId,
+    Name
+}
 
 #[derive(Iden)]
 enum TournamentDebate {
@@ -36,7 +45,9 @@ enum TournamentDebate {
     Uuid,
     RoundId,
     Index,
-    BallotId
+    BallotId,
+    VenueId,
+    IsMotionReleasedToNonAligned
 }
 
 
@@ -249,7 +260,9 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRound::DrawType).string_len(32))
                 .col(ColumnDef::new(TournamentRound::Motion).string())
                 .col(ColumnDef::new(TournamentRound::InfoSlide).string())
-                .col(ColumnDef::new(TournamentRound::State).string_len(32).not_null())
+                .col(ColumnDef::new(TournamentRound::DrawReleaseTime).date_time())
+                .col(ColumnDef::new(TournamentRound::TeamMotionReleaseTime).date_time())
+                .col(ColumnDef::new(TournamentRound::FullMotionReleaseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::IsSilent).boolean().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
@@ -553,6 +566,36 @@ impl MigrationTrait for Migration {
                 .to_owned()
         ).await?;
         
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(TournamentVenue::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(TournamentVenue::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(TournamentVenue::TournamentId).uuid().not_null())
+                .col(ColumnDef::new(TournamentVenue::Name).string().not_null())
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-venue-tournament")
+                    .from_tbl(TournamentVenue::Table)
+                    .from_col(TournamentVenue::TournamentId)
+                    .to_tbl(Tournament::Table)
+                    .to_col(Tournament::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .to_owned()
+        ).await?;
+
+        manager.create_index(
+            IndexCreateStatement::new()
+            .name("idx-venue-tournament-id")
+            .table(TournamentVenue::Table)
+            .col(TournamentVenue::TournamentId)
+            .to_owned()
+        ).await?;
+
         manager.create_table(
             sea_query::Table::create()
                 .table(TournamentDebate::Table)
@@ -561,6 +604,8 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentDebate::RoundId).uuid().not_null().not_null())
                 .col(ColumnDef::new(TournamentDebate::Index).unsigned().not_null())
                 .col(ColumnDef::new(TournamentDebate::BallotId).uuid().not_null())
+                .col(ColumnDef::new(TournamentDebate::VenueId).uuid())
+                .col(ColumnDef::new(TournamentDebate::IsMotionReleasedToNonAligned).boolean().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                         .name("fk-debate-round")

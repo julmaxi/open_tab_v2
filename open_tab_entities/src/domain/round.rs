@@ -54,11 +54,13 @@ pub struct TournamentRound {
     pub index: u64,
     #[serialize]
     pub draw_type: Option<DrawType>,
-    #[serialize]
-    pub state: RoundState,
     pub motion: Option<String>,
     pub info_slide: Option<String>,
     pub is_silent: bool,
+
+    pub draw_release_time: Option<chrono::NaiveDateTime>,
+    pub team_motion_release_time: Option<chrono::NaiveDateTime>,
+    pub full_motion_release_time: Option<chrono::NaiveDateTime>,
 }
 
 impl TournamentRound {

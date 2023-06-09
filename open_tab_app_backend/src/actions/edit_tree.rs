@@ -118,6 +118,8 @@ impl ActionTrait for EditTreeAction {
                                 round_id: round.uuid,
                                 index: room_index as u64,
                                 ballot_id: ballot.uuid,
+                                is_motion_released_to_non_aligned: false,
+                                venue_id: None
                             };
                             groups.add(Entity::TournamentDebate(debate));
                             groups.add(Entity::Ballot(ballot));

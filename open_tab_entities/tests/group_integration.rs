@@ -23,7 +23,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
     let mut changeset = EntityGroup::new();
     changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }));
     changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }));
-    changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100) }));
+    changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100), ..Default::default() }));
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=401).map(|u| Uuid::from_u128(u as u128)).collect(),

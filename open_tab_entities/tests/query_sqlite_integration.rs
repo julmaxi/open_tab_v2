@@ -34,6 +34,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(100),
         index: 0,
         ballot_id: Uuid::from_u128(300),
+        ..Default::default()
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -51,6 +52,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(101),
         index: 0,
         ballot_id: Uuid::from_u128(301),
+        ..Default::default()
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -89,6 +91,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(100),
         index: 0,
         ballot_id: Uuid::from_u128(300),
+        ..Default::default()
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -107,6 +110,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(101),
         index: 0,
         ballot_id: Uuid::from_u128(301),
+        ..Default::default()
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -149,6 +153,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(100),
         index: 0,
         ballot_id: Uuid::from_u128(300),
+        ..Default::default()
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -162,6 +167,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(101),
         index: 0,
         ballot_id: Uuid::from_u128(301),
+        ..Default::default()
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -196,6 +202,7 @@ async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(100),
         index: 0,
         ballot_id: Uuid::from_u128(300),
+        ..Default::default()
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),
@@ -209,6 +216,7 @@ async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(101),
         index: 0,
         ballot_id: Uuid::from_u128(301),
+        ..Default::default()
     };
     let ballot_2 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(301),
@@ -240,6 +248,7 @@ async fn test_multiple_roles() -> Result<(), Box<dyn Error>> {
         round_id: Uuid::from_u128(100),
         index: 0,
         ballot_id: Uuid::from_u128(300),
+        ..Default::default()
     };
     let ballot_1 = domain::ballot::Ballot {
         uuid: Uuid::from_u128(300),

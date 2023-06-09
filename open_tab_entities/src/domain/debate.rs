@@ -11,14 +11,16 @@ use crate::utilities::BatchLoadError;
 use open_tab_macros::SimpleEntity;
 
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, SimpleEntity)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, SimpleEntity, Default)]
 #[module_path = "crate::schema::tournament_debate"]
 #[get_many_tournaments_func = "get_many_tournaments_impl"]
 pub struct TournamentDebate {
     pub uuid: Uuid,
     pub round_id: Uuid,
     pub index: u64,
-    pub ballot_id: Uuid
+    pub ballot_id: Uuid,
+    pub venue_id: Option<Uuid>,
+    pub is_motion_released_to_non_aligned: bool
 }
 
 

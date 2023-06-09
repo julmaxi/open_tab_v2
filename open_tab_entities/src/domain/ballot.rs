@@ -82,7 +82,7 @@ impl FromStr for SpeechRole {
 }
 
 impl SpeechRole {
-    fn to_str(&self) -> String {
+    pub fn to_str(&self) -> String {
         match self {
             SpeechRole::Government => "g".into(),
             SpeechRole::Opposition => "o".into(),

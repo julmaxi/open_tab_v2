@@ -488,7 +488,8 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
         uuid: Uuid::from_u128(30),
         round_id: round.uuid,
         index: 0,
-        ballot_id: ballot.uuid
+        ballot_id: ballot.uuid,
+        ..Default::default()
     };
     debate.save(&db, true).await?;
 

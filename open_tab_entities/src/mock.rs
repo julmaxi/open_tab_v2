@@ -170,6 +170,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             tournament_id: tournament_uuid,
             index: i as u64,
             draw_type: Some(DrawType::StandardPreliminaryDraw),
+            team_motion_release_time: None,
+            full_motion_release_time: None,
             ..Default::default()
         }
     }).collect_vec();
@@ -263,7 +265,9 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                     uuid,
                     round_id: rounds[round_idx].uuid,
                     ballot_id: ballot.uuid,
-                    index: debate_idx as u64
+                    index: debate_idx as u64,
+                    venue_id: None,
+                    is_motion_released_to_non_aligned: false
                 }
             }).collect_vec();
             round_debates

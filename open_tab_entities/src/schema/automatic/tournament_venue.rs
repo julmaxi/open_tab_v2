@@ -3,19 +3,12 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "tournament_round")]
+#[sea_orm(table_name = "tournament_venue")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
     pub tournament_id: Uuid,
-    pub index: i32,
-    pub draw_type: Option<String>,
-    pub motion: Option<String>,
-    pub info_slide: Option<String>,
-    pub draw_release_time: Option<DateTime>,
-    pub team_motion_release_time: Option<DateTime>,
-    pub full_motion_release_time: Option<DateTime>,
-    pub is_silent: bool,
+    pub name: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -28,19 +21,11 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tournament,
-    #[sea_orm(has_many = "super::tournament_debate::Entity")]
-    TournamentDebate,
 }
 
 impl Related<super::tournament::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Tournament.def()
-    }
-}
-
-impl Related<super::tournament_debate::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TournamentDebate.def()
     }
 }
 

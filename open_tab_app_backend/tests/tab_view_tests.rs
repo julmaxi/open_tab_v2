@@ -251,13 +251,15 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
                 uuid: Uuid::from_u128(200),
                 round_id: Uuid::from_u128(100),
                 ballot_id: ballots[0].uuid,
-                index: 0
+                index: 0,
+                ..Default::default()
             },
             TournamentDebate {
                 uuid: Uuid::from_u128(210),
                 round_id: Uuid::from_u128(101),
                 ballot_id: ballots[1].uuid,
-                index: 0
+                index: 0,
+                ..Default::default()
             }
         ];
 
