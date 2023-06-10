@@ -5,6 +5,7 @@ use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync:
 
 use migration::{MigratorTrait};
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse}};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
@@ -45,14 +46,42 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
     mock_data.save_all_with_options(&db, true).await.unwrap();
     mock_data.save_log_with_tournament_id(&db, tournament_uuid).await.unwrap();
 
+    let mut user_id = None;
 
-    schema::tournament_remote::ActiveModel {
-        uuid: sea_orm::ActiveValue::Set(Uuid::new_v4()),
-        tournament_id: sea_orm::ActiveValue::Set(Uuid::from_u128(1)),
-        url: sea_orm::ActiveValue::Set("localhost:8000".to_string()),
-        last_known_change: sea_orm::ActiveValue::Set(None),
-        last_synced_change: sea_orm::ActiveValue::Set(None)
-    }.insert(&db).await.unwrap();
+    match reqwest::Client::new().post("http://localhost:3000/api/users").json(
+        &CreateUserRequest {
+            password: "testpassword".to_string(),
+        }
+    ).send().await {
+        Ok(r) => {
+            let r : CreateUserResponse = r.json().await.unwrap();
+            user_id = Some(r);
+            dbg!("User created", &user_id);
+        }
+        _ => {
+            dbg!("Err with user");
+        }
+    };
+
+    match reqwest::Client::new().post("http://localhost:3000/api/tournaments").basic_auth(user_id.map(|u| u.uuid.to_string()).unwrap_or("".into()), "testpassword".into()).json(
+        &CreateTournamentRequest {
+            uuid: Uuid::from_u128(1),
+            name: "Test Tournament".to_string(),
+        }
+    ).send().await {
+        Ok(_) => {
+            schema::tournament_remote::ActiveModel {
+                uuid: sea_orm::ActiveValue::Set(Uuid::new_v4()),
+                tournament_id: sea_orm::ActiveValue::Set(Uuid::from_u128(1)),
+                url: sea_orm::ActiveValue::Set("localhost:3000".to_string()),
+                last_known_change: sea_orm::ActiveValue::Set(None),
+                last_synced_change: sea_orm::ActiveValue::Set(None)
+            }.insert(&db).await.unwrap();
+        }
+        _ => {
+            dbg!("Err");
+        }
+    }
 
     Ok(db)
 }
@@ -389,10 +418,56 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
     }
      */
 
-    todo!();
+    //todo!();
+
+    Ok(None)
 }
 
 async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
+    let transaction = db.begin().await?;
+    let remote_url = format!("http://{}/api/tournament/{}/log", target_tournament_remote.url, target_tournament_remote.tournament_id);
+
+    let change_log = open_tab_server::sync::get_entity_changes_since(
+        &transaction,
+        target_tournament_remote.tournament_id,
+        target_tournament_remote.last_synced_change,
+    ).await?;
+
+    transaction.rollback().await?;
+
+    let response = client.post(remote_url).json(&
+        SyncRequest {
+            log: change_log,
+            last_common_ancestor: target_tournament_remote.last_known_change
+        }
+    ).send().await?;
+    
+    if response.status() == 200 {
+        let response = response.json::<SyncRequestResponse>().await?;
+        match response.outcome {
+            open_tab_server::sync::ReconciliationOutcome::Success { new_last_common_ancestor } => {
+                let transaction = db.begin().await?;
+    
+                let update = schema::tournament_remote::ActiveModel {                
+                    uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
+                    last_synced_change: ActiveValue::Set(Some(new_last_common_ancestor)),
+                    ..Default::default()
+                };
+                update.update(&transaction).await?;
+    
+                transaction.commit().await?;
+            }
+            open_tab_server::sync::ReconciliationOutcome::Reject => {
+                
+            }
+        };    
+    }
+    else {
+        dbg!(response.text().await?);
+    }
+
+    Ok(())
+
     /*let transaction = db.begin().await?;
 
     let remote_base_url = format!("http://{}/tournament/{}", target_tournament_remote.url, target_tournament_remote.tournament_id);
@@ -457,7 +532,7 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
 
     Ok(())*/
 
-    todo!();
+    //todo!();
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -509,7 +584,7 @@ fn main() {
         .manage(Mutex::new(ViewCache::new()))
         .setup(|app| {
             let app_handle = app.handle();
-            let _synchronization_function = async move {
+            let synchronization_function = async move {
                 let target_uuid = Uuid::from_u128(1);
                 let client = reqwest::Client::new();
 
@@ -551,7 +626,7 @@ fn main() {
                 //let emit_result = app_handle.emit_all("app_event", "Hello Tauri!"); // Run this in a loop {} or whatever you want to do with the handle
               };
         
-            //tauri::async_runtime::spawn(synchronization_function);
+            tauri::async_runtime::spawn(synchronization_function);
             Ok(())  
         })
         .run(tauri::generate_context!())
