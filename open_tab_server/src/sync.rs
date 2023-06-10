@@ -1,0 +1,280 @@
+use std::collections::{HashMap, HashSet};
+
+use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
+use chrono::Utc;
+use itertools::Itertools;
+use open_tab_entities::{EntityGroup, Entity, get_changed_entities_from_log, EntityGroupTrait};
+use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement};
+use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot::error;
+use tracing::error_span;
+
+use crate::{state::AppState, response::{APIError, handle_error}};
+use std::error::Error;
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityEntry {
+    pub uuid: Uuid,
+    pub old_versions: Vec<Uuid>,
+    pub current_version: Uuid,
+    pub current_value: Entity,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEntry {
+    pub uuid: Uuid,
+    pub target_type: String,
+    pub target_uuid: Uuid,
+    pub timestamp: DateTime,
+}
+
+impl From<&open_tab_entities::schema::tournament_log::Model> for LogEntry {
+    fn from(model: &open_tab_entities::schema::tournament_log::Model) -> Self {
+        LogEntry {
+            uuid: model.uuid,
+            target_type: model.target_type.clone(),
+            target_uuid: model.target_uuid,
+            timestamp: model.timestamp,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FatLog {
+    pub log: Vec<LogEntry>,
+    pub entities: HashMap<
+        String,
+        Vec<
+            EntityEntry
+        >
+    >
+}
+
+pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<Vec<open_tab_entities::schema::tournament_log::Model>, Box<dyn Error>> where C: ConnectionTrait  {
+    let log_query: Select<open_tab_entities::schema::tournament_log::Entity> = open_tab_entities::schema::tournament_log::Entity::find()
+        .filter(open_tab_entities::schema::tournament_log::Column::TournamentId.eq(tournament_id))
+        .order_by_asc(open_tab_entities::schema::tournament_log::Column::SequenceIdx);
+
+    let log_query = match since {
+        None => log_query,
+        Some(since) => {
+            let model = open_tab_entities::schema::tournament_log::Entity::find_by_id(since).one(transaction).await?.ok_or("since is not a valid log entry".to_string())?;
+            log_query.filter(open_tab_entities::schema::tournament_log::Column::SequenceIdx.gt(model.sequence_idx))
+        }
+    };
+
+    let log = log_query
+        .all(transaction)
+        .await?;
+    Ok(log)
+}
+
+
+pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog, Box<dyn Error>> where C: ConnectionTrait  {
+    let log = get_log_since(transaction, tournament_id, since).await?;
+    let flat_log = log.iter().map(
+        LogEntry::from
+    ).collect::<Vec<LogEntry>>();
+    let mut entity_entries = log.into_iter().into_grouping_map_by(|entry| (entry.target_type.clone(), entry.target_uuid)).collect::<Vec<_>>();
+    let latest_entries = entity_entries.iter_mut().map(|((entity_type, entity_uuid), entries)| {
+        entries.pop().unwrap() // This can never be empty, otherwise the key would not be in the group map
+    }).collect::<Vec<_>>();
+    let versioned_entities = get_changed_entities_from_log(transaction, latest_entries).await?;
+
+    let versioned_entities_map = versioned_entities.into_iter().map(|entity| {
+        ((
+            entity.entity.get_name(),
+            entity.entity.get_uuid()
+        ), entity)
+    }).collect::<HashMap<_, _>>();
+
+    let entities = entity_entries.into_iter().map(|((entity_type, entity_uuid), entries)| {
+        let latest_version = versioned_entities_map.get(&(entity_type.clone(), entity_uuid)).unwrap();
+        (entity_type, EntityEntry {
+            uuid: entity_uuid,
+            old_versions: entries.into_iter().map(|entry| entry.target_uuid).collect::<Vec<_>>(),
+            current_version: latest_version.version,
+            current_value: latest_version.entity.clone()
+        })
+    }).into_grouping_map().collect::<Vec<_>>();
+
+    Ok(FatLog {
+        log: flat_log,
+        entities
+    })
+}
+
+async fn get_log(
+    State(db): State<DatabaseConnection>,
+    Path(tournament_id): Path<Uuid>,
+    Query(params): Query<HashMap<String, String>>
+) -> Result<Json<FatLog>, APIError> {
+    let since = match params.get("since").map(
+        |since| since.parse::<Uuid>()
+    ) {
+        None => Ok(None),
+        Some(Err(_)) => {
+            error_span!("since must be an uuid");
+            Err(APIError::new("since must be an uuid".into()))
+        },
+        Some(Ok(since)) => Ok(Some(since))
+    }?;
+
+    let transaction = db.begin().await.map_err(|_| {
+        error_span!("Failed to start transaction");
+        APIError::new("Failed to start transaction".into())
+    })?;
+    let fat_log = get_entity_changes_since(&transaction, tournament_id, since).await?;
+    transaction.rollback().await.map_err(handle_error)?;
+    Ok(Json(
+        fat_log
+    ))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum MergeStrategy {
+    Reject,
+    AlwaysLocal
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ReconciliationOutcome {
+    Reject,
+    Success {new_last_common_ancestor: Uuid}
+}
+
+pub async fn reconcile_changes<C>(
+    db: &C,
+    tournament_id: Uuid,
+    changes: FatLog,
+    last_common_ancestor: Option<Uuid>,
+    merge_strategy: MergeStrategy
+) -> Result<ReconciliationOutcome, Box<dyn Error>> where C: ConnectionTrait {
+    let local_log = get_log_since(db, tournament_id, last_common_ancestor).await?;
+
+    if last_common_ancestor.is_none() && changes.log.len() == 0 {
+        // We can not properly return the last common ancestor when the log is empty,
+        // so we must reject this special case
+        return Ok(ReconciliationOutcome::Reject);
+    }
+
+    if local_log.len() > 0 && merge_strategy == MergeStrategy::Reject {
+        return Ok(ReconciliationOutcome::Reject);
+    }
+
+    dbg!("?1");
+    
+    let head_sequence_idx = local_log.last().map(|entry| entry.sequence_idx).unwrap_or(0);
+    let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone(), entry.target_uuid)).collect::<HashSet<_>>();
+
+    let mut remote_log_models = changes.log.iter().enumerate().map(
+        |(idx, entry)| {
+            open_tab_entities::schema::tournament_log::Model {
+                uuid: entry.uuid,
+                tournament_id,
+                target_type: entry.target_type.clone(),
+                target_uuid: entry.target_uuid,
+                timestamp: entry.timestamp,
+                sequence_idx: head_sequence_idx + idx as i32 + 1
+            }.into_active_model()
+        }
+    ).collect_vec();
+
+    dbg!("?2");
+
+    // This unwrap is safe, since we reject an empty log with no last common ancestor
+    let new_last_common_ancestor = remote_log_models.last().map(|model| model.uuid.clone().unwrap()).unwrap_or_else(|| last_common_ancestor.unwrap());
+    let new_head_idx = remote_log_models.last().map(|model| model.sequence_idx.clone().unwrap()).unwrap_or(head_sequence_idx);
+
+    dbg!("?3");
+
+    let remote_changes_entities = changes.entities.iter().flat_map(|(entity_type, entries)| {
+        entries.iter().map(|entry| (entity_type.clone(), entry.uuid))
+    }).collect::<HashSet<_>>();
+
+    let conflicting_entities = locally_changed_entities.intersection(&remote_changes_entities).collect::<HashSet<_>>();
+
+    dbg!("?4");
+
+    conflicting_entities.iter().enumerate().for_each(|(idx, (entity_type, uuid))| {
+        remote_log_models.push(open_tab_entities::schema::tournament_log::Model {
+            uuid: Uuid::new_v4(),
+            tournament_id,
+            target_type: entity_type.clone(),
+            target_uuid: uuid.clone(),
+            timestamp: Utc::now().naive_utc(),
+            sequence_idx: new_head_idx + idx as i32 + 1
+        }.into_active_model());
+    });
+
+    open_tab_entities::schema::tournament_log::Entity::insert_many(remote_log_models).exec(db).await?;
+
+    let mut entities_to_save = vec![];
+
+    for (entity_type, entities) in changes.entities.into_iter() {
+        for entry in entities {
+            if !conflicting_entities.contains(&(entity_type.clone(), entry.uuid)) {
+                entities_to_save.push(entry.current_value);
+            }
+        }
+    }
+
+    EntityGroup::from(entities_to_save).save_all(db).await?;
+
+    Ok(
+        ReconciliationOutcome::Success {
+            new_last_common_ancestor
+        }
+    )
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncRequest {
+    pub log: FatLog,
+    pub last_common_ancestor: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncRequestResponse {
+    pub outcome: ReconciliationOutcome
+}
+
+
+async fn handle_sync_push_request(
+    State(db): State<DatabaseConnection>,
+    Path(tournament_id): Path<Uuid>,
+    Json(request_body): Json<SyncRequest>
+) -> Result<Json<SyncRequestResponse>, APIError> {
+    let transaction = db.begin().await.map_err(|_| {
+        tracing::error!("Failed to start transaction");
+        APIError::new("Failed to start transaction".into())
+    })?;
+
+    let outcome = reconcile_changes(
+        &transaction,
+        tournament_id,
+        request_body.log,
+        request_body.last_common_ancestor,
+        MergeStrategy::Reject
+    ).await?;
+
+    transaction.commit().await.map_err(handle_error)?;
+
+    Ok(
+        Json(
+            SyncRequestResponse {
+                outcome
+            }
+        )
+    )
+}
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+    .route("/tournament/:tournament_id/log", get(get_log))
+    .route("/tournament/:tournament_id/log", post(handle_sync_push_request))
+}
