@@ -5,7 +5,7 @@ use open_tab_macros::EntityGroup;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder, QuerySelect, ActiveValue};
 
-use crate::{domain::{participant::Participant, ballot::Ballot, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot, tournament_break::TournamentBreak, entity::LoadEntity}, schema::tournament_log};
+use crate::{domain::{participant::Participant, ballot::Ballot, tournament::Tournament, debate::TournamentDebate, round::TournamentRound, team::Team, tournament_institution::TournamentInstitution, participant_clash::ParticipantClash, debate_backup_ballot::DebateBackupBallot, tournament_break::TournamentBreak, entity::LoadEntity, tournament_venue::TournamentVenue}, schema::tournament_log};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct VersionedEntity<E> {
@@ -21,10 +21,11 @@ pub enum Entity {
     Participant(Participant),
     ParticipantClash(ParticipantClash),
     TournamentRound(TournamentRound),
+    TournamentVenue(TournamentVenue),
     Ballot(Ballot),
     TournamentDebate(TournamentDebate),
     DebateBackupBallot(DebateBackupBallot),
-    TournamentBreak(TournamentBreak)
+    TournamentBreak(TournamentBreak),
 }
 
 #[async_trait::async_trait]

@@ -10,6 +10,7 @@ import { ParticipantOverview } from "./ParticipantOverview";
 
 import { RoundResultRoute } from "./Results";
 import { RoundsEditorRoute } from "./RoundsEditor";
+import { RoundPublicationRoute } from "./RoundPublicationView";
 
 const router = createMemoryRouter([
   {
@@ -23,6 +24,10 @@ const router = createMemoryRouter([
       {
         path: "round/:roundId/results",
         element: <RoundResultRoute />,
+      },
+      {
+        path: "round/:roundId/publish",
+        element: <RoundPublicationRoute />,
       },
       {
         path: "participants",

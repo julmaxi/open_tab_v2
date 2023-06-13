@@ -17,6 +17,7 @@ mod update_scores;
 mod edit_tree;
 mod generate_draw;
 mod make_break;
+mod update_round;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -26,18 +27,20 @@ pub use self::update_scores::UpdateScoresAction;
 pub use self::edit_tree::EditTreeAction;
 pub use self::generate_draw::GenerateDrawAction;
 pub use self::make_break::MakeBreakAction;
+pub use self::update_round::UpdateRoundAction;
 pub(crate) use self::edit_tree::EditTreeActionType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Action {
-    UpdateDraw{action: UpdateDrawAction},
-    UpdateParticipants{action: UpdateParticipantsAction},
-    UpdateScores{action: UpdateScoresAction},
-    UploadParticipantsList{action: UploadParticipantsListAction},
-    EditTournamentTree{action: EditTreeAction},
-    GenerateDraw{ action: GenerateDrawAction },
-    MakeBreak { action: MakeBreakAction }
+    UpdateDraw { action: UpdateDrawAction },
+    UpdateParticipants { action: UpdateParticipantsAction },
+    UpdateScores { action: UpdateScoresAction },
+    UploadParticipantsList { action: UploadParticipantsListAction },
+    EditTournamentTree { action: EditTreeAction },
+    GenerateDraw { action: GenerateDrawAction },
+    MakeBreak { action: MakeBreakAction },
+    UpdateRound { action: UpdateRoundAction }
 }
 
 impl Action {
@@ -49,7 +52,8 @@ impl Action {
             Action::UploadParticipantsList { action } => action.get_changes(db).await,
             Action::EditTournamentTree { action } => action.get_changes(db).await,
             Action::GenerateDraw { action } => action.get_changes(db).await,
-            Action::MakeBreak { action } => action.get_changes(db).await
+            Action::MakeBreak { action } => action.get_changes(db).await,
+            Action::UpdateRound { action } => action.get_changes(db).await
         }
     }
 }

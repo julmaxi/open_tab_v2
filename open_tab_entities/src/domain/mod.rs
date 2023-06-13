@@ -9,5 +9,6 @@ pub mod tournament_institution;
 pub mod participant_clash;
 pub mod debate_backup_ballot;
 pub mod tournament_break;
+pub mod tournament_venue;
 
 pub use entity::TournamentEntity;

@@ -48,6 +48,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     Rounds: 100
     Debates: 200
     Ballots: 400
+    Venues: 500
     */
 
     assert!(options.num_teams % 3 == 0);
@@ -70,6 +71,22 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             format!("Institution {}", uuid)
         };
         crate::domain::tournament_institution::TournamentInstitution {
+            uuid,
+            name,
+            tournament_id: tournament_uuid,
+        }
+    }).collect_vec();
+
+    let venues = (0..options.num_teams / 3).map(|i| {
+        let uuid = if options.deterministic_uuids {Uuid::from_u128(500 + i as u128)} else {Uuid::new_v4()};
+        
+        let name = if options.use_random_names {
+            rand::random::<CompanyName>().to_string()
+        }
+        else {
+            format!("Venue {}", i)
+        };
+        crate::domain::tournament_venue::TournamentVenue {
             uuid,
             name,
             tournament_id: tournament_uuid,
@@ -170,8 +187,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             tournament_id: tournament_uuid,
             index: i as u64,
             draw_type: Some(DrawType::StandardPreliminaryDraw),
-            team_motion_release_time: None,
-            full_motion_release_time: None,
+            draw_release_time: if i == 0 {Some(chrono::Utc::now().naive_utc())} else {None},
             ..Default::default()
         }
     }).collect_vec();
@@ -266,7 +282,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                     round_id: rounds[round_idx].uuid,
                     ballot_id: ballot.uuid,
                     index: debate_idx as u64,
-                    venue_id: None,
+                    venue_id: Some(venues[debate_idx].uuid),
                     is_motion_released_to_non_aligned: false
                 }
             }).collect_vec();
@@ -283,6 +299,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     rounds.into_iter().for_each(|round| groups.add(Entity::TournamentRound(round)));
     institutions.into_iter().for_each(|i| groups.add(Entity::TournamentInstitution(i)));
     clashes.into_iter().for_each(|c| groups.add(Entity::ParticipantClash(c)));
+    venues.into_iter().for_each(|v| groups.add(Entity::TournamentVenue(v)));
 
     groups
 }

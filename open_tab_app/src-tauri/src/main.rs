@@ -5,7 +5,7 @@ use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync:
 
 use migration::{MigratorTrait};
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse}};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse}};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
@@ -420,12 +420,54 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
 
     //todo!();
 
+    let mut remote_url = format!("http://{}/api/tournament/{}/log", target_tournament_remote.url, target_tournament_remote.tournament_id);
+
+    if let Some(last_common_ancestor) = target_tournament_remote.last_synced_change {
+        remote_url = format!("{}?since={}", remote_url, last_common_ancestor);
+    }
+
+    let response = client.get(remote_url).send().await?;
+    let remote_changes : FatLog = response.json().await?;
+
+    if remote_changes.log.len() > 0 {
+        dbg!("Integrating remote changes", remote_changes.log.len());
+        let transaction = db.begin().await?;
+
+        let outcome = reconcile_changes(&transaction, target_tournament_remote.tournament_id, remote_changes, target_tournament_remote.last_synced_change, open_tab_server::sync::MergeStrategy::AlwaysLocal, true).await?;
+
+        match outcome {
+            ReconciliationOutcome::Success { new_last_common_ancestor, entity_group } => {
+                let update = schema::tournament_remote::ActiveModel {                
+                    uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
+                    last_synced_change: ActiveValue::Set(Some(new_last_common_ancestor)),
+                    ..Default::default()
+                };
+                update.update(&transaction).await?;
+                transaction.commit().await?;
+                let transaction = db.begin().await?;
+                let mut view_cache = view_cache.lock().await;
+
+                let notifications = view_cache.update_and_get_changes(&transaction, &entity_group.unwrap()).await?;
+                app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
+                transaction.rollback().await?;
+
+                return Ok(None);
+            }
+            ReconciliationOutcome::Reject => {
+                transaction.rollback().await?;
+                return Err(SyncError::Other("Reconciliation failed".to_string()));
+            }
+        }
+
+    }
+
     Ok(None)
 }
 
 async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
-    let transaction = db.begin().await?;
     let remote_url = format!("http://{}/api/tournament/{}/log", target_tournament_remote.url, target_tournament_remote.tournament_id);
+
+    let transaction = db.begin().await?;
 
     let change_log = open_tab_server::sync::get_entity_changes_since(
         &transaction,
@@ -435,18 +477,24 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
 
     transaction.rollback().await?;
 
+    if change_log.log.len() == 0 {
+        return Ok(());
+    }
+    dbg!("Pushing changes", change_log.log.len());
+
     let response = client.post(remote_url).json(&
         SyncRequest {
             log: change_log,
-            last_common_ancestor: target_tournament_remote.last_known_change
+            last_common_ancestor: target_tournament_remote.last_synced_change
         }
     ).send().await?;
     
     if response.status() == 200 {
         let response = response.json::<SyncRequestResponse>().await?;
         match response.outcome {
-            open_tab_server::sync::ReconciliationOutcome::Success { new_last_common_ancestor } => {
+            open_tab_server::sync::APIReconciliationOutcome::Success { new_last_common_ancestor } => {
                 let transaction = db.begin().await?;
+                dbg!(&new_last_common_ancestor);
     
                 let update = schema::tournament_remote::ActiveModel {                
                     uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
@@ -457,8 +505,8 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
     
                 transaction.commit().await?;
             }
-            open_tab_server::sync::ReconciliationOutcome::Reject => {
-                
+            open_tab_server::sync::APIReconciliationOutcome::Reject => {
+                dbg!("Remote rejected changes");
             }
         };    
     }
@@ -588,9 +636,8 @@ fn main() {
                 let target_uuid = Uuid::from_u128(1);
                 let client = reqwest::Client::new();
 
-                tokio::time::sleep(Duration::from_secs(10)).await;
-
                 loop {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                     let db = &*app_handle.state::<DatabaseConnection>();
 
                     let transaction = db.begin().await.unwrap();

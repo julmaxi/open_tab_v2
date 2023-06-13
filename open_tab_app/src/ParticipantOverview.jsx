@@ -141,6 +141,7 @@ function ParticipantTable(props) {
                 "name": speaker.name,
                 "institutions": speaker.institutions,
                 "clashes": speaker.clashes,
+                "registration_key": speaker.registration_key,
                 "path": ["teams", team_uuid, "members", speaker_uuid],
             }
         })
@@ -154,6 +155,7 @@ function ParticipantTable(props) {
                 "name": adjudicator.name,
                 "institutions": adjudicator.institutions,
                 "clashes": adjudicator.clashes,
+                "registration_key": adjudicator.registration_key,
                 "path": ["adjudicators", adjudicator_uuid],
             }
         }
@@ -172,9 +174,7 @@ function ParticipantTable(props) {
             { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
                 return <EditableCell key={colIdx} value={value} onChange={
                     (newName) => {
-                        console.log(rowValue);
                         let newParticipant = {... getPath(props.participants, rowValue.path)};
-                        console.log(newParticipant);
                         newParticipant.name = newName;
                         executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: "00000000-0000-0000-0000-000000000001"})
                     }
@@ -182,6 +182,7 @@ function ParticipantTable(props) {
             } },
             { "key": "institutions", "header": "Institutions" },
             { "key": "clashes", "header": "Clashes" },
+            { "key": "registration_key", "header": "Secret" },
         ]
     } />
 }

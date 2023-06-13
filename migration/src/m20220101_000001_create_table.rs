@@ -28,6 +28,7 @@ enum TournamentRound {
     DrawReleaseTime,
     TeamMotionReleaseTime,
     FullMotionReleaseTime,
+    RoundCloseTime,
     IsSilent
 }
 
@@ -263,6 +264,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRound::DrawReleaseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::TeamMotionReleaseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::FullMotionReleaseTime).date_time())
+                .col(ColumnDef::new(TournamentRound::RoundCloseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::IsSilent).boolean().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
@@ -623,6 +625,16 @@ impl MigrationTrait for Migration {
                         .from_col(TournamentDebate::BallotId)
                         .to_tbl(Ballot::Table)
                         .to_col(Ballot::Uuid)
+                        .on_delete(ForeignKeyAction::Cascade)
+                        .on_update(ForeignKeyAction::Cascade)
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                        .name("fk-debate-venue")
+                        .from_tbl(TournamentDebate::Table)
+                        .from_col(TournamentDebate::VenueId)
+                        .to_tbl(TournamentVenue::Table)
+                        .to_col(TournamentVenue::Uuid)
                         .on_delete(ForeignKeyAction::Cascade)
                         .on_update(ForeignKeyAction::Cascade)
                 )

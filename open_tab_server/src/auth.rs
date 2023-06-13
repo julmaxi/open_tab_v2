@@ -104,7 +104,7 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
                 hashed_key.to_string()
             ).one(&state.db).await.map_err(handle_error)?;
 
-            let key = key.ok_or((StatusCode::UNAUTHORIZED, "User not found or password incorrect"))?;
+            let key = key.ok_or((StatusCode::UNAUTHORIZED, "Bearer token invalid"))?;
             
             return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
                 uuid: key.user_id,
@@ -141,6 +141,7 @@ pub struct GetTokenResponse {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RegisterUserResponse {
     pub user_id: Uuid,
+    pub participant_id: Uuid,
     pub token: String
 }
 
@@ -204,14 +205,21 @@ pub async fn create_token_handler(State(db): State<DatabaseConnection>, ExtractA
     )
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterParticipantRequest {
+    pub secret: String
+}
+
 pub async fn register_user_handler(
     State(db): State<DatabaseConnection>,
-    Path(secret): Path<String>
+    Json(RegisterParticipantRequest{secret}): Json<RegisterParticipantRequest>
 ) -> Result<Json<RegisterUserResponse>, APIError> {
     let (participant_id, submitted_key) = Participant::decode_registration_key(secret)?;
 
     let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
         .one(&db).await.map_err(handle_error)?.ok_or(APIError::from((StatusCode::BAD_REQUEST, "Participant not found or key invalid")))?;
+
+    let db = db.begin().await.map_err(handle_error)?;
 
     match participant.registration_key {
         None => Err((StatusCode::BAD_REQUEST, "Participant can not be claimed").into()),
@@ -222,29 +230,17 @@ pub async fn register_user_handler(
                 ).one(&db).await.map_err(handle_error)?;
 
                 if let Some(existing_user) = existing_user {
-                    let user_keys = open_tab_entities::schema::user_access_key::Entity::find().filter(
-                        open_tab_entities::schema::user_access_key::Column::UserId.eq(existing_user.user_id)
-                    ).all(&db).await.map_err(handle_error)?;
-                    
-                    if user_keys.len() == 0 {
-                        let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
-                        let token = create_key(&key, existing_user.user_id, None).map_err(handle_error_dyn)?;
-                        token.into_active_model().insert(&db).await.map_err(handle_error)?;
-                        Ok(
-                            RegisterUserResponse {
-                                user_id: existing_user.user_id,
-                                token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)
-                            }.into()
-                        )
-                    }
-                    else {
-                        Ok(
-                            RegisterUserResponse {
-                                user_id: existing_user.user_id,
-                                token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&user_keys[0].key_hash.as_bytes())
-                            }.into()
-                        )
-                    }
+                    let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
+                    let token = create_key(&key, existing_user.user_id, None).map_err(handle_error_dyn)?;
+                    token.into_active_model().insert(&db).await.map_err(handle_error)?;
+                    db.commit().await.map_err(handle_error)?;
+                    Ok(
+                        RegisterUserResponse {
+                            user_id: existing_user.user_id,
+                            participant_id: participant_id,
+                            token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)
+                        }.into()
+                    )
                 }
                 else {
                     let new_user_id = Uuid::new_v4();
@@ -256,7 +252,6 @@ pub async fn register_user_handler(
                     new_user.into_active_model().insert(&db).await.map_err(handle_error)?;
                     let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
                     let user_key = create_key(&key, new_user_id, None).map_err(handle_error_dyn)?;
-                    let user_key_hash = user_key.key_hash.clone();
                     user_key.into_active_model().insert(&db).await.map_err(handle_error)?;
 
                     let user_participant = open_tab_entities::schema::user_participant::Model {
@@ -264,15 +259,19 @@ pub async fn register_user_handler(
                         participant_id
                     };
                     user_participant.into_active_model().insert(&db).await.map_err(handle_error)?;
+                    
+                    db.commit().await.map_err(handle_error)?;
                     Ok(
                         RegisterUserResponse {
                             user_id: new_user_id,
-                            token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&user_key_hash.as_bytes())
+                            participant_id,
+                            token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)
                         }.into()
                     )
             }
             }
             else {
+                db.rollback().await.map_err(handle_error)?;
                 Err((StatusCode::BAD_REQUEST, "Incorrect key or participant id").into())
             }
         }
@@ -283,7 +282,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/users", post(create_user_handler))
         .route("/tokens", post(create_token_handler))
-        .route("/register/:secret", post(register_user_handler))
+        .route("/register", post(register_user_handler))
 }
 
 pub fn check_release_date(current_time: chrono::NaiveDateTime, check_time: Option<chrono::NaiveDateTime>) -> bool {

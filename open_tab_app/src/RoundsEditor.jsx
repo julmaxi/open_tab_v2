@@ -1,4 +1,4 @@
-import { Children, useState, useRef, forwardRef, cloneElement, useContext } from "react";
+import { Children, useState, forwardRef, useContext } from "react";
 import Button from "./Button";
 
 import { useView } from "./View";
@@ -129,92 +129,10 @@ function TournamentSubtree(props) {
     </div>
 }
 
-import {
-    useFloating,
-    autoUpdate,
-    offset,
-    flip,
-    shift,
-    arrow,
-    useDismiss,
-    useRole,
-    useClick,
-    useInteractions,
-    FloatingFocusManager,
-    useId,
-    FloatingArrow
-    
-  } from '@floating-ui/react';
 import { executeAction } from "./Action";
+import { Popover } from "./Popover";
 
 
-
-function Popover(props) {
-    const arrowRef = useRef(null);
-
-    const { refs, floatingStyles, context } = useFloating({
-      open: props.isOpen,
-      onOpenChange: (open) => {
-        if (open) {
-            props.onOpen();
-        }
-        else {
-            props.onClose();
-        }
-      },
-      placement: "right",
-      middleware: [
-        offset(10),
-        flip({ fallbackAxisSideDirection: "end" }),
-        shift(),
-        arrow({
-        element: arrowRef,
-        }),    
-      ],
-      whileElementsMounted: autoUpdate
-    });
-  
-    const click = useClick(context);
-    const dismiss = useDismiss(context);
-    const role = useRole(context);
-  
-    const { getReferenceProps, getFloatingProps } = useInteractions([
-      click,
-      dismiss,
-      role
-    ]);
-  
-    const headingId = useId();
-  
-    return (
-      <>
-        {
-            cloneElement(
-                props.trigger,
-                getReferenceProps({
-                  ref: refs.setReference,
-                  ...props.trigger.props,
-                  "data-state": context.open ? "open" : "closed"
-            }))
-        }
-
-        {props.isOpen && (
-          <FloatingFocusManager context={context} modal={false}>
-            <div
-              className="bg-white border rounded p-2"
-              ref={refs.setFloating}
-              style={floatingStyles}
-              aria-labelledby={headingId}
-              {...getFloatingProps()}
-            >
-                <FloatingArrow ref={arrowRef} context={context} />
-                {props.children}
-            </div>
-          </FloatingFocusManager>
-        )}
-      </>
-    );
-  }
 
 function AddButton(props) {
     let trigger = <button

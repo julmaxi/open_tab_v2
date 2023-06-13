@@ -46,6 +46,7 @@ function SideNav(props) {
       rounds.map((round) => 
         <NavGroup header={round.name} key={round.uuid}>
           <NavItem href={`/round/${round.uuid}/draw`}>Draw</NavItem>
+          <NavItem href={`/round/${round.uuid}/publish`}>Publish</NavItem>
           <NavItem href={`/round/${round.uuid}/results`}>Results</NavItem>
         </NavGroup>
       )

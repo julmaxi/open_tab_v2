@@ -34,6 +34,14 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     TournamentRound,
+    #[sea_orm(
+        belongs_to = "super::tournament_venue::Entity",
+        from = "Column::VenueId",
+        to = "super::tournament_venue::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    TournamentVenue,
 }
 
 impl Related<super::ballot::Entity> for Entity {
@@ -51,6 +59,12 @@ impl Related<super::debate_backup_ballot::Entity> for Entity {
 impl Related<super::tournament_round::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TournamentRound.def()
+    }
+}
+
+impl Related<super::tournament_venue::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentVenue.def()
     }
 }
 

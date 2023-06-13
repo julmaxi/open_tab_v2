@@ -118,6 +118,7 @@ impl ParticipantsListView {
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, Box<dyn Error>> where C: ConnectionTrait {
        let participants = domain::participant::Participant::get_all_in_tournament(db, tournament_uuid).await?;
 
+       // This is a little hack so we can load all the institutions using the Loader trait
        let all_institutions: Vec<Vec<_>> = participants.iter().map(|p| schema::participant::Model {
             uuid: p.uuid,
             tournament_id: Uuid::nil(),
@@ -179,7 +180,9 @@ impl ParticipantsListView {
                     },
                     institutions,
                     clashes,
-                    registration_key: p.registration_key.map(|k| general_purpose::STANDARD_NO_PAD.encode(k))
+                    registration_key: p.registration_key.map(|k| {
+                        Participant::encode_registration_key(p.uuid, &k)
+                    })
                 }),
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
@@ -191,7 +194,7 @@ impl ParticipantsListView {
                             role: ParticipantRole::Speaker { team_id  },
                             institutions,
                             clashes,
-                            registration_key: p.registration_key.map(|k| general_purpose::STANDARD_NO_PAD.encode(k))
+                            registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k))
                         })    
                     }
                     else {

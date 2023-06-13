@@ -184,6 +184,7 @@ pub struct GetDebateResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetBallotSubmissionResponse {
+    pub debate_id: Uuid,
     pub ballot: DisplayBallot
 }
 
@@ -267,6 +268,7 @@ async fn get_ballot_submission(
     let ballot = DisplayBallot::from_id(submission.ballot_id, &db).await?;
 
     Ok(Json(GetBallotSubmissionResponse {
+        debate_id: submission.debate_id,
         ballot
     }))
 }

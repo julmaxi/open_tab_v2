@@ -1,6 +1,21 @@
 import { env } from '$env/dynamic/public'
 import { redirect } from '@sveltejs/kit';
 
+import { make_authenticated_request } from '$lib/api';
+
+/** @type {import('./$types').PageServerLoad} */
+export async function load({ params, cookies }) {
+    let res = await make_authenticated_request(
+        `api/debate/${params.debate_id}`,
+        cookies,
+        {}
+    )
+    const ballot = (await res.json());
+
+    return {
+        ballot: ballot.ballot
+    };
+}
 
 /**
  * @param {{ [x: string]: any; }} obj
@@ -75,8 +90,8 @@ function parseScores(scoresList, adjudicators) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-    default: async (event) => {
-        let formData = await event.request.formData();
+    default: async ({request, params, cookies}) => {
+        let formData = await request.formData();
 
         let ballot = {
             uuid: "00000000-0000-0000-0000-000000000000",
@@ -134,11 +149,16 @@ export const actions = {
 
         ballot.speeches = speeches;
 
-        let res = await fetch(`${env.PUBLIC_API_URL}/api/v1/debate/${event.params.debate_id}/ballots`, {
+        let res = await make_authenticated_request(
+            `api/debate/${params.debate_id}/submissions`,
+            cookies,
+            {body: JSON.stringify({ballot: ballot}), method: "POST", headers: {"Content-Type": "application/json"}}
+        );
+        /*let res = await fetch(`${env.PUBLIC_API_URL}/api/v1/debate/${params.debate_id}/ballots`, {
             method: "POST",
             body: JSON.stringify(ballot),
-        });
+        });*/
 
-        throw redirect(302, `/submission/${(await res.json()).debate_ballot_uuid}`);
+        throw redirect(302, `/submission/${(await res.json()).submission_id}`);
     }
 };

@@ -4,7 +4,7 @@ use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use itertools::Itertools;
 use open_tab_entities::{EntityGroup, Entity, get_changed_entities_from_log, EntityGroupTrait};
-use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement};
+use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::error;
 use tracing::error_span;
@@ -140,10 +140,26 @@ pub enum MergeStrategy {
     AlwaysLocal
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReconciliationOutcome {
     Reject,
+    Success {new_last_common_ancestor: Uuid, entity_group: Option<EntityGroup>}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum APIReconciliationOutcome {
+    Reject,
     Success {new_last_common_ancestor: Uuid}
+}
+
+impl From<ReconciliationOutcome> for APIReconciliationOutcome {
+    fn from(outcome: ReconciliationOutcome) -> Self {
+        match outcome {
+            ReconciliationOutcome::Reject => APIReconciliationOutcome::Reject,
+            ReconciliationOutcome::Success {new_last_common_ancestor, entity_group} => APIReconciliationOutcome::Success {
+                new_last_common_ancestor,
+            }
+        }
+    }
 }
 
 pub async fn reconcile_changes<C>(
@@ -151,23 +167,33 @@ pub async fn reconcile_changes<C>(
     tournament_id: Uuid,
     changes: FatLog,
     last_common_ancestor: Option<Uuid>,
-    merge_strategy: MergeStrategy
+    merge_strategy: MergeStrategy,
+    return_entity_group: bool
 ) -> Result<ReconciliationOutcome, Box<dyn Error>> where C: ConnectionTrait {
     let local_log = get_log_since(db, tournament_id, last_common_ancestor).await?;
 
     if last_common_ancestor.is_none() && changes.log.len() == 0 {
         // We can not properly return the last common ancestor when the log is empty,
         // so we must reject this special case
+        tracing::warn!("Rejecting reconciliation with empty log and no last common ancestor");
         return Ok(ReconciliationOutcome::Reject);
     }
 
     if local_log.len() > 0 && merge_strategy == MergeStrategy::Reject {
+        tracing::warn!("Rejecting reconciliation with local changes and {} local log entries", local_log.len());
         return Ok(ReconciliationOutcome::Reject);
     }
 
-    dbg!("?1");
-    
-    let head_sequence_idx = local_log.last().map(|entry| entry.sequence_idx).unwrap_or(0);
+    let head_sequence_idx = if local_log.len() > 0 {
+        local_log.last().map(|entry| entry.sequence_idx).unwrap()
+    }
+    else {
+        open_tab_entities::schema::tournament_log::Entity::find()
+        .filter(open_tab_entities::schema::tournament_log::Column::TournamentId.eq(tournament_id))
+        .order_by_desc(open_tab_entities::schema::tournament_log::Column::SequenceIdx)
+        .limit(1)
+        .one(db).await?.map(|m| m.sequence_idx).unwrap_or(0)
+    };
     let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone(), entry.target_uuid)).collect::<HashSet<_>>();
 
     let mut remote_log_models = changes.log.iter().enumerate().map(
@@ -183,21 +209,15 @@ pub async fn reconcile_changes<C>(
         }
     ).collect_vec();
 
-    dbg!("?2");
-
     // This unwrap is safe, since we reject an empty log with no last common ancestor
     let new_last_common_ancestor = remote_log_models.last().map(|model| model.uuid.clone().unwrap()).unwrap_or_else(|| last_common_ancestor.unwrap());
     let new_head_idx = remote_log_models.last().map(|model| model.sequence_idx.clone().unwrap()).unwrap_or(head_sequence_idx);
-
-    dbg!("?3");
 
     let remote_changes_entities = changes.entities.iter().flat_map(|(entity_type, entries)| {
         entries.iter().map(|entry| (entity_type.clone(), entry.uuid))
     }).collect::<HashSet<_>>();
 
     let conflicting_entities = locally_changed_entities.intersection(&remote_changes_entities).collect::<HashSet<_>>();
-
-    dbg!("?4");
 
     conflicting_entities.iter().enumerate().for_each(|(idx, (entity_type, uuid))| {
         remote_log_models.push(open_tab_entities::schema::tournament_log::Model {
@@ -210,10 +230,11 @@ pub async fn reconcile_changes<C>(
         }.into_active_model());
     });
 
-    open_tab_entities::schema::tournament_log::Entity::insert_many(remote_log_models).exec(db).await?;
-
+    if remote_log_models.len() > 0 {
+        dbg!("Inserting remote log models", &remote_log_models.len());
+        open_tab_entities::schema::tournament_log::Entity::insert_many(remote_log_models).exec(db).await?;
+    }
     let mut entities_to_save = vec![];
-
     for (entity_type, entities) in changes.entities.into_iter() {
         for entry in entities {
             if !conflicting_entities.contains(&(entity_type.clone(), entry.uuid)) {
@@ -222,11 +243,12 @@ pub async fn reconcile_changes<C>(
         }
     }
 
-    EntityGroup::from(entities_to_save).save_all(db).await?;
-
+    let group = EntityGroup::from(entities_to_save);
+    group.save_all(db).await?;    
     Ok(
         ReconciliationOutcome::Success {
-            new_last_common_ancestor
+            new_last_common_ancestor,
+            entity_group: if return_entity_group { Some(group) } else { None }
         }
     )
 }
@@ -240,7 +262,7 @@ pub struct SyncRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncRequestResponse {
-    pub outcome: ReconciliationOutcome
+    pub outcome: APIReconciliationOutcome
 }
 
 
@@ -259,7 +281,8 @@ async fn handle_sync_push_request(
         tournament_id,
         request_body.log,
         request_body.last_common_ancestor,
-        MergeStrategy::Reject
+        MergeStrategy::Reject,
+        false
     ).await?;
 
     transaction.commit().await.map_err(handle_error)?;
@@ -267,7 +290,7 @@ async fn handle_sync_push_request(
     Ok(
         Json(
             SyncRequestResponse {
-                outcome
+                outcome: outcome.into()
             }
         )
     )

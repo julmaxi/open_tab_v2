@@ -55,5 +55,4 @@ impl Related<super::speaker::Entity> for Entity {
     }
 }
 
-
 impl ActiveModelBehavior for ActiveModel {}

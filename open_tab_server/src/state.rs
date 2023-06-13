@@ -33,7 +33,7 @@ impl AppState {
         let db = db::set_up_db(
             DatabaseConfig::new(
                 //"sqlite://./open_tab_v2.sqlite3?mode=rwc".into(),
-                "sqlite::memory:".into(),
+                "sqlite://./server.sqlite3?mode=rwc".into(),
                 "open_tab_v2".into(),
             )
         ).await.expect("Failed to set up database");
