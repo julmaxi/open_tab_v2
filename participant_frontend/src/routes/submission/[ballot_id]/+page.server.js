@@ -11,8 +11,6 @@ export async function load({ params, fetch, cookies }) {
     )
     const ballot = await res.json();
 
-    console.log(ballot);
-
     return {
         ballot: ballot.ballot,
         debate: {

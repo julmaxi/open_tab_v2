@@ -32,8 +32,25 @@ impl AppState {
     pub async fn new() -> AppState {
         let db = db::set_up_db(
             DatabaseConfig::new(
-                //"sqlite://./open_tab_v2.sqlite3?mode=rwc".into(),
                 "sqlite://./server.sqlite3?mode=rwc".into(),
+                "open_tab_v2".into(),
+            )
+        ).await.expect("Failed to set up database");
+        db.execute(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            "PRAGMA foreign_keys = ON;",
+            vec![])
+        ).await.expect("Failed to enable foreign keys");
+        migration::Migrator::up(&db, None).await.unwrap();
+        AppState {
+            db
+        }
+    }
+
+    pub async fn new_test_app() -> AppState {
+        let db = db::set_up_db(
+            DatabaseConfig::new(
+                "sqlite::memory:".into(),
                 "open_tab_v2".into(),
             )
         ).await.expect("Failed to set up database");

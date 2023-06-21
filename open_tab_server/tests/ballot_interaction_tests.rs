@@ -146,7 +146,6 @@ async fn test_get_empty_ballot() {
         ballot.ballot.speeches.len(),
         9
     );
-
 }
 
 
@@ -278,7 +277,7 @@ async fn test_chair_can_not_submit_ballot_for_inactive_round() {
     fixture.auth = auth;
 
     let response = fixture.post_json(
-        &format!("/api/debate/{}/submissions", Uuid::from_u128(200)),
+        &format!("/api/debate/{}/submissions", Uuid::from_u128(210)),
         SubmitBallotRequest {
             ballot: make_demo_ballot()
         }

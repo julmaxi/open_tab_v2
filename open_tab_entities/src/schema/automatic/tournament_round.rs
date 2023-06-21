@@ -45,4 +45,5 @@ impl Related<super::tournament_debate::Entity> for Entity {
     }
 }
 
+
 impl ActiveModelBehavior for ActiveModel {}

@@ -295,7 +295,6 @@ function ScoreInputCell(props) {
 export function RoundResultList(props) {
     let debates = useView({type: "RoundResults", round_uuid: props.roundId}, {"debates": []});
     let [activeBallot, setActiveBallot] = useState(null);
-    console.log(activeBallot);
     return <div>
         <div className="p-4">
         {

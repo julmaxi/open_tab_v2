@@ -31,6 +31,7 @@ pub enum PreliminariesDrawMode {
     AvoidClashes
 }
 
+/*
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum MinorBreakRoundDrawType {
     PowerPaired,
@@ -51,7 +52,7 @@ impl Into<DrawType> for MinorBreakRoundDrawType {
         }
     }
 }
-
+*/
 
 pub struct PreliminaryRoundGenerator {
     pub draw_mode: PreliminariesDrawMode,

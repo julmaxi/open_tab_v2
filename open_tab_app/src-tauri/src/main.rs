@@ -4,7 +4,7 @@
 use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync::{PoisonError}, time::Duration, iter::zip};
 
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse}};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
@@ -26,6 +26,230 @@ fn greet(name: &str) -> String {
 }
 
 
+fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
+    let basic_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "skill".into(),
+            full_name: "Wie würdest du insgesamt die Kompetenz dieser JurorIn bewerten?".into(),
+            description: "".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: 0,
+                max: 100,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (0, "Sehr schlecht".into()),
+                    (100, "Sehr gut".into()),
+                ] }
+            },
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let team_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "team_level".into(),
+            full_name: "Wie fandest du die Punkzahl, die du/ihr für eure Reden erhalten hast/habt?".into(),
+            description: "Gib an, wie weit (in Punkten) die gegebene Punktzahl von der Punkzahl, die du für angemessen gehalten hättest.".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: -21,
+                max: 21,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (-21, ">10 zu niedrig".into()),
+                    (21, ">10 zu hoch".into()),
+                ] }},
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let speaker_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "speech_level".into(),
+            full_name: "Wie fandest du die Punkzahl, die du/ihr für eure Reden erhalten hast/habt?".into(),
+            description: "Gib an, wie weit (in Punkten) die gegebene Punktzahl von der Punkzahl, die du für angemessen gehalten hättest. Für Teams nenne die größte Abweichung.".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: -11,
+                max: 11,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (-11, ">10 zu niedrig".into()),
+                    (11, ">10 zu hoch".into()),
+                ] }
+            },
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let feedback_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "feedback_level".into(),
+            full_name: "Unabhängig von deiner/eurer eigenen Einschätzung der Punktzahl. Hat das Feedback deine/eure Punktzahl gut wiedergespiegelt?".into(),
+            description: "".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: 0,
+                max: 100,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (0, "Ganz und gar nicht".into()),
+                    (100, "Voll und ganz".into()),
+                ] }},
+            tournament_id: Some(tournament_id),
+        },
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "feedback_overall".into(),
+            full_name: "Wie würdest du insgesamt die Qualität des Feedbacks bewerten?".into(),
+            description: "".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: 0,
+                max: 100,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (0, "Sehr schlecht".into()),
+                    (100, "Sehr gut".into()),
+                ] }},
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let wing_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "moderation".into(),
+            full_name: "Wie hat er Chair die Jurierdiskussion geleitet?".into(),
+            description: "".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: 0,
+                max: 100,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (0, "Sehr schlecht".into()),
+                    (100, "Sehr gut".into()),
+                ] }},
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let chair_questions = vec![
+        FeedbackQuestion {
+            uuid: Uuid::new_v4(),
+            short_name: "participation".into(),
+            full_name: "Hat der/die JurorIn sich konstruktiv an der Jurierdiskussion beteiligt?".into(),
+            description: "".into(),
+            question_config: open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion{config: open_tab_entities::domain::feedback_question::RangeQuestionConfig {
+                min: 0,
+                max: 100,
+                orientation: open_tab_entities::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                labels: vec![
+                    (0, "Sehr schlecht".into()),
+                    (100, "Sehr gut".into()),
+                ] }},
+            tournament_id: Some(tournament_id),
+        },
+    ];
+
+    let comments_questions = vec![FeedbackQuestion {
+        uuid: Uuid::new_v4(),
+        short_name: "comments".into(),
+        full_name: "Comments".into(),
+        description: "Diese Kommentare werden später für die Juror/In einsehbar sein.".into(),
+        question_config: open_tab_entities::domain::feedback_question::QuestionType::TextQuestion,
+        tournament_id: Some(tournament_id),
+    }];
+
+    let chair_form = FeedbackForm {
+        uuid: Uuid::new_v4(),
+        name: "Chair Feedback to Wings".to_string(),
+        visibility: FeedbackFormVisibility {
+            show_chairs_for_wings: true,
+            ..Default::default()
+        },
+        tournament_id: Some(tournament_id),
+        questions: itertools::chain!(
+            basic_questions.iter().map(|q| q.uuid.clone()),
+            chair_questions.iter().map(|q| q.uuid.clone()),
+            comments_questions.iter().map(|q| q.uuid.clone()),
+        ).collect(),
+    };
+
+    let wing_form = FeedbackForm {
+        uuid: Uuid::new_v4(),
+        name: "Wing Feedback to Chairs".to_string(),
+        visibility: FeedbackFormVisibility {
+            show_wings_for_chairs: true,
+            ..Default::default()
+        },
+        tournament_id: Some(tournament_id),
+        questions: itertools::chain!(
+            basic_questions.iter().map(|q| q.uuid.clone()),
+            wing_questions.iter().map(|q| q.uuid.clone()),
+            comments_questions.iter().map(|q| q.uuid.clone()),
+        ).collect(),
+    };
+
+    let team_form = FeedbackForm {
+        uuid: Uuid::new_v4(),
+        name: "Team Feedback to Chairs".to_string(),
+        visibility: FeedbackFormVisibility {
+            show_teams_for_chairs: true,
+            ..Default::default()
+        },
+        tournament_id: Some(tournament_id),
+        questions: itertools::chain!(
+            basic_questions.iter().map(|q| q.uuid.clone()),
+            team_questions.iter().map(|q| q.uuid.clone()),
+            speaker_questions.iter().map(|q| q.uuid.clone()),
+            feedback_questions.iter().map(|q| q.uuid.clone()),
+            comments_questions.iter().map(|q| q.uuid.clone()),
+        ).collect(),
+    };
+
+    let speaker_form = FeedbackForm {
+        uuid: Uuid::new_v4(),
+        name: "Non-Aligned Feedback to Chairs".to_string(),
+        visibility: FeedbackFormVisibility {
+            show_non_aligned_for_chairs: true,
+            ..Default::default()
+        },
+        tournament_id: Some(tournament_id),
+        questions: itertools::chain!(
+            basic_questions.iter().map(|q| q.uuid.clone()),
+            speaker_questions.iter().map(|q| q.uuid.clone()),
+            feedback_questions.iter().map(|q| q.uuid.clone()),
+            comments_questions.iter().map(|q| q.uuid.clone()),
+        ).collect(),
+    };
+
+    let group = EntityGroup::from(
+        itertools::chain!(
+            itertools::chain!(
+                basic_questions.into_iter(),
+                chair_questions.into_iter(),
+                wing_questions.into_iter(),
+                team_questions.into_iter(),
+                speaker_questions.into_iter(),
+                feedback_questions.into_iter(),
+                comments_questions.into_iter(),
+            ).map(
+                |e| Entity::FeedbackQuestion(e)
+            ),
+            vec![
+                Entity::FeedbackForm(chair_form),
+                Entity::FeedbackForm(wing_form),
+                Entity::FeedbackForm(team_form),
+                Entity::FeedbackForm(speaker_form),
+            ].into_iter(),
+        ).collect_vec()
+    );
+
+    group
+}
+
+
 async fn connect_db() -> Result<DatabaseConnection, DbErr> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
@@ -35,7 +259,7 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
         vec![])
     ).await?;
 
-    let mut mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, ..Default::default() });
+    let mut mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, use_feedback: false, ..Default::default() });
     let tournament_uuid = mock_data.tournaments[0].uuid.clone();
 
     let second_tournament = Tournament {
@@ -43,8 +267,12 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
     };
     mock_data.add(Entity::Tournament(second_tournament));
 
+
     mock_data.save_all_with_options(&db, true).await.unwrap();
     mock_data.save_log_with_tournament_id(&db, tournament_uuid).await.unwrap();
+
+    let g = make_default_feedback_form(tournament_uuid.clone());
+    g.save_all_and_log_for_tournament(&db, tournament_uuid).await.unwrap();
 
     let mut user_id = None;
 
@@ -444,12 +672,28 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
                 };
                 update.update(&transaction).await?;
                 transaction.commit().await?;
+
+                let entity_group = entity_group.unwrap();
+
                 let transaction = db.begin().await?;
                 let mut view_cache = view_cache.lock().await;
-
-                let notifications = view_cache.update_and_get_changes(&transaction, &entity_group.unwrap()).await?;
+                let notifications = view_cache.update_and_get_changes(&transaction, &entity_group).await?;
                 app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
                 transaction.rollback().await?;
+
+                let transaction = db.begin().await?;
+                let new_changes = auto_accept_ballots(&entity_group, &transaction).await?;
+                if let Some(new_changes) = new_changes {
+                    new_changes.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;
+                    transaction.commit().await?;
+                    let transaction = db.begin().await?;
+                    let notifications = view_cache.update_and_get_changes(&transaction, &new_changes).await?;
+                    transaction.rollback().await?;
+                    app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
+                }
+                else {
+                    transaction.rollback().await?;
+                }
 
                 return Ok(None);
             }

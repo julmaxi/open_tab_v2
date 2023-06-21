@@ -3,6 +3,11 @@
 pub use super::adjudicator::Entity as Adjudicator;
 pub use super::ballot_adjudicator::Entity as BallotAdjudicator;
 pub use super::debate_backup_ballot::Entity as DebateBackupBallot;
+pub use super::feedback_form::Entity as FeedbackForm;
+pub use super::feedback_form_question::Entity as FeedbackFormQuestion;
+pub use super::feedback_question::Entity as FeedbackQuestion;
+pub use super::feedback_response::Entity as FeedbackResponse;
+pub use super::feedback_response_value::Entity as FeedbackResponseValue;
 pub use super::participant_clash::Entity as ParticipantClash;
 pub use super::participant_tournament_institution::Entity as ParticipantTournamentInstitution;
 pub use super::speaker::Entity as Speaker;

@@ -13,6 +13,8 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::feedback_response::Entity")]
+    FeedbackResponse,
     #[sea_orm(has_many = "super::speaker::Entity")]
     Speaker,
     #[sea_orm(
@@ -23,6 +25,12 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tournament,
+}
+
+impl Related<super::feedback_response::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::FeedbackResponse.def()
+    }
 }
 
 impl Related<super::speaker::Entity> for Entity {

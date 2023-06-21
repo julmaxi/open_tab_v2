@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap};
 
-use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash}};
+use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash, feedback_question::FeedbackQuestion, feedback_form::{FeedbackForm, FeedbackFormVisibility}}};
 use sea_orm::{prelude::*};
 use crate::prelude::*;
 use itertools::{Itertools};
@@ -20,7 +20,9 @@ pub struct MockOption {
     pub num_teams: u32,
     pub num_adjudicators: u32,
     pub draw_debates: bool,
-    pub use_random_names: bool
+    pub use_random_names: bool,
+    pub use_feedback: bool,
+
 }
 
 impl Default for MockOption {
@@ -30,7 +32,8 @@ impl Default for MockOption {
             num_teams: 27,
             num_adjudicators: 27,
             draw_debates: true,
-            use_random_names: false
+            use_random_names: false,
+            use_feedback: true
         }
     }
 }
@@ -49,6 +52,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     Debates: 200
     Ballots: 400
     Venues: 500
+    Feedback Questions: 600
+    Feedback Forms: 700
     */
 
     assert!(options.num_teams % 3 == 0);
@@ -222,6 +227,49 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     } else {
         vec![]
     };
+
+    if options.use_feedback {
+        let q1_id = if options.deterministic_uuids {Uuid::from_u128(600)} else {Uuid::new_v4()};
+
+        let questions = vec![
+            FeedbackQuestion {
+                uuid: q1_id,
+                short_name: "skill".into(),
+                full_name: "Wie würdest du insgesamt die Kompetenz dieser JurorIn bewerten?".into(),
+                description: "".into(),
+                question_config: crate::domain::feedback_question::QuestionType::RangeQuestion{config: crate::domain::feedback_question::RangeQuestionConfig {
+                    min: 0,
+                    max: 100,
+                    orientation: crate::domain::feedback_question::RangeQuestionOrientation::HighIsGood,
+                    labels: vec![
+                        (0, "Sehr schlecht".into()),
+                        (100, "Sehr gut".into()),
+                    ] }
+                },
+                tournament_id: Some(tournament_uuid),
+            },
+        ];
+
+        let forms = vec![
+            FeedbackForm {
+                uuid: if options.deterministic_uuids {Uuid::from_u128(700)} else {Uuid::new_v4()},
+                name: "General Feedback".to_string(),
+                visibility: FeedbackFormVisibility::all(),
+                tournament_id: Some(tournament_uuid),
+                questions: vec![
+                    q1_id
+                ]
+            }
+        ];
+
+        questions.into_iter().for_each(|q| {
+            groups.add(Entity::FeedbackQuestion(q));
+        });
+
+        forms.into_iter().for_each(|f| {
+            groups.add(Entity::FeedbackForm(f));
+        });
+    }
 
     if options.draw_debates {
         let ballots = rounds.iter().enumerate().map(

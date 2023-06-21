@@ -1,4 +1,4 @@
-use open_tab_entities::domain::round::DrawType;
+use open_tab_entities::domain::round::{DrawType, TabDrawConfig};
 use open_tab_entities::domain::tournament_break::{TournamentBreak};
 use sea_orm::prelude::Uuid;
 
@@ -17,7 +17,6 @@ use open_tab_entities::domain;
 
 use itertools::Itertools;
 
-use crate::draw::preliminary::MinorBreakRoundDrawType;
 use crate::{LoadedView, EditTreeActionType};
 
 pub struct LoadedTournamentTreeView {
@@ -385,27 +384,51 @@ impl TournamentTreeView {
             AvailableAction {
                 description: "Add Minor Break (1 round)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    MinorBreakRoundDrawType::PowerPaired
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::PowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    }
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (1 round, balanced)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    MinorBreakRoundDrawType::BalancedPowerPaired
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::BalancedPowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    }
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (2 rounds)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    MinorBreakRoundDrawType::InversePowerPaired,
-                    MinorBreakRoundDrawType::PowerPaired
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::InversePowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    },
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::PowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    },
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (2 rounds, balanced)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    MinorBreakRoundDrawType::InversePowerPaired,
-                    MinorBreakRoundDrawType::BalancedPowerPaired
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::InversePowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    },
+                    TabDrawConfig {
+                        team_draw: domain::round::TeamDrawMode::BalancedPowerPaired,
+                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
+                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    }
                 ] }
             },
             AvailableAction {

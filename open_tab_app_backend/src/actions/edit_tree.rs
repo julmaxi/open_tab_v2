@@ -2,11 +2,10 @@ use std::error::Error;
 
 use itertools::Itertools;
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}}};
+use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}}};
 
 use sea_orm::prelude::*;
 
-use crate::draw::preliminary::MinorBreakRoundDrawType;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
@@ -22,7 +21,7 @@ pub struct EditTreeAction {
 #[serde(tag = "type")]
 pub enum EditTreeActionType {
     AddThreePreliminaryRounds { parent: Option<Uuid> },
-    AddMinorBreakRounds { parent: Uuid, draws: Vec<MinorBreakRoundDrawType> },
+    AddMinorBreakRounds { parent: Uuid, draws: Vec<TabDrawConfig> },
     AddTimBreakRounds { parent: Uuid },
     AddKOStage { parent: Uuid, num_stages: u64 },
 }
@@ -198,7 +197,7 @@ impl ActionTrait for EditTreeAction {
                 );
 
                 for (idx, draw) in draws.iter().enumerate() {
-                    let draw_type : DrawType = draw.clone().into();
+                    let draw_type : DrawType = DrawType::TabDraw { config: draw.clone() };
                     let round = TournamentRound {
                         uuid: Uuid::new_v4(),
                         tournament_id: self.tournament_id,
@@ -242,7 +241,7 @@ impl ActionTrait for EditTreeAction {
                     uuid: Uuid::new_v4(),
                     tournament_id: self.tournament_id,
                     index: start_index,
-                    draw_type: Some(DrawType::Randomized),
+                    draw_type: Some(DrawType::TabDraw { config: TabDrawConfig { team_draw: open_tab_entities::domain::round::TeamDrawMode::Random, speaker_draw: open_tab_entities::domain::round::SpeakerDrawMode::Random, team_assignment_rule: TeamAssignmentRule::Random } }),
                     ..Default::default()
                 };
 
@@ -266,7 +265,13 @@ impl ActionTrait for EditTreeAction {
                     uuid: Uuid::new_v4(),
                     tournament_id: self.tournament_id,
                     index: start_index + 1,
-                    draw_type: Some(DrawType::BalancedRandomized),
+                    draw_type: Some(DrawType::TabDraw {
+                        config: TabDrawConfig {
+                            team_draw: open_tab_entities::domain::round::TeamDrawMode::Random,
+                            speaker_draw: open_tab_entities::domain::round::SpeakerDrawMode::Random,
+                            team_assignment_rule: open_tab_entities::domain::round::TeamAssignmentRule::Random,
+                        }
+                    }),
                     ..Default::default()
                 };
 

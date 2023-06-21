@@ -19,5 +19,6 @@ export async function load({ params, fetch, cookies }) {
     return {
         name: participant_info.name,
         rounds: participant_info.rounds,
+        feedback_submissions: participant_info.feedback_submissions,
     };
 }

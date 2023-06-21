@@ -79,7 +79,6 @@ pub struct TournamentBreak {
     pub breaking_speakers: Vec<Uuid>,
 }
 
-
 impl TournamentBreak {
     pub fn new(tournament_id: Uuid, break_type: BreakType) -> Self {
         TournamentBreak {
@@ -91,6 +90,33 @@ impl TournamentBreak {
             breaking_teams: vec![],
             breaking_speakers: vec![],
         }
+    }
+
+    pub async fn get_break_for_round<C>(db: &C, round_uuid: Uuid) -> Result<Option<Self>, Box<dyn Error>> where C: ConnectionTrait {
+        let breaks = schema::tournament_break::Entity::find()
+            .inner_join(schema::tournament_break_child_round::Entity)
+            .filter(
+                schema::tournament_break_child_round::Column::TournamentRoundId.eq(round_uuid)
+            )
+            .all(db).await?;
+
+        let source_rounds = breaks.load_many(schema::tournament_break_source_round::Entity, db).await?;
+        let child_rounds = breaks.load_many(schema::tournament_break_child_round::Entity, db).await?;
+        let teams = breaks.load_many(schema::tournament_break_team::Entity, db).await?;
+        let speakers = breaks.load_many(schema::tournament_break_speaker::Entity, db).await?;
+
+        let r : Result<Vec<_>, _> = izip!(
+            breaks,
+            source_rounds,
+            child_rounds,
+            teams,
+            speakers
+        ).into_iter().map(|(break_row, source_rounds, child_rounds, teams, speakers)| {
+            Self::from_rows(break_row, source_rounds, child_rounds, teams, speakers)
+        }).collect();
+
+        // This is ensured to be correct by database unique constraints
+        r.map(|mut v| v.pop())
     }
 
     pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {

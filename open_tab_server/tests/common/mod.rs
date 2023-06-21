@@ -5,7 +5,7 @@ use http_body::combinators::UnsyncBoxBody;
 use hyper::{Request, Body, http::request::Builder};
 use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait, EntityGroup};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserResponse, GetTokenRequest, GetTokenResponse, create_key, hash_password}, state::AppState};
-use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection};
+use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection, EntityTrait};
 use tower::{Service};
 use base64::{engine::general_purpose, Engine as _};
 
@@ -67,7 +67,7 @@ impl Fixture {
      {
         let mut auth = Auth::None;
         let app = if options.mock_default_tournament {
-            let state = AppState::new().await;
+            let state = AppState::new_test_app().await;
             let group = mock::make_mock_tournament_with_options(MockOption {
                 deterministic_uuids: true,
                 ..Default::default()
