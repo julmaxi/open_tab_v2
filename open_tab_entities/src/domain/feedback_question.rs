@@ -38,7 +38,6 @@ impl Default for RangeQuestionOrientation {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, SimpleEntity)]
 #[module_path="crate::schema::feedback_question"]
 #[tournament_id="tournament_id"]
@@ -51,4 +50,26 @@ pub struct FeedbackQuestion {
     pub question_config: QuestionType,
 
     pub tournament_id: Option<Uuid>,
+}
+
+impl FeedbackQuestion {
+    pub fn extract_value_from_response_value_model(&self, response: &crate::schema::feedback_response_value::Model) -> Option<crate::domain::feedback_response::FeedbackResponseValue> {
+        match &self.question_config {
+            QuestionType::RangeQuestion { .. } => {
+                response.int_value.clone().map(|val| {
+                    crate::domain::feedback_response::FeedbackResponseValue::Int{val}
+                })
+            },
+            QuestionType::TextQuestion => {
+                response.string_value.clone().map(|val| {
+                    crate::domain::feedback_response::FeedbackResponseValue::String{val}
+                })
+            },
+            QuestionType::YesNoQuestion => {
+                response.bool_value.clone().map(|val| {
+                    crate::domain::feedback_response::FeedbackResponseValue::Bool{val}
+                })
+            }
+        }
+    }
 }

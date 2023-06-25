@@ -7,6 +7,6 @@
 	<a href="/about">about</a>
 </nav>
 
-<div class="pl-24 pr-24">
+<div class="pl-0 pr-0 md:pl-24 md:pr-24">
   <slot />
 </div>

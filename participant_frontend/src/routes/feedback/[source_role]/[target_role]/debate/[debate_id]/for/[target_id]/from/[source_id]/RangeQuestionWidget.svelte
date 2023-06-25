@@ -7,7 +7,7 @@
     let value = midPoint;
 </script>
 
-<div>
+<div class="p-4 md:p0">
     <input type="range" min={config.min} max={config.max} step={config.step} class="w-full" bind:value />
     <div class="flex">
         <span class="flex-1">{config.labels[0][1]}</span>

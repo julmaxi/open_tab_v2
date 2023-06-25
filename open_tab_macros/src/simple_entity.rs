@@ -139,7 +139,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn from_model(model: #model_path) -> Self {
+            pub fn from_model(model: #model_path) -> Self {
                 Self {
                     #(#raw_attr_assignment),*
                 }
