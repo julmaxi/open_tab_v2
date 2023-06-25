@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::{HashMap, HashSet}, error::Error};
 
 use itertools::Itertools;
 use open_tab_entities::{domain::{feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup};
@@ -73,7 +73,6 @@ pub struct ParticipantEntry {
     pub participant_name: String,
     pub score_summaries: HashMap<Uuid, SummaryValue>
 }
-
 
 impl FeedbackOverviewView {
     pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
@@ -186,5 +185,110 @@ impl FeedbackOverviewView {
         ).collect_vec();
 
         Ok(FeedbackOverviewView { participant_entries, summary_columns })
+    }
+}
+
+
+pub struct LoadedFeedbackDetailView {
+    pub participant_id: Uuid,
+    view: FeedbackDetailView
+}
+
+impl LoadedFeedbackDetailView {
+    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+        Ok(
+            LoadedFeedbackDetailView {
+                participant_id: participant_id,
+                view: FeedbackDetailView::load_from_participant(db, participant_id).await?,
+            }
+        )
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeedbackDetailView {
+    pub participant_name: String,
+    pub responses: Vec<FeedbackResponseDetails>
+}
+
+impl FeedbackDetailView {
+    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+        let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(db).await?;
+        let participant = participant.ok_or("Participant not found")?;
+
+        let participant_name = participant.name.clone();
+
+        let responses = open_tab_entities::domain::feedback_response::FeedbackResponse::get_all_for_target_participant(db, participant_id).await?;
+
+        let author_ids = responses.iter().map(|r| r.author_participant_id).collect::<HashSet<_>>();
+        let author_names = open_tab_entities::schema::participant::Entity::find().filter(open_tab_entities::schema::participant::Column::Uuid.is_in(author_ids)).all(db).await?
+            .into_iter().map(|p| (p.uuid, p.name)).collect::<HashMap<_, _>>();
+        
+        let debate_round_names_and_ids = open_tab_entities::schema::tournament_debate::Entity::find()
+            .filter(open_tab_entities::schema::tournament_debate::Column::Uuid.is_in(responses.iter().map(|r| r.source_debate_id)))
+            .find_also_related(open_tab_entities::schema::tournament_round::Entity)
+            .all(db).await?
+            .into_iter().map(|(debate, round)| (debate.uuid, (round.as_ref().unwrap().uuid, format!("Round {}", round.unwrap().index)))).collect::<HashMap<_, _>>();
+
+        let question_ids = responses.iter().flat_map(|r| r.values.keys().cloned()).collect::<HashSet<_>>();
+
+        let questions = open_tab_entities::schema::feedback_question::Entity::find().filter(open_tab_entities::schema::feedback_question::Column::Uuid.is_in(question_ids)).all(db).await?.into_iter().map(
+            |q| (q.uuid, q)
+        ).collect::<HashMap<_, _>>();
+
+        let responses = responses.into_iter().map(|r| {
+            let author_name = author_names.get(&r.author_participant_id).unwrap(); // Guaranteed by db constraints
+            let (round_id, round_name) = debate_round_names_and_ids.get(&r.source_debate_id).unwrap(); // Guaranteed by db constraints
+            let round_name = round_name.clone();
+            let round_id = round_id.clone();
+            let author_id = r.author_participant_id;
+            let values = r.values.into_iter().map(|v| {
+                let question = questions.get(&v.0).unwrap(); // Guaranteed by db constraints
+                let question_short_name = question.short_name.clone();
+                let value = v.1;
+                Ok(FeedbackResponseValueEntry { question_id: v.0, question_short_name, value })
+            }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+            Ok(FeedbackResponseDetails { round_name, round_id, author_name: author_name.clone(), author_id, values })
+        }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+
+        Ok(FeedbackDetailView { participant_name, responses })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeedbackResponseDetails {
+    pub round_name: String,
+    pub round_id: Uuid,
+    pub author_name: String,
+    pub author_id: Uuid,
+
+    pub values: Vec<FeedbackResponseValueEntry>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeedbackResponseValueEntry {
+    pub question_id: Uuid,
+    pub question_short_name: String,
+    pub value: FeedbackResponseValue
+}
+
+#[async_trait::async_trait]
+impl LoadedView for LoadedFeedbackDetailView {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+        if changes.feedback_responses.len() > 0 || changes.feedback_questions.len() > 0 {
+            self.view = FeedbackDetailView::load_from_participant(db, self.participant_id).await?;
+
+            let mut out: HashMap<String, Json> = HashMap::new();
+            out.insert(".".to_string(), serde_json::to_value(&self.view)?);
+
+            Ok(Some(out))
+        }
+        else {
+            Ok(None)
+        }
+    }
+    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+        Ok(serde_json::to_string(&self.view)?)
     }
 }

@@ -26,6 +26,7 @@ pub struct FeedbackResponse {
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag="type")]
 pub enum FeedbackResponseValue {
     Bool {val: bool},
     Int {val: i32},
@@ -176,5 +177,20 @@ impl FeedbackResponse {
             source_debate_id: response.source_debate_id,
             values,
         })
+    }
+
+    pub async fn get_all_for_target_participant<C>(db: &C, target_id: Uuid) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
+        let responses = schema::feedback_response::Entity::find()
+            .find_with_related(schema::feedback_response_value::Entity)
+            .filter(schema::feedback_response::Column::TargetParticipantId.eq(target_id))
+            .all(db).await?;
+        
+        let vals : Result<Vec<_>, _> = responses.into_iter().map(
+            |(response, response_values)| {
+                Ok(FeedbackResponse::from_rows(response, response_values)?)
+            }
+        ).collect();
+
+        vals
     }
 }

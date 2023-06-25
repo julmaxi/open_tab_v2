@@ -46,4 +46,10 @@ impl Related<super::feedback_response::Entity> for Entity {
     }
 }
 
+impl Related<super::feedback_response_value::Entity> for super::feedback_response::Entity {
+    fn to() -> RelationDef {
+        super::feedback_response_value::Relation::FeedbackResponse.def().rev()
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}

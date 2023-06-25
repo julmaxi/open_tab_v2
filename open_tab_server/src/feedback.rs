@@ -165,7 +165,12 @@ async fn submit_feedback_form(
                 Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid value")))
             },
         }?;
-        response_values.insert(key, response_val);
+        
+        match &response_val {
+            FeedbackResponseValue::String { val } if val.len() == 0 => (),
+            _ => {response_values.insert(key, response_val);}
+
+        };
     }
 
     let submission_id = Uuid::new_v4();
@@ -207,7 +212,7 @@ async fn submit_feedback_form(
         source_team_id,
         source_participant_id,
         source_debate_id: debate_id,
-        values: HashMap::new(),
+        values: response_values,
     };
 
     let group = EntityGroup::from(vec![Entity::FeedbackResponse(submission)]);
