@@ -20,7 +20,7 @@ export function DragItem(props) {
     } : undefined;
 
 
-    if (props.content_type == "tr") {
+    if (props.content_tag == "tr") {
         return (
             <tr ref={setNodeRef} style={style} {...listeners} {...attributes}>
                 {props.children}

@@ -308,11 +308,11 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                             adjudicators: if round_idx < 2 {(0..3).map(|i| adjudicators[debate_idx * 3 + i].uuid).collect()} else {vec![]},
                             government: BallotTeam {
                                 // Round 3 has an empty draw for testing purposes
-                                team: if round_idx < 2 {Some(teams[debate_idx * 2].uuid)} else {None},
+                                team: if round_idx < 2 {Some(teams[debate_idx * 3].uuid)} else {None},
                                 ..Default::default()
                             },
                             opposition: BallotTeam {
-                                team: if round_idx < 2 {Some(teams[debate_idx * 2 + 1].uuid)} else {None},
+                                team: if round_idx < 2 {Some(teams[debate_idx * 3 + 1].uuid)} else {None},
                                 ..Default::default()
                             },
                             speeches,

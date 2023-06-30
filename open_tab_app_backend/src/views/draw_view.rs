@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use std::fmt::Display;
 
+use std::hash::Hash;
 use std::{collections::HashMap, error::Error};
 
 use migration::async_trait::async_trait;
@@ -17,7 +18,9 @@ use itertools::izip;
 use itertools::Itertools;
 
 
+use crate::draw;
 use crate::draw::evaluation::{DrawEvaluator, DrawIssue};
+use crate::tab_view::TeamRoundRole;
 
 use super::base::{LoadedView, TournamentParticipantsInfo};
 
@@ -79,7 +82,6 @@ impl LoadedView for LoadedDrawView {
         }
 
         if indices_to_reload.len() > 0 {
-            //let clash_map = ClashMap::new_for_tournament(Default::default(), self.tournament_id, db).await?;
             let evaluator = DrawEvaluator::new_from_other_rounds(db, self.tournament_id, self.view.round_uuid).await?;
 
             let info = TournamentParticipantsInfo::load(db, self.tournament_id).await?;
@@ -97,6 +99,10 @@ impl LoadedView for LoadedDrawView {
             out.insert("adjudicator_index".into(), serde_json::to_value(&index)?);
             self.view.adjudicator_index = index;
 
+            let team_index = DrawView::construct_team_index(&info, &self.view.debates);
+            out.insert("team_index".into(), serde_json::to_value(&team_index)?);
+            self.view.team_index = team_index;
+
             Ok(Some(out))
         }
         else {
@@ -113,7 +119,8 @@ impl LoadedView for LoadedDrawView {
 pub struct DrawView {
     round_uuid: Uuid,
     debates: Vec<DrawDebate>,
-    adjudicator_index: Vec<AdjudicatorIndexEntry>
+    adjudicator_index: Vec<AdjudicatorIndexEntry>,
+    team_index: Vec<TeamIndexEntry>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +129,29 @@ struct AdjudicatorIndexEntry {
     is_available: bool,
     position: AdjudictorPosition
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TeamIndexEntry {
+    team: DrawTeam,
+    position: TeamPosition
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag="type")]
+enum TeamPosition {
+    Team { debate_uuid: Uuid, debate_index: usize, role: TeamRoundRole },
+    NonAligned { member_positions: HashMap<Uuid, SpeakerPosition> },
+    NotSet
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpeakerPosition {
+    debate_uuid: Uuid,
+    debate_index: usize,
+    position: usize
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -247,50 +277,14 @@ impl From<DrawAdjudicator> for SetDrawAdjudicator {
     }
 }
 
-/*
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DrawIssue {
-    severity: i16,
-    target_participant_id: Uuid,
-    is_active: bool
-} */
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 enum DrawViewError {
+    #[error("Missing debate")]
     MissingDebate
 }
 
-impl Display for DrawViewError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
 
-impl Error for DrawViewError {
-}
-
-
-
-/*
-
-let all_participants = Participant::get_all_in_tournament(db, round.tournament_id).await?;
-let team_members = all_participants.iter().filter_map(|speaker| {
-    if let ParticipantRole::Speaker(speaker_info) = &speaker.role {
-        if let Some(team_uuid) = speaker_info.team_id {
-            Some((team_uuid, speaker.uuid))
-        }
-        else {
-            None
-        }
-    }
-    else {
-        None
-    }
-}).into_group_map();
-let teams_by_id = Team::get_all_in_tournament(db, round.tournament_id).await?.into_iter().map(|team| (team.uuid, team)).collect::<HashMap<_, _>>();
-let participants_by_id = all_participants.into_iter().map(|speaker| (speaker.uuid, speaker)).collect::<HashMap<_, _>>();
-
- */
 
 impl DrawView {
     fn draw_speaker_from_uuid(speaker_uuid: Uuid, info: &TournamentParticipantsInfo) -> DrawSpeaker {
@@ -312,19 +306,23 @@ impl DrawView {
 
     fn draw_team_from_ballot_team(team: &BallotTeam, info: &TournamentParticipantsInfo) -> Option<DrawTeam> {
         if let Some(team_uuid) = team.team {
-            Some(DrawTeam {
-                uuid: team_uuid,
-                name: info.teams_by_id.get(&team_uuid).unwrap().name.clone(),
-                members: info.team_members.get(&team_uuid).unwrap().iter().map(|speaker_uuid| {
-                    Self::draw_speaker_from_uuid(
-                        *speaker_uuid, info
-                    )
-                }).collect(),
-                issues: vec![]
-            })
+            Some(Self::draw_team_from_uuid(team_uuid, info))
         }
         else {
             None
+        }
+    }
+
+    fn draw_team_from_uuid(team_uuid: Uuid, info: &TournamentParticipantsInfo) -> DrawTeam {
+        DrawTeam {
+            uuid: team_uuid,
+            name: info.teams_by_id.get(&team_uuid).unwrap().name.clone(),
+            members: info.team_members.get(&team_uuid).unwrap().iter().map(|speaker_uuid| {
+                Self::draw_speaker_from_uuid(
+                    *speaker_uuid, info
+                )
+            }).collect(),
+            issues: vec![]
         }
     }
 
@@ -369,49 +367,6 @@ impl DrawView {
                 |team_uuid| info.team_members.get(team_uuid).unwrap_or(&vec![]).iter().map(|speaker_uuid| *speaker_uuid).collect_vec()
             ).flatten()
         ).collect::<Vec<_>>();
-
-        /*
-        let clash_info = all_ballot_participant_uuids.iter().map(
-            |p_uuid| {
-                let clashes = clash_map.get_clashes_for_participant(&p_uuid);
-
-                (*p_uuid, clashes.iter().flat_map(
-                    |(target_uuid, clashes)| {
-                        clashes.iter().map(|clash| DrawIssue {
-                            severity: clash.severity,
-                            target_participant_id: *target_uuid,
-                            is_active: all_ballot_participant_uuids.contains(target_uuid) && info.speaker_teams.get(target_uuid) != info.speaker_teams.get(p_uuid)
-                        }).collect_vec()
-                    }
-                ).collect_vec())
-            }
-        ).collect::<HashMap<_, _>>();
-         */
-
-        /*
-        TODO: We currently return _all_ clashes, even if they are not triggered by
-        the current ballot. This is mostly to support clash hints before dragging.
-        We might want to change that to compute potential issues always on the rust side.
-        let clash_info = all_ballot_participant_uuids.iter().map(
-            |p_uuid| {
-                let clashes = clash_map.get_clashes_for_participant(&p_uuid);
-
-                let empty_vec = vec![];
-                let empty_ref = &&empty_vec;
-
-                (*p_uuid, all_ballot_participant_uuids.iter().filter(|t_uuid| info.speaker_teams.get(t_uuid) != info.speaker_teams.get(p_uuid)).flat_map(
-                    |target_uuid| {
-                        let clashes = clashes.get(target_uuid).unwrap_or(empty_ref);
-                        clashes.iter().map(|clash| DrawIssue {
-                            severity: clash.severity,
-                            target_participant_id: *target_uuid
-                        }).collect_vec()
-                    }
-                ).collect_vec())
-            }
-        ).collect::<HashMap<_, _>>();
-         */
-
 
         let mut ballot = DrawBallot {
             uuid: ballot.uuid,
@@ -502,6 +457,95 @@ impl DrawView {
         ).sorted_by(|e1, e2| e1.adjudicator.name.cmp(&e2.adjudicator.name)).collect()
     }
 
+    fn construct_team_index(
+        info: &TournamentParticipantsInfo,
+        debates: &Vec<DrawDebate>,
+    ) -> Vec<TeamIndexEntry> {
+        let mut team_positions = HashMap::new();
+
+        for team_id in info.teams_by_id.keys() {
+            team_positions.insert(*team_id, TeamPosition::NotSet);
+        }
+
+        let inverse_team_map = info.team_members.iter().map(|(team_uuid, members)| {
+            members.into_iter().map(|member_uuid| (member_uuid, team_uuid)).collect::<Vec<_>>()
+        }).flatten().collect::<HashMap<_, _>>();
+
+        debates.iter().for_each(|debate| {
+            if let Some(gov) = &debate.ballot.government {
+                team_positions.insert(
+                    gov.uuid,
+                    TeamPosition::Team {
+                        debate_uuid: debate.uuid,
+                        debate_index: debate.index,
+                        role: TeamRoundRole::Government
+                    },
+                );
+            }
+            if let Some(opp) = &debate.ballot.opposition {
+                team_positions.insert(
+                    opp.uuid,
+                    TeamPosition::Team {
+                        debate_uuid: debate.uuid,
+                        debate_index: debate.index,
+                        role: TeamRoundRole::Opposition
+                    },
+                );
+            }
+
+            debate.ballot.non_aligned_speakers.iter().enumerate().for_each(|(position, speaker)| {
+                let team = inverse_team_map.get(&speaker.uuid);
+                if let Some(team_uuid) = team {
+                    let mut prev_positions = team_positions.get_mut(team_uuid).unwrap();
+                    match &mut prev_positions {
+                        TeamPosition::NonAligned { member_positions } => {
+                            member_positions.insert(
+                                speaker.uuid,
+                                SpeakerPosition {
+                                    debate_uuid: debate.uuid,
+                                    debate_index: debate.index,
+                                    position
+                                },
+                            );
+                        },
+                        TeamPosition::NotSet => {
+                            team_positions.insert(
+                                **team_uuid,
+                                TeamPosition::NonAligned {
+                                    member_positions: HashMap::from_iter(vec![
+                                        (
+                                            speaker.uuid,
+                                            SpeakerPosition {
+                                                debate_uuid: debate.uuid,
+                                                debate_index: debate.index,
+                                                position
+                                            }
+                                        )
+                                    ])
+                                },
+                            );
+                        },
+                        TeamPosition::Team { .. } => {
+                            //TODO: Report Error
+                        },
+                    }
+                }
+            });
+
+        });
+
+        team_positions.into_iter().map(
+            |(team_uuid, position)| {
+                let draw_team = Self::draw_team_from_uuid(team_uuid, info);
+                
+                TeamIndexEntry {
+                    team: draw_team,
+                    position: position
+                }
+            }
+        ).sorted_by(|e1, e2| e1.team.name.cmp(&e2.team.name)).collect()
+    }
+
     async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, Box<dyn Error>> where C: ConnectionTrait {
         let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round.uuid)).all(db).await?;
 
@@ -531,6 +575,11 @@ impl DrawView {
             }
         ).collect();
 
-        Ok(DrawView { adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates), round_uuid: round.uuid, debates })
+        Ok(DrawView {
+            adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates),
+            team_index: Self::construct_team_index(&participant_info, &debates),
+            round_uuid: round.uuid,
+            debates
+        })
     }
 }

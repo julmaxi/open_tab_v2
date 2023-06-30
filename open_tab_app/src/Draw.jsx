@@ -385,11 +385,11 @@ function TabGroup(props) {
   let children = React.Children.toArray(props.children);
   let displayChild = children[activeTab];
 
-  return <div className="w-full h-full">
+  return <div className="flex flex-col w-full h-full">
     <div className="flex">
       {React.Children.map(props.children, (tab, i) => <button className={"flex-1 text-center p-2 font-semibold text-sm" + (i == activeTab ? " bg-blue-500 text-white" : " bg-gray-100")} onClick={() => setActiveTab(i)}>{tab.props.name}</button>)}
     </div>
-    <div className="h-full overflow-scroll">
+    <div className="flex-1 overflow-scroll">
       {displayChild}
     </div>
   </div>
@@ -423,33 +423,113 @@ function adjPositionToStr(position) {
   }
 }
 
+function teamPositionToStr(position) {
+  if (position.type == "NotSet") {
+    return "-"
+  }
+  else if (position.type == "NonAligned") {
+    let positions = Object.entries(position.member_positions).map(
+      ([_, p]) => p.debate_index + 1
+    )
 
-function DrawToolTray({adjudicator_index, ...props}) {
+    return `Non. ${positions.join(", ")}`
+  }
+  else {
+    const abbreviations = {
+      "Government": "Gov.",
+      "Opposition": "Opp.",
+    }
+    return `${abbreviations[position.role] || "<Unknown>"} ${position.debate_index + 1}`
+
+  }
+}
+
+function AdjudicatorTable({adjudicator_index, ...props}) {
+  return <table className="w-full h-full text-sm">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Position</th>
+      </tr>
+    </thead>
+    <tbody className="w-full h-full overflow-scroll">
+    {
+      adjudicator_index.map(
+        (adj, idx) => {
+          return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
+            <td>{adj.adjudicator.name}</td>
+            <td>{adjPositionToStr(adj.position)}</td>
+          </DragItem>
+        }
+      )
+    }
+    </tbody>
+  </table>
+}
+
+function TeamTable({team_index, ...props}) {
+  return <table className="w-full h-full text-sm">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Position</th>
+      </tr>
+    </thead>
+    <tbody className="w-full h-full overflow-scroll">
+      {
+        team_index.map(
+          (entry, idx) => <TeamIndexEntry key={entry.team.uuid} entry={entry} />
+        )
+      }
+    </tbody>
+  </table>
+}
+
+
+function SpeakerIndexEntries({team, positions, ...props}) {
+  let rows =  team.members.map(
+    (member) => {
+      let position = positions[member.uuid];
+      return <tr>
+        <td className="pl-4">{member.name}</td>
+        <td>{position.debate_index + 1}{position.position !== undefined ? ` (${position.position + 1})` : [] }</td>
+      </tr>;
+    }
+  );
+  return <>
+    {rows}
+  </>
+}
+
+
+function TeamIndexEntry({entry, ...props}) {
+  let [isExpanded, setIsExpanded] = useState(false);
+
+  return <>
+    <tr onClick={() => {
+      setIsExpanded(!isExpanded);
+    }}>
+      <td>{entry.team.name}</td>
+      <td>{teamPositionToStr(entry.position)}</td>
+    </tr>
+    {isExpanded ? <SpeakerIndexEntries team={entry.team} positions={entry.position.member_positions || Object.fromEntries(
+      entry.team.members.map(
+        (member) => [member.uuid, entry.position]
+      )
+    )} /> : []}
+
+  </>
+}
+
+function DrawToolTray({adjudicator_index, team_index, ...props}) {
   return <div className="w-72 border-l h-full">
     <TabGroup>
       <Tab name="Adjudicators">
-        <table className="w-full h-full">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Position</th>
-            </tr>
-          </thead>
-          <tbody className="w-full h-full overflow-scroll">
-          {
-            adjudicator_index.map(
-              (adj, idx) => {
-                return <DragItem content_type="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
-                  <td>{adj.adjudicator.name}</td>
-                  <td>{adjPositionToStr(adj.position)}</td>
-                </DragItem>
-              }
-            )
-          }
-          </tbody>
-        </table>
+        <AdjudicatorTable adjudicator_index={adjudicator_index} />
       </Tab>
-      <Tab name="Teams"></Tab>
+      <Tab name="Teams">
+        <TeamTable team_index={team_index} />
+      </Tab>
     </TabGroup>
   </div>
 }
@@ -510,7 +590,7 @@ function DrawEditor(props) {
           </tbody>
         </table>
       </div>
-      <DrawToolTray adjudicator_index={draw.adjudicator_index} />
+      <DrawToolTray adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} />
     </DndContext>
   </div>
 }
