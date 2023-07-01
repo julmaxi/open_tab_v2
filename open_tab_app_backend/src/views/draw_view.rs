@@ -573,7 +573,7 @@ impl DrawView {
                     ballot: Self::draw_ballot_from_debate_ballot(&debate_ballot, &participant_info, &evaluator)
                 }
             }
-        ).collect();
+        ).sorted_by_key(|d| d.index).collect();
 
         Ok(DrawView {
             adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates),

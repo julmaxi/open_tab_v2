@@ -17,6 +17,7 @@ const TRAY_DRAG_PATH = "__tray__";
 
 const ISSUE_COLORS_BG = {
   misc: "bg-gray-500",
+  none: "bg-green-500",
   low: "bg-blue-500",
   mid: "bg-yellow-500",
   high: "bg-red-500"
@@ -534,15 +535,87 @@ function DrawToolTray({adjudicator_index, team_index, ...props}) {
   </div>
 }
 
+function getDragInfoFromDragInfo(drag_info, draw) {
+  if (drag_info.collection == TRAY_DRAG_PATH) {
+    if (drag_info.type == "adjudicator") {
+      return draw.adjudicator_index.find(
+        (adj) => adj.adjudicator.uuid == drag_info.index
+      ).adjudicator;
+    }
+    else if (drag_info.type == "team") {
+      return draw.team_index.find(
+        (team) => team.team.uuid == drag_info.index
+      ).team;
+    }
+    else if (drag_info.type == "speaker") {
+      for (let team of draw.team_index) {
+        let member = team.members.find(
+          (member) => member.uuid == drag_info.index
+        );
+        if (member !== undefined) {
+          return member;
+        }
+      }
+    }
+  }
+  else {
+    let collection = getPath(draw, drag_info.collection);
+    if (drag_info.index !== undefined) {
+      return collection[drag_info.index];
+    }
+    else {
+      return collection;
+    }
+  }
+}
+
+
+function DragItemPreview({item, highlight, ...props}) {
+
+  console.log(highlight);
+  let issueColor = highlight ? ISSUE_COLORS_BG[highlight] : "bg-gray-100";
+
+  return <div className={`${issueColor} min-w-[14rem] p-1 rounded`}>
+    {item.name}
+  </div>
+}
+
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     setDragHighlightedIssues(null);
+    setDraggedItemHighlight(null);
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
     executeAction("UpdateDraw", {
         updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
     });
   }
+
+  function onDragOverFunc(from, to, isSwap) {
+    if (dragHighlightedIssues === null) {
+      return;
+    }
+    let roomIndex = to.collection[1];
+    let targetRoomIssues = dragHighlightedIssues[roomIndex];
+    
+    let allIssues = [];
+    for (let issues of Object.values(targetRoomIssues)) {
+      for (let elem of issues) {
+        if (Array.isArray(elem)) {
+          allIssues.push(...elem);
+        }
+        else {
+          allIssues.push(elem);
+        }
+      }
+    }
+    let maxSeverity = Math.max(0, ...allIssues.map((issue) => issue.severity));
+
+    let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
+
+    setDraggedItemHighlight(severityBucket);
+  }
+  const onDragOver = makeDragHandler(onDragOverFunc);
 
   let currentView = {type: "Draw", uuid: props.round_uuid};
   let draw = useView(currentView, {"debates": [], "adjudicator_index": []});
@@ -553,9 +626,14 @@ function DrawEditor(props) {
   let tournament = useContext(TournamentContext);
 
   let [dragHighlightedIssues, setDragHighlightedIssues] = useState(null);
+  let [draggedItem, setDraggedItem] = useState(null);
+  let [draggedItemHighlight, setDraggedItemHighlight] = useState(null);
+
 
   let dragEnd = useCallback(makeDragHandler(onDragEnd), [draw]);
+  let dragOver = useCallback(onDragOver, [draw, dragHighlightedIssues]);
   let dragStart = useCallback((x) => {
+    setDraggedItem(x.active.data.current);
     if (x.active.data.current.type != "adjudicator") {
       return;
     }
@@ -581,8 +659,14 @@ function DrawEditor(props) {
     );
   }, [draw, roundId]);
 
+  let dragItemInfo = null;
+  if (draggedItem) {
+    dragItemInfo = getDragInfoFromDragInfo(draggedItem, draw);
+  }
+
   return <div className="flex flex-row w-full h-full">
-    <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragStart={dragStart}>
+    <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragOver={dragOver} onDragStart={dragStart}>
+      
       <div className="flex-1 overflow-y-scroll">
         <table className="w-full">
           <tbody>
@@ -590,7 +674,12 @@ function DrawEditor(props) {
           </tbody>
         </table>
       </div>
+
       <DrawToolTray adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} />
+
+      <DragOverlay dropAnimation={null}>
+        {draggedItem ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
+      </DragOverlay>
     </DndContext>
   </div>
 }

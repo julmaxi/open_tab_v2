@@ -16,7 +16,8 @@ export function DragItem(props) {
         data: { collection: props.collection, index: props.index, type: props.type }
     });
     const style = transform ? {
-        transform: CSS.Translate.toString(transform),
+        visibility: "hidden"
+        //transform: CSS.Translate.toString(transform),
     } : undefined;
 
 
