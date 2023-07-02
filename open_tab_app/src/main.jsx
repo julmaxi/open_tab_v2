@@ -12,6 +12,7 @@ import { RoundResultRoute } from "./Results";
 import { RoundsEditorRoute } from "./RoundsEditor";
 import { RoundPublicationRoute } from "./RoundPublicationView";
 import { FeedbackOverviewRoute, FeedbackDetailViewRoute } from "./FeedbackView";
+import { TabViewRoute } from "./TabView";
 
 const router = createMemoryRouter([
   {
@@ -48,6 +49,10 @@ const router = createMemoryRouter([
             element: <FeedbackDetailViewRoute />
           }
         ]
+      },
+      {
+        path: "tab",
+        element: <TabViewRoute />,
       },
     ],
   },

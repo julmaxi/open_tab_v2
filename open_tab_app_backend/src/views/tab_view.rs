@@ -58,12 +58,14 @@ impl LoadedView for LoadedTabView {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabView {
+    pub num_rounds: u32,
     pub team_tab: Vec<TeamTabEntry>,
     pub speaker_tab: Vec<SpeakerTabEntry>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeamTabEntry {
+    pub rank: u32,
     pub team_name: String,
     pub team_uuid: Uuid,
     pub total_points: f64,
@@ -96,6 +98,7 @@ pub enum TeamRoundRole {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpeakerTabEntry {
+    pub rank: u32,
     pub speaker_name: String,
     pub speaker_uuid: Uuid,
     pub total_points: f64,
@@ -167,7 +170,7 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
             vec
         }
         else {
-            self.store.insert(key.clone(), iter::repeat(None).take(index).collect());
+            self.store.insert(key.clone(), vec![]);
             self.store.get_mut(key).unwrap()
         };
         
@@ -181,6 +184,7 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
 
 impl TabView {
     pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::base::TournamentParticipantsInfo) -> Result<TabView, Box<dyn Error>> where C: ConnectionTrait {
+        let num_round_ids = round_ids.len();
         let relevant_ballots = schema::tournament_debate::Entity::find()
         .inner_join(schema::tournament_round::Entity)
         .filter(schema::tournament_round::Column::Uuid.is_in(round_ids))
@@ -204,7 +208,7 @@ impl TabView {
         //let mut team_tab : HashMap<Uuid, Vec<_>> = HashMap::new();
         //let mut speaker_tab = HashMap::new();
 
-        let num_rounds = rounds.len();
+        let num_rounds = num_round_ids;
         let rounds_and_debates = zip(rounds.into_iter(), ballots.into_iter()).sorted_by_key(|(round, _)| round.index).collect_vec();
         
         let mut team_tab_entries : VecMap<Uuid, _> = VecMap::new();
@@ -248,19 +252,21 @@ impl TabView {
                         }
                     }
 
-                    speaker_tab_entries.insert(
-                        &speaker,
-                        round.index as usize,
-                        SpeakerTabEntryDetailedScore {
-                            score: speech.speaker_score().unwrap_or(0.0),
-                            team_role: match speech.role {
-                                SpeechRole::Government => TeamRoundRole::Government,
-                                SpeechRole::Opposition => TeamRoundRole::Opposition,
-                                SpeechRole::NonAligned => TeamRoundRole::NonAligned
-                            },
-                            speech_position: speech.position
-                        }
-                    );
+                    if let Some(score) = speech.speaker_score() {
+                        speaker_tab_entries.insert(
+                            &speaker,
+                            round.index as usize,
+                            SpeakerTabEntryDetailedScore {
+                                score,
+                                team_role: match speech.role {
+                                    SpeechRole::Government => TeamRoundRole::Government,
+                                    SpeechRole::Opposition => TeamRoundRole::Opposition,
+                                    SpeechRole::NonAligned => TeamRoundRole::NonAligned
+                                },
+                                speech_position: speech.position
+                            }
+                        );
+                    }
                 }
             }
         }
@@ -278,10 +284,17 @@ impl TabView {
         total_speaker_scores.sort_by_key(|s| -OrderedFloat(s.1));
 
         let mut team_tab = vec![];
-        for (team, total_score) in total_team_scores {
+        let mut prev_score = None;
+        let mut rank = 0;
+        for (idx, (team, total_score)) in total_team_scores.into_iter().enumerate() {
+            if prev_score.is_some() && Some(total_score) != prev_score {
+                rank = idx as u32;
+            }
+            prev_score = Some(total_score);
             let detailed_scores = team_tab_entries.store.get(&team).unwrap().clone();
-            let num_rounds = detailed_scores.iter().filter(|s| s.is_none()).count();
+            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
             let team_tab_entry = TeamTabEntry {
+                rank,
                 detailed_scores,
                 team_name: speaker_info.teams_by_id.get(&team).unwrap().name.clone(),
                 team_uuid: team,
@@ -293,10 +306,17 @@ impl TabView {
         }
 
         let mut speaker_tab = vec![];
-        for (speaker, total_score) in total_speaker_scores {
+        let mut prev_score = None;
+        let mut rank = 0;
+        for (idx, (speaker, total_score)) in total_speaker_scores.into_iter().enumerate() {
+            if Some(total_score) != prev_score {
+                rank = idx as u32;
+            }
+            prev_score = Some(total_score);
             let detailed_scores = speaker_tab_entries.store.get(&speaker).unwrap().clone();
-            let num_rounds = detailed_scores.iter().filter(|s| s.is_none()).count();
+            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
             let speaker_tab_entry = SpeakerTabEntry {
+                rank,
                 detailed_scores,
                 speaker_name: speaker_info.participants_by_id.get(&speaker).unwrap().name.clone(),
                 speaker_uuid: speaker,
@@ -308,7 +328,7 @@ impl TabView {
         }
 
         Ok(
-            TabView { team_tab, speaker_tab }
+            TabView { team_tab, speaker_tab, num_rounds: num_round_ids as u32 }
         )
     }
 

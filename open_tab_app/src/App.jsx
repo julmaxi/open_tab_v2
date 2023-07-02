@@ -57,6 +57,9 @@ function SideNav(props) {
     <NavItem href="/rounds">
       Rounds
     </NavItem>
+    <NavItem href="/tab">
+      Tab
+    </NavItem>
     <NavItem href="/feedback">
       Feedback
     </NavItem>

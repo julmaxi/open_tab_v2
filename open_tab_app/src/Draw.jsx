@@ -12,6 +12,7 @@ import {DragItem, DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
 import { TournamentContext } from "./TournamentContext";
+import { TabGroup, Tab } from "./TabGroup";
 
 const TRAY_DRAG_PATH = "__tray__";
 
@@ -193,7 +194,12 @@ function DebateRow(props) {
 
   let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
   
-  return (
+  return <>
+    <tr>
+      <td colSpan={4}>
+        Debate {props.debate.index + 1}: {props.debate.venue ? props.debate.venue.name: "<No venue>"}
+      </td>
+    </tr>
     <tr>
       <td className="border">
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
@@ -256,7 +262,7 @@ function DebateRow(props) {
         <DropWell minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => {}} /> : []}</DropWell>
       </td>
     </tr>
-  );
+  </>;
 }
 
 function simulateDragOutcome(draw, from, to, isSwap) {
@@ -380,30 +386,6 @@ function simulateDragOutcome(draw, from, to, isSwap) {
 }
 
 
-function TabGroup(props) {
-  let [activeTab, setActiveTab] = useState(0);
-
-  let children = React.Children.toArray(props.children);
-  let displayChild = children[activeTab];
-
-  return <div className="flex flex-col w-full h-full">
-    <div className="flex">
-      {React.Children.map(props.children, (tab, i) => <button className={"flex-1 text-center p-2 font-semibold text-sm" + (i == activeTab ? " bg-blue-500 text-white" : " bg-gray-100")} onClick={() => setActiveTab(i)}>{tab.props.name}</button>)}
-    </div>
-    <div className="flex-1 overflow-scroll">
-      {displayChild}
-    </div>
-  </div>
-}
-
-
-function Tab(props) {
-  return <div>
-    {props.children}
-  </div>
-}
-
-
 function adjPositionToStr(position) {
   if (position.type == "NotSet") {
     return "-"
@@ -446,14 +428,14 @@ function teamPositionToStr(position) {
 }
 
 function AdjudicatorTable({adjudicator_index, ...props}) {
-  return <table className="w-full h-full text-sm">
-    <thead>
+  return <table className="w-full text-sm">
+    <thead className="sticky top-0 bg-white">
       <tr>
         <th>Name</th>
         <th>Position</th>
       </tr>
     </thead>
-    <tbody className="w-full h-full overflow-scroll">
+    <tbody className="w-full overflow-scroll">
     {
       adjudicator_index.map(
         (adj, idx) => {
@@ -469,14 +451,14 @@ function AdjudicatorTable({adjudicator_index, ...props}) {
 }
 
 function TeamTable({team_index, ...props}) {
-  return <table className="w-full h-full text-sm">
-    <thead>
+  return <table className="w-full text-sm">
+    <thead className="stick top-0 bg-white">
       <tr>
         <th>Name</th>
         <th>Position</th>
       </tr>
     </thead>
-    <tbody className="w-full h-full overflow-scroll">
+    <tbody className="w-full overflow-scroll">
       {
         team_index.map(
           (entry, idx) => <TeamIndexEntry key={entry.team.uuid} entry={entry} />
