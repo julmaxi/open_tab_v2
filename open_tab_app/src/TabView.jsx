@@ -18,7 +18,7 @@ function ScoreTable({descriptionName, numRounds, children}) {
                     {[...Array(numRounds).keys()].map((round) => <th className='text-center' key={round}>R{round + 1}</th>)}
                 </tr>
             </thead>
-            <tbody className='overflow-scroll'>
+            <tbody>
                 {children} 
             </tbody>
         </table>

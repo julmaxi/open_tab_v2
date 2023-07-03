@@ -7,7 +7,7 @@ import "./App.css";
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin, DragOverlay} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
 
-import {DragItem, DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
+import {DragItem, DropList, DropSlot, DropWell, makeDragHandler} from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
@@ -17,8 +17,9 @@ import { TabGroup, Tab } from "./TabGroup";
 const TRAY_DRAG_PATH = "__tray__";
 
 const ISSUE_COLORS_BG = {
-  misc: "bg-gray-500",
+  neutral: "bg-gray-100",
   none: "bg-green-500",
+  misc: "bg-gray-500",
   low: "bg-blue-500",
   mid: "bg-yellow-500",
   high: "bg-red-500"
@@ -316,6 +317,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
   }
 
   var from_debate = clone(draw.debates[from.collection[1]]);
+  var from_collection = clone(getPath(draw, from.collection));
 
   var to_debate;
   if (from.collection[1] == to.collection[1]) {
@@ -325,53 +327,63 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     to_debate = clone(draw.debates[to.collection[1]]);
   }
 
-  var from_collection = clone(getPath(draw, from.collection));
-  var to_collection;
-
-  if (from.collection == to.collection) {
-    to_collection = from_collection
+  if (to.collection === TRAY_DRAG_PATH) {
+    if (from.index !== undefined) {
+        from_collection.splice(from.index, 1);
+    }
+    else {
+      from_collection = null;
+    }
+    updatePath(from_debate, from.collection.slice(2), from_collection);
+    return {[from.collection[1]]: from_debate};
   }
   else {
-    to_collection = clone(getPath(draw, to.collection));
-  }
-
-  if (to.index !== undefined && from.index !== undefined) {
-    if (isSwap) {
-      let tmp = from_collection[from.index];
-      from_collection[from.index] = to_collection[to.index];
-      to_collection[to.index] = tmp;
+    var to_collection;
+    if (from.collection == to.collection) {
+      to_collection = from_collection
     }
     else {
-      if (from.index < to.index) {
+      to_collection = clone(getPath(draw, to.collection));
+    }
+
+    if (to.index !== undefined && from.index !== undefined) {
+      if (isSwap) {
         let tmp = from_collection[from.index];
-        to_collection.splice(to.index, 0, tmp);
-        from_collection.splice(from.index, 1);  
+        from_collection[from.index] = to_collection[to.index];
+        to_collection[to.index] = tmp;
       }
       else {
-        let tmp = from_collection[from.index];
-        from_collection.splice(from.index, 1);
-        to_collection.splice(to.index, 0, tmp);
+        if (from.index < to.index) {
+          let tmp = from_collection[from.index];
+          to_collection.splice(to.index, 0, tmp);
+          from_collection.splice(from.index, 1);  
+        }
+        else {
+          let tmp = from_collection[from.index];
+          from_collection.splice(from.index, 1);
+          to_collection.splice(to.index, 0, tmp);
+        }
       }
+    } else if (to.index !== undefined) {
+      let from_val = from_collection;
+      let to_val = to_collection[to.index];
+      from_collection = isSwap ? to_val : null;
+      to_collection.splice(to.index, isSwap ? 1 : 0, from_val);
+    } else if (from.index !== undefined) {
+      let from_val = from_collection[from.index];
+      let to_val = to_collection;
+      if (isSwap && to_val !== null) {
+        from_collection.splice(from.index, 1, to_val);
+      }
+      else {
+        from_collection.splice(from.index, 1);
+      }
+      to_collection = from_val;
+    } else {
+      let tmp = from_collection;
+      from_collection = to_collection;
+      to_collection = tmp;
     }
-  } else if (to.index !== undefined) {
-    let from_val = from_collection;
-    let to_val = to_collection[to.index];
-    from_collection = isSwap ? to_val : null;
-    to_collection.splice(to.index, isSwap ? 1 : 0, from_val);
-  } else if (from.index !== undefined) {
-    let from_val = from_collection[from.index];
-    let to_val = to_collection;
-    if (isSwap && to_val !== null) {
-      from_collection.splice(from.index, 1, to_val);
-    }
-    else {
-      from_collection.splice(from.index, 1);
-    }
-    to_collection = from_val;
-  } else {
-    let tmp = from_collection;
-    from_collection = to_collection;
-    to_collection = tmp;
   }
 
   updatePath(from_debate, from.collection.slice(2), from_collection);
@@ -428,44 +440,48 @@ function teamPositionToStr(position) {
 }
 
 function AdjudicatorTable({adjudicator_index, ...props}) {
-  return <table className="w-full text-sm">
-    <thead className="sticky top-0 bg-white">
-      <tr>
-        <th>Name</th>
-        <th>Position</th>
-      </tr>
-    </thead>
-    <tbody className="w-full overflow-scroll">
-    {
-      adjudicator_index.map(
-        (adj, idx) => {
-          return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
-            <td>{adj.adjudicator.name}</td>
-            <td>{adjPositionToStr(adj.position)}</td>
-          </DragItem>
-        }
-      )
-    }
-    </tbody>
-  </table>
+  return <div className="h-full overflow-scroll">
+    <table className="w-full text-sm">
+      <thead className="sticky top-0 bg-white">
+        <tr>
+          <th>Name</th>
+          <th>Position</th>
+        </tr>
+      </thead>
+      <tbody className="w-full">
+      {
+        adjudicator_index.map(
+          (adj, idx) => {
+            return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
+              <td>{adj.adjudicator.name}</td>
+              <td>{adjPositionToStr(adj.position)}</td>
+            </DragItem>
+          }
+        )
+      }
+      </tbody>
+    </table>
+  </div>
 }
 
 function TeamTable({team_index, ...props}) {
-  return <table className="w-full text-sm">
-    <thead className="stick top-0 bg-white">
-      <tr>
-        <th>Name</th>
-        <th>Position</th>
-      </tr>
-    </thead>
-    <tbody className="w-full overflow-scroll">
-      {
-        team_index.map(
-          (entry, idx) => <TeamIndexEntry key={entry.team.uuid} entry={entry} />
-        )
-      }
-    </tbody>
-  </table>
+  return <div className="h-full overflow-scroll">
+    <table className="w-full text-sm">
+      <thead className="sticky top-0 bg-white">
+        <tr>
+          <th>Name</th>
+          <th>Position</th>
+        </tr>
+      </thead>
+      <tbody className="w-full">
+        {
+          team_index.map(
+            (entry, idx) => <TeamIndexEntry key={entry.team.uuid} entry={entry} />
+          )
+        }
+      </tbody>
+    </table>
+  </div>
 }
 
 
@@ -504,21 +520,40 @@ function TeamIndexEntry({entry, ...props}) {
   </>
 }
 
-function DrawToolTray({adjudicator_index, team_index, ...props}) {
-  return <div className="w-72 border-l h-full">
-    <TabGroup>
-      <Tab name="Adjudicators">
-        <AdjudicatorTable adjudicator_index={adjudicator_index} />
-      </Tab>
-      <Tab name="Teams">
-        <TeamTable team_index={team_index} />
-      </Tab>
-    </TabGroup>
+const DropIndicator = ({ visible }) => {
+  return (
+    <div 
+      className={`absolute w-full h-full bg-black bg-opacity-50 z-10 flex items-center justify-center 
+      ${visible ? '' : 'hidden'}`}>
+      <div className="text-center py-3 px-6 rounded-lg">
+        <svg className="w-12 h-12 mx-auto mb-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        <p className="text-white">Remove</p>
+      </div>
+    </div>
+  )
+}
+
+
+function DrawToolTray({adjudicator_index, team_index, isDragging, ...props}) {
+  return <div className="w-72 border-l h-full relative">
+    <DropSlot collection={TRAY_DRAG_PATH} type={"adjudicator"} className={"h-full"}>
+      <DropIndicator visible={isDragging} />
+      <TabGroup>
+        <Tab name="Adjudicators" autoScroll={false}>
+          <AdjudicatorTable adjudicator_index={adjudicator_index} />
+        </Tab>
+        <Tab name="Teams">
+          <TeamTable team_index={team_index} />
+        </Tab>
+      </TabGroup>
+    </DropSlot>
   </div>
 }
 
 function getDragInfoFromDragInfo(drag_info, draw) {
-  if (drag_info.collection == TRAY_DRAG_PATH) {
+  if (drag_info.collection === TRAY_DRAG_PATH) {
     if (drag_info.type == "adjudicator") {
       return draw.adjudicator_index.find(
         (adj) => adj.adjudicator.uuid == drag_info.index
@@ -553,8 +588,6 @@ function getDragInfoFromDragInfo(drag_info, draw) {
 
 
 function DragItemPreview({item, highlight, ...props}) {
-
-  console.log(highlight);
   let issueColor = highlight ? ISSUE_COLORS_BG[highlight] : "bg-gray-100";
 
   return <div className={`${issueColor} min-w-[14rem] p-1 rounded`}>
@@ -577,25 +610,35 @@ function DrawEditor(props) {
     if (dragHighlightedIssues === null) {
       return;
     }
-    let roomIndex = to.collection[1];
-    let targetRoomIssues = dragHighlightedIssues[roomIndex];
-    
-    let allIssues = [];
-    for (let issues of Object.values(targetRoomIssues)) {
-      for (let elem of issues) {
-        if (Array.isArray(elem)) {
-          allIssues.push(...elem);
-        }
-        else {
-          allIssues.push(elem);
+    if (to.collection === TRAY_DRAG_PATH) {
+      setDraggedItemHighlight("neutral");
+      return;
+    }
+    console.log(to.collection[to.collection.length - 1])
+    if (to.collection[to.collection.length - 1] !== "president") {
+      let roomIndex = to.collection[1];
+      let targetRoomIssues = dragHighlightedIssues[roomIndex];
+      
+      let allIssues = [];
+      for (let issues of Object.values(targetRoomIssues)) {
+        for (let elem of issues) {
+          if (Array.isArray(elem)) {
+            allIssues.push(...elem);
+          }
+          else {
+            allIssues.push(elem);
+          }
         }
       }
+      let maxSeverity = Math.max(0, ...allIssues.map((issue) => issue.severity));
+
+      let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
+
+      setDraggedItemHighlight(severityBucket);
     }
-    let maxSeverity = Math.max(0, ...allIssues.map((issue) => issue.severity));
-
-    let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
-
-    setDraggedItemHighlight(severityBucket);
+    else {
+      setDraggedItemHighlight("neutral");
+    }
   }
   const onDragOver = makeDragHandler(onDragOverFunc);
 
@@ -657,10 +700,10 @@ function DrawEditor(props) {
         </table>
       </div>
 
-      <DrawToolTray adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} />
+      <DrawToolTray adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} isDragging={dragItemInfo !== null} />
 
       <DragOverlay dropAnimation={null}>
-        {draggedItem ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
+        {dragItemInfo ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
       </DragOverlay>
     </DndContext>
   </div>

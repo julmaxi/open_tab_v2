@@ -23,14 +23,14 @@ export function DragItem(props) {
 
     if (props.content_tag == "tr") {
         return (
-            <tr ref={setNodeRef} style={style} {...listeners} {...attributes}>
+            <tr ref={setNodeRef} style={style} className={props.className || ""} {...listeners} {...attributes}>
                 {props.children}
             </tr>
         );    
     }
     else {
         return (
-            <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+            <div ref={setNodeRef} style={style} className={props.className || ""} {...listeners} {...attributes}>
                 {props.children}
             </div>
         );    
@@ -50,7 +50,7 @@ export function DropSlot(props) {
     }
 
     return (
-        <div ref={setNodeRef} style={style}>
+        <div ref={setNodeRef} style={style} className={props.className || ""}>
             {props.children}
         </div>
     );
@@ -78,9 +78,9 @@ export function DropList(props) {
 
 export function DropWell(props) {
     return (
-        <div style={{minWidth: props.minWidth}}>
-            <DropSlot collection={props.collection} type={props.type}>
-                {Children.count(props.children) > 0 ? <DragItem collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
+        <div style={{minWidth: props.minWidth}} className={props.className || ""}>
+            <DropSlot collection={props.collection} type={props.type} className={props.slotClassName}>
+                {Children.count(props.children) > 0 ? <DragItem className={props.slotClassName} collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
             </DropSlot>
         </div>
     );
