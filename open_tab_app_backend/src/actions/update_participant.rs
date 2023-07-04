@@ -3,7 +3,7 @@ use std::{error::Error};
 
 use base64::{engine::general_purpose, Engine};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*};
+use open_tab_entities::{prelude::*, domain::participant::ParticipantInstitution};
 
 use sea_orm::prelude::*;
 
@@ -33,8 +33,11 @@ impl ActionTrait for UpdateParticipantsAction {
                         crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill })
                     },
                     tournament_id: self.tournament_id,
-                    institutions: vec![],
-                    registration_key: participant.registration_key.map(|r| general_purpose::STANDARD_NO_PAD.decode(r)).transpose()?
+                    institutions: participant.institutions.into_iter().map(|p| ParticipantInstitution {
+                        uuid: p.uuid,
+                        clash_severity: p.clash_severity as u16
+                    }).collect(),
+                    registration_key: participant.registration_key.map(|r| general_purpose::STANDARD_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?
                 }
             ));
         }

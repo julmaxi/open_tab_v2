@@ -87,7 +87,7 @@ pub struct ParticipantEntry {
 pub struct Clash {
     pub participant_uuid: Uuid,
     pub participant_name: String,
-    pub clash_strength: i16,
+    pub clash_severity: i16,
     #[serde(flatten)]
     pub clash_direction: ClashDirection
 }
@@ -103,7 +103,7 @@ pub enum ClashDirection {
 pub struct Institution {
     pub uuid: Uuid,
     pub name: String,
-    pub clash_strength: i16,
+    pub clash_severity: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,14 +158,14 @@ impl ParticipantsListView {
             ).map(|(dir, c)| Clash {
                 participant_uuid: match dir { ClashDirection::Incoming => c.declaring_participant_id, ClashDirection::Outgoing => c.target_participant_id },
                 participant_name: participant_names.get(&match dir {ClashDirection::Incoming => c.declaring_participant_id, ClashDirection::Outgoing => c.target_participant_id } ).unwrap_or(&"Unknown Participant".to_string()).clone(),
-                clash_strength: c.clash_severity,
+                clash_severity: c.clash_severity,
                 clash_direction: dir
             }).collect_vec();
             let institutions = institutions.into_iter().map(
                 |i| Institution {
                     uuid: i.institution_id,
                     name: institution_names.get(&i.institution_id).unwrap_or(&"Unknown Institution".to_string()).clone(),
-                    clash_strength: i.clash_severity
+                    clash_severity: i.clash_severity
                 }
             ).collect_vec();
             match p.role {

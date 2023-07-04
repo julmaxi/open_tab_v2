@@ -1,7 +1,7 @@
 //@ts-check
 
 import React, { useCallback, useContext } from "react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
 import { open } from '@tauri-apps/api/dialog';
@@ -10,6 +10,8 @@ import { TournamentContext } from "./TournamentContext";
 import ModalOverlay from "./Modal";
 import Button from "./Button";
 import { invoke } from "@tauri-apps/api/tauri";
+import { SortableTable } from "./SortableTable";
+import ComboBox from "./ComboBox";
 
 function EditableCell(props) {
     let [edit, setEdit] = useState(false);
@@ -54,85 +56,71 @@ function EditableCell(props) {
     </td>
 }
 
-function SortableTable(props) {
-    let [sortOrder, setSortOrder] = useState(null);
-    let [selectedRow, setSelectedRow] = useState(null);
+function ParticipantDetailView({onClose, ...props}) {
+    return <div className="h-full">
+        <button
+        onClick={onClose}
+      className="absolute top-1 right-1 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
+    >
+      &times;
+    </button>
+    
+    <div className="flex flex-wrap">
+        <div className="w-full">
+            <h2>Clashes</h2>
+            <div className="h-36">
+                <SortableTable selectedRowId={null} data={
+                    [{
+                        name: "Clash 1",
+                        severity: 100
+                    }]
+                } columns={
+                    [
+                        {
+                            "key": "name",
+                            "header": "Name",
+                        },
+                        {
+                            "key": "severity",
+                            "header": "Severity",
+                        }
+                    ]
+                } />
+            </div>
+        <ComboBox placeholder={"Add Clash"} />
+        </div>
 
-    let {orderedRows, groups} = useMemo(
-        () => {
-            let orderedRows = [...props.data];
-            if (sortOrder !== null) {
-                orderedRows.sort((a, b) => (a[sortOrder.key] > b[sortOrder.key] ? 1 : -1) * sortOrder.direction);
-            }
+        <div className="w-full">
+            <h2>Institutions</h2>
+            <div className="h-36">
+                <SortableTable selectedRowId={null} data={
+                    [{
+                        name: "Clash 1",
+                        severity: 100
+                    }]
+                } columns={
+                    [
+                        {
+                            "key": "name",
+                            "header": "Name",
+                        },
+                        {
+                            "key": "severity",
+                            "header": "Severity",
+                        }
+                    ]
+                } />
+            </div>
+        <ComboBox placeholder={"Add Institution"} />
+        </div>
 
-            let colGroups = new Map();
-            for (let col of props.columns) {
-                if (col.group) {
-                    colGroups.set(col, [])
-                }
-            }
+    </div>
 
-            for (let i = 0; i < orderedRows.length; i++) {
-                let row = orderedRows[i];
-                for (let [col, groups] of colGroups) {
-                    let currentGroup = groups[groups.length - 1];
-                    if (currentGroup === undefined || currentGroup.val !== row[col.key]) {
-                        currentGroup = {val: row[col.key], size: 1, start: i};
-                        groups.push(currentGroup);
-                    }
-                    else {
-                        currentGroup.size += 1;
-                        groups.push(currentGroup);
-                    }
-                }
-            }
-            
-            return {orderedRows, groups: colGroups};
-        }, [props.data, sortOrder]
-    );
-
-    function handleSort(column_key) {
-        return (event) => {
-            if (sortOrder !== null && column_key == sortOrder.key) {
-                setSortOrder({ key: column_key, direction: -sortOrder.direction });
-            }
-            else {
-                setSortOrder({ key: column_key, direction: 1 });
-            }
-        }
-    }
-
-    return <table className="w-full">
-        <thead>
-            <tr className="text-left">
-                {props.columns.map((column, idx) => {
-                    return <th key={idx} className="" onClick={handleSort(column.key)}>{column.header}</th>
-                })}
-            </tr>
-        </thead>
-        <tbody>
-            {orderedRows.map((row, rowIdx) => {
-                let className = [selectedRow === rowIdx ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")].join(" ");
-
-                return <tr key={row[props.row_id]} className={className} onClick={() => setSelectedRow(rowIdx)}>
-                    {
-                        props.columns.filter(col => !col.group || groups.get(col)[rowIdx].start == rowIdx).map(
-                            (column, idx) => {
-                                let val = row[column.key];
-                                let rowSpan = groups.get(column)?.[rowIdx]?.size ?? 1;
-
-                                return column.cellFactory !== undefined ? column.cellFactory(val, rowIdx, idx, row) : <td rowSpan={rowSpan} key={idx} className="">{val}</td>
-                            }
-                        )
-                    }
-                </tr>
-            })}
-        </tbody>
-    </table>
+    </div>
 }
 
-
 function ParticipantTable(props) {
+    let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
     let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
@@ -159,7 +147,7 @@ function ParticipantTable(props) {
                 "path": ["adjudicators", adjudicator_uuid],
             }
         }
-    ))
+    ));
 
     flatTable = flatTable.map((r) => {
         let row = {...r};
@@ -168,23 +156,36 @@ function ParticipantTable(props) {
         return row;
     });
 
-    return <SortableTable data={flatTable} row_id="uuid" columns={
-        [
-            { "key": "role", "header": "Role", "group": true },
-            { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
-                return <EditableCell key={colIdx} value={value} onChange={
-                    (newName) => {
-                        let newParticipant = {... getPath(props.participants, rowValue.path)};
-                        newParticipant.name = newName;
-                        executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: "00000000-0000-0000-0000-000000000001"})
-                    }
-                } />
-            } },
-            { "key": "institutions", "header": "Institutions" },
-            { "key": "clashes", "header": "Clashes" },
-            { "key": "registration_key", "header": "Secret" },
-        ]
-    } />
+    flatTable.sort((a, b) => a.name > b.name ? 1 : -1);
+
+    return <div className="h-full flex">
+        <SortableTable
+            data={flatTable}
+            row_id="uuid"
+            selectedRowId={selectedParticipantUuid}
+            onSelectRow={(uuid) => {setSelectedParticipantUuid(uuid)}}
+            columns={
+                [
+                    { "key": "role", "header": "Role", "group": true },
+                    { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
+                        return <EditableCell key={colIdx} value={value} onChange={
+                            (newName) => {
+                                let newParticipant = {... getPath(props.participants, rowValue.path)};
+                                newParticipant.name = newName;
+                                executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: "00000000-0000-0000-0000-000000000001"})
+                            }
+                        } />
+                    } },
+                    { "key": "institutions", "header": "Institutions" },
+                    { "key": "clashes", "header": "Clashes" },
+                    { "key": "registration_key", "header": "Secret" },
+                ]
+            }
+        />
+        {
+           selectedParticipantUuid !== null ? <ParticipantDetailView onClose={() => setSelectedParticipantUuid(null)} /> : []
+        }
+    </div>
 }
 
 
@@ -426,7 +427,7 @@ export function ParticipantOverview() {
         }
         </ModalOverlay>
         
-        <div className="flex-1 overflow-scroll">
+        <div className="min-h-0">
             {
                 Object.entries(participants.teams).length + Object.entries(participants.adjudicators).length > 0 ?
                 <ParticipantTable participants={participants} />

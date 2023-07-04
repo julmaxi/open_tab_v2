@@ -599,6 +599,7 @@ function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     setDragHighlightedIssues(null);
     setDraggedItemHighlight(null);
+    setDraggedItem(null);
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
     executeAction("UpdateDraw", {

@@ -36,7 +36,8 @@ async fn test_insert_new_empty_ballot() -> Result<(), Box<dyn Error>> {
             opposition: None,
             non_aligned_speakers: vec![],
             adjudicators: vec![],
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -75,7 +76,8 @@ async fn test_update_ballot_saves_team() -> Result<(), Box<dyn Error>> {
             }),
             non_aligned_speakers: vec![],
             adjudicators: vec![],
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -112,7 +114,8 @@ async fn test_update_ballot_saves_adjudicators() -> Result<(), Box<dyn Error>> {
                 DrawAdjudicator { uuid: Uuid::from_u128(3001), ..Default::default() }.into(),
                 DrawAdjudicator { uuid: Uuid::from_u128(3002), ..Default::default() }.into(),
             ],
-            president: Some(DrawAdjudicator { uuid: Uuid::from_u128(3006), ..Default::default()}.into())
+            president: Some(DrawAdjudicator { uuid: Uuid::from_u128(3006), ..Default::default()}.into()),
+            venue: None
         }]
     };
 
@@ -158,7 +161,8 @@ async fn test_update_ballot_saves_non_aligned() -> Result<(), Box<dyn Error>> {
                 },
             ],
             adjudicators: vec![],
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -215,7 +219,8 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
             opposition: None,
             non_aligned_speakers: vec![],
             adjudicators: vec![3002, 3001, 3003].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }.into()).collect_vec(),
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -257,7 +262,8 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dy
             opposition: None,
             non_aligned_speakers: vec![],
             adjudicators: vec![3002, 3001].into_iter().map(|uuid| DrawAdjudicator { uuid: Uuid::from_u128(uuid), ..Default::default() }.into()).collect_vec(),
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -309,7 +315,8 @@ async fn test_change_non_aligned_with_additional() -> Result<(), Box<dyn Error>>
                 DrawSpeaker { uuid: Uuid::from_u128(2070), ..Default::default() },
             ],
             adjudicators: vec![],
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
@@ -368,7 +375,8 @@ async fn test_change_non_aligned_with_fewer() -> Result<(), Box<dyn Error>> {
                 DrawSpeaker { uuid: Uuid::from_u128(2002), ..Default::default() },
             ],
             adjudicators: vec![],
-            president: None
+            president: None,
+            venue: None
         }]
     };
 
