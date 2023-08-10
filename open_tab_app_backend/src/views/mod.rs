@@ -6,6 +6,7 @@ pub mod round_results_view;
 pub mod tournament_tree_view;
 pub mod round_publication_view;
 pub mod feedback_views;
+pub mod institutions_view;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
@@ -17,6 +18,7 @@ use self::participants_list_view::LoadedParticipantsListView;
 use self::round_results_view::LoadedRoundResultsView;
 use self::tab_view::LoadedTabView;
 use self::tournament_tree_view::LoadedTournamentTreeView;
+use self::institutions_view::LoadedInstitutionsView;
 
 
 use std::error::Error;
@@ -39,6 +41,7 @@ pub enum View {
     TournamentTree{tournament_uuid: Uuid},
     FeedbackOverview{tournament_uuid: Uuid},
     FeedbackDetail{participant_id: Uuid},
+    Institutions{tournament_uuid: Uuid},
 }
 
 impl View {
@@ -75,6 +78,9 @@ impl View {
             },
             View::FeedbackDetail { participant_id } => {
                 Box::new(LoadedFeedbackDetailView::load(db, *participant_id).await?)
+            },
+            View::Institutions { tournament_uuid } => {
+                Box::new(LoadedInstitutionsView::load(db, *tournament_uuid).await?)
             },
         })
     }

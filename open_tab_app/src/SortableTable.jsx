@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useMemo } from "react";
 
-export function SortableTable({ selectedRowId, onSelectRow, ...props }) {
+export function SortableTable({ selectedRowId, onSelectRow, rowId, ...props }) {
     let [sortOrder, setSortOrder] = useState(null);
 
     let { orderedRows, groups } = useMemo(
@@ -59,9 +59,9 @@ export function SortableTable({ selectedRowId, onSelectRow, ...props }) {
             </thead>
             <tbody>
                 {orderedRows.map((row, rowIdx) => {
-                    let className = [selectedRowId === row[props.row_id] ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")].join(" ");
+                    let className = [selectedRowId === row[rowId] ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")].join(" ");
 
-                    return <tr key={row[props.row_id]} className={className} onClick={() => onSelectRow(row[props.row_id])}>
+                    return <tr key={row[rowId]} className={className} onClick={() => onSelectRow && onSelectRow(row[rowId])}>
                         {props.columns.filter(col => !col.group || groups.get(col)[rowIdx].start == rowIdx).map(
                             (column, idx) => {
                                 let val = row[column.key];

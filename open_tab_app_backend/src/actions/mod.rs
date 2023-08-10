@@ -18,6 +18,7 @@ mod edit_tree;
 mod generate_draw;
 mod make_break;
 mod update_round;
+mod create_institution;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -28,6 +29,7 @@ pub use self::edit_tree::EditTreeAction;
 pub use self::generate_draw::GenerateDrawAction;
 pub use self::make_break::MakeBreakAction;
 pub use self::update_round::UpdateRoundAction;
+pub use self::create_institution::CreateInstitutionAction;
 pub(crate) use self::edit_tree::EditTreeActionType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +42,8 @@ pub enum Action {
     EditTournamentTree { action: EditTreeAction },
     GenerateDraw { action: GenerateDrawAction },
     MakeBreak { action: MakeBreakAction },
-    UpdateRound { action: UpdateRoundAction }
+    UpdateRound { action: UpdateRoundAction },
+    CreateInstitution { action: CreateInstitutionAction },
 }
 
 impl Action {
@@ -53,7 +56,8 @@ impl Action {
             Action::EditTournamentTree { action } => action.get_changes(db).await,
             Action::GenerateDraw { action } => action.get_changes(db).await,
             Action::MakeBreak { action } => action.get_changes(db).await,
-            Action::UpdateRound { action } => action.get_changes(db).await
+            Action::UpdateRound { action } => action.get_changes(db).await,
+            Action::CreateInstitution { action } => action.get_changes(db).await,
         }
     }
 }

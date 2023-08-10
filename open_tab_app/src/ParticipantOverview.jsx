@@ -12,6 +12,7 @@ import Button from "./Button";
 import { invoke } from "@tauri-apps/api/tauri";
 import { SortableTable } from "./SortableTable";
 import ComboBox from "./ComboBox";
+import { useEffect } from "react";
 
 function EditableCell(props) {
     let [edit, setEdit] = useState(false);
@@ -56,11 +57,20 @@ function EditableCell(props) {
     </td>
 }
 
-function ParticipantDetailView({onClose, ...props}) {
+function ParticipantDetailView({onClose, participant, ...props}) {
+    let [modifiedParticipant, setModifiedParticipant] = useState(participant);
+
+    let tournamentContext = useContext(TournamentContext);
+    let allInstitutions = useView({type: "Institutions", tournament_uuid: tournamentContext.uuid}, {"institutions": []}).institutions;
+
+    useEffect(() => {
+        setModifiedParticipant(participant);
+    }, [participant]);
+
     return <div className="h-full">
         <button
         onClick={onClose}
-      className="absolute top-1 right-1 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
+        className="absolute top-1 right-1 z-10 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
     >
       &times;
     </button>
@@ -69,35 +79,42 @@ function ParticipantDetailView({onClose, ...props}) {
         <div className="w-full">
             <h2>Clashes</h2>
             <div className="h-36">
-                <SortableTable selectedRowId={null} data={
-                    [{
-                        name: "Clash 1",
-                        severity: 100
-                    }]
+                <SortableTable selectedRowId={"participant_uuid"} data={
+                    modifiedParticipant.clashes
                 } columns={
                     [
                         {
-                            "key": "name",
+                            "key": "participant_name",
                             "header": "Name",
                         },
                         {
                             "key": "severity",
                             "header": "Severity",
+                        },
+                        {
+                            "key": "delete",
+                            "header": "",
+                            cellFactory: (_val, rowIdx, colIdx, row) => {
+                                return <td key={colIdx} className="w-4"><button
+                                    className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
+                                    onClick={() => {
+                                        let toDelete = modifiedParticipant.clashes.findIndex(r => r.participant_uuid === row.participant_uuid);
+                                        setModifiedParticipant({...modifiedParticipant, clashes: [...modifiedParticipant.clashes.slice(0, toDelete), ...modifiedParticipant.clashes.slice(toDelete + 1)]});
+                                    }}
+                                >&times;</button></td>
+                            }
                         }
                     ]
                 } />
             </div>
-        <ComboBox placeholder={"Add Clash"} />
+            <ComboBox placeholder={"Add Clash"} items={[]} />
         </div>
 
         <div className="w-full">
             <h2>Institutions</h2>
             <div className="h-36">
-                <SortableTable selectedRowId={null} data={
-                    [{
-                        name: "Clash 1",
-                        severity: 100
-                    }]
+                <SortableTable rowId={"uuid"} selectedRowId={null} data={
+                    modifiedParticipant.institutions
                 } columns={
                     [
                         {
@@ -105,13 +122,48 @@ function ParticipantDetailView({onClose, ...props}) {
                             "header": "Name",
                         },
                         {
-                            "key": "severity",
+                            "key": "clash_severity",
                             "header": "Severity",
+                        },
+                        {
+                            "key": "delete",
+                            "header": "",
+                            cellFactory: (value, rowIdx, colIdx, row) => {
+                                return <td key={colIdx} className="w-4"><button
+                                    className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
+                                    onClick={() => {
+                                        let toDelete = modifiedParticipant.institutions.findIndex(r => r.uuid === row.uuid);
+                                        setModifiedParticipant({...modifiedParticipant, institutions: [...modifiedParticipant.institutions.slice(0, toDelete), ...modifiedParticipant.institutions.slice(toDelete + 1)]});
+                                    }}
+                                >&times;</button></td>
+                            }
                         }
                     ]
                 } />
             </div>
-        <ComboBox placeholder={"Add Institution"} />
+        <ComboBox placeholder={"Add Institution"} items={allInstitutions} ignoredItemNames={modifiedParticipant.institutions.map(i => i.name)} onSelect={
+            (institution, isCreate) => {
+
+                if (isCreate) {
+                    console.log(institution);
+                    let newUuid = crypto.randomUUID();
+                    executeAction("CreateInstitution", {tournament_uuid: tournamentContext.uuid, name: institution, uuid: newUuid});
+                    let institutionEntry = {
+                        name: institution,
+                        uuid: newUuid,
+                        clash_severity: 100
+                    };
+                    setModifiedParticipant({...modifiedParticipant, institutions: [...modifiedParticipant.institutions, institutionEntry]});                        
+                }
+                else {
+                    let institutionEntry = {
+                        ...institution,
+                        clash_severity: 100
+                    };
+                    setModifiedParticipant({...modifiedParticipant, institutions: [...modifiedParticipant.institutions, institutionEntry]});                        
+                }
+            }
+        } allowCreate={true}/>
         </div>
 
     </div>
@@ -121,6 +173,7 @@ function ParticipantDetailView({onClose, ...props}) {
 
 function ParticipantTable(props) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
+
     let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
@@ -158,10 +211,24 @@ function ParticipantTable(props) {
 
     flatTable.sort((a, b) => a.name > b.name ? 1 : -1);
 
+    let participantsById = {};
+
+    Object.entries(props.participants.teams).forEach(([team_uuid, team]) => {
+        Object.entries(team.members).forEach(([speaker_uuid, speaker]) => {
+            participantsById[speaker_uuid] = speaker;
+        })
+    });
+
+    Object.entries(props.participants.adjudicators).forEach(([adjudicator_uuid, adjudicator]) => {
+        participantsById[adjudicator_uuid] = adjudicator;
+    });
+
+    let selectedParticipant = selectedParticipantUuid ? participantsById[selectedParticipantUuid] : null;
+
     return <div className="h-full flex">
         <SortableTable
             data={flatTable}
-            row_id="uuid"
+            rowId="uuid"
             selectedRowId={selectedParticipantUuid}
             onSelectRow={(uuid) => {setSelectedParticipantUuid(uuid)}}
             columns={
@@ -183,7 +250,7 @@ function ParticipantTable(props) {
             }
         />
         {
-           selectedParticipantUuid !== null ? <ParticipantDetailView onClose={() => setSelectedParticipantUuid(null)} /> : []
+           selectedParticipantUuid !== null ? <ParticipantDetailView participant={selectedParticipant} onClose={() => setSelectedParticipantUuid(null)} /> : []
         }
     </div>
 }
