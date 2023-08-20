@@ -9,8 +9,9 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
     const [filter, setFilter] = React.useState(null);
 
     const shownItems = useMemo(() => {
+        console.log(ignoredItemNames);
         let availableItems = items.filter((item) => {
-            return !ignoredItemNames.includes(item.name);
+            return !(ignoredItemNames || []).includes(item.name);
         });
         if (filter === null) {
             return availableItems;

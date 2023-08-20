@@ -13,6 +13,12 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { SortableTable } from "./SortableTable";
 import ComboBox from "./ComboBox";
 import { useEffect } from "react";
+import _ from "lodash";
+
+import {
+    BrowserRouter as Router,
+    unstable_useBlocker as useBlocker,
+  } from "react-router-dom";
 
 function EditableCell(props) {
     let [edit, setEdit] = useState(false);
@@ -60,8 +66,25 @@ function EditableCell(props) {
 function ParticipantDetailView({onClose, participant, ...props}) {
     let [modifiedParticipant, setModifiedParticipant] = useState(participant);
 
+    
+    let hasChanges = !_.eq(
+        participant,
+        modifiedParticipant
+    );
+
+    useBlocker(
+        hasChanges
+    );
+
     let tournamentContext = useContext(TournamentContext);
     let allInstitutions = useView({type: "Institutions", tournament_uuid: tournamentContext.uuid}, {"institutions": []}).institutions;
+
+    let participantView = useView({type: "ParticipantsList", tournament_uuid: tournamentContext.uuid},  {"teams": {}, "adjudicators": {}});
+
+    let flatParticipantView = Object.values(participantView.teams).flatMap((team) => {
+        return Object.values(team.members)
+    }).concat(Object.values(participantView.adjudicators));
+    console.log(flatParticipantView);
 
     useEffect(() => {
         setModifiedParticipant(participant);
@@ -69,9 +92,9 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 
     return <div className="h-full">
         <button
-        onClick={onClose}
-        className="absolute top-1 right-1 z-10 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
-    >
+            onClick={onClose}
+            className="absolute top-1 right-1 z-10 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
+        >
       &times;
     </button>
     
@@ -79,7 +102,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         <div className="w-full">
             <h2>Clashes</h2>
             <div className="h-36">
-                <SortableTable selectedRowId={"participant_uuid"} data={
+                <SortableTable rowId={"participant_uuid"} data={
                     modifiedParticipant.clashes
                 } columns={
                     [
@@ -107,7 +130,20 @@ function ParticipantDetailView({onClose, participant, ...props}) {
                     ]
                 } />
             </div>
-            <ComboBox placeholder={"Add Clash"} items={[]} />
+            <ComboBox placeholder={"Add Clash"} items={
+                flatParticipantView
+            } onSelect={
+                (participant) => {
+                    let clashEntry = {
+                        participant_uuid: participant.uuid,
+                        participant_name: participant.name,
+                        direction: "Outgoing",
+                        clash_severity: 100
+                    };
+                    setModifiedParticipant({...modifiedParticipant, clashes: [...modifiedParticipant.clashes, clashEntry]});                        
+
+                }
+            }/>
         </div>
 
         <div className="w-full">
@@ -168,6 +204,11 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 
     </div>
 
+    {
+        hasChanges ? <Button onClick={() => {
+            executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant]})
+        }}>Save Changes</Button> : null
+    }
     </div>
 }
 
