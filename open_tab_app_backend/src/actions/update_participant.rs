@@ -3,7 +3,7 @@ use std::{error::Error};
 
 use base64::{engine::general_purpose, Engine};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::participant::ParticipantInstitution};
+use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
 use sea_orm::prelude::*;
 
@@ -11,6 +11,8 @@ use crate::{participants_list_view::ParticipantEntry};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
+
+use open_tab_entities::group::EntityType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateParticipantsAction {
@@ -24,6 +26,35 @@ impl ActionTrait for UpdateParticipantsAction {
         let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {
+            let existing_clashes = open_tab_entities::schema::participant_clash::Entity::find()
+                .filter(open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant.uuid))
+                .all(_db)
+                .await?;
+
+            let new_clashes = participant.clashes.into_iter().filter(
+                |c| c.clash_direction == crate::participants_list_view::ClashDirection::Outgoing
+            ).map(|c| (c.participant_uuid, c.clash_severity)).collect::<Vec<_>>();
+
+            let new_uuids = new_clashes.iter().map(|(uuid, _)| uuid.clone()).collect::<Vec<_>>();
+
+            let to_delete_ids = existing_clashes.iter().filter(|c| !new_uuids.contains(&c.uuid)).map(|c| c.uuid).collect::<Vec<_>>();
+            to_delete_ids.iter().for_each(|id| {
+                groups.delete(EntityType::ParticipantClash, id.clone());
+            });
+
+            new_clashes.into_iter().for_each(
+                |(uuid, clash_severity)| {
+                    groups.add(Entity::ParticipantClash(
+                        ParticipantClash {
+                            uuid: uuid.clone(),
+                            declaring_participant_id: participant.uuid,
+                            target_participant_id: uuid,
+                            clash_severity: clash_severity as u16
+                        }
+                    ));
+                }
+            );
+
             groups.add(Entity::Participant(
                 Participant {
                     uuid: participant.uuid,

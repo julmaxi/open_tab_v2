@@ -10,6 +10,7 @@ use crate::schema;
 use crate::utilities::{BatchLoad};
 
 use super::TournamentEntity;
+use super::entity::LoadEntity;
 
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -119,25 +120,6 @@ impl TournamentBreak {
         r.map(|mut v| v.pop())
     }
 
-    pub async fn get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
-        let breaks = schema::tournament_break::Entity::batch_load_all(db, uuids).await?;
-        let source_rounds = breaks.load_many(schema::tournament_break_source_round::Entity, db).await?;
-        let child_rounds = breaks.load_many(schema::tournament_break_child_round::Entity, db).await?;
-        let teams = breaks.load_many(schema::tournament_break_team::Entity, db).await?;
-        let speakers = breaks.load_many(schema::tournament_break_speaker::Entity, db).await?;
-
-        let r : Result<Vec<_>, _> = izip!(
-            breaks,
-            source_rounds,
-            child_rounds,
-            teams,
-            speakers
-        ).into_iter().map(|(break_row, source_rounds, child_rounds, teams, speakers)| {
-            Self::from_rows(break_row, source_rounds, child_rounds, teams, speakers)
-        }).collect();
-        r
-    }
-
     pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
         let breaks = schema::tournament_break::Entity::find()
             .filter(
@@ -199,6 +181,46 @@ impl TournamentBreak {
             breaking_teams,
             breaking_speakers,
         })
+    }
+}
+
+pub fn pad<E>(vec: Vec<E>, mask: &[bool]) -> Vec<Option<E>> {
+    let mut out = vec![];
+    let mut it = vec.into_iter();
+    let mut mask = mask.iter();
+    for v in it {
+        if let Some(&true) = mask.next() {
+            out.push(Some(v));
+        } else {
+            out.push(None);
+        }
+    }
+    out
+}
+
+#[async_trait]
+impl LoadEntity for TournamentBreak {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, Box<dyn Error>> where C: ConnectionTrait {
+        let breaks = schema::tournament_break::Entity::batch_load(db, uuids).await?;
+        let exists_mask = breaks.iter().map(|b| b.is_some()).collect::<Vec<_>>();
+
+        let breaks = breaks.into_iter().flatten().collect::<Vec<_>>();
+
+        let source_rounds = breaks.load_many(schema::tournament_break_source_round::Entity, db).await?;
+        let child_rounds = breaks.load_many(schema::tournament_break_child_round::Entity, db).await?;
+        let teams = breaks.load_many(schema::tournament_break_team::Entity, db).await?;
+        let speakers = breaks.load_many(schema::tournament_break_speaker::Entity, db).await?;
+
+        let r : Result<Vec<_>, _> = izip!(
+            breaks,
+            source_rounds,
+            child_rounds,
+            teams,
+            speakers
+        ).into_iter().map(|(break_row, source_rounds, child_rounds, teams, speakers)| {
+            Self::from_rows(break_row, source_rounds, child_rounds, teams, speakers)
+        }).collect();
+        r.map(|r| pad(r, &exists_mask))
     }
 }
 
@@ -431,5 +453,10 @@ impl TournamentEntity for TournamentBreak {
         return Ok(entities.iter().map(|team| {
             Some(team.tournament_id)
         }).collect());
+    }
+    
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
+        Ok(())
     }
 }

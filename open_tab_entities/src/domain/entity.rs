@@ -17,6 +17,19 @@ pub trait TournamentEntity: Send + Sync {
         Ok(())
     }
 
+    async fn delete<C>(db: &C, uuid: Uuid) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        Self::delete_many(db, vec![uuid]).await
+    }
+    
+    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait;
+    /*
+     where C: ConnectionTrait {
+        for uuid in uuids.iter() {
+            Self::delete(db, *uuid).await?;
+        }
+        Ok(())
+    } */
+
     async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
         Ok(Self::get_many_tournaments(db, &vec![self]).await?[0])
     }

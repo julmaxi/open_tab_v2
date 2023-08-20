@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, tournament::{Tournament}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, Entity, schema::tournament_log, prelude::*};
+use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, tournament::{Tournament}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, EntityType, Entity, schema::tournament_log, prelude::*};
 use sea_orm::prelude::*;
 
 
@@ -154,6 +154,24 @@ async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
             log.uuid == Uuid::from_u128(11) && log.target_uuid == Uuid::from_u128(20)
         }
     ));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_deletion_removes_elements() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db().await?;
+
+    let (changeset, _) = make_changeset();
+    changeset.save_all(&db).await?;
+    changeset.save_log_with_tournament_id(&db, Uuid::from_u128(10)).await?;
+
+    let mut delete = EntityGroup::new();
+    delete.delete(EntityType::Ballot, Uuid::from_u128(100));
+    delete.save_all_and_log_for_tournament(&db, Uuid::from_u128(10)).await?;
+
+    let saved_ballot = Ballot::try_get(&db, Uuid::from_u128(100)).await?;
+    assert!(saved_ballot.is_none());
 
     Ok(())
 }

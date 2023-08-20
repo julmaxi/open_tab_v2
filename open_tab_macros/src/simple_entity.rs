@@ -166,6 +166,13 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 Ok(())
             }
 
+            async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), Box<dyn std::error::Error>> where C: ConnectionTrait {
+                #entity_path::delete_many().filter(
+                    #uuid_col_path.is_in(uuids)
+                ).exec(db).await?;
+                Ok(())
+            }
+
             #get_tournaments_func
         }
 

@@ -754,6 +754,11 @@ impl TournamentEntity for Ballot {
         ).one(db).await.map(|round| round.map(|round| round.tournament_id))?;
         Ok(id)
     }
+
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        schema::ballot::Entity::delete_many().filter(schema::ballot::Column::Uuid.is_in(ids)).exec(db).await?;
+        Ok(())
+    }
 }
 
 

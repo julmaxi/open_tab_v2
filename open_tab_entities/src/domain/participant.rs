@@ -343,6 +343,10 @@ impl TournamentEntity for Participant {
         Ok(Some(self.tournament_id))
     }
 
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        schema::participant::Entity::delete_many().filter(schema::participant::Column::Uuid.is_in(ids)).exec(db).await?;
+        Ok(())
+    }
 }
 
 

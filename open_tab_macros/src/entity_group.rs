@@ -15,7 +15,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
         syn::Data::Enum(e) => {
             e.variants.iter().map(|v| {
                 assert!(v.fields.len() == 1, "Only enums with one field are supported");
-                let field = &v.fields.iter().next().unwrap();
+                let field = &v.fields.iter().next().expect("No fields found");
                 assert!(field.ident.is_none(), "Only enums with unnamed fields are supported");
                 return (v.ident.clone(), field.ty.clone());
             }).collect::<Vec<_>>()
@@ -27,10 +27,10 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
         let variant_str = variant.to_string();
         let entity_vec_ident : String = variant_str.chars().enumerate().flat_map(|(idx, c)| {
             if idx > 0 && c.is_uppercase() {
-                vec!['_', c.to_lowercase().next().unwrap()]
+                vec!['_', c.to_lowercase().next().expect("Making Ident Failed")]
             }
             else {
-                vec![c.to_lowercase().next().unwrap()]
+                vec![c.to_lowercase().next().expect("Making Ident Failed")]
             }
         }).chain("s".chars()).collect();
 
@@ -40,7 +40,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 
     let entity_vec_declarations = 
         variants_with_content_type.iter().enumerate().map(|(_i, (variant, content_type))| {
-        let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
+        let vec_ident = entity_vec_idents.get(&variant.to_string()).expect("No vec ident found");
         quote! {
             pub #vec_ident : Vec<#content_type>
         }
@@ -48,17 +48,21 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 
     let group_ident = Ident::new(&format!("EntityGroup"), input.ident.span());
 
+    let entity_type_enum = proc_macro2::TokenStream::from(derive_entity_type_enum(&variants_with_content_type));
+
     let struct_declaration = quote! {
         pub struct #group_ident {
             #(#entity_vec_declarations),*,
 
-            pub versions: HashMap<(String, Uuid), Uuid>,
-            pub insertion_order: Vec<(String, Uuid)>,        
+            pub deletions: std::collections::HashSet<(EntityType, Uuid)>,
+
+            pub versions: HashMap<(EntityType, Uuid), Uuid>,
+            pub insertion_order: Vec<(EntityType, Uuid)>,        
         }
     };
 
     let new_fn_assignments = variants_with_content_type.iter().map(|(variant, _content_type)| {
-        let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
+        let vec_ident = entity_vec_idents.get(&variant.to_string()).expect("No vec ident found");
         quote! {
             #vec_ident: Vec::new()
         }
@@ -69,6 +73,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
             Self {
                 #(#new_fn_assignments),*,
                 versions: HashMap::new(),
+                deletions: std::collections::HashSet::new(),
                 insertion_order: Vec::new(),
             }
         }
@@ -86,7 +91,8 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 
     let add_fn = quote! {
         fn add(&mut self, entity: #id) {
-            self.insertion_order.push((entity.get_name().clone(), entity.get_uuid()));
+            self.insertion_order.push((entity.get_type().clone(), entity.get_uuid()));
+            self.deletions.remove(&(entity.get_type().clone(), entity.get_uuid()));
             match entity {
                 #(#add_match_fn),*
             }
@@ -94,7 +100,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
 
     let get_all_tournament_extends = variants_with_content_type.iter().map(|(variant, content_type)| {
-        let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
+        let vec_ident = entity_vec_idents.get(&variant.to_string()).expect("No vec ident found");
         quote! {
             out.extend(<#content_type as crate::domain::entity::TournamentEntity>::get_many_tournaments(db, &self.#vec_ident.iter().collect()).await?.into_iter());
         }
@@ -109,30 +115,44 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
 
     let save_all_statements = variants_with_content_type.iter().map(|(variant, content_type)| {
-        let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
+        let variant_name : String = variant.to_string();
+        let vec_ident = entity_vec_idents.get(&variant_name).expect("No vec ident found");
         quote! {
-            <#content_type as crate::domain::entity::TournamentEntity>::save_many(db, guarantee_insert, &self.#vec_ident.iter().collect()).await?;
+            <#content_type as crate::domain::entity::TournamentEntity>::save_many(db, guarantee_insert, &self.#vec_ident.iter().filter(
+                |p| !self.deletions.contains(&(EntityType::#variant, p.uuid.clone()))
+            ).collect()).await?;
+        }
+    });
+
+    let delete_statements = variants_with_content_type.iter().map(|(variant, _content_type)| {
+        quote! {
+            let v = Vec::new();
+            let delete_uuids = delete_map.get(&EntityType::#variant).unwrap_or(&v);
+            if !delete_uuids.is_empty() {
+                <#variant as crate::domain::entity::TournamentEntity>::delete_many(db, delete_uuids.clone()).await?;
+            }
         }
     });
 
     let save_all_fn = quote! {
         async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn std::error::Error>> where C: sea_orm::ConnectionTrait {
+            let delete_map = self.deletions.clone().into_iter().into_group_map();
             #(#save_all_statements)*
+            #(#delete_statements)*
             Ok(())
         }
     };
 
     let get_entity_statements = variants_with_content_type.iter().map(|(variant, _content_type)| {
         let vec_ident = entity_vec_idents.get(&variant.to_string()).unwrap();
-        let name_as_string = format!("\"{}\"", variant);
         quote! {
-            .chain(self.#vec_ident.iter().map(|p| (#name_as_string.to_string(), p.uuid.clone())))
+            .chain(self.#vec_ident.iter().map(|p| (EntityType::#variant, p.uuid.clone())))
         }
     });
 
     let get_entity_fn = quote! {
-        fn get_entity_ids(&self) -> Vec<(String, Uuid)> {
-            std::iter::empty::<(String, Uuid)>()
+        fn get_entity_ids(&self) -> Vec<(EntityType, Uuid)> {
+            std::iter::empty::<(EntityType, Uuid)>()
             #(#get_entity_statements)*
             .collect()
         }
@@ -153,12 +173,41 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
 
     let from_versioned_impl = quote! {
-        impl From<Vec<VersionedEntity<#id>>> for #group_ident {
-            fn from(entities: Vec<VersionedEntity<#id>>) -> Self {
+        impl From<Vec<VersionedEntity<#id, EntityType>>> for #group_ident {
+            fn from(entities: Vec<VersionedEntity<#id, EntityType>>) -> Self {
                 let mut groups = #group_ident::new();
         
                 for e in entities {
-                    groups.add_versioned(e.entity, e.version);
+                    let version = e.version;
+                    match e.entity {
+                        EntityState::Exists(entity) => {
+                            groups.add_versioned(entity, version);
+                        },
+                        EntityState::Deleted{type_, uuid} => {
+                            groups.delete_versioned(type_, uuid, version);
+                        }
+                    }
+                }
+        
+                groups
+            }
+        }
+    };
+
+    let from_state_impl = quote! {
+        impl From<Vec<EntityState<#id, EntityType>>> for #group_ident {
+            fn from(entities: Vec<EntityState<#id, EntityType>>) -> Self {
+                let mut groups = #group_ident::new();
+        
+                for e in entities {
+                    match e {
+                        EntityState::Exists(entity) => {
+                            groups.add(entity);
+                        },
+                        EntityState::Deleted{type_, uuid} => {
+                            groups.delete(type_, uuid);
+                        }
+                    }
                 }
         
                 groups
@@ -167,41 +216,79 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
 
     let get_many_with_type_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
-        let variant_as_str = variant.to_string();
         quote! {
-            #variant_as_str => {
-                #content_type::get_many(db, ids).await?.into_iter().map(|e| Entity::#variant(e)).collect()                
+            EntityType::#variant => {
+                <#content_type as crate::domain::entity::LoadEntity>::get_many(db, ids).await?.into_iter().map(|e| Entity::#variant(e)).collect()                
             }
         }
     });
 
     let get_many_fn = quote! {
-        async fn get_many_with_type<C>(db: &C, entity_type: &str, ids: Vec<Uuid>) -> Result<Vec<Entity>, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
+        async fn get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Entity>, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
             Ok(match entity_type {
                 #(#get_many_with_type_arms),*,
-                _ => panic!("Unknown Entity Type {}", entity_type)
+                _ => panic!("Unknown Entity Type {:?}", entity_type)
             })
         }
     };
 
-    let entity_impl = proc_macro2::TokenStream::from(derive_entity_impl(&input, &variants_with_content_type));
+    let try_get_many_with_type_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
+        let variant_as_str = variant.to_string();
+        quote! {
+            EntityType::#variant => {
+                #content_type::try_get_many(db, ids).await?.into_iter().map(|e| e.map(Entity::#variant)).collect()                
+            }
+        }
+    });
+
+    let try_get_many_fn = quote! {
+        async fn try_get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Option<Entity>>, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
+            Ok(match entity_type {
+                #(#try_get_many_with_type_arms),*,
+                _ => panic!("Unknown Entity Type {:?}", entity_type)
+            })
+        }
+    };
+
+    let delete_fn = quote! {
+        fn delete(&mut self, type_: Self::TypeId, uuid: Uuid) {
+            self.insertion_order.push((type_.clone(), uuid));
+            self.deletions.insert((type_, uuid));
+        }
+    };
+
+    let delete_versioned_fn = quote! {
+        fn delete_versioned(&mut self, type_: Self::TypeId, uuid: Uuid, version: Uuid) {
+            self.versions.insert((type_.clone(), uuid), version);
+            self.delete(type_, uuid);
+        }
+    };
+
+    let entity_impl = proc_macro2::TokenStream::from(derive_entity_impl(&input, &variants_with_content_type, group_ident.clone()));
 
     let expanded = quote! {        
         #entity_impl
 
         #struct_declaration
+        #entity_type_enum
+
 
         #[async_trait::async_trait]
         impl crate::group::EntityGroupTrait for #group_ident {
+            type TypeId = EntityType;
             #new_fn
             #add_fn
+            #delete_fn
+            #delete_versioned_fn
             #get_all_tournaments_fn
             #save_all_fn
             #get_entity_fn
+
             #get_many_fn
+            #try_get_many_fn
 
             fn add_versioned(&mut self, e: Entity, version: Uuid) {
-                self.versions.insert((e.get_name(), e.get_uuid()), version);
+                self.versions.insert((e.get_type(), e.get_uuid()), version);
                 self.add(e);
             }
 
@@ -222,14 +309,14 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
                     None => Uuid::nil(),
                 };
         
-                let new_entries = self.insertion_order.iter().map(|e| e.clone()).enumerate().map(|(idx, (name, uuid))| {
-                    let version_uuid = self.versions.get(&(name.clone(), uuid.clone())).map(|u| *u).unwrap_or_else(Uuid::new_v4);
+                let new_entries = self.insertion_order.iter().map(|e| e.clone()).enumerate().map(|(idx, (type_, uuid))| {
+                    let version_uuid = self.versions.get(&(type_.clone(), uuid.clone())).map(|u| *u).unwrap_or_else(Uuid::new_v4);
                     tournament_log::ActiveModel {
                         uuid: ActiveValue::Set(version_uuid),
                         timestamp: ActiveValue::Set(chrono::offset::Local::now().naive_local()),
                         sequence_idx: ActiveValue::Set(last_sequence_idx + 1 + idx as i32),
                         tournament_id: ActiveValue::Set(tournament_id),
-                        target_type: ActiveValue::Set(name),
+                        target_type: ActiveValue::Set(type_.as_str().to_string()),
                         target_uuid: ActiveValue::Set(uuid)
                     }
                 }).collect_vec();
@@ -245,12 +332,63 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 
         #from_impl
         #from_versioned_impl
+        #from_state_impl
     };
 
     TokenStream::from(expanded)
 }
 
-pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<(Ident, Type)>) -> TokenStream {
+pub fn derive_entity_type_enum(variants_with_content_type: &Vec<(Ident, Type)>) -> TokenStream {
+    let variants = variants_with_content_type.iter().map(|(variant, _content_type)| {
+        quote! {
+            #variant
+        }
+    });
+
+    let from_str_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
+        let variant_as_str = format!("\"{}\"", variant.to_string());
+        quote! {
+            #variant_as_str => EntityType::#variant
+        }
+    });
+
+    let as_str_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
+        let variant_as_str = format!("\"{}\"", variant.to_string());
+        quote! {
+            EntityType::#variant => #variant_as_str
+        }
+    });
+
+
+    let expanded = quote! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        pub enum EntityType {
+            #(#variants),*
+        }
+
+        impl EntityType {
+            pub fn as_str(&self) -> &'static str {
+                match self {
+                    #(#as_str_arms),*
+                }
+            }
+        }
+
+        impl From<String> for EntityType {
+            fn from(s: String) -> Self {
+                match s.as_str() {
+                    #(#from_str_arms),*,
+                    _ => panic!("Unknown Entity Type {}", s)
+                }
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+
+pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<(Ident, Type)>, group_ident: Ident) -> TokenStream {
     let entity_ident = &input.ident;
 
     let get_proc_order_arms = variants_with_content_type.iter().enumerate().map(|(idx, (variant, _content_type))| {
@@ -261,7 +399,7 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
     });
 
     let get_proc_order_fn = quote! {
-        pub fn get_processing_order(&self) -> u64 {
+        fn get_processing_order(&self) -> u64 {
             match self {
                 #(#get_proc_order_arms)*
             }
@@ -276,21 +414,35 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
     });
 
     let get_name_fn = quote! {
-        pub fn get_name(&self) -> String {
+        fn get_name(&self) -> String {
             match self {
                 #(#get_name_arms)*
             }
         }
     };
 
+    let get_type_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
+        quote! {
+            #entity_ident::#variant(_) => EntityType::#variant,
+        }
+    });
+
+    let get_type_fn = quote! {
+        fn get_type(&self) -> <Self::EntityGroup as EntityGroupTrait>::TypeId {
+            match self {
+                #(#get_type_arms)*
+            }
+        }
+    };
+
     let get_uuid_arms = variants_with_content_type.iter().map(|(variant, _content_type)| {
         quote! {
-            #entity_ident::#variant(e) => e.uuid,
+            #entity_ident::#variant(e) =>  e.uuid,
         }
     });
 
     let get_uuid_fn = quote! {
-        pub fn get_uuid(&self) -> Uuid {
+        fn get_uuid(&self) -> Uuid {
             match self {
                 #(#get_uuid_arms)*
             }
@@ -298,9 +450,12 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
     };
 
     let expanded = quote! {
-        impl #entity_ident {
+        impl EntityGroupEntityTrait for #entity_ident {
+            type EntityGroup = #group_ident;
+
             #get_proc_order_fn
             #get_name_fn
+            #get_type_fn
             #get_uuid_fn
         }
 

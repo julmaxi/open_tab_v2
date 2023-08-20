@@ -122,6 +122,14 @@ impl TournamentEntity for FeedbackResponse {
         
         entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.uuid).cloned().flatten())).collect()
     }
+
+    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), Box<dyn std::error::Error>> where C: ConnectionTrait {
+        schema::feedback_response::Entity::delete_many().filter(
+            schema::feedback_response::Column::Uuid.is_in(uuids)
+        ).exec(db).await?;
+        Ok(())
+    }
+
 }
 
 #[async_trait]

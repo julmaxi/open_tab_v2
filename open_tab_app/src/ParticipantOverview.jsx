@@ -111,7 +111,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
                             "header": "Name",
                         },
                         {
-                            "key": "severity",
+                            "key": "clash_severity",
                             "header": "Severity",
                         },
                         {

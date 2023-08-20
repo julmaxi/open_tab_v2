@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, Entity, get_changed_entities_from_log, EntityGroupTrait};
+use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::error;
@@ -13,12 +13,13 @@ use crate::{state::AppState, response::{APIError, handle_error}};
 use std::error::Error;
 
 
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityEntry {
     pub uuid: Uuid,
     pub old_versions: Vec<Uuid>,
     pub current_version: Uuid,
-    pub current_value: Entity,
+    pub current_value: EntityState<Entity, EntityType>,
 }
 
 
@@ -97,7 +98,7 @@ pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, s
             uuid: entity_uuid,
             old_versions: entries.into_iter().map(|entry| entry.target_uuid).collect::<Vec<_>>(),
             current_version: latest_version.version,
-            current_value: latest_version.entity.clone()
+            current_value: latest_version.entity.clone().into()
         })
     }).into_grouping_map().collect::<Vec<_>>();
 
@@ -234,6 +235,8 @@ pub async fn reconcile_changes<C>(
         dbg!("Inserting remote log models", &remote_log_models.len());
         open_tab_entities::schema::tournament_log::Entity::insert_many(remote_log_models).exec(db).await?;
     }
+    
+    // We bypass the normal save logic here, since we save the entire log at once
     let mut entities_to_save = vec![];
     for (entity_type, entities) in changes.entities.into_iter() {
         for entry in entities {

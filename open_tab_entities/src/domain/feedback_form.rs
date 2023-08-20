@@ -300,6 +300,11 @@ impl TournamentEntity for FeedbackForm {
     async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
         Ok(self.tournament_id)
     }
+
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+        schema::feedback_form::Entity::delete_many().filter(schema::feedback_form::Column::Uuid.is_in(ids)).exec(db).await?;
+        Ok(())
+    }
 }
 
 impl FeedbackForm {

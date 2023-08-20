@@ -601,3 +601,52 @@ async fn test_try_get_replaces_missing_with_none() -> Result<(), Box<dyn Error>>
 
     Ok(())
 }
+
+
+#[tokio::test]
+async fn test_delete_ballot_succeeds() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    let ballot = Ballot {
+        uuid: Uuid::from_u128(100),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    };
+
+    ballot.save(&db, true).await?;
+
+    Ballot::delete(&db, Uuid::from_u128(100)).await?;
+
+    let ballot = Ballot::try_get(&db, Uuid::from_u128(100)).await?;
+    assert!(ballot.is_none());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_delete_ballot_deletes_only_targets() -> Result<(), Box<dyn Error>> {
+    let db = set_up_db(true).await?;
+    for i in 100..103 {
+        let ballot = Ballot {
+            uuid: Uuid::from_u128(i),
+            adjudicators: vec![],
+            speeches: vec![],
+            ..Default::default()
+        };
+        ballot.save(&db, true).await?;    
+    }
+
+    Ballot::delete_many(&db, vec![Uuid::from_u128(100), Uuid::from_u128(102)]).await?;
+
+    for i in 100..103 {
+        let ballot = Ballot::try_get(&db, Uuid::from_u128(i)).await?;
+        if i == 101 {
+            assert!(ballot.is_some());
+        }
+        else {
+            assert!(ballot.is_none());
+        }
+    }
+
+    Ok(())
+}

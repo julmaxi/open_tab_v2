@@ -9,7 +9,6 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
     const [filter, setFilter] = React.useState(null);
 
     const shownItems = useMemo(() => {
-        console.log(ignoredItemNames);
         let availableItems = items.filter((item) => {
             return !(ignoredItemNames || []).includes(item.name);
         });
@@ -92,7 +91,7 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
                 </div>
             </div>
             <ul
-                className={`absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-scroll p-0 ${!(isReallyOpen) && 'hidden'
+                className={`absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-scroll p-0 z-10 ${!(isReallyOpen) && 'hidden'
                     }`}
                 {...getMenuProps()}
             >

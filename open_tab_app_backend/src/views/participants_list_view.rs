@@ -92,7 +92,7 @@ pub struct Clash {
     pub clash_direction: ClashDirection
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "direction")]
 pub enum ClashDirection {
     Incoming,
