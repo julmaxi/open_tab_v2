@@ -155,7 +155,6 @@ function SpeakerItem(props) {
 
 function AdjudicatorItem(props) {
   //let highlightedIssues = props.adjudicator.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
-
   return <DragBox issues={props.adjudicator.issues} onHighlightIssues={(shouldHighlight) => {
     if (shouldHighlight) {
       props.onHighlightIssues(props.adjudicator.uuid);
@@ -164,7 +163,7 @@ function AdjudicatorItem(props) {
       props.onHighlightIssues(null);
     }
   }} highlightedIssues={props.highlightedIssues}>
-    <div>{props.adjudicator.name}</div>
+    <div className={props.adjudicator.is_available ? "": "line-through"}>{props.adjudicator.name}</div>
     <HorizontalList>
       {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
     </HorizontalList>
@@ -453,7 +452,9 @@ function AdjudicatorTable({adjudicator_index, ...props}) {
         adjudicator_index.map(
           (adj, idx) => {
             return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
-              <td>{adj.adjudicator.name}</td>
+              <td className={
+                adj.is_available ? "" : "line-through"
+              }>{adj.adjudicator.name}</td>
               <td>{adjPositionToStr(adj.position)}</td>
             </DragItem>
           }

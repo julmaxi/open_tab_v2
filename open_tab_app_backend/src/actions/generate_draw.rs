@@ -154,7 +154,7 @@ impl ActionTrait for GenerateDrawAction {
                             adjudicator: DrawAdjudicator {
                             uuid: *debate_adjudicator,
                             ..Default::default()
-                        }, issues: vec![]
+                        }, ..Default::default()
                         }
                     ).collect();
                     ballot

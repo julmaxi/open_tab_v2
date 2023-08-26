@@ -61,8 +61,8 @@ impl LoadedView for LoadedDrawView {
             |(uuid, _)| !know_debate_uuids.contains(uuid)
         );
 
-        // TODO: Venue reload could be much more efficient
-        if has_new_debate || changes.tournament_venues.len() > 0 {
+        // TODO: Reloads could be much more efficient
+        if has_new_debate || changes.tournament_venues.len() > 0 || changes.participants.len() > 0 || changes.participant_clashs.len() > 0 {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
             self.view = DrawView::load_from_round(db, round).await?;
@@ -71,7 +71,6 @@ impl LoadedView for LoadedDrawView {
             return Ok(Some(out))
         }
         
-
         for (idx, debate) in self.view.debates.iter_mut().enumerate() {
             let is_debate_changed = changed_debates_by_id.contains_key(&debate.uuid);
             if is_debate_changed || changed_ballots_by_id.contains_key(&debate.ballot.uuid) {
@@ -98,12 +97,12 @@ impl LoadedView for LoadedDrawView {
             
 
             for (idx, ballot, debate) in izip!(indices_to_reload, ballots, debates) {
-                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &info, &evaluator);
+                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &info, &evaluator, self.view.round_uuid);
 
                 out.insert(format!("debates.{}.ballot", idx), serde_json::to_value(&self.view.debates[idx].ballot)?);
             }
 
-            let index = DrawView::construct_adjudicator_index(&info, &self.view.debates);
+            let index = DrawView::construct_adjudicator_index(&info, &self.view.debates, self.view.round_uuid);
             out.insert("adjudicator_index".into(), serde_json::to_value(&index)?);
             self.view.adjudicator_index = index;
 
@@ -282,7 +281,9 @@ pub struct SetDrawAdjudicator {
     #[serde(flatten)]
     pub adjudicator: DrawAdjudicator,
     #[serde(skip_deserializing)]
-    pub issues: Vec<DrawIssue>
+    pub issues: Vec<DrawIssue>,
+    #[serde(skip_deserializing)]
+    pub is_available: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -296,7 +297,8 @@ impl From<DrawAdjudicator> for SetDrawAdjudicator {
     fn from(adjudicator: DrawAdjudicator) -> Self {
         SetDrawAdjudicator {
             adjudicator,
-            issues: vec![]
+            issues: vec![],
+            is_available: true
         }
     }
 }
@@ -367,7 +369,8 @@ impl DrawView {
         ballot: &Ballot,
         venue: Option<DrawVenue>,
         info: &TournamentParticipantsInfo,
-        evaluator: &DrawEvaluator
+        evaluator: &DrawEvaluator,
+        round_id: Uuid,
     ) -> DrawBallot {
         let _all_ballot_participant_uuids = ballot.speeches.iter().filter_map(|speech| {
             if speech.role == SpeechRole::NonAligned {
@@ -411,10 +414,42 @@ impl DrawView {
                 }
             }).collect(),
             adjudicators: ballot.adjudicators.iter().map(|adjudicator_uuid| {
-                Self::draw_adjudicator_from_uuid(*adjudicator_uuid, info).into()
+                let mut adj : SetDrawAdjudicator = Self::draw_adjudicator_from_uuid(*adjudicator_uuid, info).into();
+                adj.is_available = match info.participants_by_id.get(adjudicator_uuid) {
+                    Some(participant) => {
+                        match &participant.role {
+                            ParticipantRole::Adjudicator (Adjudicator{ unavailable_rounds, .. }) => {
+                                !unavailable_rounds.contains(&round_id)
+                            },
+                            _ => {
+                                true
+                            }
+                        }
+                    },
+                    None => {
+                        true
+                    }
+                };
+                adj
             }).collect(),
             president: ballot.president.map(|president_uuid| {
-                Self::draw_adjudicator_from_uuid(president_uuid, info).into()
+                let mut adj : SetDrawAdjudicator = Self::draw_adjudicator_from_uuid(president_uuid, info).into();
+                adj.is_available = match info.participants_by_id.get(&president_uuid) {
+                    Some(participant) => {
+                        match &participant.role {
+                            ParticipantRole::Adjudicator (Adjudicator{ unavailable_rounds, .. }) => {
+                                !unavailable_rounds.contains(&round_id)
+                            },
+                            _ => {
+                                true
+                            }
+                        }
+                    },
+                    None => {
+                        true
+                    }
+                };
+                adj
             }),
             venue
         };
@@ -448,6 +483,7 @@ impl DrawView {
     fn construct_adjudicator_index(
         info: &TournamentParticipantsInfo,
         debates: &Vec<DrawDebate>,
+        round_id: Uuid
     ) -> Vec<AdjudicatorIndexEntry> {
         let adjudicators = info.get_adjudicators();
 
@@ -475,7 +511,10 @@ impl DrawView {
             |adj| {
                 let draw_adj = Self::draw_adjudicator_from_uuid(adj.uuid, info);
                 AdjudicatorIndexEntry {
-                    is_available: true,
+                    is_available: match &adj.role {
+                        ParticipantRole::Adjudicator(adj) => !adj.unavailable_rounds.contains(&round_id),
+                        _ => true
+                    },
                     adjudicator: draw_adj,
                     position: adj_positions.get(&adj.uuid).cloned().unwrap_or(AdjudictorPosition::NotSet)
                 }
@@ -599,13 +638,13 @@ impl DrawView {
                 DrawDebate {
                     uuid: debate.uuid,
                     index: debate.index as usize,
-                    ballot: Self::draw_ballot_from_debate_ballot(&debate_ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &participant_info, &evaluator)
+                    ballot: Self::draw_ballot_from_debate_ballot(&debate_ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &participant_info, &evaluator, round.uuid)
                 }
             }
         ).sorted_by_key(|d| d.index).collect();
 
         Ok(DrawView {
-            adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates),
+            adjudicator_index: Self::construct_adjudicator_index(&participant_info, &debates, round.uuid),
             team_index: Self::construct_team_index(&participant_info, &debates),
             round_uuid: round.uuid,
             debates

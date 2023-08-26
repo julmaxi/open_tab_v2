@@ -135,7 +135,6 @@ impl Participant {
         institution_info: Vec<participant_tournament_institution::Model>,
         adjudicator_overides: &HashMap<Uuid, Vec<Uuid>>
     ) -> Result<Self, ParticipantParseError> {
-        dbg!(&adjudicator_overides);
         let role = match (speaker_info, adjudicator_info) {
             (None, None) => panic!("Database constraint violated. Participant has neither adjudicator nor speaker info"),
             (None, Some(adj)) => Ok(ParticipantRole::Adjudicator(Adjudicator{
@@ -351,7 +350,6 @@ impl TournamentEntity for Participant {
                 ParticipantRole::Adjudicator(adj) => {
                     let empty = &vec![];
                     let previous_unavailable = adjudicator_overrides.get(&ent.uuid).unwrap_or(&empty);
-                    dbg!(&adj.unavailable_rounds);
                     let current_unavailable = &adj.unavailable_rounds;
 
                     let to_insert = current_unavailable.iter().filter(|x| !previous_unavailable.contains(x)).map(|x| adjudicator_availability_override::ActiveModel {
@@ -386,7 +384,6 @@ impl TournamentEntity for Participant {
             delete.delete(db).await?;
         }
 
-        dbg!(&override_insertions);
         for insert in override_insertions {
             insert.insert(db).await?;
         }
