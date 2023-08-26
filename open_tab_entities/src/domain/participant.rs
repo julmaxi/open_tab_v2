@@ -98,6 +98,15 @@ impl Participant {
         Self::load_participants(db, participants).await
     }
 
+    pub async fn get_all_adjudicators_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
+        let participants = schema::participant::Entity::find().filter(
+            schema::participant::Column::TournamentId.eq(Some(tournament_uuid))
+        ).inner_join(
+            schema::adjudicator::Entity
+        ).all(db).await?;
+        Self::load_participants(db, participants).await
+    }
+
     async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
         let adjudicators = participants.load_one(schema::adjudicator::Entity, db).await?;
         let speakers = participants.load_one(schema::speaker::Entity, db).await?;

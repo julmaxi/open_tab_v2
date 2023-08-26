@@ -1,4 +1,4 @@
-use std::{error::Error, iter::zip};
+use std::{error::Error, iter::zip, sync::Arc};
 
 use itertools::{Itertools, izip};
 use migration::async_trait::async_trait;
@@ -7,7 +7,7 @@ use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::
 use rand::seq::SliceRandom;
 use sea_orm::prelude::*;
 
-use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}, tab_draw::{pair_teams, pair_speakers, reverse_fold, pair_consequtive_speakers, TeamPair}}, TournamentParticipantsInfo, draw_view::{DrawBallot, DrawTeam, DrawSpeaker}};
+use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}, tab_draw::{pair_teams, pair_speakers, reverse_fold, pair_consequtive_speakers, TeamPair}, flow_optimization::{OptimizationState, OptimizationOptions}}, TournamentParticipantsInfo, draw_view::{DrawBallot, DrawTeam, DrawSpeaker, DrawAdjudicator, SetDrawAdjudicator}};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
@@ -96,10 +96,11 @@ impl ActionTrait for GenerateDrawAction {
             ).collect(),
         };
 
+        let evaluator = DrawEvaluator::new_from_rounds(db, self.tournament_id, &other_rounds).await?;
+
         let ballots = if rounds.len() == 1 {
             let round = rounds.first().unwrap();
             let round_break = TournamentBreak::get_break_for_round(db, round.uuid).await?;
-
             match &round.draw_type {
                 Some(DrawType::TabDraw { config }) => {
                     let round_break = round_break.ok_or(GenerateDrawActionError::MissingBreak)?;
@@ -134,12 +135,34 @@ impl ActionTrait for GenerateDrawAction {
                 randomization_scale: 0.5
             };
 
-            let evaluator = DrawEvaluator::new_from_rounds(db, self.tournament_id, &other_rounds).await?;
             let ballots = generator.generate_draw_for_rounds(&context, rounds.iter().collect(), &evaluator)?;
             ballots
         } else {
             vec![]
         };
+
+        let mut optimization_state = OptimizationState::load_from_rounds_and_draw_ballots(db, self.tournament_id, rounds.iter().zip(ballots.iter()).collect(), Arc::new(OptimizationOptions::default()), Arc::new(evaluator)).await?;
+
+        optimization_state.update_state_by_assigning_adjudicators();
+
+        let ballots = optimization_state.rounds.iter().zip(ballots).map(|(r, ballots)| {
+            r.debates.iter().zip(ballots.iter()).map(
+                |(debate, ballot)| {
+                    let mut ballot = ballot.clone();
+                    ballot.adjudicators = debate.chair.iter().chain(debate.wings.iter()).map(
+                        |debate_adjudicator| SetDrawAdjudicator{
+                            adjudicator: DrawAdjudicator {
+                            uuid: *debate_adjudicator,
+                            ..Default::default()
+                        }, issues: vec![]
+                        }
+                    ).collect();
+                    ballot
+                }
+            ).collect_vec()
+        }).collect_vec();
+
+        dbg!(&ballots);
 
         let existing_debates = TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|r| r.uuid).collect()).await?;
 
