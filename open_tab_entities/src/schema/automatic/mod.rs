@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod adjudicator;
+pub mod adjudicator_availability_override;
 pub mod ballot_adjudicator;
 pub mod debate_backup_ballot;
 pub mod feedback_form;

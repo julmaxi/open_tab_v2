@@ -110,7 +110,8 @@ pub struct Institution {
 #[serde(tag = "type")]
 pub enum ParticipantRole {
     Speaker{team_id: Uuid},
-    Adjudicator{chair_skill: i16, panel_skill: i16}
+    Adjudicator{chair_skill: i16, panel_skill: i16, unavailable_rounds: Vec<Uuid>,
+    }
 }
 
 
@@ -170,19 +171,20 @@ impl ParticipantsListView {
             ).collect_vec();
             match p.role {
                 domain::participant::ParticipantRole::Adjudicator(
-                    Adjudicator { chair_skill, panel_skill }
+                    Adjudicator { chair_skill, panel_skill, unavailable_rounds}
                 ) => Some(ParticipantEntry {
                     uuid: p.uuid,
                     name: p.name,
                     role: ParticipantRole::Adjudicator {
                         chair_skill,
-                        panel_skill
+                        panel_skill,
+                        unavailable_rounds
                     },
                     institutions,
                     clashes,
                     registration_key: p.registration_key.map(|k| {
                         Participant::encode_registration_key(p.uuid, &k)
-                    })
+                    }),
                 }),
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
@@ -194,7 +196,7 @@ impl ParticipantsListView {
                             role: ParticipantRole::Speaker { team_id  },
                             institutions,
                             clashes,
-                            registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k))
+                            registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k)),
                         })    
                     }
                     else {

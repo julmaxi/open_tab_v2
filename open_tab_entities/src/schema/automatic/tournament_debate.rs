@@ -26,6 +26,8 @@ pub enum Relation {
     Ballot,
     #[sea_orm(has_many = "super::debate_backup_ballot::Entity")]
     DebateBackupBallot,
+    #[sea_orm(has_many = "super::feedback_response::Entity")]
+    FeedbackResponse,
     #[sea_orm(
         belongs_to = "super::tournament_round::Entity",
         from = "Column::RoundId",
@@ -53,6 +55,12 @@ impl Related<super::ballot::Entity> for Entity {
 impl Related<super::debate_backup_ballot::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::DebateBackupBallot.def()
+    }
+}
+
+impl Related<super::feedback_response::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::FeedbackResponse.def()
     }
 }
 

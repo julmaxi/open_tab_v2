@@ -72,7 +72,8 @@ impl ActionTrait for UploadParticipantsListAction {
             ParticipantRole::Adjudicator(
                 Adjudicator {
                     chair_skill: 0,
-                    panel_skill: 0
+                    panel_skill: 0,
+                    unavailable_rounds: Vec::new(),
                 }
             ),
             Uuid::new_v4()

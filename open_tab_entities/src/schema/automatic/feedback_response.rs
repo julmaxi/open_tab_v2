@@ -58,7 +58,6 @@ pub enum Relation {
     TournamentDebate,
 }
 
-
 impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Team.def()
@@ -81,6 +80,12 @@ impl Related<super::feedback_question::Entity> for Entity {
                 .def()
                 .rev(),
         )
+    }
+}
+
+impl Related<super::feedback_response_value::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::feedback_response_value::Relation::FeedbackResponse.def()
     }
 }
 

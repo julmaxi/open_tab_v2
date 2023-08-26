@@ -1,12 +1,12 @@
-use std::error::Error;
+use std::{error::Error, default};
 
 use migration::MigratorTrait;
-use sea_orm::{DbErr, Database, Statement, ActiveValue};
+use sea_orm::{DbErr, Database, Statement, ActiveValue, TransactionTrait};
 use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, TournamentEntity, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -20,6 +20,13 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
             uuid: Uuid::from_u128(1),
         }.into();
         tournament.insert(&db).await?;
+
+        let round_ = open_tab_entities::domain::round::TournamentRound {
+            uuid: Uuid::from_u128(10),
+            tournament_id: Uuid::from_u128(1),
+            ..Default::default()
+        };
+        round_.save(&db, true).await?;
         open_tab_entities::schema::tournament_institution::Entity::insert(
             open_tab_entities::schema::tournament_institution::ActiveModel {
                 tournament_id: ActiveValue::Set(Uuid::from_u128(1)),
@@ -181,6 +188,63 @@ async fn test_adjudicator_roundtrip() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+
+#[tokio::test]
+async fn test_save_adjudicator_round_availability_override() -> Result<(), Box<dyn Error>> {
+    let participant = Participant {
+        uuid: Uuid::from_u128(440),
+        name: "Test".into(),
+        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+            unavailable_rounds: vec![Uuid::from_u128(10)],
+            ..Default::default()
+        }),
+        tournament_id: Uuid::from_u128(1),
+        institutions: vec![],
+        registration_key: None,
+    };
+    test_participant_roundtrip(participant, true).await?;
+
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn test_remove_adjudicator_round_availability_override() -> Result<(), Box<dyn Error>> {
+    let mut participant = Participant {
+        uuid: Uuid::from_u128(440),
+        name: "Test".into(),
+        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+            unavailable_rounds: vec![Uuid::from_u128(10)],
+            ..Default::default()
+        }),
+        tournament_id: Uuid::from_u128(1),
+        institutions: vec![],
+        registration_key: None,
+    };
+    let db = set_up_db(true).await?;
+    let t = db.begin().await?;
+    participant.save(&t, true).await?;
+    t.commit().await?;
+
+    match &mut participant.role {
+        ParticipantRole::Adjudicator(a) => {
+            a.unavailable_rounds = vec![];
+        },
+        _ => panic!("Not an adjudicator")
+    }
+    participant.save(&db, false).await?;    
+
+    let participant = Participant::get(&db, Uuid::from_u128(440)).await?;
+    match participant.role {
+        ParticipantRole::Adjudicator(a) => {
+            assert_eq!(a.unavailable_rounds, vec![]);
+        },
+        _ => panic!("Not an adjudicator")
+    }
+    Ok(())
+}
+
 
 #[tokio::test]
 async fn test_make_speaker_into_adjudicator() -> Result<(), Box<dyn Error>> {

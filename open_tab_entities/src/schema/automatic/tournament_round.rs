@@ -45,5 +45,18 @@ impl Related<super::tournament_debate::Entity> for Entity {
     }
 }
 
+impl Related<super::adjudicator::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::adjudicator_availability_override::Relation::Adjudicator.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::adjudicator_availability_override::Relation::TournamentRound
+                .def()
+                .rev(),
+        )
+    }
+}
+
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -29,6 +29,19 @@ impl Related<super::participant::Entity> for Entity {
     }
 }
 
+impl Related<super::tournament_round::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::adjudicator_availability_override::Relation::TournamentRound.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::adjudicator_availability_override::Relation::Adjudicator
+                .def()
+                .rev(),
+        )
+    }
+}
+
 impl Related<super::ballot::Entity> for Entity {
     fn to() -> RelationDef {
         super::ballot_adjudicator::Relation::Ballot.def()

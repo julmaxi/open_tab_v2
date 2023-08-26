@@ -9,20 +9,16 @@ pub struct Model {
     pub uuid: Uuid,
     pub tournament_id: Option<Uuid>,
     pub name: String,
-    pub show_chairs_for_wings: bool,
     pub show_chairs_for_presidents: bool,
-
+    pub show_chairs_for_wings: bool,
     pub show_wings_for_chairs: bool,
     pub show_wings_for_presidents: bool,
     pub show_wings_for_wings: bool,
-   
     pub show_presidents_for_chairs: bool,
     pub show_presidents_for_wings: bool,
-
     pub show_teams_for_chairs: bool,
     pub show_teams_for_presidents: bool,
     pub show_teams_for_wings: bool,
-
     pub show_non_aligned_for_chairs: bool,
     pub show_non_aligned_for_presidents: bool,
     pub show_non_aligned_for_wings: bool,
@@ -32,14 +28,13 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(
         belongs_to = "super::tournament::Entity",
-        from = "Column::Uuid",
+        from = "Column::TournamentId",
         to = "super::tournament::Column::Uuid",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
     Tournament,
 }
-
 
 impl Related<super::tournament::Entity> for Entity {
     fn to() -> RelationDef {

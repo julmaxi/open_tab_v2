@@ -148,6 +148,12 @@ pub enum Adjudicator {
     PanelSkill,
 }
 
+#[derive(Iden)]
+pub enum AdjudicatorAvailabilityOverride {
+    Table,
+    AdjudicatorId,
+    RoundId
+}
 
 #[derive(Iden)]
 pub enum Speaker {
@@ -553,6 +559,41 @@ impl MigrationTrait for Migration {
                     .from_col(Adjudicator::Uuid)
                     .to_tbl(Participant::Table)
                     .to_col(Participant::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .to_owned()
+        ).await?;
+
+        manager
+        .create_table(
+            sea_query::Table::create()
+                .table(AdjudicatorAvailabilityOverride::Table)
+                .if_not_exists()
+                .col(ColumnDef::new(AdjudicatorAvailabilityOverride::AdjudicatorId).uuid().not_null())
+                .col(ColumnDef::new(AdjudicatorAvailabilityOverride::RoundId).uuid().not_null())
+                .primary_key(
+                    Index::create()
+                    .col(AdjudicatorAvailabilityOverride::AdjudicatorId)
+                    .col(AdjudicatorAvailabilityOverride::RoundId).primary()
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-adjudicator_availability_override-adjudicator")
+                    .from_tbl(AdjudicatorAvailabilityOverride::Table)
+                    .from_col(AdjudicatorAvailabilityOverride::AdjudicatorId)
+                    .to_tbl(Adjudicator::Table)
+                    .to_col(Adjudicator::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)    
+                )
+                .foreign_key(
+                    ForeignKeyCreateStatement::new()
+                    .name("fk-adjudicator_availability_override-round")
+                    .from_tbl(AdjudicatorAvailabilityOverride::Table)
+                    .from_col(AdjudicatorAvailabilityOverride::RoundId)
+                    .to_tbl(TournamentRound::Table)
+                    .to_col(TournamentRound::Uuid)
                     .on_delete(ForeignKeyAction::Cascade)
                     .on_update(ForeignKeyAction::Cascade)    
                 )
