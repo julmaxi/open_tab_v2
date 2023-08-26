@@ -18,7 +18,8 @@ use super::datastructures::{
 enum AdjudicatorPosition {
     None,
     Chair{debate_idx: usize},
-    Wing{debate_idx: usize, position: usize}
+    Wing{debate_idx: usize, position: usize},
+    Unavailable
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +81,7 @@ impl OptimizationState {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
+                    id: round_.uuid,
                     is_silent: round_.is_silent,
                     debates: draws.into_iter().map(
                         Ballot::into
@@ -95,6 +97,7 @@ impl OptimizationState {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
+                    id: round_.uuid,
                     is_silent: round_.is_silent,
                     debates: draws.into_iter().map(
                         DebateInfo::from
@@ -126,6 +129,25 @@ impl OptimizationState {
             );
         });
 
+        let round_id_to_pos = rounds.iter().enumerate().map(
+            |(round_idx, round_)| {
+                (round_.id, round_idx)
+            }
+        ).collect::<HashMap<Uuid, usize>>();
+
+        for adjudicator in adjudicators.iter() {
+            match &adjudicator.role {
+                domain::participant::ParticipantRole::Adjudicator(info) => {
+                    for r in info.unavailable_rounds.iter() {
+                        if let Some(r_idx) = round_id_to_pos.get(&r) {
+                            adjudicator_assignments.get_mut(&adjudicator.uuid).unwrap()[*r_idx] = AdjudicatorPosition::Unavailable;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
         let adjudicator_info = adjudicators.iter().filter_map(|adj| {
             match &adj.role {
                 domain::participant::ParticipantRole::Adjudicator(info) => Some(
@@ -150,7 +172,7 @@ impl OptimizationState {
 
     fn compute_adjudicator_chair_cost_in_debate(&self, adjudicator: Uuid, debate: &DebateInfo, is_silent_round: bool) -> Option<i32> {
         let adj_info = self.adjudicator_info.get(&adjudicator).unwrap();
-        let mut cost = self.compute_clash_cost_in_debate(adj_info, debate);
+        let cost = self.compute_clash_cost_in_debate(adj_info, debate);
         if let Some(mut cost) = cost {
             if !is_silent_round {
                 cost -= (adj_info.feedback_skill as f32 * self.options.feedback_weight).round() as i32;
@@ -315,6 +337,7 @@ impl OptimizationState {
 
     pub fn update_state_by_assigning_wings(&mut self) {
         for round_id in 0..self.rounds.len() {
+            let mut previous_unassigned_cnt = self.adjudicator_assignments.len() + 1;
             loop {
                 let round_info = &self.rounds[round_id];
                 let mut unassigned_adjudicators : HashSet<Uuid> = self.adjudicator_assignments.iter().filter_map(
@@ -328,9 +351,11 @@ impl OptimizationState {
                     }
                 ).collect();
 
-                if unassigned_adjudicators.len() == 0 {
+                if unassigned_adjudicators.len() == 0 || unassigned_adjudicators.len() == previous_unassigned_cnt {
                     break;
                 }
+
+                previous_unassigned_cnt = unassigned_adjudicators.len();
 
                 let min_debate_wing_cnt: usize = round_info.debates.iter().map(|d| d.wings.len()).min().unwrap_or(0);
                 let debates_to_assign_wings = round_info.debates.iter().enumerate().filter(|(d_idx, d)| d.wings.len() == min_debate_wing_cnt).collect_vec();
@@ -407,4 +432,3 @@ impl OptimizationState {
         self.update_state_by_assigning_wings();
     }
 }
-

@@ -119,6 +119,7 @@ impl From<DrawBallot> for DebateInfo {
 
 #[derive(Debug, Clone)]
 pub struct RoundInfo {
+    pub id: Uuid,
     pub debates: Vec<DebateInfo>,
     pub is_silent: bool
 }
@@ -133,6 +134,7 @@ impl RoundInfo {
                 let debates = ballots.into_iter().map(DebateInfo::from).collect_vec();
 
                 RoundInfo {
+                    id: round_.uuid,
                     debates,
                     is_silent: round_.is_silent
                 }

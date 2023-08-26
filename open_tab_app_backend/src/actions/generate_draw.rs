@@ -162,8 +162,6 @@ impl ActionTrait for GenerateDrawAction {
             ).collect_vec()
         }).collect_vec();
 
-        dbg!(&ballots);
-
         let existing_debates = TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|r| r.uuid).collect()).await?;
 
         for (round, round_existing_debates, round_new_ballots) in izip![rounds.iter(), existing_debates.into_iter(), ballots.into_iter()] {
