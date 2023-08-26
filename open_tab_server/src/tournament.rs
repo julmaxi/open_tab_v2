@@ -29,7 +29,6 @@ pub struct CreateTournamentResponse {
 
 pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, ExtractAuthenticatedUser(user) : ExtractAuthenticatedUser, Json(request): Json<CreateTournamentRequest>) -> Result<Json<CreateTournamentResponse>, APIError> {
     let mut changes = EntityGroup::new();
-
     let uuid = request.uuid;
     let tournament = open_tab_entities::domain::tournament::Tournament {
         uuid,

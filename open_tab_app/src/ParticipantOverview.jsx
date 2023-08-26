@@ -77,6 +77,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     );
 
     let tournamentContext = useContext(TournamentContext);
+    let roundsOverview = useView({type: "RoundsOverview", tournament_uuid: tournamentContext.uuid}, {"rounds": []}).rounds;
     let allInstitutions = useView({type: "Institutions", tournament_uuid: tournamentContext.uuid}, {"institutions": []}).institutions;
 
     let participantView = useView({type: "ParticipantsList", tournament_uuid: tournamentContext.uuid},  {"teams": {}, "adjudicators": {}});
@@ -89,6 +90,19 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     useEffect(() => {
         setModifiedParticipant(participant);
     }, [participant]);
+
+    let availability = [];
+
+    if (modifiedParticipant.type === "Adjudicator") {
+        console.log(modifiedParticipant);
+        for (let round of roundsOverview) {
+            availability.push({
+                round_uuid: round.uuid,
+                round_name: round.name,
+                available: !modifiedParticipant.unavailable_rounds.includes(round.uuid)
+            })
+        }
+    }
 
     return <div className="h-full">
         <button
@@ -203,6 +217,40 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         </div>
 
     </div>
+
+    {
+        modifiedParticipant.type === "Adjudicator" ?
+            <div className="flex flex-wrap">
+                <div className="w-full">
+                    <input type="number" value={modifiedParticipant.chair_skill} />
+                    <input type="number" value={modifiedParticipant.panel_skill} />
+                </div>
+
+                <SortableTable rowId={"round_uuid"} data={
+                    availability
+                } columns = {
+                    [
+                        {
+                            "key": "round_name",
+                            "header": "Round",
+                        },
+                        {
+                            "key": "available",
+                            "header": "Available",
+                            cellFactory: (value, rowIdx, colIdx, row) => {
+                                return <td key={colIdx} className="w-4"><input type="checkbox" checked={value} onChange={(e) => {
+                                    let newAvailability = [...availability];
+                                    newAvailability[rowIdx].available = e.target.checked;
+                                    setModifiedParticipant({...modifiedParticipant, unavailable_rounds: newAvailability.filter(r => !r.available).map(r => r.round_uuid)});
+                                }} /></td>
+                            }
+                        }
+                    ]
+                } />
+            </div>
+            :
+            null
+    }
 
     {
         hasChanges ? <Button onClick={() => {
