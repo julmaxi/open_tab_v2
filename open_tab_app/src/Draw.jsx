@@ -32,13 +32,50 @@ const ISSUE_COLORS_BORDER = {
   high: "border-red-500"
 }
 
+let SWAP_BASE_COLORS = {
+  neutral: null,
+  none: [34, 197, 94],
+  misc: [107, 114, 128],
+  low: [34, 197, 94],
+  mid: [234, 179, 8],
+  high: [239, 68, 68]
+}
+
+let SWAP_ISSUE_GRADIENTS = Object.fromEntries(Object.entries(SWAP_BASE_COLORS).map(
+  ([key, color]) => {
+    if (color === null) {
+      return [key, null];
+    }
+    let [r, g, b] = color;
+    let r2 = Math.min(255, r + 20);
+    let g2 = Math.min(255, g + 20);
+    let b2 = Math.min(255, b + 20);
+
+    return [key, `repeating-linear-gradient(45deg, rgb(${r} ${g} ${b}), rgb(${r} ${g} ${b}) 20px,rgb(${r2} ${g2} ${b2}) 20px, rgb(${r2} ${g2} ${b2}) 40px)`]
+  }
+));
+
+
+
 function DragBox(props) {
   let highlightedIssues = props.highlightedIssues || [];
   let sortedIssues = highlightedIssues.sort((a, b) => b.severity - a.severity);
   let maxIssueSeverity = sortedIssues.length > 0 ? sortedIssues[0].severity : 0;
   let severityBucket = severityToBucket(maxIssueSeverity);
   let issueColor = ISSUE_COLORS_BORDER[severityBucket];
-  return <div className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded ${props.highlightedIssues?.length > 100 ? issueColor + " border-4 " : "border-gray-100 border"}`}>
+
+  let swapHighlightSeverity = props.swapHighlightSeverity;
+  let swapIssueColor = null;
+  if (swapHighlightSeverity !== null) {
+    swapIssueColor = SWAP_ISSUE_GRADIENTS[swapHighlightSeverity]
+  }
+
+  return <div
+    className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded ${props.highlightedIssues?.length > 100 ? issueColor + " border-4 " : "border-gray-100 border"}`}
+    style={{
+      background: swapIssueColor
+    }}
+  >
     <div className="flex-1">
       {props.children}
     </div>
@@ -155,14 +192,22 @@ function SpeakerItem(props) {
 
 function AdjudicatorItem(props) {
   //let highlightedIssues = props.adjudicator.issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
-  return <DragBox issues={props.adjudicator.issues} onHighlightIssues={(shouldHighlight) => {
+  let highlightedIssues = props.highlightedIssues;
+  let swapIssueSeverity = null;
+
+  if (props.dragSwapHighlight !== null) {
+    highlightedIssues = [];
+
+    swapIssueSeverity = props.dragSwapHighlight.severityBucket;
+  }
+  return <DragBox issues={props.adjudicator.issues} swapHighlightSeverity={swapIssueSeverity} onHighlightIssues={(shouldHighlight) => {
     if (shouldHighlight) {
       props.onHighlightIssues(props.adjudicator.uuid);
     }
     else {
       props.onHighlightIssues(null);
     }
-  }} highlightedIssues={props.highlightedIssues}>
+  }} highlightedIssues={highlightedIssues}>
     <div className={props.adjudicator.is_available ? "": "line-through"}>{props.adjudicator.name}</div>
     <HorizontalList>
       {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
@@ -255,11 +300,18 @@ function DebateRow(props) {
             highlightedIssues={
               highlightedIssues.adjudicators[idx]
             }
+            dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == adjudicator.uuid ? props.dragSwapHighlight : null}
           />)}
         </DropList>
       </td>
       <td className="border">
-        <DropWell minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "president"]}>{ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => {}} /> : []}</DropWell>
+        <DropWell
+          minWidth={"200px"}
+          type="adjudicator"
+          collection={["debates", props.debate.index, "ballot", "president"]}
+        >
+          {ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => {}} dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == ballot.president.uuid ? props.dragSwapHighlight : null} /> : []}
+        </DropWell>
       </td>
     </tr>
   </>;
@@ -596,11 +648,33 @@ function DragItemPreview({item, highlight, ...props}) {
   </div>
 }
 
+function getMaxSeverityFromEvaluationResult(result) {
+  let allIssues = [];
+  for (let issues of Object.values(result)) {
+    for (let elem of issues) {
+      if (Array.isArray(elem)) {
+        allIssues.push(...elem);
+      }
+      else {
+        allIssues.push(elem);
+      }
+    }
+  }
+  let maxSeverity = Math.max(0, ...allIssues.map((issue) => issue.severity));
+  return maxSeverity;
+
+}
+
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {
     setDragHighlightedIssues(null);
     setDraggedItemHighlight(null);
     setDraggedItem(null);
+    setDragSwapHighlight({
+      severityBucket: null,
+      debateIdx: null,
+      adjudicatorId: null
+    });
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
     executeAction("UpdateDraw", {
@@ -616,7 +690,74 @@ function DrawEditor(props) {
       setDraggedItemHighlight("neutral");
       return;
     }
-    console.log(to.collection[to.collection.length - 1])
+
+    if (to.collection !== TRAY_DRAG_PATH) {
+      let draggedAdjudicatorId = null;
+
+      if (from.collection == TRAY_DRAG_PATH) {
+        draggedAdjudicatorId = from.index;
+      }
+      else {
+        if (from.index !== undefined) {
+          draggedAdjudicatorId = getPath(draw, from.collection)[from.index].uuid;
+        }
+        else {
+          draggedAdjudicatorId = getPath(draw, from.collection).uuid;
+        }
+      }
+
+      let outcome = simulateDragOutcome(draw, from, to, isSwap);
+      let dragTargetRoomId = to.collection[to.collection.length - 3];
+      let targetRoom = outcome[dragTargetRoomId].ballot;
+  
+      invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: [targetRoom], targetUuid: draggedAdjudicatorId}).then(
+        (issues) => {
+          let maxSeverity = getMaxSeverityFromEvaluationResult(issues[0]);
+          let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
+          setDraggedItemHighlight(severityBucket);
+        }
+      );
+      
+      if (isSwap) {
+        let swapAdjudicatorId = null;
+        if (to.index !== undefined) {
+          swapAdjudicatorId = getPath(draw, to.collection)[to.index].uuid;
+        }
+        else {
+          let collectionValue = getPath(draw, to.collection);
+
+          if (collectionValue) {
+            swapAdjudicatorId = collectionValue.uuid;
+          }
+        }
+        if (swapAdjudicatorId !== null) {
+          let dragSourceRoomId = from.collection[from.collection.length - 3];
+          let sourceRoom = outcome[dragSourceRoomId].ballot;
+          invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: [sourceRoom], targetUuid: swapAdjudicatorId}).then(
+            (issues) => {
+              let maxSeverity = getMaxSeverityFromEvaluationResult(issues[0]);
+              let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
+              if (draggedItem !== null) {
+                setDragSwapHighlight({
+                  severityBucket: severityBucket,
+                  debateIdx: dragTargetRoomId,
+                  adjudicatorId: swapAdjudicatorId
+                });
+              }
+            }
+          );
+        }
+      }
+      else {
+        setDragSwapHighlight({
+          severityBucket: null,
+          debateIdx: null,
+          adjudicatorId: null
+        });
+      }
+    }
+
+    /*
     if (to.collection[to.collection.length - 1] !== "president") {
       let roomIndex = to.collection[1];
       let targetRoomIssues = dragHighlightedIssues[roomIndex];
@@ -641,6 +782,7 @@ function DrawEditor(props) {
     else {
       setDraggedItemHighlight("neutral");
     }
+    */
   }
   const onDragOver = makeDragHandler(onDragOverFunc);
 
@@ -653,6 +795,11 @@ function DrawEditor(props) {
   let tournament = useContext(TournamentContext);
 
   let [dragHighlightedIssues, setDragHighlightedIssues] = useState(null);
+  let [dragSwapHighlight, setDragSwapHighlight] = useState({
+    severityBucket: null,
+    debateIdx: null,
+    adjudicatorId: null
+  });
   let [draggedItem, setDraggedItem] = useState(null);
   let [draggedItemHighlight, setDraggedItemHighlight] = useState(null);
 
@@ -697,7 +844,12 @@ function DrawEditor(props) {
       <div className="flex-1 overflow-y-scroll">
         <table className="w-full">
           <tbody>
-            {debates.map((debate, debate_idx) => <DebateRow key={debate.uuid} debate={debate} dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debate_idx] : null} />)}
+            {debates.map((debate, debateIdx) => <DebateRow
+              key={debate.uuid}
+              debate={debate}
+              dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
+              dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
+            />)}
           </tbody>
         </table>
       </div>
