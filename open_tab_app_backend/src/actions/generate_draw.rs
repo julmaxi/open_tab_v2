@@ -1,8 +1,8 @@
-use std::{error::Error, iter::zip, sync::Arc};
+use std::{error::Error, iter::zip, sync::Arc, collections::HashSet};
 
 use itertools::{Itertools, izip};
 use migration::async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::TournamentBreak}};
+use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::TournamentBreak, tournament_venue::TournamentVenue}};
 
 use rand::seq::SliceRandom;
 use sea_orm::prelude::*;
@@ -163,6 +163,9 @@ impl ActionTrait for GenerateDrawAction {
         }).collect_vec();
 
         let existing_debates = TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|r| r.uuid).collect()).await?;
+        let mut all_venues = TournamentVenue::get_all_in_tournament(db, self.tournament_id).await?;
+        all_venues.sort_by_key(|v| v.ordering_index);
+
 
         for (round, round_existing_debates, round_new_ballots) in izip![rounds.iter(), existing_debates.into_iter(), ballots.into_iter()] {
             let debates = if round_existing_debates.len() < round_new_ballots.len() {
@@ -184,10 +187,25 @@ impl ActionTrait for GenerateDrawAction {
                 round_existing_debates
             };
 
-            for (mut debate, ballot) in zip(debates.into_iter(), round_new_ballots.into_iter()) {
+            // Preserve any previously assigned venues
+            let used_venues = debates.iter().filter_map(|d| d.venue_id).collect::<HashSet<_>>();
+            let available_venues = all_venues.iter().filter(|v| !used_venues.contains(&v.uuid)).collect::<Vec<_>>();
+
+            let selected_venues = if available_venues.len() >= debates.iter().filter(|d| d.venue_id.is_none()).count() {
+                available_venues.iter().map(|v| Some(v.uuid)).collect::<Vec<_>>()
+            } else {
+                itertools::repeat_n(None, debates.len()).collect::<Vec<_>>()
+            };
+            let mut selected_venues = selected_venues.iter();
+
+            for (mut debate, ballot) in izip!(debates.into_iter(), round_new_ballots.into_iter()) {
                 let mut real_ballot : Ballot = ballot.into();
                 real_ballot.uuid = Uuid::new_v4();
                 debate.ballot_id = real_ballot.uuid;
+
+                if debate.venue_id.is_none() {
+                    selected_venues.next().map(|v| debate.venue_id = *v);
+                }
 
                 changes.add(Entity::Ballot(real_ballot));
                 changes.add(Entity::TournamentDebate(debate));

@@ -13,6 +13,7 @@ import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
 import { TournamentContext } from "./TournamentContext";
 import { TabGroup, Tab } from "./TabGroup";
+import { useSelect } from "downshift";
 
 const TRAY_DRAG_PATH = "__tray__";
 
@@ -228,6 +229,50 @@ function filter_issues_by_target(issues, target_uuid) {
   return issues.filter((i) => i.target.uuid === target_uuid);
 }
 
+
+function VenueSelector(props) {
+  let [items, setItems] = useState([]);
+  let tournamentId = useContext(TournamentContext).uuid;
+
+  let venues = useView({type: "Venues", tournament_uuid: tournamentId}, {venues: []});
+
+  let selectedItem = venues.venues.find((v) => v.uuid === props.venue.uuid);
+  console.log(selectedItem);
+
+  const {
+    isOpen,
+    getToggleButtonProps,
+    getMenuProps,
+    highlightedIndex,
+    closeMenu,
+    getItemProps,
+  } = useSelect({
+    items: venues.venues,
+    itemToString: item => (item ? item.name : ""),
+    selectedItem: selectedItem || null,
+  });
+
+  return <div className="inline">
+    <button type="button" {...getToggleButtonProps()}>
+      {selectedItem ? selectedItem.name : "<No Venue>"}
+    </button>
+    <ul {...getMenuProps()} className="absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-scroll p-0 z-10">
+      {isOpen &&
+
+        venues.venues.map((item, index) => (
+          <li key={item.name} {...getItemProps({ item, index })} onClick={() => {
+            props.onVenueChange(item);
+            closeMenu();
+          }}>
+            {item.name}
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+}
+
+
 function DebateRow(props) {
   let ballot = props.debate.ballot;
   let [localHighlightedIssues, setLocalHighlightedIssues] = useState({
@@ -238,11 +283,12 @@ function DebateRow(props) {
   });
 
   let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
+  console.log(props.debate);
   
   return <>
     <tr>
       <td colSpan={4}>
-        Debate {props.debate.index + 1}: {props.debate.venue ? props.debate.venue.name: "<No venue>"}
+        Debate {props.debate.index + 1}: <VenueSelector venue={props.debate.venue} onVenueChange={(venue) => props.onVenueChange(venue)} />
       </td>
     </tr>
     <tr>
@@ -849,6 +895,10 @@ function DrawEditor(props) {
               debate={debate}
               dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
               dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
+              onVenueChange={(venue) => {
+                executeAction("UpdateDraw", {updated_debates: [{...debate, venue: venue}]});
+              }
+            }
             />)}
           </tbody>
         </table>

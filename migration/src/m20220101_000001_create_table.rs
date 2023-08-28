@@ -37,7 +37,8 @@ enum TournamentVenue {
     Table,
     Uuid,
     TournamentId,
-    Name
+    Name,
+    OrderingIndex,
 }
 
 #[derive(Iden)]
@@ -618,6 +619,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentVenue::Uuid).uuid().not_null().primary_key())
                 .col(ColumnDef::new(TournamentVenue::TournamentId).uuid().not_null())
                 .col(ColumnDef::new(TournamentVenue::Name).string().not_null())
+                .col(ColumnDef::new(TournamentVenue::OrderingIndex).integer().integer().not_null())
                 .foreign_key(
                     ForeignKeyCreateStatement::new()
                     .name("fk-venue-tournament")

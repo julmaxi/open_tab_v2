@@ -81,7 +81,6 @@ impl LoadedView for LoadedDrawView {
                 }
             }
         }
-
         if indices_to_reload.len() > 0 {
             let evaluator = DrawEvaluator::new_from_other_rounds(db, self.tournament_id, self.view.round_uuid).await?;
 
@@ -92,14 +91,14 @@ impl LoadedView for LoadedDrawView {
             let debate_uuids = indices_to_reload.iter().map(|idx| {self.view.debates[*idx].uuid}).collect_vec();
             let debates = TournamentDebate::get_many(db, debate_uuids).await?;
             let debate_venue_ids = debates.iter().filter_map(|d| if let Some(venue_id) = d.venue_id {Some((d.uuid, venue_id))} else {None}).collect_vec();
-            let mut venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();
-            let mut debate_venues = debate_venue_ids.into_iter().map(|(debate_id, venue_id)| (debate_id, DrawVenue::from(venues.remove(&venue_id).unwrap()))).collect::<HashMap<_, _>>();
-            
+            let venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();
 
             for (idx, ballot, debate) in izip!(indices_to_reload, ballots, debates) {
-                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &info, &evaluator, self.view.round_uuid);
+                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, &info, &evaluator, self.view.round_uuid);
+                self.view.debates[idx].venue = debate.venue_id.map(|venue_id| venues.get(&venue_id).cloned().map(DrawVenue::from)).flatten();
 
                 out.insert(format!("debates.{}.ballot", idx), serde_json::to_value(&self.view.debates[idx].ballot)?);
+                out.insert(format!("debates.{}.venue", idx), serde_json::to_value(&self.view.debates[idx].venue)?);
             }
 
             let index = DrawView::construct_adjudicator_index(&info, &self.view.debates, self.view.round_uuid);
@@ -183,7 +182,8 @@ enum AdjudictorPosition {
 pub struct DrawDebate {
     pub uuid: Uuid,
     pub index: usize,
-    pub ballot: DrawBallot
+    pub ballot: DrawBallot,
+    pub venue: Option<DrawVenue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -194,13 +194,12 @@ pub struct DrawBallot {
     pub non_aligned_speakers: Vec<DrawSpeaker>,
     pub adjudicators: Vec<SetDrawAdjudicator>,
     pub president: Option<SetDrawAdjudicator>,
-    pub venue: Option<DrawVenue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawVenue {
-    uuid: Uuid,
-    name: String,
+    pub uuid: Uuid,
+    pub name: String,
 }
 
 impl From<TournamentVenue> for DrawVenue {
@@ -367,7 +366,6 @@ impl DrawView {
 
     fn draw_ballot_from_debate_ballot(
         ballot: &Ballot,
-        venue: Option<DrawVenue>,
         info: &TournamentParticipantsInfo,
         evaluator: &DrawEvaluator,
         round_id: Uuid,
@@ -450,8 +448,7 @@ impl DrawView {
                     }
                 };
                 adj
-            }),
-            venue
+            })
         };
         let ballot_evaluation = evaluator.find_issues_in_ballot(&ballot);
 
@@ -630,15 +627,16 @@ impl DrawView {
         let evaluator = DrawEvaluator::new_from_other_rounds(db, round.tournament_id, round.uuid).await?;
 
         let debate_venue_ids = debates.iter().filter_map(|d| if let Some(venue_id) = d.venue_id {Some((d.uuid, venue_id))} else {None}).collect_vec();
-        let mut venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();
-        let mut debate_venues = debate_venue_ids.into_iter().map(|(debate_id, venue_id)| (debate_id, DrawVenue::from(venues.remove(&venue_id).unwrap()))).collect::<HashMap<_, _>>();
+        let venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();
+        let debate_venues = venues.into_iter().map(|(venue_id, venue)| (venue_id, DrawVenue::from(venue))).collect::<HashMap<_, _>>();
 
         let debates = izip![debates, ballots.into_iter()].map(
             |(debate, debate_ballot)| {
                 DrawDebate {
                     uuid: debate.uuid,
                     index: debate.index as usize,
-                    ballot: Self::draw_ballot_from_debate_ballot(&debate_ballot, debate.venue_id.map(|id| debate_venues.remove(&id)).flatten(), &participant_info, &evaluator, round.uuid)
+                    ballot: Self::draw_ballot_from_debate_ballot(&debate_ballot, &participant_info, &evaluator, round.uuid),
+                    venue: debate.venue_id.map(|id| debate_venues.get(&id).cloned()).flatten(),
                 }
             }
         ).sorted_by_key(|d| d.index).collect();

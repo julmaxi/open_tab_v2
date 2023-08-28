@@ -19,6 +19,7 @@ mod generate_draw;
 mod make_break;
 mod update_round;
 mod create_institution;
+mod update_venues;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -30,6 +31,7 @@ pub use self::generate_draw::GenerateDrawAction;
 pub use self::make_break::MakeBreakAction;
 pub use self::update_round::UpdateRoundAction;
 pub use self::create_institution::CreateInstitutionAction;
+pub use self::update_venues::UpdateVenuesAction;
 pub(crate) use self::edit_tree::EditTreeActionType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +46,7 @@ pub enum Action {
     MakeBreak { action: MakeBreakAction },
     UpdateRound { action: UpdateRoundAction },
     CreateInstitution { action: CreateInstitutionAction },
+    UpdateVenues { action: UpdateVenuesAction },
 }
 
 impl Action {
@@ -58,6 +61,7 @@ impl Action {
             Action::MakeBreak { action } => action.get_changes(db).await,
             Action::UpdateRound { action } => action.get_changes(db).await,
             Action::CreateInstitution { action } => action.get_changes(db).await,
+            Action::UpdateVenues { action } => action.get_changes(db).await,
         }
     }
 }

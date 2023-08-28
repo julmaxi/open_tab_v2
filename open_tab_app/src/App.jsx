@@ -63,6 +63,9 @@ function SideNav(props) {
     <NavItem href="/feedback">
       Feedback
     </NavItem>
+    <NavItem href="/venues">
+      Venues
+    </NavItem>
   </nav>
 }
 

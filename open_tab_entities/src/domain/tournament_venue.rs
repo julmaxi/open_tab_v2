@@ -12,7 +12,8 @@ use crate::schema;
 pub struct TournamentVenue {
     pub uuid: Uuid,
     pub name: String,
-    pub tournament_id: Uuid
+    pub tournament_id: Uuid,
+    pub ordering_index: i32,
 }
 
 impl TournamentVenue {

@@ -10,7 +10,7 @@ import { TournamentContext } from "./TournamentContext";
 import ModalOverlay from "./Modal";
 import Button from "./Button";
 import { invoke } from "@tauri-apps/api/tauri";
-import { SortableTable } from "./SortableTable";
+import { SortableTable, EditableCell } from "./SortableTable";
 import ComboBox from "./ComboBox";
 import { useEffect } from "react";
 import _ from "lodash";
@@ -20,48 +20,6 @@ import {
     unstable_useBlocker as useBlocker,
   } from "react-router-dom";
 
-function EditableCell(props) {
-    let [edit, setEdit] = useState(false);
-
-    let [localValue, setLocalValue] = useState(null);
-
-    return <td onDoubleClick={() => {
-        if (!edit) {
-            setEdit(true);
-        }
-    }}>
-        {edit ? <input type="text" autoFocus value={localValue !== null ? localValue : props.value} onChange={
-            (event) => {
-                setLocalValue(event.target.value);
-            }
-        } onKeyDown={
-            (event) => {
-                if (event.key === "Enter") {
-                    setLocalValue(null);
-                    setEdit(false);
-                    props.onChange(localValue);
-                    event.preventDefault()
-                }
-                else if (event.key == "Escape") {
-                    setLocalValue(null);
-                    setEdit(false);
-                    event.preventDefault();
-                }
-            }
-        } onBlur= {
-            (event) => {
-                let value = event.target.value;
-                setLocalValue(null);
-                setEdit(false);
-                props.onChange(value);
-            }
-        } onFocus = {
-            (event) => {
-                event.target.select();
-            }
-        }/> : props.value}
-    </td>
-}
 
 function ParticipantDetailView({onClose, participant, ...props}) {
     let [modifiedParticipant, setModifiedParticipant] = useState(participant);
@@ -263,6 +221,8 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 function ParticipantTable(props) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
 
+    let tournamentContext = useContext(TournamentContext);
+
     let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
@@ -328,7 +288,7 @@ function ParticipantTable(props) {
                             (newName) => {
                                 let newParticipant = {... getPath(props.participants, rowValue.path)};
                                 newParticipant.name = newName;
-                                executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: "00000000-0000-0000-0000-000000000001"})
+                                executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: tournamentContext.uuid})
                             }
                         } />
                     } },

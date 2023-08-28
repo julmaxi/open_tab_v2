@@ -76,3 +76,47 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, ...props }) {
         </table>
     </div>;
 }
+
+
+export function EditableCell(props) {
+    let [edit, setEdit] = useState(false);
+
+    let [localValue, setLocalValue] = useState(null);
+
+    return <td onDoubleClick={() => {
+        if (!edit) {
+            setEdit(true);
+        }
+    }}>
+        {edit ? <input type="text" autoFocus value={localValue !== null ? localValue : props.value} onChange={
+            (event) => {
+                setLocalValue(event.target.value);
+            }
+        } onKeyDown={
+            (event) => {
+                if (event.key === "Enter") {
+                    setLocalValue(null);
+                    setEdit(false);
+                    props.onChange(localValue);
+                    event.preventDefault()
+                }
+                else if (event.key == "Escape") {
+                    setLocalValue(null);
+                    setEdit(false);
+                    event.preventDefault();
+                }
+            }
+        } onBlur= {
+            (event) => {
+                let value = event.target.value;
+                setLocalValue(null);
+                setEdit(false);
+                props.onChange(value);
+            }
+        } onFocus = {
+            (event) => {
+                event.target.select();
+            }
+        }/> : props.value}
+    </td>
+}

@@ -9,6 +9,7 @@ pub struct Model {
     pub uuid: Uuid,
     pub tournament_id: Uuid,
     pub name: String,
+    pub ordering_index: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

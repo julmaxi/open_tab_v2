@@ -5,28 +5,27 @@ use migration::async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::entity::LoadEntity};
 
 use sea_orm::prelude::*;
+use thiserror::Error;
 
-use crate::draw_view::DrawBallot;
+use crate::draw_view::{DrawBallot, DrawDebate};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateDrawAction {
-    pub updated_ballots: Vec<DrawBallot>
+    #[serde(default)]
+    pub updated_ballots: Vec<DrawBallot>,
+    #[serde(default)]
+    pub updated_debates: Vec<DrawDebate>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UpdateDrawError {
+    #[error("Debate {0} not found")]
+    DebateNotFound(Uuid),
 }
 
-impl Display for UpdateDrawError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl Error for UpdateDrawError {}
 
 #[async_trait]
 impl ActionTrait for UpdateDrawAction {
@@ -96,6 +95,17 @@ impl ActionTrait for UpdateDrawAction {
             groups.add(Entity::Ballot(new_ballot));
         }
 
+        for debate in self.updated_debates {
+            let mut existingDebate = open_tab_entities::domain::debate::TournamentDebate::try_get(
+                db,
+                debate.uuid
+            ).await?.ok_or(UpdateDrawError::DebateNotFound(debate.uuid))?;
+
+            // We only allow the venue to be updated
+            existingDebate.venue_id = debate.venue.map(|v| v.uuid);
+
+            groups.add(Entity::TournamentDebate(existingDebate));
+        }
         Ok(groups)
     }
 }
