@@ -69,21 +69,6 @@ struct AvailableAction {
     action: EditTreeActionType,
 }
 
-/*
-impl From<EditTreeActionType> for AvailableAction {
-    fn from(action: EditTreeActionType) -> Self {
-        match action {
-            EditTreeActionType::AddThreePreliminaryRounds { .. } => {
-                AvailableAction {
-                    description: "Add Three Preliminary Rounds".to_string(),
-                    action
-                }
-            }
-        }
-    }
-}
- */
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RoundInfo {
     uuid: Uuid,
@@ -244,31 +229,68 @@ impl TournamentTreeView {
 
         let node_content = if let Some(BreakOrRound::Round(parent_round)) = content {
             let mut collated_children = Vec::new();
-            if parent_round.draw_type == Some(DrawType::StandardPreliminaryDraw) {
-                let mut unexplored_children: Vec<Uuid> = local_children.clone();
-                local_children.clear(); // We need to reconstruct the children for grouping
-                while unexplored_children.len() > 0 && collated_children.len() < 2 {
-                    let child_uuid = unexplored_children.pop().unwrap();
-                    let child = breaks_and_round_by_uuid.get(&child_uuid);
 
-                    let mut did_collate_child = false;
-                    if let Some(BreakOrRound::Round(child)) = child {
-                        if child.draw_type == Some(DrawType::StandardPreliminaryDraw) {
-                            did_collate_child = true;
-                            if let Some(c) = all_children.get(&child_uuid) {
-                                unexplored_children.extend(c);
+            match &parent_round.draw_type {
+                Some(DrawType::Preliminary) => {
+                    let mut unexplored_children: Vec<Uuid> = local_children.clone();
+                    local_children.clear(); // We need to reconstruct the children for grouping
+                    while unexplored_children.len() > 0 {
+                        let child_uuid = unexplored_children.pop().unwrap();
+                        let child = breaks_and_round_by_uuid.get(&child_uuid);
+    
+                        let mut did_collate_child = false;
+                        
+                        if let Some(BreakOrRound::Round(child)) = child {
+                            if child.draw_type == Some(DrawType::Preliminary) {
+                                did_collate_child = true;
+                                if let Some(c) = all_children.get(&child_uuid) {
+                                    unexplored_children.extend(c);
+                                }
+                                collated_children.push(child_uuid);
                             }
-                            collated_children.push(child_uuid);
+                        }
+    
+                        if !did_collate_child {
+                            local_children.push(child_uuid);
                         }
                     }
-
-                    if !did_collate_child {
-                        local_children.push(child_uuid);
-                    }
+    
+                    local_children.extend(unexplored_children);
                 }
 
-                local_children.extend(unexplored_children);
+                Some(DrawType::TabDraw { .. }) => {
+                    let mut unexplored_children: Vec<Uuid> = local_children.clone();
+                    local_children.clear(); // We need to reconstruct the children for grouping
+                    while unexplored_children.len() > 0 {
+                        let child_uuid = unexplored_children.pop().unwrap();
+                        let child = breaks_and_round_by_uuid.get(&child_uuid);
+    
+                        let mut did_collate_child = false;
+                        
+                        if let Some(BreakOrRound::Round(child)) = child {
+                            match &child.draw_type {
+                                Some(DrawType::TabDraw { .. }) => {
+                                    did_collate_child = true;
+                                    if let Some(c) = all_children.get(&child_uuid) {
+                                        unexplored_children.extend(c);
+                                    }
+                                    collated_children.push(child_uuid);
+                                }
+                                _ => {}
+                            }
+                        }
+    
+                        if !did_collate_child {
+                            local_children.push(child_uuid);
+                        }
+                    }
+    
+                    local_children.extend(unexplored_children);
+                }
+
+                _ => {}
             }
+
 
             let collated_children = collated_children.into_iter().filter_map(
                 |child_uuid| {

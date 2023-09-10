@@ -23,7 +23,7 @@ pub enum SpeakerDrawMode {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
 pub enum TeamAssignmentRule {
     Random,
-    Fixed
+    Fixed,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -35,7 +35,7 @@ pub struct TabDrawConfig {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum DrawType {
-    StandardPreliminaryDraw,
+    Preliminary,
     KnockoutDraw,
     TabDraw {
         config: TabDrawConfig

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState};
+use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::error;
@@ -15,27 +15,27 @@ use std::error::Error;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EntityEntry {
+pub struct EntityEntry<E, T> {
     pub uuid: Uuid,
     pub old_versions: Vec<Uuid>,
     pub current_version: Uuid,
-    pub current_value: EntityState<Entity, EntityType>,
+    pub current_value: EntityState<E, T>,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogEntry {
+pub struct LogEntry<T> {
     pub uuid: Uuid,
-    pub target_type: String,
+    pub target_type: T,
     pub target_uuid: Uuid,
     pub timestamp: DateTime,
 }
 
-impl From<&open_tab_entities::schema::tournament_log::Model> for LogEntry {
+impl <T>From<&open_tab_entities::schema::tournament_log::Model> for LogEntry<T> where T: EntityTypeId {
     fn from(model: &open_tab_entities::schema::tournament_log::Model) -> Self {
         LogEntry {
             uuid: model.uuid,
-            target_type: model.target_type.clone(),
+            target_type: model.target_type.clone().into(),
             target_uuid: model.target_uuid,
             timestamp: model.timestamp,
         }
@@ -44,12 +44,12 @@ impl From<&open_tab_entities::schema::tournament_log::Model> for LogEntry {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FatLog {
-    pub log: Vec<LogEntry>,
+pub struct FatLog<E, T> where T: EntityTypeId {
+    pub log: Vec<LogEntry<T>>,
     pub entities: HashMap<
-        String,
+        T,
         Vec<
-            EntityEntry
+            EntityEntry<E, T>
         >
     >
 }
@@ -74,12 +74,16 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
 }
 
 
-pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog, Box<dyn Error>> where C: ConnectionTrait  {
+pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, Box<dyn Error>>
+    where C: ConnectionTrait  {
     let log = get_log_since(transaction, tournament_id, since).await?;
     let flat_log = log.iter().map(
         LogEntry::from
-    ).collect::<Vec<LogEntry>>();
-    let mut entity_entries = log.into_iter().into_grouping_map_by(|entry| (entry.target_type.clone(), entry.target_uuid)).collect::<Vec<_>>();
+    ).collect::<Vec<LogEntry<EntityType>>>();
+    let mut entity_entries : HashMap<(EntityType, _), _> = log
+        .into_iter()
+        .into_grouping_map_by(|entry| (entry.target_type.clone().into(), entry.target_uuid)
+    ).collect::<Vec<_>>();
     let latest_entries = entity_entries.iter_mut().map(|((entity_type, entity_uuid), entries)| {
         entries.pop().unwrap() // This can never be empty, otherwise the key would not be in the group map
     }).collect::<Vec<_>>();
@@ -87,7 +91,7 @@ pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, s
 
     let versioned_entities_map = versioned_entities.into_iter().map(|entity| {
         ((
-            entity.entity.get_name(),
+            entity.entity.get_type(),
             entity.entity.get_uuid()
         ), entity)
     }).collect::<HashMap<_, _>>();
@@ -112,7 +116,7 @@ async fn get_log(
     State(db): State<DatabaseConnection>,
     Path(tournament_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>
-) -> Result<Json<FatLog>, APIError> {
+) -> Result<Json<FatLog<Entity, EntityType>>, APIError> {
     let since = match params.get("since").map(
         |since| since.parse::<Uuid>()
     ) {
@@ -166,7 +170,7 @@ impl From<ReconciliationOutcome> for APIReconciliationOutcome {
 pub async fn reconcile_changes<C>(
     db: &C,
     tournament_id: Uuid,
-    changes: FatLog,
+    changes: FatLog<Entity, EntityType>,
     last_common_ancestor: Option<Uuid>,
     merge_strategy: MergeStrategy,
     return_entity_group: bool
@@ -195,14 +199,14 @@ pub async fn reconcile_changes<C>(
         .limit(1)
         .one(db).await?.map(|m| m.sequence_idx).unwrap_or(0)
     };
-    let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone(), entry.target_uuid)).collect::<HashSet<_>>();
+    let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone().into(), entry.target_uuid)).collect::<HashSet<_>>();
 
     let mut remote_log_models = changes.log.iter().enumerate().map(
         |(idx, entry)| {
             open_tab_entities::schema::tournament_log::Model {
                 uuid: entry.uuid,
                 tournament_id,
-                target_type: entry.target_type.clone(),
+                target_type: entry.target_type.as_str().clone().into(),
                 target_uuid: entry.target_uuid,
                 timestamp: entry.timestamp,
                 sequence_idx: head_sequence_idx + idx as i32 + 1
@@ -224,7 +228,7 @@ pub async fn reconcile_changes<C>(
         remote_log_models.push(open_tab_entities::schema::tournament_log::Model {
             uuid: Uuid::new_v4(),
             tournament_id,
-            target_type: entity_type.clone(),
+            target_type: entity_type.as_str().into(),
             target_uuid: uuid.clone(),
             timestamp: Utc::now().naive_utc(),
             sequence_idx: new_head_idx + idx as i32 + 1
@@ -258,8 +262,8 @@ pub async fn reconcile_changes<C>(
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncRequest {
-    pub log: FatLog,
+pub struct SyncRequest<E, T> where T: EntityTypeId {
+    pub log: FatLog<E, T>,
     pub last_common_ancestor: Option<Uuid>,
 }
 
@@ -272,7 +276,7 @@ pub struct SyncRequestResponse {
 async fn handle_sync_push_request(
     State(db): State<DatabaseConnection>,
     Path(tournament_id): Path<Uuid>,
-    Json(request_body): Json<SyncRequest>
+    Json(request_body): Json<SyncRequest<Entity, EntityType>>
 ) -> Result<Json<SyncRequestResponse>, APIError> {
     let transaction = db.begin().await.map_err(|_| {
         tracing::error!("Failed to start transaction");

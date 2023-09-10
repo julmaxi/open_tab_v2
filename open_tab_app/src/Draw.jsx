@@ -231,13 +231,11 @@ function filter_issues_by_target(issues, target_uuid) {
 
 
 function VenueSelector(props) {
-  let [items, setItems] = useState([]);
   let tournamentId = useContext(TournamentContext).uuid;
 
   let venues = useView({type: "Venues", tournament_uuid: tournamentId}, {venues: []});
 
-  let selectedItem = venues.venues.find((v) => v.uuid === props.venue.uuid);
-  console.log(selectedItem);
+  let selectedItem = props.venue ? venues.venues.find((v) => v.uuid === props.venue.uuid) : null;
 
   const {
     isOpen,

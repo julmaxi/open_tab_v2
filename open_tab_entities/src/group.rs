@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap, fmt::Debug};
+use std::{error::Error, collections::HashMap, fmt::Debug, hash::Hash};
 
 use itertools::{Itertools, izip};
 use open_tab_macros::EntityGroup;
@@ -13,7 +13,7 @@ pub enum EntityState<E, T> {
     Deleted{uuid: Uuid, type_: T}
 }
 
-impl<E, T> EntityState<E, T> where E: EntityGroupEntityTrait {
+impl<E> EntityState<E, <<E as EntityGroupEntityTrait>::EntityGroup as EntityGroupTrait>::TypeId> where E: EntityGroupEntityTrait {
     pub fn get_uuid(&self) -> Uuid {
         match self {
             EntityState::Exists(e) => e.get_uuid(),
@@ -24,6 +24,12 @@ impl<E, T> EntityState<E, T> where E: EntityGroupEntityTrait {
         match self {
             EntityState::Exists(e) => e.get_name(),
             EntityState::Deleted{type_, ..} => panic!()//name.clone(),
+        }
+    }
+    pub fn get_type(&self) -> <E::EntityGroup as EntityGroupTrait>::TypeId {
+        match self {
+            EntityState::Exists(e) => e.get_type(),
+            EntityState::Deleted{type_, ..} => type_.clone()
         }
     }
 
@@ -42,6 +48,10 @@ pub trait EntityGroupEntityTrait {
     fn get_name(&self) -> String;
     fn get_type(&self) -> <Self::EntityGroup as EntityGroupTrait>::TypeId;
     fn get_processing_order(&self) -> u64;
+}
+
+pub trait EntityTypeId : Clone + Copy + Debug + PartialEq + Eq + Send + Sync + From<String> + Hash {
+    fn as_str(&self) -> &'static str;
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, EntityGroup)]

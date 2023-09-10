@@ -6,4 +6,5 @@ members = [
     "open_tab_app//src-tauri",
     "open_tab_app_backend",
     "open_tab_macros",
+    "open_tab_reports",
 ]

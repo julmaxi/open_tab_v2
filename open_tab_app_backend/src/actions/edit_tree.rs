@@ -62,7 +62,7 @@ impl ActionTrait for EditTreeAction {
                         uuid: Uuid::new_v4(),
                         tournament_id: self.tournament_id,
                         index,
-                        draw_type: Some(DrawType::StandardPreliminaryDraw),
+                        draw_type: Some(DrawType::Preliminary),
                         ..Default::default()
                     }
                 ).collect_vec();

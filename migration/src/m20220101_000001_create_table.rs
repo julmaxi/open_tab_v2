@@ -12,7 +12,8 @@ impl MigrationName for Migration {
 #[derive(Iden)]
 enum Tournament {
     Table,
-    Uuid
+    Uuid,
+    AnnoucementsPassword
 }
 
 
@@ -29,7 +30,7 @@ enum TournamentRound {
     TeamMotionReleaseTime,
     FullMotionReleaseTime,
     RoundCloseTime,
-    IsSilent
+    IsSilent,
 }
 
 #[derive(Iden)]
@@ -255,6 +256,7 @@ impl MigrationTrait for Migration {
                 .table(Tournament::Table)
                 .if_not_exists()
                 .col(ColumnDef::new(Tournament::Uuid).uuid().not_null().primary_key())
+                .col(ColumnDef::new(Tournament::AnnoucementsPassword).string())
                 .to_owned()
         ).await?;
 

@@ -382,6 +382,12 @@ pub fn derive_entity_type_enum(variants_with_content_type: &Vec<(Ident, Type)>) 
                 }
             }
         }
+
+        impl EntityTypeId for EntityType {
+            fn as_str(&self) -> &'static str {
+                self.as_str()
+            }
+        }
     };
 
     TokenStream::from(expanded)

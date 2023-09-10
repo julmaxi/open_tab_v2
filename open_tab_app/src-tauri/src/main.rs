@@ -4,7 +4,7 @@
 use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, sync::{PoisonError}, time::Duration, iter::zip};
 
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse}};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
@@ -263,7 +263,8 @@ async fn connect_db() -> Result<DatabaseConnection, DbErr> {
     let tournament_uuid = mock_data.tournaments[0].uuid.clone();
 
     let second_tournament = Tournament {
-        uuid: Uuid::from_u128(2)
+        uuid: Uuid::from_u128(2),
+        annoucements_password: None,
     };
     mock_data.add(Entity::Tournament(second_tournament));
 
@@ -655,7 +656,7 @@ async fn pull_remote_changes<C>(target_tournament_remote: &schema::tournament_re
     }
 
     let response = client.get(remote_url).send().await?;
-    let remote_changes : FatLog = response.json().await?;
+    let remote_changes : FatLog<Entity, EntityType> = response.json().await?;
 
     if remote_changes.log.len() > 0 {
         dbg!("Integrating remote changes", remote_changes.log.len());

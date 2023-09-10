@@ -126,7 +126,7 @@ impl ActionTrait for GenerateDrawAction {
             }
         }
         else if rounds.len() > 1 {
-            if !rounds.iter().all(|r| r.draw_type == Some(DrawType::StandardPreliminaryDraw)) {
+            if !rounds.iter().all(|r| r.draw_type == Some(DrawType::Preliminary)) {
                 return Err(Box::new(GenerateDrawActionError::CanOnlyDrawMultipleRoundsForStandardPreliminariesDraw))
             }
 

@@ -12,7 +12,7 @@ use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UpdateDrawAction {
     #[serde(default)]
     pub updated_ballots: Vec<DrawBallot>,

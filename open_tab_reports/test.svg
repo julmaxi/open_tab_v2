@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+    width="842pt" height="595pt" viewBox="0 0 842 595">
+
+  <defs>
+    <pattern id="coarse_sep" width="0.02" height="1" viewBox="0 0 5 5">
+    
+    <path d="M 2 -10 L 10 -10 L 3 10 L -10 10 L 2 -10 z" stroke="black" fill="black" stroke-width="0" />
+    </pattern>
+  </defs>
+
+  <rect x="30" y="70" width="475" height="40" fill="rgb(221, 221, 221)" />
+  <rect x="30" y="145" width="475" height="35" fill="rgb(221, 221, 221)" />
+  <rect x="30" y="215" width="475" height="35" fill="rgb(221, 221, 221)" />
+
+  <rect x="30" y="400" width="475" height="35" fill="rgb(221, 221, 221)" />
+
+
+  <path d="
+M 30 70 V 435
+M 175 70 V 435
+M 230 70 V 435
+M 285 70 V 435
+M 340 70 V 435
+M 395 70 V 435
+M 450 70 V 435
+M 505 70 V 435
+
+M 30 70 H 505
+M 30 110 H 505
+M 30 145 H 505
+M 30 180 H 505
+M 30 215 H 505
+M 30 250 H 505
+M 30 255 H 505
+M 30 290 H 505
+M 30 325 H 505
+M 30 360 H 505
+M 30 365 H 505
+M 30 400 H 505
+M 30 435 H 505
+
+" stroke="gray" fill="transparent" />
+
+  <rect x="30" y="250" width="475" height="5" fill="url(#coarse_sep)" />
+
+  <rect x="30" y="360" width="475" height="5" fill="url(#coarse_sep)" />
+
+
+</svg>
