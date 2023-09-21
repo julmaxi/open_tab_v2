@@ -774,7 +774,7 @@ function DrawEditor(props) {
             swapAdjudicatorId = collectionValue.uuid;
           }
         }
-        if (swapAdjudicatorId !== null) {
+        if (swapAdjudicatorId !== null && from.collection !== TRAY_DRAG_PATH) {
           let dragSourceRoomId = from.collection[from.collection.length - 3];
           let sourceRoom = outcome[dragSourceRoomId].ballot;
           invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: [sourceRoom], targetUuid: swapAdjudicatorId}).then(
