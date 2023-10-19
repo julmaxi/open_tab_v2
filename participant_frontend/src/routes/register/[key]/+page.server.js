@@ -15,7 +15,8 @@ export const actions = {
         if (res.status == 200) {
             let json = await res.json();
             event.cookies.set("token", json.token, {sameSite: true, path: "/"});
-            throw redirect(302, `/tournament/home/${json.participant_id}`);
+            event.cookies.set("participant_id", json.participant_id, {sameSite: true, path: "/"});
+            throw redirect(302, `/tournament/${json.tournament_id}/home/${json.participant_id}`);
         }
 
         //throw redirect(302, `/submission/${(await res.json()).debate_ballot_uuid}`);

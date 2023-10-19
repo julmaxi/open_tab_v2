@@ -16,7 +16,7 @@ use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
 
 use std::collections::HashSet;
 
-use crate::layout::{XObjectLayout, FontUseRef, XObjectRef, LayoutedElements, DynamicTextBox, TextLayoutResult, Instruction, FontCollection, GraphicsCollection, LayoutedDocument, Image, XObjectForm};
+use crate::layout::{XObjectLayout, FontUseRef, XObjectRef, LayoutedElements, DynamicTextBox, TextLayoutResult, Instruction, FontCollection, GraphicsCollection, LayoutedDocument, Image, XObjectForm, TransformLayout};
 
 pub(crate) mod writable;
 
@@ -156,7 +156,7 @@ impl LayoutedElements {
         &self, writer: &mut PdfWriter, context: &mut PDFWritingContext, id: Ref, bounding_box: Rect
     ) {
         let resources = self.gather_resources(context);
-        let content = self.write_content(writer, context, &resources);
+        let content = self.write_content(context, &resources);
         let bytes = content.finish();
 
         let mut form = writer.form_xobject(id, &bytes);
@@ -186,7 +186,7 @@ impl LayoutedElements {
     }
 
 
-    fn write_content(&self, writer: &mut PdfWriter, context: &mut PDFWritingContext, resources: &ResourceDict) -> Content {
+    fn write_content(&self, context: &mut PDFWritingContext, resources: &ResourceDict) -> Content {
         let mut content = Content::new();
 
         for layout in self.content.iter() {
@@ -196,12 +196,11 @@ impl LayoutedElements {
         content
     }
 
-    fn write_as_page(&self, writer: &mut PdfWriter, context: &mut PDFWritingContext, id: Ref, parent: Ref) {
+    fn write_as_page(&self, writer: &mut PdfWriter, context: &mut PDFWritingContext, id: Ref, parent: Ref, format: Rect) {
         let content_id = context.next_ref();
         let mut page = writer.page(id);
         
-        let a4 = Rect::new(0.0, 0.0, 842.0, 595.0);
-        page.media_box(a4);
+        page.media_box(format);
         page.parent(parent);
         page.contents(content_id);
 
@@ -210,7 +209,7 @@ impl LayoutedElements {
 
         page.finish();
 
-        let content = self.write_content(writer, context, &resources);
+        let content = self.write_content(context, &resources);
         writer.stream(content_id, &content.finish());
     }
 }
@@ -409,7 +408,27 @@ impl LayoutedDocument {
         writer.pages(page_tree_id).kids(page_ids.clone()).count(self.pages.len() as i32);
 
         for (page, id) in self.pages.iter().zip(page_ids) {
-            page.write_as_page(writer, context, id, page_tree_id);
+            let dim = page.format.get_dimensions();
+            page.elements.write_as_page(writer, context, id, page_tree_id, Rect { x1: 0.0, y1: 0.0, x2: dim.0, y2: dim.1 });
         }
+    }
+}
+
+impl ContentWriteable for TransformLayout {
+    fn write_to_pdf(&self, content: &mut Content, resources: &ResourceDict) {
+        content.save_state();
+        content.transform([1.0, 0.0, 0.0, 1.0, self.x, self.y]);
+        for element in self.elements.iter() {
+            element.write_to_pdf(content, resources);
+        }
+        content.restore_state();
+    }
+    
+    fn get_xobjects(&self) -> Vec<&XObjectRef> {
+        self.elements.iter().map(|e| e.get_xobjects()).flatten().collect::<Vec<_>>()
+    }
+
+    fn get_fonts_and_glyphs(&self) -> Vec<(&FontUseRef, HashSet<u16>)> {
+        self.elements.iter().map(|e| e.get_fonts_and_glyphs()).flatten().collect::<Vec<_>>()
     }
 }

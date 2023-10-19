@@ -3,7 +3,7 @@ use std::{str::FromStr, collections::HashMap};
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use hyper::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait};
+use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}, self}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema};
 use sea_orm::{DatabaseConnection, prelude::Uuid, ConnectionTrait, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait};
 use serde::{Serialize, Deserialize};
 use tracing::log::kv::source;
@@ -118,7 +118,7 @@ async fn submit_feedback_form(
 ) -> Result<Json<FeedbackFormSubmissionResponse>, APIError> {
     let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
     let target_role = FeedbackTargetRole::from_str(&target_role).map_err(handle_error)?;
-
+    
     let tournament_id = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
             Participant::get(&db, source_id).await?.tournament_id
@@ -169,7 +169,6 @@ async fn submit_feedback_form(
         match &response_val {
             FeedbackResponseValue::String { val } if val.len() == 0 => (),
             _ => {response_values.insert(key, response_val);}
-
         };
     }
 
@@ -177,14 +176,24 @@ async fn submit_feedback_form(
 
     let (source_participant_id, source_team_id) = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
+            let is_authorized = user.check_is_authorized_as_participant(&db, source_id).await?;
+            if !is_authorized {
+                return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
+            }
+
             (Some(source_id), None)
         },
         FeedbackSourceRole::Team => {
+            
+            if !user.check_is_authorized_as_member_of_team(&db, source_id).await? {
+                return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
+            }
             (None, Some(source_id))
         }
     };
 
-    let participant_id = open_tab_entities::schema::user_participant::Entity::find()
+
+    let participant = open_tab_entities::schema::user_participant::Entity::find()
     .join(JoinType::InnerJoin, open_tab_entities::schema::user_participant::Relation::Participant.def())
     .filter(
         open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id).and(
@@ -192,22 +201,13 @@ async fn submit_feedback_form(
         )
     ).one(&db).await.map_err(handle_error)?;
     
-    if participant_id.is_none() {
+    if participant.is_none() {
         return Err(APIError::from((StatusCode::FORBIDDEN, "User is not a participant in this tournament")))
     }
 
-    dbg!(
-        submission_id.as_u128(),
-        participant_id.clone().unwrap().participant_id.as_u128(),
-        target_id.as_u128(),
-        source_team_id.map(|t| t.as_u128()),
-        source_participant_id.map(|p| p.as_u128()),
-        debate_id.as_u128(),
-    );
-
     let submission = FeedbackResponse {
         uuid: submission_id,
-        author_participant_id: participant_id.unwrap().participant_id,
+        author_participant_id: participant.unwrap().participant_id,
         target_participant_id: target_id,
         source_team_id,
         source_participant_id,

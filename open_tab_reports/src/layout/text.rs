@@ -19,7 +19,7 @@ use std::collections::HashSet;
 
 use crate::pdf::writable::{ContentWriteable, XObjectRenderable};
 
-use super::{FontCollection, FontUseRef, context::LayoutContext, layout_trait::Layoutable};
+use super::{FontCollection, FontUseRef, context::LayoutContext, layout_trait::{Layoutable, Layouter, BoundingBox}};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,7 +111,7 @@ impl DynamicTextBox {
 
         TextLayoutResult {
             instructions,
-            height: -y_advance,
+            height: -y_advance + font_size,
             n_lines,
             glyph_ids,
             total_width,
@@ -160,6 +160,7 @@ impl DynamicTextBox {
             if result.height > max_height {
                 //let new_font_size = self.default_font_size * max_height / result.height;
                 let factor = ((self.width * max_height) / (self.default_font_size * result.total_width)).sqrt();
+                let factor = f32::min(1.0, factor);
                 return self.run_layout_trial(context, &parsed_text, (self.default_font_size * factor).floor());
             }
             else {
@@ -199,24 +200,39 @@ pub struct TextLayoutResult {
 
 #[typetag::serde]
 impl Layoutable for DynamicTextBox {
-    fn layout(&self, context: &mut LayoutContext, value: &super::LayoutValue) -> super::LayoutResult {
-        let text = match value {
+    fn get_layouter<'a>(&'a self, value: &'a super::LayoutValue) -> Box<dyn Layouter<'a> + 'a> {
+        Box::new(TextLayouter {
+            text_box: self,
+            value
+        })
+    }
+}
+
+struct TextLayouter<'a> {
+    text_box: &'a DynamicTextBox,
+    value: &'a super::LayoutValue
+}
+
+impl<'a> Layouter<'a> for TextLayouter<'a> {
+    fn layout(&mut self, context: &mut LayoutContext, _bbox: BoundingBox) -> super::LayoutResult {
+        let text = match self.value {
             super::LayoutValue::String(s) => s,
-            _ => panic!("Expected string")
+            _ => panic!("Expected string, got {:?}", self.value)
         };
 
-        let result = self.layout_text(context, text);
+        let result = self.text_box.layout_text(context, text);
 
         return super::LayoutResult {
             bounding_box: super::layout_trait::BoundingBox {
-                x: self.x,
-                y: self.y,
-                width: self.width,
+                x: self.text_box.x,
+                y: self.text_box.y,
+                width: self.text_box.width,
                 height: result.height
             },
             objects: vec![
                 Box::new(result)
-            ]
+            ],
+            is_done: true
         };
     }
 }

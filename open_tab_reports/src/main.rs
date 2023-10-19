@@ -116,5 +116,53 @@ fn main() -> std::io::Result<()> {
     graphic.write_to_pdf(&mut writer, &mut context);
     font_collection.write_fonts_to_pdf(&mut writer, &mut context, fonts.into_iter().collect_vec());
 
-    std::fs::write("image.pdf", writer.finish())
+    std::fs::write("image.pdf", writer.finish());
+
+
+    let template_value_dicts = LayoutValue::Dict(HashMap::from_iter(
+            vec![
+                (
+                    "team_tab".into(), LayoutValue::Vec(
+                        (0..120).map(|i| 
+                            LayoutValue::Dict(
+                                HashMap::from_iter(vec![("name".into(), LayoutValue::String(format!("Entry {}", i).into()))].into_iter())
+                            )).collect_vec()
+                    )
+                )
+            ]
+        ));
+    
+
+    let doc_values = LayoutValue::Dict(
+        HashMap::from_iter(
+            vec![
+                ("pages".into(), LayoutValue::Vec(vec![template_value_dicts]))
+            ]
+        )
+    );
+
+    let mut context = PDFWritingContext::new();
+    let mut writer = PdfWriter::new();
+    let mut graphic: GraphicsCollection = GraphicsCollection::new();
+    let mut layout_context = LayoutContext::new(&mut swash_context, &mut font_collection, &mut graphic);
+
+    let document_template = serde_json::from_str::<DocumentTemplate>(std::fs::read_to_string("template2.json")?.as_str())?;
+
+    let doc = document_template.layout(&mut layout_context, &doc_values);
+    
+    doc.write_to_pdf(&mut writer, &mut context);
+
+    let mut fonts = doc.get_fonts_and_glyphs();
+
+    graphic.get_fonts_and_glyphs().into_iter().for_each(|(f, g)| {
+        fonts.entry(f).or_insert_with(|| HashSet::new()).extend(g);
+    });
+
+    graphic.write_to_pdf(&mut writer, &mut context);
+    font_collection.write_fonts_to_pdf(&mut writer, &mut context, fonts.into_iter().collect_vec());
+
+
+    std::fs::write("image2.pdf", writer.finish());
+
+    Ok(())
 }

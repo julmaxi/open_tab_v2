@@ -8,7 +8,7 @@ use axum::{
 use base64::Engine;
 use open_tab_entities::{schema::{user_access_key, user}, prelude::Participant};
 use rand::{thread_rng, Rng};
-use sea_orm::{prelude::*, DatabaseConnection, ActiveValue, IntoActiveModel, TransactionTrait};
+use sea_orm::{prelude::*, DatabaseConnection, ActiveValue, IntoActiveModel, TransactionTrait, QuerySelect, Related};
 use serde::{Serialize, Deserialize};
 use tower_http::trace::TraceLayer;
 use tracing::info_span;
@@ -48,6 +48,49 @@ impl AuthenticatedUser {
 
             Ok(user_tournament.is_some())
         }
+    }
+
+    pub async fn check_is_authorized_as_participant<C>(&self, db: &C, participant_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+        let user_participant_id = open_tab_entities::schema::user_participant::Entity::find().filter(
+            open_tab_entities::schema::user_participant::Column::UserId.eq(self.uuid).and(
+                open_tab_entities::schema::user_participant::Column::ParticipantId.eq(participant_id)
+            )).one(db).await?.map(|u| u.participant_id);   
+        
+        Ok(user_participant_id == Some(participant_id))
+    }
+
+    pub async fn check_is_authorized_as_member_of_team<C>(&self, db: &C, team_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+        let user_participant_id: Option<Uuid> = open_tab_entities::schema::speaker::Entity::find()
+        .join(
+            sea_orm::JoinType::InnerJoin,
+            open_tab_entities::schema::speaker::Entity::belongs_to(open_tab_entities::schema::user_participant::Entity)
+            .from(open_tab_entities::schema::speaker::Column::Uuid)
+            .to(open_tab_entities::schema::user_participant::Column::ParticipantId)
+            .into()
+        )
+        .filter(
+            open_tab_entities::schema::user_participant::Column::UserId.eq(self.uuid).and(
+                open_tab_entities::schema::speaker::Column::TeamId.eq(team_id)
+            )).one(db).await?.map(|u| u.uuid);   
+        
+        Ok(user_participant_id.is_some())
+    }
+
+    pub async fn participant_id_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
+        let user_participant_id = open_tab_entities::schema::user_participant::Entity::find()
+        .inner_join(
+            open_tab_entities::schema::participant::Entity
+        )
+        .filter(
+            open_tab_entities::schema::user_participant::Column::UserId.eq(self.uuid).and(
+                open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id)
+        )).one(db).await?.map(|u| u.participant_id);   
+        
+        Ok(user_participant_id)
+    }
+
+    pub async fn check_is_authorized_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+        Ok(self.participant_id_in_tournament(db, tournament_id).await?.is_some())
     }
 }
 
@@ -142,6 +185,7 @@ pub struct GetTokenResponse {
 pub struct RegisterUserResponse {
     pub user_id: Uuid,
     pub participant_id: Uuid,
+    pub tournament_id: Uuid,
     pub token: String
 }
 
@@ -238,6 +282,7 @@ pub async fn register_user_handler(
                         RegisterUserResponse {
                             user_id: existing_user.user_id,
                             participant_id: participant_id,
+                            tournament_id: participant.tournament_id,
                             token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)
                         }.into()
                     )
@@ -265,6 +310,7 @@ pub async fn register_user_handler(
                         RegisterUserResponse {
                             user_id: new_user_id,
                             participant_id,
+                            tournament_id: participant.tournament_id,
                             token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)
                         }.into()
                     )

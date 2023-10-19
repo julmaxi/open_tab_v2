@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ImageName, GraphicsCollection, XObjectLayout, LayoutContext, layout_trait::Layoutable};
+use super::{ImageName, GraphicsCollection, XObjectLayout, LayoutContext, layout_trait::{Layoutable, BoundingBox}};
 
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -38,17 +38,33 @@ impl FixedImage {
 
 #[typetag::serde]
 impl Layoutable for FixedImage {
-    fn layout(&self, context: &mut LayoutContext, _value: &super::LayoutValue) -> super::LayoutResult {
+    fn get_layouter<'a>(&'a self, _value: &'a super::LayoutValue) -> Box<dyn super::layout_trait::Layouter<'a> + 'a> {
+        Box::new(ImageLayouter {
+            image: self,
+            value: _value
+        })
+    }
+}
+
+
+struct ImageLayouter<'a> {
+    image: &'a FixedImage,
+    value: &'a super::LayoutValue
+}
+
+impl<'a> super::layout_trait::Layouter<'a> for ImageLayouter<'a> {
+    fn layout(&mut self, context: &mut LayoutContext, bbox: BoundingBox) -> super::LayoutResult {
         super::LayoutResult {
             bounding_box: super::layout_trait::BoundingBox {
-                x: self.x,
-                y: self.y,
-                width: self.width,
-                height: self.height
+                x: self.image.x,
+                y: self.image.y,
+                width: self.image.width,
+                height: self.image.height
             },
             objects: vec![
-                Box::new(self.layout(context))
-            ]
+                Box::new(self.image.layout(context))
+            ],
+            is_done: true
         }
     }
 }

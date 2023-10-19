@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/public'
 import { make_authenticated_request } from '$lib/api';
+import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, fetch, cookies }) {
@@ -9,6 +10,9 @@ export async function load({ params, fetch, cookies }) {
             headers: new Headers({'Authorization': `Bearer ${cookies.get("token")}`}),
         }
     );*/
+    if (params.participant_id === undefined) {
+        throw redirect(302, `/tournament/${params.tournament_id}/home/${cookies.get("participant_id")}`);
+    }
     let res = await make_authenticated_request(
         `api/participant/${params.participant_id}`,
         cookies,
@@ -20,5 +24,6 @@ export async function load({ params, fetch, cookies }) {
         name: participant_info.name,
         rounds: participant_info.rounds,
         feedback_submissions: participant_info.feedback_submissions,
+        tournamentId: params.tournament_id,
     };
 }

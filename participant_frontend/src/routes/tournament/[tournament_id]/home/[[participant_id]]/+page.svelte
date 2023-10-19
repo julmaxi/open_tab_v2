@@ -81,7 +81,7 @@
 <ul>
 {#each unsubmittedFeedback as feedback}
     <li>
-        <a href={`/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`}>
+        <a href={`/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`}>
             For {feedback.target_name} ({feedback.target_role.type}) in {feedback.round_name}
         </a>
     </li>
@@ -95,7 +95,9 @@
 <ul>
 {#each submittedFeedback as feedback}
     <li>
-        {feedback.round_name}
+        <a href={`/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`}>
+            For {feedback.target_name} ({feedback.target_role.type}) in {feedback.round_name}
+        </a>
     </li>
 {/each}
 </ul>

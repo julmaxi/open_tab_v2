@@ -2,260 +2,261 @@
   "forms": {
     "background": {
       "elements": [
-        [
-          "background_image",
+        {
+            "key": "background_image",
+            "element": {
+              "type": "FixedImage",
+              "width": 842.0,
+              "height": 595.0,
+              "x": 0.0,
+              "y": 0.0,
+              "image_name": {
+                "Path": "Laufzettel-V14.png"
+              }
+            }
+          },
           {
-            "type": "FixedImage",
-            "width": 842.0,
-            "height": 595.0,
-            "x": 0.0,
-            "y": 0.0,
-            "image_name": {
-              "Path": "Laufzettel-V14.png"
+            "key": "motion",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 210.0,
+              "max_height": 42.0,
+              "default_font_size": 11.0,
+              "x": 568.0,
+              "y": 552.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
             }
           }
-        ],
-        [
-          "motion",
-          {
-            "type": "DynamicTextBox",
-            "width": 210.0,
-            "max_height": 42.0,
-            "default_font_size": 11.0,
-            "x": 568.0,
-            "y": 552.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
         ]
-      ]
     }
   },
   "page_generators": [
     {
       "type": "SinglePageTemplate",
+      "format": "A4Horizontal",
       "elements": [
-        [
-          "background",
+        {
+            "key": "background",
+            "element": {
+              "type": "FixedImage",
+              "width": 1.0,
+              "height": 1.0,
+              "x": 0.0,
+              "y": 0.0,
+              "image_name": {
+                "Form": "background"
+              }
+            }
+          },
           {
-            "type": "FixedImage",
-            "width": 1.0,
-            "height": 1.0,
-            "x": 0.0,
-            "y": 0.0,
-            "image_name": {
-              "Form": "background"
+            "key": "gov.members.0",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 454.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "opp.members.0",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 422.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "gov.members.1",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 390.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "opp.members.1",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 358.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "non_aligned.members.0",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 315.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "non_aligned.members.1",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 285.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "non_aligned.members.2",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 255.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "opp.members.2",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 215.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "gov.members.2",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 184.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "gov.name",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 87.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "opp.name",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 100.0,
+              "max_height": 14.0,
+              "default_font_size": 12.0,
+              "x": 36.0,
+              "y": 55.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "adj.0",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 42.0,
+              "max_height": 18.0,
+              "default_font_size": 10.0,
+              "x": 173.0,
+              "y": 490.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "adj.1",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 42.0,
+              "max_height": 18.0,
+              "default_font_size": 10.0,
+              "x": 228.0,
+              "y": 490.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "adj.2",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 42.0,
+              "max_height": 18.0,
+              "default_font_size": 10.0,
+              "x": 283.0,
+              "y": 490.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "adj.3",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 42.0,
+              "max_height": 18.0,
+              "default_font_size": 10.0,
+              "x": 337.0,
+              "y": 490.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
+            }
+          },
+          {
+            "key": "adj.4",
+            "element": {
+              "type": "DynamicTextBox",
+              "width": 42.0,
+              "max_height": 18.0,
+              "default_font_size": 10.0,
+              "x": 393.0,
+              "y": 490.0,
+              "layout_direction": "BottomToTop",
+              "font": "Helvetica"
             }
           }
-        ],
-        [
-          "gov.members.0",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 454.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "opp.members.0",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 422.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "gov.members.1",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 390.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "opp.members.1",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 358.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "non_aligned.members.0",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 315.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "non_aligned.members.1",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 285.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "non_aligned.members.2",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 255.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "opp.members.2",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 215.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "gov.members.2",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 184.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "gov.name",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 87.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "opp.name",
-          {
-            "type": "DynamicTextBox",
-            "width": 100.0,
-            "max_height": 14.0,
-            "default_font_size": 12.0,
-            "x": 36.0,
-            "y": 55.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "adj.0",
-          {
-            "type": "DynamicTextBox",
-            "width": 42.0,
-            "max_height": 18.0,
-            "default_font_size": 10.0,
-            "x": 173.0,
-            "y": 490.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "adj.1",
-          {
-            "type": "DynamicTextBox",
-            "width": 42.0,
-            "max_height": 18.0,
-            "default_font_size": 10.0,
-            "x": 228.0,
-            "y": 490.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "adj.2",
-          {
-            "type": "DynamicTextBox",
-            "width": 42.0,
-            "max_height": 18.0,
-            "default_font_size": 10.0,
-            "x": 283.0,
-            "y": 490.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "adj.3",
-          {
-            "type": "DynamicTextBox",
-            "width": 42.0,
-            "max_height": 18.0,
-            "default_font_size": 10.0,
-            "x": 337.0,
-            "y": 490.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ],
-        [
-          "adj.4",
-          {
-            "type": "DynamicTextBox",
-            "width": 42.0,
-            "max_height": 18.0,
-            "default_font_size": 10.0,
-            "x": 393.0,
-            "y": 490.0,
-            "layout_direction": "BottomToTop",
-            "font": "Helvetica"
-          }
-        ]
       ]
     }
   ]

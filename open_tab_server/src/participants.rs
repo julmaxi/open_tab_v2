@@ -28,7 +28,6 @@ pub enum ParticipantRoleInfo {
     Speaker {team_name: String, team_id: Uuid}
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedbackSubmissionInfo {
     pub target_name: String,

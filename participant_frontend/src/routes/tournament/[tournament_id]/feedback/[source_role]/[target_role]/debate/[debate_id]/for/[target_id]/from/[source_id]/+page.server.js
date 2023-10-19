@@ -1,4 +1,5 @@
 import { make_authenticated_request } from '$lib/api';
+import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, cookies }) {
@@ -49,5 +50,11 @@ export const actions = {
         });
         console.log(res.status);
         console.log(await res.text());
-    },
+
+        let participantId = cookies.get("participant_id");
+
+        if (res.status == 200) {
+            throw redirect(302, `/tournament/${params.tournament_id}/home/${participantId}`);
+        }
+    }
 }

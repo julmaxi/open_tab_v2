@@ -24,13 +24,16 @@ mod image;
 mod context;
 mod layout_trait;
 mod page;
+mod grid;
 
 pub use layout_trait::{LayoutValue, LayoutResult};
 pub use page::{SinglePageTemplate, DocumentTemplate};
+pub use grid::{TransformLayout, DynamicRowLayout};
 
 pub use context::LayoutContext;
 pub use text::{DynamicTextBox, LayoutDirection, TextLayoutResult, Instruction};
 pub use self::image::FixedImage;
+use self::page::PageLayoutInfo;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ImageName {
@@ -68,6 +71,14 @@ impl LayoutedElements {
 
     pub fn push(&mut self, element: Box<dyn ContentWriteable>) {
         self.content.push(element);
+    }
+}
+
+impl From<Vec<Box<dyn ContentWriteable>>> for LayoutedElements {
+    fn from(vec: Vec<Box<dyn ContentWriteable>>) -> Self {
+        Self {
+            content: vec
+        }
     }
 }
 
@@ -222,14 +233,14 @@ impl GraphicsCollection {
 }
 
 pub struct LayoutedDocument {
-    pub pages: Vec<LayoutedElements>,
+    pub pages: Vec<PageLayoutInfo>,
 }
 
 impl LayoutedDocument {
     pub fn get_fonts_and_glyphs(&self) -> HashMap<FontUseRef, HashSet<u16>> {
         let mut used_fonts = HashMap::new();
         for page in self.pages.iter() {
-            for (font, used_glyphs) in page.get_fonts_and_glyphs() {
+            for (font, used_glyphs) in page.elements.get_fonts_and_glyphs() {
                 used_fonts.entry(font).or_insert_with(|| HashSet::new()).extend(used_glyphs);
             }
         }

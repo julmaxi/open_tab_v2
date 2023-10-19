@@ -27,6 +27,7 @@ pub mod ballot;
 pub mod participants;
 pub mod sync;
 pub mod feedback;
+pub mod tab;
 
 use sea_orm::prelude::*;
 
@@ -58,6 +59,8 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
             sync::router()
         ).merge(
             feedback::router()
+        ).merge(
+            tab::router()
         )
     )
     .layer(

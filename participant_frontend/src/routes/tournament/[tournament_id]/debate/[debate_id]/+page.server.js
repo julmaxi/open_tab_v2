@@ -159,6 +159,6 @@ export const actions = {
             body: JSON.stringify(ballot),
         });*/
 
-        throw redirect(302, `/submission/${(await res.json()).submission_id}`);
+        throw redirect(302, `/tournament/${params.tournament_id}/submission/${(await res.json()).submission_id}`);
     }
 };
