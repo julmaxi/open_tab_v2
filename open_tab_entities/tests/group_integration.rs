@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap};
+use std::{error::Error, collections::HashMap, default};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement};
@@ -21,7 +21,7 @@ pub async fn set_up_db() -> Result<DatabaseConnection, DbErr> {
 
 fn make_changeset() -> (EntityGroup, Ballot) {
     let mut changeset = EntityGroup::new();
-    changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }));
+    changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10), ..default::Default::default() }));
     changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }));
     changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100), ..Default::default() }));
     let ballot = Ballot {
@@ -133,7 +133,7 @@ async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
     let db = set_up_db().await?;
 
     let mut changeset = EntityGroup::new();
-    changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10) }), Uuid::from_u128(10));
+    changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10), ..default::Default::default() }), Uuid::from_u128(10));
     changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }), Uuid::from_u128(11));
 
     changeset.save_all(&db).await?;

@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap};
+use std::{error::Error, collections::HashMap, default};
 
 use itertools::Itertools;
 use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
@@ -19,6 +19,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
     if with_mock_env {
         let a : open_tab_entities::schema::tournament::ActiveModel = open_tab_entities::schema::tournament::Model {
             uuid: Uuid::from_u128(1),
+            annoucements_password: Some("password".into()),
         }.into();
         a.insert(&db).await?;
          open_tab_entities::schema::team::Entity::insert_many(vec![
@@ -464,6 +465,7 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
     let db = set_up_db(true).await?;
     let tournament = Tournament {
         uuid: Uuid::from_u128(10),
+        ..default::Default::default()
     };
     tournament.save(&db, true).await?;
 

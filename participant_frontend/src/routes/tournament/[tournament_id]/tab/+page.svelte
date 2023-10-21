@@ -1,12 +1,12 @@
 <script>
+    import Number from "$lib/Number.svelte";
+    import ScoreDetailDisplay from "./ScoreDetailDisplay.svelte";
+
     export let data;
 
     let activeTab = "teamTab";
-    console.log(data);
     let teamTab = data.tab.team_tab;
     let speakerTab = data.tab.speaker_tab;
-
-    console.log(teamTab, speakerTab);
 </script>
 
 
@@ -32,9 +32,12 @@
             <tbody>
                 {#each teamTab as team}
                     <tr>
-                        <td class="w-12 px-4 py-2 border">{team.rank}</td>
-                        <td class="px-4 py-2 border">{team.team_name}</td>
-                        <td class="w-12 px-4 py-2 border text-center">{team.total_points}</td>
+                        <td class="w-12 px-4 py-2 border">{team.rank + 1}</td>
+                        <td class="px-4 py-2 border">
+                            {team.team_name}
+                            <ScoreDetailDisplay detailedScores={team.detailed_scores} roundInfo={data.rounds} />
+                        </td>
+                        <td class="w-12 px-4 py-2 border text-right"><Number number={team.total_points} /></td>
                     </tr>
                 {/each}
             </tbody>
@@ -51,9 +54,12 @@
             <tbody>
                 {#each speakerTab as speaker}
                     <tr>
-                        <td class="w-12 px-4 py-2 border">{speaker.rank}</td>
+                        <td class="w-12 px-4 py-2 border">
+                            {speaker.rank + 1}
+                            <ScoreDetailDisplay detailedScores={speaker.detailed_scores} roundInfo={data.rounds} />
+                        </td>
                         <td class="px-4 py-2 border">{speaker.speaker_name}</td>
-                        <td class="w-12 px-4 py-2 border text-center">{speaker.total_points}</td>
+                        <td class="w-12 px-4 py-2 border text-right"><Number number={speaker.total_points} /></td>
                     </tr>
                 {/each}
             </tbody>

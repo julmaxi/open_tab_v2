@@ -18,6 +18,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
     if with_mock_env {
         let tournament : open_tab_entities::schema::tournament::ActiveModel = open_tab_entities::schema::tournament::Model {
             uuid: Uuid::from_u128(1),
+            annoucements_password: Some("test".into()),
         }.into();
         tournament.insert(&db).await?;
 
