@@ -65,7 +65,7 @@
         </div>
         <div>
             {#if round.participant_role.role === "Adjudicator" }
-            <a href={`/debate/${round.participant_role.debate.uuid}`}>
+            <a href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}>
                 Submit ballot
             </a>
             {/if}

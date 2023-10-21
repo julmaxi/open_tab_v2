@@ -3,3 +3,7 @@ target/
 
 **/.DS_Store
 **/*.sqlite3
+**/*.pdf
+open_tab_reports/template2.json
+open_tab_reports/template.json
+open_tab_reports/Laufzettel-V14.png

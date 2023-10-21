@@ -2,6 +2,7 @@ import { useState, useId, useMemo, useEffect, useCallback } from "react";
 import { Children } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
+import { WebviewWindow, getCurrent } from '@tauri-apps/api/window'
 import { emit, listen } from '@tauri-apps/api/event'
 
 import "./App.css";
@@ -17,6 +18,7 @@ import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 import { useContext } from 'react';
 import { ParticipantOverview } from "./ParticipantOverview";
+import TournamentOverview from "./Setup/TournamentOverview";
 
 
 function NavGroup(props) {
@@ -88,11 +90,22 @@ function WindowFrame(props) {
 }
 
 export function App() {
-  return <TournamentContext.Provider value={({uuid: "00000000-0000-0000-0000-000000000001"})}>
+  let label = getCurrent().label;
+
+  let tournamentId = null;
+
+  if (label !== "main") {
+    tournamentId = label;
+  }
+
+  return tournamentId ? <TournamentContext.Provider value={({uuid: tournamentId})}>
     <div className="overscroll-none">
       <WindowFrame />
     </div>
-  </TournamentContext.Provider>
+  </TournamentContext.Provider> : <div className="flex h-screen">
+    <TournamentOverview tournaments={[
+    ]} />
+  </div>
 }
 
 export function DrawEditorRoute() {

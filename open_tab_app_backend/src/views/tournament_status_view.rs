@@ -1,7 +1,7 @@
 
 use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::domain::entity::LoadEntity;
-use open_tab_entities::schema;
+use open_tab_entities::schema::{self, tournament_remote};
 
 use sea_orm::QueryOrder;
 use sea_orm::prelude::Uuid;
@@ -59,13 +59,22 @@ impl LoadedView for LoadedTournamentStatusView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TournamentStatusView {
     annoucements_password: Option<String>,
+    remote_url: Option<String>
 }
 
 impl TournamentStatusView {
-    async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
         let tournament = Tournament::get(db, tournament_id).await?;
+
+        let remote = tournament_remote::Entity::find().filter(
+            tournament_remote::Column::TournamentId.eq(tournament_id)
+        )
+            .one(db)
+            .await?;
+
         Ok(Self {
             annoucements_password: tournament.annoucements_password,
+            remote_url: remote.map(|r| r.url)
         })
     }
 }
