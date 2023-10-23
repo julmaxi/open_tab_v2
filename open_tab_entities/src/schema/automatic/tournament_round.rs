@@ -14,6 +14,7 @@ pub struct Model {
     pub info_slide: Option<String>,
     pub draw_release_time: Option<DateTime>,
     pub team_motion_release_time: Option<DateTime>,
+    pub debate_start_time: Option<DateTime>,
     pub full_motion_release_time: Option<DateTime>,
     pub round_close_time: Option<DateTime>,
     pub is_silent: bool,

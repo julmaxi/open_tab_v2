@@ -1026,9 +1026,6 @@ fn main() {
 
     let settings = AppSettings::try_read(settings_path).unwrap_or_default();
 
-
-    
-
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             subscribe_to_view,

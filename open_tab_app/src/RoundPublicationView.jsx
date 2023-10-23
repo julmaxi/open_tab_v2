@@ -75,6 +75,7 @@ function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
         };
     }
 
+
     let dateFormat = new Intl.DateTimeFormat('en-GB', { ...dateOptions })
     return <div className={`${color} p-2 text-center`}>
         {name}
@@ -100,8 +101,8 @@ function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
 
 
 
-function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, fullMotionReleaseTime, roundCloseTime, onSetReleaseTime}) {
-    [drawReleaseTime, teamMotionReleaseTime, fullMotionReleaseTime, roundCloseTime] = [drawReleaseTime, teamMotionReleaseTime, fullMotionReleaseTime, roundCloseTime].map((s) => s === null ? s : new Date(s + "+00:00"));
+function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime, onSetReleaseTime}) {
+    [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime] = [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime].map((s) => s === null ? s : new Date(s + "+00:00"));
     let states = [
         {
             "key": "drawReleaseTime",
@@ -112,6 +113,11 @@ function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, fullMotionRelea
             "key": "teamMotionReleaseTime",
             "name": "Motion Release to Teams",
             "releaseTime": teamMotionReleaseTime,
+        },
+        {
+            "key": "debateStartTime",
+            "name": "Debate Start",
+            "releaseTime": debateStartTime,
         },
         {
             "key": "fullMotionReleaseTime",
@@ -189,6 +195,7 @@ export function RoundPublicationView({roundId}) {
         is_silent: false,
     };*/
 
+    console.log(publicationInfo);
     if (publicationInfo === null) {
         return <div>Loading…</div>
     }
@@ -203,6 +210,7 @@ export function RoundPublicationView({roundId}) {
             <RoundStatusBar
                 drawReleaseTime={publicationInfo.draw_release_time}
                 teamMotionReleaseTime={publicationInfo.team_motion_release_time}
+                debateStartTime={publicationInfo.debate_start_time}
                 fullMotionReleaseTime={publicationInfo.full_motion_release_time}
                 roundCloseTime={publicationInfo.round_close_time}
                 onSetReleaseTime={(key, date) => {

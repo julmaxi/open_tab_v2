@@ -1,19 +1,23 @@
 use std::collections::HashMap;
 
 use axum::{extract::{State, Path}, Json, Router, routing::{post, get}};
+use chrono::Duration;
 use hyper::StatusCode;
 use itertools::{Itertools, izip};
-use open_tab_entities::{schema, domain::{self, entity::LoadEntity}};
-use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, DatabaseConnection, ColumnTrait};
+use open_tab_entities::{schema, domain::{self, entity::LoadEntity}, EntityGroup, EntityGroupTrait};
+use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, DatabaseConnection, ColumnTrait, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, state::AppState};
+use crate::{response::{APIError, handle_error, handle_error_dyn}, state::AppState, tournament};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct DrawPresentationInfo {
     round_id: Uuid,
     round_name: String,
+
+    motion: String,
+    info_slide: Option<String>,
 
     debates: Vec<DebatePresentationInfo>
 }
@@ -153,46 +157,66 @@ async fn get_draw_presentation(
         DrawPresentationInfo {
             round_id: round_id,
             round_name: format!("{}", round.index + 1),
-            debates
+            debates,
+            motion: round.motion.unwrap_or("<No motion>".into()),
+            info_slide: round.info_slide
         }
     ))
 }
 
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MotionPresentationInfo {
-    motion: String,
-    info_slide: Option<String>
+struct ReleaseMotionResponse {
+    debate_start_time: chrono::NaiveDateTime
 }
 
-impl From<schema::tournament_round::Model> for MotionPresentationInfo {
-    fn from(round: schema::tournament_round::Model) -> Self {
-        Self {
-            motion: round.motion.unwrap_or("<No motion>".into()),
-            info_slide: round.info_slide
-        }
-    }
-}
-
-async fn get_round_motion(
+async fn set_motion_release(
     State(db): State<DatabaseConnection>,
     Path(round_id): Path<Uuid>,
-) -> Result<Json<MotionPresentationInfo>, APIError> {
-    let round: Option<schema::tournament_round::Model> = schema::tournament_round::Entity::find_by_id(round_id).one(&db).await.map_err(handle_error)?;
+) -> Result<Json<ReleaseMotionResponse>, APIError> {
+    let db = db.begin().await.map_err(handle_error)?;
+    let round = domain::round::TournamentRound::try_get(&db, round_id).await.map_err(handle_error_dyn)?;
 
     if !round.is_some() {
         return Err(APIError::from((StatusCode::NOT_FOUND, "Round not found")))
     }
 
-    let round = round.unwrap();
-    
-    Ok(
-        Json(round.into())
-    )
+    let mut round = round.unwrap();
+    let tournament_id = round.tournament_id;
+
+    let now = chrono::Utc::now().naive_utc();
+
+    let draw_release_time = round.draw_release_time.unwrap_or(now);
+    round.draw_release_time = Some(draw_release_time);
+
+    let motion_release_time = round.team_motion_release_time.unwrap_or(now);
+    round.team_motion_release_time = Some(motion_release_time);
+
+    let debate_start_time = round.debate_start_time.unwrap_or(now + Duration::minutes(15));
+    round.debate_start_time = Some(debate_start_time);
+
+    let full_motion_release_time = round.full_motion_release_time.unwrap_or(now + Duration::minutes(20));
+    round.full_motion_release_time = Some(full_motion_release_time);
+
+    let mut entity_group = EntityGroup::new();
+
+    entity_group.add(
+        open_tab_entities::Entity::TournamentRound(round)
+    );
+
+    entity_group.save_all_and_log_for_tournament(&db, tournament_id).await.map_err(handle_error_dyn)?;
+    db.commit().await.map_err(handle_error)?;
+
+    Ok(Json(
+        ReleaseMotionResponse {
+            debate_start_time
+        }
+    ))
 }
 
 
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/draw/:round_id", get(get_draw_presentation))
-    .route("/draw/:round_id/motion", get(get_round_motion))
+    .route("/draw/:round_id/release-motion", post(set_motion_release))
 }

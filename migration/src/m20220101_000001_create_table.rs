@@ -28,6 +28,7 @@ enum TournamentRound {
     InfoSlide,
     DrawReleaseTime,
     TeamMotionReleaseTime,
+    DebateStartTime,
     FullMotionReleaseTime,
     RoundCloseTime,
     IsSilent,
@@ -272,6 +273,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(TournamentRound::InfoSlide).string())
                 .col(ColumnDef::new(TournamentRound::DrawReleaseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::TeamMotionReleaseTime).date_time())
+                .col(ColumnDef::new(TournamentRound::DebateStartTime).date_time())
                 .col(ColumnDef::new(TournamentRound::FullMotionReleaseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::RoundCloseTime).date_time())
                 .col(ColumnDef::new(TournamentRound::IsSilent).boolean().not_null())
