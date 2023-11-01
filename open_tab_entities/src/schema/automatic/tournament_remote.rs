@@ -11,6 +11,7 @@ pub struct Model {
     pub url: String,
     pub last_known_change: Option<Uuid>,
     pub last_synced_change: Option<Uuid>,
+    pub created_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

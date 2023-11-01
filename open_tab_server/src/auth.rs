@@ -112,9 +112,10 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
             let user_name = decoded.username();
             let password = decoded.password();
 
-            let user = if user_name.starts_with("mail:") {
+            dbg!(&user_name, user_name.starts_with("mail#"));
+            let user = if user_name.starts_with("mail#") {
                 open_tab_entities::schema::user::Entity::find().filter(
-                    open_tab_entities::schema::user::Column::UserEmail.eq(user_name.trim_start_matches("mail:"))
+                    open_tab_entities::schema::user::Column::UserEmail.eq(user_name.trim_start_matches("mail#"))
                 ).one(&state.db).await.map_err(handle_error)?
              }
             else {
@@ -217,7 +218,7 @@ pub async fn create_user_handler(
     let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
         uuid: new_user_uuid,
         password_hash: pwd,
-        user_email: None
+        user_email: request.user_email
     };
 
     model.into_active_model().insert(&db).await.map_err(
@@ -240,7 +241,11 @@ pub fn create_key(key: &[u8], user_id: Uuid, tournament_id: Option<Uuid>) -> Res
     })
 }
 
-pub async fn create_token_handler(State(db): State<DatabaseConnection>, ExtractAuthenticatedUser(user): ExtractAuthenticatedUser, Json(request): Json<GetTokenRequest>) -> Result<Json<GetTokenResponse>, APIError> {
+pub async fn create_token_handler(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Json(request): Json<GetTokenRequest>
+) -> Result<Json<GetTokenResponse>, APIError> {
     if user.authorized_only_for_tournament.is_some() {
         return Err((StatusCode::UNAUTHORIZED, "Tournament specific tokens can't be used to create new keys").into())
     }

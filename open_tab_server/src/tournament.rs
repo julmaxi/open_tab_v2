@@ -3,6 +3,7 @@ use axum::{Json, Router, routing::post};
 use axum::body::Body;
 use base64::Engine;
 use hyper::StatusCode;
+use open_tab_entities::schema::user_tournament;
 use open_tab_entities::{EntityGroup, EntityGroupTrait};
 use rand::{thread_rng, Rng};
 use sea_orm::{DatabaseConnection, IntoActiveModel, ActiveModelTrait};
@@ -42,6 +43,12 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
     let key = thread_rng().gen::<[u8; 32]>();
     let token = create_key(&key, user.uuid, Some(uuid)).map_err(handle_error_dyn)?;
     token.into_active_model().insert(&db).await.map_err(handle_error)?;
+
+    let user_tournament = open_tab_entities::schema::user_tournament::Model {
+        user_id: user.uuid,
+        tournament_id: uuid,
+    };
+    user_tournament.into_active_model().insert(&db).await.map_err(handle_error)?;
 
     return Ok(
         Json(

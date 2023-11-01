@@ -2,6 +2,7 @@ use std::{collections::{HashMap, HashSet}, any};
 
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
+use hyper::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId, domain::entity::LoadEntity};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
@@ -76,7 +77,6 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
 
 pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, anyhow::Error>
     where C: ConnectionTrait  {
-    todo!();
     let log = get_log_since(transaction, tournament_id, since).await?;
     let flat_log = log.iter().map(
         LogEntry::from
@@ -120,7 +120,7 @@ async fn get_log(
     Query(params): Query<HashMap<String, String>>
 ) -> Result<Json<FatLog<Entity, EntityType>>, APIError> {
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        return Err(APIError::new("User is not authorized for tournament administration".into()));
+        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not authorized for tournament administration")));
     }
 
     let since = match params.get("since").map(

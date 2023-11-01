@@ -36,6 +36,7 @@ impl From<anyhow::Error> for APIError {
 impl IntoResponse for APIError
 {
     fn into_response(self) -> Response {
+        dbg!(&self.message);
         let mut res = serde_json::to_string(&APIErrorResponse {message: self.message.clone()}).unwrap().into_response();
         *res.status_mut() = self.code;
         res
