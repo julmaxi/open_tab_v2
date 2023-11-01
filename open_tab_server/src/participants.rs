@@ -7,7 +7,7 @@ use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackFor
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error, handle_error_dyn}, auth::{ExtractAuthenticatedUser, AuthenticatedUser, check_release_date}, state::AppState, tournament};
+use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser, AuthenticatedUser, check_release_date}, state::AppState, tournament};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -361,7 +361,7 @@ async fn get_participant_info(
         }
     }).collect_vec();
 
-    let all_feedback_forms = FeedbackForm::get_all_in_tournament(&transaction, participant.tournament_id).await.map_err(handle_error_dyn)?;
+    let all_feedback_forms = FeedbackForm::get_all_in_tournament(&transaction, participant.tournament_id).await?;
 
     let overall_visibility = all_feedback_forms.iter().fold(
         Default::default(),

@@ -25,7 +25,7 @@ pub struct TournamentDebate {
 
 
 impl TournamentDebate {
-    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         let round_ids = entities.iter().map(|debate| debate.round_id).collect_vec();
         let rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.is_in(round_ids)).all(db).await?;
 

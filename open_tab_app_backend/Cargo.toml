@@ -23,6 +23,8 @@ chrono = "*"
 thiserror = "1.0"
 base64 = "0.21.0"
 mcmf = "2.0.0"
+anyhow = "1.0"
+async-trait = "*"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

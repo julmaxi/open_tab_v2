@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use itertools::{Itertools, izip};
 use sea_orm::{prelude::*, ActiveValue, QueryOrder};
 use serde::{Serialize, Deserialize};
+use thiserror::Error;
 
 use crate::schema;
 use crate::utilities::{BatchLoad};
@@ -33,6 +34,12 @@ impl ToString for BreakType {
     fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
+}
+
+#[derive(Debug, Error)]
+enum BreakTypeError {
+    #[error("Invalid break type")]
+    InvalidBreakType,
 }
 
 
@@ -93,7 +100,7 @@ impl TournamentBreak {
         }
     }
 
-    pub async fn get_break_for_round<C>(db: &C, round_uuid: Uuid) -> Result<Option<Self>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn get_break_for_round<C>(db: &C, round_uuid: Uuid) -> Result<Option<Self>, anyhow::Error> where C: ConnectionTrait {
         let breaks = schema::tournament_break::Entity::find()
             .inner_join(schema::tournament_break_child_round::Entity)
             .filter(
@@ -120,7 +127,7 @@ impl TournamentBreak {
         r.map(|mut v| v.pop())
     }
 
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: ConnectionTrait {
         let breaks = schema::tournament_break::Entity::find()
             .filter(
                 schema::tournament_break::Column::TournamentId.eq(tournament_id)
@@ -150,7 +157,7 @@ impl TournamentBreak {
         child_rounds: Vec<schema::tournament_break_child_round::Model>,
         teams: Vec<schema::tournament_break_team::Model>,
         speakers: Vec<schema::tournament_break_speaker::Model>,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, anyhow::Error> {
         let breaking_teams = teams.into_iter().sorted_by_key(|team| team.position).map(|t| t.team_id).collect();
         let breaking_speakers = speakers.into_iter().sorted_by_key(|speaker| speaker.position).map(|s| s.speaker_id).collect();
         let source_rounds : Result<_, _> = source_rounds.into_iter().sorted_by_key(
@@ -158,9 +165,9 @@ impl TournamentBreak {
         ).map(
             |r| {
                 let break_type = match r.dependency_type.as_str() {
-                    "Tab" => Ok::<_, &'static str>(TournamentBreakSourceRoundType::Tab),
+                    "Tab" => Ok(TournamentBreakSourceRoundType::Tab),
                     "Knockout" => Ok(TournamentBreakSourceRoundType::Knockout),
-                    _ => return Err("Invalid break type"),
+                    _ => return Err(BreakTypeError::InvalidBreakType),
                 }?;
                 Ok(TournamentBreakSourceRound {
                     break_type,
@@ -170,14 +177,16 @@ impl TournamentBreak {
         ).collect();
         let child_rounds = child_rounds.into_iter().map(|r| r.tournament_round_id).sorted().collect();
 
-        let break_type : Result<BreakType, _> = break_row.break_type.parse();
+        let break_type = break_row.break_type.parse::<BreakType>()?;
+
+        let source_rounds = source_rounds?;
 
         Ok(Self {
             uuid: break_row.uuid,
-            source_rounds: source_rounds?,
+            source_rounds: source_rounds,
             child_rounds,
             tournament_id: break_row.tournament_id,
-            break_type: break_type?,
+            break_type: break_type,
             breaking_teams,
             breaking_speakers,
         })
@@ -200,7 +209,7 @@ pub fn pad<E>(vec: Vec<E>, mask: &[bool]) -> Vec<Option<E>> {
 
 #[async_trait]
 impl LoadEntity for TournamentBreak {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: ConnectionTrait {
         let breaks = schema::tournament_break::Entity::batch_load(db, uuids).await?;
         let exists_mask = breaks.iter().map(|b| b.is_some()).collect::<Vec<_>>();
 
@@ -226,7 +235,7 @@ impl LoadEntity for TournamentBreak {
 
 #[async_trait]
 impl TournamentEntity for TournamentBreak {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         let model = schema::tournament_break::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
             tournament_id: ActiveValue::Set(self.tournament_id),
@@ -449,13 +458,13 @@ impl TournamentEntity for TournamentBreak {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         return Ok(entities.iter().map(|team| {
             Some(team.tournament_id)
         }).collect());
     }
     
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

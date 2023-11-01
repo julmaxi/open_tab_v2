@@ -26,6 +26,13 @@ impl APIError {
     }
 }
 
+impl From<anyhow::Error> for APIError {
+    fn from(err: anyhow::Error) -> Self {
+        error!("Error while handling request {}", err.to_string());
+        APIError { message: err.to_string(), code: StatusCode::INTERNAL_SERVER_ERROR }
+    }
+}
+
 impl IntoResponse for APIError
 {
     fn into_response(self) -> Response {
@@ -47,13 +54,6 @@ impl From<(StatusCode, String)> for APIError {
     fn from((code, message): (StatusCode, String)) -> Self {
         error!("Error while handling request {}", message);
         APIError { message: message.to_string(), code }
-    }
-}
-
-impl From<Box<dyn Error>> for APIError {
-    fn from(err: Box<dyn Error>) -> Self {
-        error!("Error while handling request {}", err.to_string());
-        APIError { message: err.to_string(), code: StatusCode::INTERNAL_SERVER_ERROR }
     }
 }
 

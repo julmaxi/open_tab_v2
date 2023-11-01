@@ -9,7 +9,7 @@ use sea_orm::{prelude::*, Database, Statement};
 use open_tab_app_backend::{actions::UpdateDrawAction, draw_view::{DrawBallot, DrawTeam, DrawAdjudicator, DrawSpeaker}, actions::ActionTrait};
 
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -26,7 +26,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
 }
 
 #[tokio::test]
-async fn test_insert_new_empty_ballot() -> Result<(), Box<dyn Error>> {
+async fn test_insert_new_empty_ballot() -> Result<(), anyhow::Error> {
     let db = set_up_db(false).await?;
 
     let action = UpdateDrawAction {
@@ -60,7 +60,7 @@ async fn test_insert_new_empty_ballot() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_update_ballot_saves_team() -> Result<(), Box<dyn Error>> {
+async fn test_update_ballot_saves_team() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let action = UpdateDrawAction {
@@ -100,7 +100,7 @@ async fn test_update_ballot_saves_team() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_update_ballot_saves_adjudicators() -> Result<(), Box<dyn Error>> {
+async fn test_update_ballot_saves_adjudicators() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let action = UpdateDrawAction {
@@ -138,7 +138,7 @@ async fn test_update_ballot_saves_adjudicators() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_update_ballot_saves_non_aligned() -> Result<(), Box<dyn Error>> {
+async fn test_update_ballot_saves_non_aligned() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let action = UpdateDrawAction {
@@ -195,7 +195,7 @@ async fn test_update_ballot_saves_non_aligned() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), Box<dyn Error>> {
+async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();
@@ -238,7 +238,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
 
 
 #[tokio::test]
-async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dyn Error>> {
+async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();
@@ -283,7 +283,7 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), Box<dy
 
 
 #[tokio::test]
-async fn test_change_non_aligned_with_additional() -> Result<(), Box<dyn Error>> {
+async fn test_change_non_aligned_with_additional() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();
@@ -338,7 +338,7 @@ async fn test_change_non_aligned_with_additional() -> Result<(), Box<dyn Error>>
 
 
 #[tokio::test]
-async fn test_change_non_aligned_with_fewer() -> Result<(), Box<dyn Error>> {
+async fn test_change_non_aligned_with_fewer() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let mut prev_ballot = Ballot::get_many(&db, vec![Uuid::from_u128(421)]).await?.pop().unwrap();

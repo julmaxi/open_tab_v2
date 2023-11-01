@@ -204,7 +204,7 @@ impl TeamScore {
 
 #[async_trait]
 impl LoadEntity for Ballot {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, anyhow::Error> where C: ConnectionTrait {
         let ballots = schema::ballot::Entity::batch_load(db, uuids.clone()).await?;
         let has_value = ballots.iter().map(|b| b.is_some()).collect_vec();
         let mut retrieved_ballots_iter = Self::get_from_ballots(db, ballots.into_iter().filter(|b| b.is_some()).map(|b| b.unwrap()).collect()).await?.into_iter();
@@ -743,19 +743,19 @@ impl Ballot {
 
 #[async_trait]
 impl TournamentEntity for Ballot {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         self.save(db, guarantee_insert).await?;
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
         let id = schema::tournament_round::Entity::find().join(JoinType::InnerJoin, schema::tournament_round::Relation::TournamentDebate.def()).filter(
             schema::tournament_debate::Column::BallotId.eq(self.uuid)
         ).one(db).await.map(|round| round.map(|round| round.tournament_id))?;
         Ok(id)
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         schema::ballot::Entity::delete_many().filter(schema::ballot::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

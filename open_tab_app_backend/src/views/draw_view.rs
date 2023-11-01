@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::domain::tournament_venue::TournamentVenue;
 use serde::{Serialize, Deserialize};
@@ -36,7 +36,7 @@ pub struct LoadedDrawView {
 }
 
 impl LoadedDrawView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedDrawView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedDrawView, anyhow::Error> where C: ConnectionTrait {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
 
         Ok(
@@ -50,7 +50,7 @@ impl LoadedDrawView {
 
 #[async_trait]
 impl LoadedView for LoadedDrawView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         // TODO: We assume, the debate index never changes, even though it could in theory
         let changed_debates_by_id : HashMap<_, _> = changes.tournament_debates.iter().map(|d| (d.uuid, d)).collect();
         let changed_ballots_by_id : HashMap<_, _> = changes.ballots.iter().map(|b| (b.uuid, b)).collect();
@@ -116,7 +116,7 @@ impl LoadedView for LoadedDrawView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -471,7 +471,7 @@ impl DrawView {
         ballot
     }
 
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<DrawView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<DrawView, anyhow::Error> where C: ConnectionTrait {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
 
         return Self::load_from_round(db, round).await;
@@ -608,7 +608,7 @@ impl DrawView {
         ).sorted_by(|e1, e2| e1.team.name.cmp(&e2.team.name)).collect()
     }
 
-    async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, anyhow::Error> where C: ConnectionTrait {
         let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round.uuid)).all(db).await?;
 
         let ballot_uuids = debates.iter().map(|debate| debate.ballot_id).collect_vec();

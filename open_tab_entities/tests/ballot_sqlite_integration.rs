@@ -119,7 +119,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
 }
 
 
-async fn test_ballot_roundtrip_in_db(db: &DatabaseConnection, ballot: Ballot, as_insert: bool) -> Result<(), Box<dyn Error>> {
+async fn test_ballot_roundtrip_in_db(db: &DatabaseConnection, ballot: Ballot, as_insert: bool) -> Result<(), anyhow::Error> {
     ballot.save(db, as_insert).await?;
 
     let mut saved_ballot = Ballot::get_many(
@@ -134,14 +134,14 @@ async fn test_ballot_roundtrip_in_db(db: &DatabaseConnection, ballot: Ballot, as
     Ok(())
 }
 
-async fn test_ballot_roundtrip(ballot: Ballot, as_insert: bool) -> Result<(), Box<dyn Error>> {
+async fn test_ballot_roundtrip(ballot: Ballot, as_insert: bool) -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     test_ballot_roundtrip_in_db(&db, ballot, as_insert).await?;
     Ok(())
 }
 
 #[tokio::test]
-async fn test_empty_ballot_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_empty_ballot_roundtrip() -> Result<(), anyhow::Error> {
     test_ballot_roundtrip(Ballot {
         uuid: Uuid::from_u128(100),
         ..Default::default()
@@ -152,7 +152,7 @@ async fn test_empty_ballot_roundtrip() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_preserve_adjudicator_order() -> Result<(), Box<dyn Error>> {
+async fn test_preserve_adjudicator_order() -> Result<(), anyhow::Error> {
     test_ballot_roundtrip(Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: vec![403, 401, 405].into_iter().map(|u| Uuid::from_u128(u as u128)).collect(),
@@ -163,7 +163,7 @@ async fn test_preserve_adjudicator_order() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_set_president() -> Result<(), Box<dyn Error>> {
+async fn test_set_president() -> Result<(), anyhow::Error> {
     test_ballot_roundtrip(Ballot {
         uuid: Uuid::from_u128(100),
         president: Some(Uuid::from_u128(401)),
@@ -175,7 +175,7 @@ async fn test_set_president() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_ballot_teams_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_ballot_teams_roundtrip() -> Result<(), anyhow::Error> {
     test_ballot_roundtrip(Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
@@ -197,7 +197,7 @@ async fn test_ballot_teams_roundtrip() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_can_not_set_nonexistant_team() -> Result<(), Box<dyn Error>> {
+async fn test_can_not_set_nonexistant_team() -> Result<(), anyhow::Error> {
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
         government: BallotTeam {
@@ -213,7 +213,7 @@ async fn test_can_not_set_nonexistant_team() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn judge_not_in_adjudicators_can_not_score_team() -> Result<(), Box<dyn Error>> {
+async fn judge_not_in_adjudicators_can_not_score_team() -> Result<(), anyhow::Error> {
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
@@ -233,7 +233,7 @@ async fn judge_not_in_adjudicators_can_not_score_team() -> Result<(), Box<dyn Er
 
 
 #[tokio::test]
-async fn test_speeches_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_speeches_roundtrip() -> Result<(), anyhow::Error> {
     test_ballot_roundtrip(Ballot {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
@@ -249,7 +249,7 @@ async fn test_speeches_roundtrip() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_judge_not_in_adjudicators_can_not_score_speech() -> Result<(), Box<dyn Error>> {
+async fn test_judge_not_in_adjudicators_can_not_score_speech() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -269,7 +269,7 @@ async fn test_judge_not_in_adjudicators_can_not_score_speech() -> Result<(), Box
 
 
 #[tokio::test]
-async fn test_change_team() -> Result<(), Box<dyn Error>> {
+async fn test_change_team() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -290,7 +290,7 @@ async fn test_change_team() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_swap_team() -> Result<(), Box<dyn Error>> {
+async fn test_swap_team() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -316,7 +316,7 @@ async fn test_swap_team() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_remove_adjudicator() -> Result<(), Box<dyn Error>> {
+async fn test_remove_adjudicator() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -334,7 +334,7 @@ async fn test_remove_adjudicator() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_reorder_adjudicators() -> Result<(), Box<dyn Error>> {
+async fn test_reorder_adjudicators() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -352,7 +352,7 @@ async fn test_reorder_adjudicators() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_reorder_annotators_keeps_scores_with_judges() -> Result<(), Box<dyn Error>> {
+async fn test_reorder_annotators_keeps_scores_with_judges() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -382,7 +382,7 @@ async fn test_reorder_annotators_keeps_scores_with_judges() -> Result<(), Box<dy
 
 
 #[tokio::test]
-async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), Box<dyn Error>> {
+async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -416,7 +416,7 @@ async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), Box<dyn Er
 
 
 #[tokio::test]
-async fn test_remove_adjudicators_deletes_speech_scores() -> Result<(), Box<dyn Error>> {
+async fn test_remove_adjudicators_deletes_speech_scores() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -445,7 +445,7 @@ async fn test_remove_adjudicators_deletes_speech_scores() -> Result<(), Box<dyn 
 }
 
 #[tokio::test]
-async fn test_get_tournament_from_independent_ballot() -> Result<(), Box<dyn Error>> {
+async fn test_get_tournament_from_independent_ballot() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -461,7 +461,7 @@ async fn test_get_tournament_from_independent_ballot() -> Result<(), Box<dyn Err
 }
 
 #[tokio::test]
-async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> {
+async fn test_get_tournament_from_debate_ballot() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let tournament = Tournament {
         uuid: Uuid::from_u128(10),
@@ -501,7 +501,7 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), Box<dyn Error>> 
 }
 
 #[tokio::test]
-async fn test_get_many_preserves_order() -> Result<(), Box<dyn Error>> {
+async fn test_get_many_preserves_order() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballots = (100..=102).map(|i| Ballot {
         uuid: Uuid::from_u128(i),
@@ -523,7 +523,7 @@ async fn test_get_many_preserves_order() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_getting_missing_ballot_raises_error() -> Result<(), Box<dyn Error>> {
+async fn test_getting_missing_ballot_raises_error() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballots = (100..=102).map(|i| Ballot {
         uuid: Uuid::from_u128(i),
@@ -561,7 +561,7 @@ async fn test_getting_missing_ballot_raises_error() -> Result<(), Box<dyn Error>
 }
 
 #[tokio::test]
-async fn test_try_get_has_correct_order() -> Result<(), Box<dyn Error>> {
+async fn test_try_get_has_correct_order() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballots = (100..=102).map(|i| Ballot {
         uuid: Uuid::from_u128(i),
@@ -583,7 +583,7 @@ async fn test_try_get_has_correct_order() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_try_get_replaces_missing_with_none() -> Result<(), Box<dyn Error>> {
+async fn test_try_get_replaces_missing_with_none() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballots = (100..=102).map(|i| Ballot {
         uuid: Uuid::from_u128(i),
@@ -606,7 +606,7 @@ async fn test_try_get_replaces_missing_with_none() -> Result<(), Box<dyn Error>>
 
 
 #[tokio::test]
-async fn test_delete_ballot_succeeds() -> Result<(), Box<dyn Error>> {
+async fn test_delete_ballot_succeeds() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -626,7 +626,7 @@ async fn test_delete_ballot_succeeds() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_delete_ballot_deletes_only_targets() -> Result<(), Box<dyn Error>> {
+async fn test_delete_ballot_deletes_only_targets() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     for i in 100..103 {
         let ballot = Ballot {

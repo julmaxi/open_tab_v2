@@ -8,7 +8,7 @@ use sea_orm::prelude::Uuid;
 use std::path::Display;
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -27,7 +27,7 @@ pub struct LoadedRoundResultsView {
 }
 
 impl LoadedRoundResultsView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedRoundResultsView {
                 round_id: round_uuid,
@@ -39,14 +39,14 @@ impl LoadedRoundResultsView {
 
 #[async_trait]
 impl LoadedView for LoadedRoundResultsView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_debates.len() > 0 || changes.ballots.len() > 0 || changes.teams.len() > 0 || changes.participants.len() > 0 || changes.debate_backup_ballots.len() > 0 {
             println!("Refreshing round results view {}", self.round_id);
             self.view = RoundResultsView::load(db, self.round_id).await?;
 
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);
-            println!("Done round results view {}", self.round_id);
+            println!("Done round results  view {}", self.round_id);
 
             Ok(Some(out))
         }
@@ -55,7 +55,7 @@ impl LoadedView for LoadedRoundResultsView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -224,8 +224,8 @@ impl Into<Ballot> for DisplayBallot {
 }
 
 impl RoundResultsView {
-    async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
-        let round = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.eq(round_uuid)).one(db).await?.ok_or("Round not found")?;
+    async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+        let round = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.eq(round_uuid)).one(db).await?.ok_or(anyhow::anyhow!("Round not found"))?;
         let info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 
         let debates = schema::tournament_debate::Entity::find()
@@ -243,19 +243,19 @@ impl RoundResultsView {
 
         let all_ballots_by_id : HashMap<_, _> = Ballot::get_many(db, all_ballot_uuids).await?.into_iter().map(|ballot| (ballot.uuid, DisplayBallot::from_ballot_and_info(ballot, &info))).collect();
 
-        let out_debates: Result<Vec<_>, Box<dyn Error>> = debates.into_iter().map(
+        let out_debates: Result<Vec<_>, anyhow::Error> = debates.into_iter().map(
             |debate| {
-                let backup_ballots: Result<Vec<BackupBallot>, Box<dyn Error>> = backup_ballots.iter().filter(|ballot| ballot.debate_id == debate.uuid).map(|ballot| Ok(BackupBallot {
+                let backup_ballots: Result<Vec<BackupBallot>, anyhow::Error> = backup_ballots.iter().filter(|ballot| ballot.debate_id == debate.uuid).map(|ballot| Ok(BackupBallot {
                     name: ballot.timestamp.to_string(),
                     uuid: ballot.uuid,
                     ballot_uuid: ballot.ballot_id,
-                    ballot: all_ballots_by_id.get(&ballot.ballot_id).ok_or("Ballot not found")?.clone()
+                    ballot: all_ballots_by_id.get(&ballot.ballot_id).ok_or(anyhow::anyhow!("Ballot not found"))?.clone()
                 })).collect();
                 Ok(ResultDebate {
                     uuid: debate.uuid,
                     name: format!("Debate {}", debate.index + 1),
                     backup_ballots: backup_ballots?,
-                    ballot: all_ballots_by_id.get(&debate.ballot_id).cloned().ok_or("Ballot not found")?
+                    ballot: all_ballots_by_id.get(&debate.ballot_id).cloned().ok_or(anyhow::anyhow!("Ballot not found"))?
                 })
             }
         ).collect();

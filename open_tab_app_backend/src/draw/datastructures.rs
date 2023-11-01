@@ -125,7 +125,7 @@ pub struct RoundInfo {
 }
 
 impl RoundInfo {
-    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>) -> Result<Vec<Self>, anyhow::Error> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_many(db, round_ids.clone()).await?.into_iter().sorted_by_key(|r| r.index).collect_vec();
         let ballots = Ballot::get_all_in_rounds(db, round_ids).await?;
 

@@ -3,7 +3,7 @@ use std::hash::Hash;
 use std::iter::{zip, self};
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::domain::entity::LoadEntity;
 use serde::{Serialize, Deserialize};
 
@@ -24,7 +24,7 @@ pub struct LoadedRoundPublicationView {
 }
 
 impl LoadedRoundPublicationView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedRoundPublicationView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedRoundPublicationView, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedRoundPublicationView {
                 round: TournamentRound::get(db, round_uuid).await?,
@@ -35,7 +35,7 @@ impl LoadedRoundPublicationView {
 
 #[async_trait]
 impl LoadedView for LoadedRoundPublicationView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_rounds.len() > 0 {
             self.round = TournamentRound::get(db, self.round.uuid).await?;
             let mut out = HashMap::new();
@@ -47,7 +47,7 @@ impl LoadedView for LoadedRoundPublicationView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.round)?)
     }
 }

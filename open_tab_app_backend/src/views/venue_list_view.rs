@@ -3,7 +3,7 @@ use sea_orm::prelude::Uuid;
 
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::{prelude::*, QueryOrder};
@@ -20,7 +20,7 @@ pub struct LoadedVenueListView {
 }
 
 impl LoadedVenueListView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             Self {
                 tournament_id: tournament_uuid,
@@ -32,7 +32,7 @@ impl LoadedVenueListView {
 
 #[async_trait]
 impl LoadedView for LoadedVenueListView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_venues.len() > 0 {
             self.view = VenueListView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -46,7 +46,7 @@ impl LoadedView for LoadedVenueListView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -65,7 +65,7 @@ pub struct VenueOverview {
 
 
 impl VenueListView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<VenueListView, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<VenueListView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let venues = tournament_venue::TournamentVenue::get_all_in_tournament(db, tournament_uuid).await?;
 
         let venues = venues.into_iter().map(|venue| {

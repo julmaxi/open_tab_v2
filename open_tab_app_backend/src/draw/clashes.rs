@@ -56,7 +56,7 @@ impl ClashMap {
         }
     }
 
-    pub async fn new_for_tournament<C>(config: ClashMapConfig, tournament_id: Uuid, db: &C) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn new_for_tournament<C>(config: ClashMapConfig, tournament_id: Uuid, db: &C) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let mut clash_map = ClashMap::new(config);
 
         let all_clashes = ParticipantClash::get_all_in_tournament(db, tournament_id).await?;
@@ -114,7 +114,7 @@ impl ClashMap {
         Ok(clash_map)
     }
 
-    pub fn add_dynamic_clashes_from_round_ballots(&mut self, round_draws: Vec<&(Uuid, Vec<Ballot>)>, team_members: &HashMap<Uuid, Vec<Uuid>>) -> Result<(), Box<dyn Error>> {
+    pub fn add_dynamic_clashes_from_round_ballots(&mut self, round_draws: Vec<&(Uuid, Vec<Ballot>)>, team_members: &HashMap<Uuid, Vec<Uuid>>) -> Result<(), anyhow::Error> {
         for (round_id, ballots) in round_draws {
             for ballot in ballots {
                 for adj_pair in ballot.adjudicators.iter().combinations(2) {

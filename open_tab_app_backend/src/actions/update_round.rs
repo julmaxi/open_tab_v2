@@ -2,7 +2,7 @@ use std::{error::Error};
 
 
 use base64::{engine::general_purpose, Engine};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::entity::LoadEntity};
 
 use sea_orm::prelude::*;
@@ -76,7 +76,7 @@ pub struct UpdateRoundAction {
 
 #[async_trait]
 impl ActionTrait for UpdateRoundAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         let mut existing_round = open_tab_entities::domain::round::TournamentRound::get(db, self.round_id).await?;

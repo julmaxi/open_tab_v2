@@ -71,13 +71,13 @@ enum NodeType {
 }
 
 impl OptimizationState {
-    pub async fn load_from_round_ids<C>(db: &C, tournament_id: Uuid, round_ids: Vec<Uuid>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_round_ids<C>(db: &C, tournament_id: Uuid, round_ids: Vec<Uuid>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = RoundInfo::load_from_rounds(db, round_ids).await?;
 
         Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
     }
 
-    pub async fn load_from_rounds_and_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(TournamentRound, Vec<Ballot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_rounds_and_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(TournamentRound, Vec<Ballot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
@@ -93,7 +93,7 @@ impl OptimizationState {
         Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
     }
 
-    pub async fn load_from_rounds_and_draw_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(&TournamentRound, &Vec<DrawBallot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_rounds_and_draw_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(&TournamentRound, &Vec<DrawBallot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
@@ -109,7 +109,7 @@ impl OptimizationState {
         Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
     }
 
-    pub async fn load_from_rounds<C>(db: &C, tournament_id: Uuid, rounds: Vec<RoundInfo>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_rounds<C>(db: &C, tournament_id: Uuid, rounds: Vec<RoundInfo>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let adjudicators = Participant::get_all_adjudicators_in_tournament(db, tournament_id).await?;
 
         let mut adjudicator_assignments = adjudicators.iter().map(|adj| (adj.uuid.clone(), vec![AdjudicatorPosition::None; rounds.len()])).collect::<HashMap<Uuid, Vec<AdjudicatorPosition>>>();

@@ -18,7 +18,7 @@ pub struct UpdateVenuesAction {
 
 #[async_trait]
 impl ActionTrait for UpdateVenuesAction {
-    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut g = EntityGroup::new();
 
         for venue in self.updated_venues.into_iter().chain(self.added_venues.into_iter().map(

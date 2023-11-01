@@ -74,7 +74,7 @@ fn auction_algorithm(
     owners.into_iter().enumerate().map(|(obj, owner)| (owner, obj)).collect()
 }
 
-pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
+pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
     let _rng = thread_rng();
     let mut matrix = Matrix::new(ballots.len(), ballots[0].len());
     for (option_idx, ballot_options) in ballots.iter().enumerate() {
@@ -109,7 +109,7 @@ pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evalu
 }
 
 
-pub(crate) fn find_best_ballot_assignments_old(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
+pub(crate) fn find_best_ballot_assignments_old(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
     let (mut solver, mut solution) = ForwardAuctionSolver::new(ballots.len().into(), ballots[0].len().into(), (ballots.len() * ballots[0].len()).into());
 
     solver.init(ballots.len() as u32, ballots[0].len() as u32)?;

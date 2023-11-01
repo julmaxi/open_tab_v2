@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::{Display, Formatter}, collections::HashMap};
 
 use itertools::{Itertools, izip};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::entity::LoadEntity};
 
 use sea_orm::prelude::*;
@@ -29,7 +29,7 @@ pub enum UpdateDrawError {
 
 #[async_trait]
 impl ActionTrait for UpdateDrawAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         let values = self.updated_ballots.iter().map(|d| d.uuid).collect_vec();

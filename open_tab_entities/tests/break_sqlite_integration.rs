@@ -8,7 +8,7 @@ use migration::{MigratorTrait};
 use open_tab_entities::domain::tournament_break::TournamentBreak;
 use open_tab_entities::domain::TournamentEntity;
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -28,7 +28,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
     Ok(db)
 }
 
-async fn test_break_roundtrip_in_db(db: &DatabaseConnection, tournament_break: TournamentBreak, as_insert: bool) -> Result<(), Box<dyn Error>> {
+async fn test_break_roundtrip_in_db(db: &DatabaseConnection, tournament_break: TournamentBreak, as_insert: bool) -> Result<(), anyhow::Error> {
     tournament_break.save(db, as_insert).await?;
 
     let mut saved_break = TournamentBreak::get_many(
@@ -43,7 +43,7 @@ async fn test_break_roundtrip_in_db(db: &DatabaseConnection, tournament_break: T
     Ok(())
 }
 
-async fn test_break_roundtrip(tournament_break: TournamentBreak, as_insert: bool) -> Result<(), Box<dyn Error>> {
+async fn test_break_roundtrip(tournament_break: TournamentBreak, as_insert: bool) -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     test_break_roundtrip_in_db(&db, tournament_break, as_insert).await?;
     Ok(())
@@ -88,7 +88,7 @@ async fn test_save_teams() {
 
 
 #[tokio::test]
-async fn test_delete_teams() -> Result<(), Box<dyn Error>> {
+async fn test_delete_teams() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
@@ -121,7 +121,7 @@ async fn test_delete_teams() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_add_teams() -> Result<(), Box<dyn Error>> {
+async fn test_add_teams() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
@@ -210,7 +210,7 @@ async fn test_save_rounds() {
 
 
 #[tokio::test]
-async fn test_add_child_round() -> Result<(), Box<dyn Error>> {
+async fn test_add_child_round() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
@@ -244,7 +244,7 @@ async fn test_add_child_round() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_add_source_round() -> Result<(), Box<dyn Error>> {
+async fn test_add_source_round() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
@@ -284,7 +284,7 @@ async fn test_add_source_round() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_delete_child_round() -> Result<(), Box<dyn Error>> {
+async fn test_delete_child_round() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
@@ -317,7 +317,7 @@ async fn test_delete_child_round() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_delete_source_round() -> Result<(), Box<dyn Error>> {
+async fn test_delete_source_round() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await.unwrap();
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),

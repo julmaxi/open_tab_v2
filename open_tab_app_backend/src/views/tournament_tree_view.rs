@@ -6,7 +6,7 @@ use sea_orm::prelude::Uuid;
 use std::vec;
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -25,7 +25,7 @@ pub struct LoadedTournamentTreeView {
 }
 
 impl LoadedTournamentTreeView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedTournamentTreeView {
                 tournament_id: tournament_uuid,
@@ -37,7 +37,7 @@ impl LoadedTournamentTreeView {
 
 #[async_trait]
 impl LoadedView for LoadedTournamentTreeView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_rounds.len() > 0 {
             self.view = TournamentTreeView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -51,7 +51,7 @@ impl LoadedView for LoadedTournamentTreeView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -108,7 +108,7 @@ enum BreakOrRound {
 }
 
 impl TournamentTreeView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
         let breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
 
@@ -126,12 +126,16 @@ impl TournamentTreeView {
             }
         ).collect::<HashMap<_, _>>();
 
-        let last_rounds_before_break_map : Result<HashMap<_, _>, &'static str> = breaks.iter().map(
+        let last_rounds_before_break_map : Result<HashMap<_, _>, anyhow::Error> = breaks.iter().map(
             |b: &domain::tournament_break::TournamentBreak| {
-                let source_rounds : Result<Vec<_>, _> = b.source_rounds.iter().map(|r| rounds.get(&r.uuid).ok_or("Round missing")).collect();
+                let source_rounds : Result<Vec<_>, _> = b.source_rounds.iter().map(|r| rounds.get(&r.uuid).ok_or(
+                    anyhow::anyhow!("Round {} not found", r.uuid)
+                )).collect();
                 let mut source_rounds = source_rounds?;
                 source_rounds.sort_by_key(|r| -(r.index as i32));
-                let last_round = source_rounds.into_iter().next().ok_or("No source");
+                let last_round = source_rounds.into_iter().next().ok_or(
+                    anyhow::anyhow!("No source rounds for break")
+                );
                 Ok((b.uuid, last_round?.uuid))
             }
         ).collect();
@@ -173,7 +177,7 @@ impl TournamentTreeView {
             let first_round_uuid = rounds_by_break_requirements.get(&None).and_then(|r| r.first()).map(|r| r.uuid);
     
             if !first_round_uuid.is_some() {
-                return Err("No first round".into());
+                return Err(anyhow::anyhow!("No first round"));
             }
             let first_round_uuid = first_round_uuid.unwrap();
     

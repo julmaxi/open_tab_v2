@@ -47,7 +47,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
             let (_, tournament_type, _) = field_names_and_types.iter().find(|(f, _, _)| f.to_string() == tournament_id.segments.last().unwrap().into_token_stream().to_string()).expect("tournament_id not found in fields");
             if tournament_type.into_token_stream().to_string().starts_with("Option") {
                 quote! {
-                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn std::error::Error>> where C: ConnectionTrait {
+                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                         return Ok(entities.iter().map(|tournament| {
                             tournament.#tournament_id
                         }).collect());
@@ -56,7 +56,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
             }
             else {
                 quote! {
-                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn std::error::Error>> where C: ConnectionTrait {
+                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                         return Ok(entities.iter().map(|tournament| {
                             Some(tournament.#tournament_id)
                         }).collect());
@@ -66,7 +66,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         },
         (None, Some(get_many_tournaments_func)) => {
             quote! {
-                async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn std::error::Error>> where C: ConnectionTrait {
+                async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                     Self::#get_many_tournaments_func(db, entities).await
                 }
             }
@@ -148,7 +148,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
 
         #[async_trait]
         impl crate::domain::entity::TournamentEntity for #name {
-            async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn std::error::Error>> where C: ConnectionTrait {
+            async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
                 let model = self.into_active_model();
                 if guarantee_insert {
                     model.insert(db).await?;
@@ -166,7 +166,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 Ok(())
             }
 
-            async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), Box<dyn std::error::Error>> where C: ConnectionTrait {
+            async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
                 #entity_path::delete_many().filter(
                     #uuid_col_path.is_in(uuids)
                 ).exec(db).await?;
@@ -178,7 +178,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
 
         #[async_trait]
         impl crate::domain::entity::LoadEntity for #name {
-            async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, Box<dyn std::error::Error>> where C: ConnectionTrait {
+            async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                 let models: Vec<Option<#model_path>> =  <#entity_path as crate::utilities::BatchLoad>::batch_load(db, uuids.clone()).await?;
                 Ok(models.into_iter().map(|model| {
                     match model {

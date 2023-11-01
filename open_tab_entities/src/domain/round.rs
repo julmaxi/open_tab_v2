@@ -100,7 +100,7 @@ impl TournamentRound {
         }
     }
 
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentRound>, DbErr> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentRound>, DbErr> where C: sea_orm::ConnectionTrait {
         let rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::TournamentId.eq(tournament_id)).all(db).await?;
         Ok(rounds.into_iter().map(TournamentRound::from_model).collect())
     }

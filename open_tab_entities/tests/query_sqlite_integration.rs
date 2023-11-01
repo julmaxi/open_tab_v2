@@ -6,7 +6,7 @@ use open_tab_entities::{prelude::*, domain::{self}, mock::{self, MockOption}, qu
 use sea_orm::prelude::*;
 
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -26,7 +26,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
 }
 
 #[tokio::test]
-async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
+async fn test_find_team_roles() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let debate_1 = domain::debate::TournamentDebate {
@@ -83,7 +83,7 @@ async fn test_find_team_roles() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
+async fn test_find_non_aligned_roles() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let debate_1 = domain::debate::TournamentDebate {
@@ -145,7 +145,7 @@ async fn test_find_non_aligned_roles() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
+async fn test_find_adjudicator_roles() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let debate_1 = domain::debate::TournamentDebate {
@@ -194,7 +194,7 @@ async fn test_find_adjudicator_roles() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
+async fn test_find_no_role() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let debate_1 = domain::debate::TournamentDebate {
@@ -240,7 +240,7 @@ async fn test_find_no_role() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_multiple_roles() -> Result<(), Box<dyn Error>> {
+async fn test_multiple_roles() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let debate_1 = domain::debate::TournamentDebate {

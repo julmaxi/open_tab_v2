@@ -59,7 +59,7 @@ pub enum PreliminaryDrawError {
     #[error("Other error: {source}")]
     Other {
         #[from]
-        source: Box<dyn Error>,
+        source: anyhow::Error,
     },
 }
 
@@ -214,7 +214,7 @@ impl PreliminaryRoundGenerator {
         opp_bucket: &Vec<&DrawTeamInfo>,
         non_aligned_bucket: &Vec<&DrawTeamInfo>,
         evaluator: &DrawEvaluator,
-    ) -> Result<Vec<DrawBallot>, Box<dyn Error>> {
+    ) -> Result<Vec<DrawBallot>, anyhow::Error> {
         let mut out_ballots = ballots.clone();
         let mut rng = thread_rng();
 
@@ -392,7 +392,7 @@ mod test {
     }
 
     #[test]
-    fn test_generated_draw_has_correct_statistics() -> Result<(), Box<dyn Error>> {
+    fn test_generated_draw_has_correct_statistics() -> Result<(), anyhow::Error> {
         let context = RoundGenerationContext {
             teams: (0..12)
                 .map(|idx| {

@@ -72,7 +72,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
 }
 
 
-async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
     clash.save(db, as_insert).await?;
 
     let mut saved_participant = Participant::get_many(
@@ -89,7 +89,7 @@ async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bo
 
 
 #[tokio::test]
-async fn test_get_all_clashes_in_tournament() -> Result<(), Box<dyn Error>> {
+async fn test_get_all_clashes_in_tournament() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let clash = ParticipantClash {
         uuid: Uuid::from_u128(600),
@@ -117,7 +117,7 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_ignore_inter_tournament_clashes() -> Result<(), Box<dyn Error>> {
+async fn test_ignore_inter_tournament_clashes() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let clash = ParticipantClash {
         uuid: Uuid::from_u128(600),

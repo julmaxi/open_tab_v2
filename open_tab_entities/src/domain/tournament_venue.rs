@@ -17,7 +17,7 @@ pub struct TournamentVenue {
 }
 
 impl TournamentVenue {
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentVenue>, DbErr> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<TournamentVenue>, DbErr> where C: sea_orm::ConnectionTrait {
         let rows = schema::tournament_venue::Entity::find().filter(schema::tournament_venue::Column::TournamentId.eq(tournament_id)).all(db).await?;
         Ok(rows.into_iter().map(Self::from_model).collect())
     }

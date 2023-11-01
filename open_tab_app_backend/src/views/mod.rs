@@ -51,12 +51,12 @@ pub enum View {
 }
 
 impl View {
-    pub async fn load_json<C>(&self, db: &C) -> Result<String, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_json<C>(&self, db: &C) -> Result<String, anyhow::Error> where C: ConnectionTrait {
         let view = self.load(db).await?;
         view.view_string().await
     }
 
-    pub async fn load<C>(&self, db: &C) -> Result<Box<dyn LoadedView>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(&self, db: &C) -> Result<Box<dyn LoadedView>, anyhow::Error> where C: ConnectionTrait {
         Ok(match self {
             View::Draw{uuid} => {
                 Box::new(LoadedDrawView::load(db, *uuid).await?)

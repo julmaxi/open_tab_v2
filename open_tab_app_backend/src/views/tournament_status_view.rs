@@ -1,4 +1,5 @@
 
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::schema::{self, tournament_remote};
@@ -8,7 +9,7 @@ use sea_orm::prelude::Uuid;
 use std::path::Display;
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -27,7 +28,7 @@ pub struct LoadedTournamentStatusView {
 }
 
 impl LoadedTournamentStatusView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedTournamentStatusView {
                 tournament_uuid,
@@ -39,7 +40,7 @@ impl LoadedTournamentStatusView {
 
 #[async_trait]
 impl LoadedView for LoadedTournamentStatusView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournaments.len() > 0 {
             self.view = TournamentStatusView::load(db, self.tournament_uuid).await?;
             let mut out = HashMap::new();
@@ -51,7 +52,7 @@ impl LoadedView for LoadedTournamentStatusView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -59,11 +60,11 @@ impl LoadedView for LoadedTournamentStatusView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TournamentStatusView {
     annoucements_password: Option<String>,
-    remote_url: Option<String>
+    remote_url: Option<String>,
 }
 
 impl TournamentStatusView {
-    pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let tournament = Tournament::get(db, tournament_id).await?;
 
         let remote = tournament_remote::Entity::find().filter(

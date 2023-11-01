@@ -1,7 +1,7 @@
 use std::{error::Error, iter::zip, sync::Arc, collections::HashSet};
 
 use itertools::{Itertools, izip};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::TournamentBreak, tournament_venue::TournamentVenue}};
 
 use rand::seq::SliceRandom;
@@ -64,7 +64,7 @@ fn round_draw_from_team_and_speaker_pairs(team_pairs: Vec<TeamPair>, speaker_pai
 
 #[async_trait]
 impl ActionTrait for GenerateDrawAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut changes = EntityGroup::new();
 
         let all_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
@@ -74,7 +74,7 @@ impl ActionTrait for GenerateDrawAction {
         );
 
         if rounds.len() < self.draw_rounds.len() {
-            return  Err(Box::new(GenerateDrawActionError::RoundIsNotInTournament { tournament_id: self.tournament_id }));
+            Err(GenerateDrawActionError::RoundIsNotInTournament { tournament_id: self.tournament_id })?;
         }
 
         let _prev_rounds_ballots = Ballot::get_all_in_rounds(db, other_rounds.iter().map(|r| r.uuid).collect()).await?;//.into_iter().into_group_map();
@@ -122,12 +122,12 @@ impl ActionTrait for GenerateDrawAction {
  
                 },
                 Some(_) => todo!(),
-                None => return Err(Box::new(GenerateDrawActionError::CanNotDrawRoundWithoutDrawMode)),
+                None => Err(GenerateDrawActionError::CanNotDrawRoundWithoutDrawMode)?,
             }
         }
         else if rounds.len() > 1 {
             if !rounds.iter().all(|r| r.draw_type == Some(DrawType::Preliminary)) {
-                return Err(Box::new(GenerateDrawActionError::CanOnlyDrawMultipleRoundsForStandardPreliminariesDraw))
+                Err(GenerateDrawActionError::CanOnlyDrawMultipleRoundsForStandardPreliminariesDraw)?
             }
 
             let generator = PreliminaryRoundGenerator {

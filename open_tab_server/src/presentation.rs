@@ -175,7 +175,7 @@ async fn set_motion_release(
     Path(round_id): Path<Uuid>,
 ) -> Result<Json<ReleaseMotionResponse>, APIError> {
     let db = db.begin().await.map_err(handle_error)?;
-    let round = domain::round::TournamentRound::try_get(&db, round_id).await.map_err(handle_error_dyn)?;
+    let round = domain::round::TournamentRound::try_get(&db, round_id).await?;
 
     if !round.is_some() {
         return Err(APIError::from((StatusCode::NOT_FOUND, "Round not found")))
@@ -204,7 +204,7 @@ async fn set_motion_release(
         open_tab_entities::Entity::TournamentRound(round)
     );
 
-    entity_group.save_all_and_log_for_tournament(&db, tournament_id).await.map_err(handle_error_dyn)?;
+    entity_group.save_all_and_log_for_tournament(&db, tournament_id).await?;
     db.commit().await.map_err(handle_error)?;
 
     Ok(Json(

@@ -6,7 +6,7 @@ use open_tab_entities::schema;
 use sea_orm::prelude::Uuid;
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -28,7 +28,7 @@ pub struct LoadedParticipantsListView {
 }
 
 impl LoadedParticipantsListView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedParticipantsListView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedParticipantsListView, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedParticipantsListView {
                 tournament_id: tournament_uuid,
@@ -40,7 +40,7 @@ impl LoadedParticipantsListView {
 
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.participants.len() > 0 || changes.teams.len() > 0 {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -54,7 +54,7 @@ impl LoadedView for LoadedParticipantsListView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -116,7 +116,7 @@ pub enum ParticipantRole {
 
 
 impl ParticipantsListView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, anyhow::Error> where C: ConnectionTrait {
        let participants = domain::participant::Participant::get_all_in_tournament(db, tournament_uuid).await?;
 
        // This is a little hack so we can load all the institutions using the Loader trait

@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use itertools::Itertools;
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}}};
 
 use sea_orm::prelude::*;
@@ -34,7 +34,7 @@ pub enum EditTreeActionError {
 
 #[async_trait]
 impl ActionTrait for EditTreeAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;

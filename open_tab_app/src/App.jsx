@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { WebviewWindow, getCurrent } from '@tauri-apps/api/window'
 import { emit, listen } from '@tauri-apps/api/event'
 
+import ConnectivityStatus from "./ConnectivityStatus";
+
 import "./App.css";
 
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
@@ -18,7 +20,9 @@ import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 import { useContext } from 'react';
 import { ParticipantOverview } from "./ParticipantOverview";
-import TournamentOverview from "./Setup/TournamentOverview";
+import TournamentManager from "./Setup/TournamentOverview";
+import LoginWindow from "./LoginWindow";
+
 
 
 function NavGroup(props) {
@@ -83,29 +87,43 @@ function Main(props) {
 function WindowFrame(props) {
   return <div className="flex h-screen overscroll-none">
     <SideNav />
+    <div className="absolute bottom-0 left-0">
+        <ConnectivityStatus state="ok" lastUpdate="2 minutes" message="Connection is stable." />
+    </div>
+
     <Main>
       <Outlet />
     </Main>
   </div>
 }
 
-export function App() {
-  let label = getCurrent().label;
-
-  let tournamentId = null;
-
-  if (label !== "main") {
-    tournamentId = label;
-  }
-
-  return tournamentId ? <TournamentContext.Provider value={({uuid: tournamentId})}>
+export function TournamentWindow({tournamentId}) {
+  return <TournamentContext.Provider value={({uuid: tournamentId})}>
     <div className="overscroll-none">
       <WindowFrame />
     </div>
-  </TournamentContext.Provider> : <div className="flex h-screen">
-    <TournamentOverview tournaments={[
-    ]} />
-  </div>
+  </TournamentContext.Provider>
+}
+
+export function App() {
+  let label = getCurrent().label;
+
+  let view = null;
+
+  let [prefix, ...arg] = label.split(":");
+
+  switch (prefix) {
+    case "login":
+      view = <LoginWindow />;
+      break;
+    case "main":
+      view = <TournamentManager />;
+      break;
+    default:
+      view = <TournamentWindow tournamentId={arg[0]} />;
+  }
+
+  return view;
 }
 
 export function DrawEditorRoute() {

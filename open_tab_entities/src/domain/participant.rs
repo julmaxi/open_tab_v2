@@ -58,7 +58,7 @@ pub enum ParticipantParseError {
 
 #[async_trait]
 impl LoadEntity for Participant {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Participant>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Participant>>, anyhow::Error> where C: ConnectionTrait {
         let participants = schema::participant::Entity::batch_load(db, uuids).await?;
 
         let has_value = participants.iter().map(|b| b.is_some()).collect_vec();
@@ -87,7 +87,7 @@ impl Participant {
         base64::engine::general_purpose::STANDARD_NO_PAD.encode(&registration_secret)
     }
 
-    pub fn decode_registration_key(key: String) -> Result<(Uuid, Vec<u8>), Box<dyn Error>> {
+    pub fn decode_registration_key(key: String) -> Result<(Uuid, Vec<u8>), anyhow::Error> {
         let decoded = base64::engine::general_purpose::STANDARD_NO_PAD.decode(&key)?;
         let uuid = Uuid::from_slice(&decoded[0..16])?;
         let key = decoded[16..48].to_vec();
@@ -207,7 +207,7 @@ impl<A, C, E, P> ChangeSet<A, C> where A: ActiveModelTrait<Entity = E> + IntoAct
 
 #[async_trait]
 impl TournamentEntity for Participant {
-    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         let (existing, adjudicator_overrides) = if guarantee_insert {
             ((vec![], vec![], vec![], vec![]), HashMap::new())
         }
@@ -395,11 +395,11 @@ impl TournamentEntity for Participant {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
         Ok(Some(self.tournament_id))
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         schema::participant::Entity::delete_many().filter(schema::participant::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

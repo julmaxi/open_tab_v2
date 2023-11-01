@@ -281,7 +281,7 @@ fn test_propose_full_header() {
 }
 
 #[test]
-fn test_read_valid_data_with_full_name() -> Result<(), Box<dyn Error>> {
+fn test_read_valid_data_with_full_name() -> Result<(), anyhow::Error> {
     let config = CSVReaderConfig {
         name_column: Some(CSVNameCol::Full {column: 0}),
         role_column: Some(1),
@@ -306,7 +306,7 @@ Pers. D,,Club C,
 }
 
 #[test]
-fn test_read_valid_data_with_first_and_last_name() -> Result<(), Box<dyn Error>> {
+fn test_read_valid_data_with_first_and_last_name() -> Result<(), anyhow::Error> {
     let config = CSVReaderConfig {
         name_column: Some(CSVNameCol::FirstLast{first: 0, last: 1}),
         role_column: Some(2),

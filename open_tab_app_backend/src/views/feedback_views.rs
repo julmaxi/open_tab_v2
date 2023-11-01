@@ -16,7 +16,7 @@ pub struct LoadedFeedbackOverviewView {
 
 
 impl LoadedFeedbackOverviewView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedFeedbackOverviewView {
                 tournament_id: tournament_uuid,
@@ -28,7 +28,7 @@ impl LoadedFeedbackOverviewView {
 
 #[async_trait::async_trait]
 impl LoadedView for LoadedFeedbackOverviewView {
-    async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.participants.len() > 0 || changes.feedback_responses.len() > 0 || changes.feedback_forms.len() > 0 || changes.feedback_questions.len() > 0 {
             self.view = FeedbackOverviewView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -41,7 +41,8 @@ impl LoadedView for LoadedFeedbackOverviewView {
             Ok(None)
         }
     }
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -75,7 +76,7 @@ pub struct ParticipantEntry {
 }
 
 impl FeedbackOverviewView {
-    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let adjudicators = open_tab_entities::schema::adjudicator::Entity::find()
             .find_also_related(open_tab_entities::schema::participant::Entity)
             .filter(open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id))
@@ -195,7 +196,7 @@ pub struct LoadedFeedbackDetailView {
 }
 
 impl LoadedFeedbackDetailView {
-    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedFeedbackDetailView {
                 participant_id: participant_id,
@@ -213,9 +214,11 @@ pub struct FeedbackDetailView {
 }
 
 impl FeedbackDetailView {
-    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(db).await?;
-        let participant = participant.ok_or("Participant not found")?;
+        let participant = participant.ok_or(
+            anyhow::anyhow!("Participant with id {} not found", participant_id)
+        )?;
 
         let participant_name = participant.name.clone();
 
@@ -248,9 +251,9 @@ impl FeedbackDetailView {
                 let question_short_name = question.short_name.clone();
                 let value = v.1;
                 Ok(FeedbackResponseValueEntry { question_id: v.0, question_short_name, value })
-            }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+            }).collect::<Result<Vec<_>, anyhow::Error>>()?;
             Ok(FeedbackResponseDetails { round_name, round_id, author_name: author_name.clone(), author_id, values })
-        }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+        }).collect::<Result<Vec<_>, anyhow::Error>>()?;
 
         Ok(FeedbackDetailView { participant_name, responses })
     }
@@ -275,7 +278,7 @@ pub struct FeedbackResponseValueEntry {
 
 #[async_trait::async_trait]
 impl LoadedView for LoadedFeedbackDetailView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.feedback_responses.len() > 0 || changes.feedback_questions.len() > 0 {
             self.view = FeedbackDetailView::load_from_participant(db, self.participant_id).await?;
 
@@ -288,7 +291,7 @@ impl LoadedView for LoadedFeedbackDetailView {
             Ok(None)
         }
     }
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }

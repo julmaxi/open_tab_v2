@@ -23,7 +23,7 @@ pub struct ParticipantClash {
 }
 
 impl ParticipantClash {
-    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         let participants = schema::participant::Entity::find()
             .filter(schema::participant::Column::Uuid.is_in(entities.iter().map(|entity| entity.uuid).collect_vec()))
             .all(db)

@@ -107,7 +107,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     });
 
     let get_all_tournaments_fn = quote! {
-        async fn get_all_tournaments<C>(&self, db: &C) -> Result<Vec<Option<sea_orm::prelude::Uuid>>, Box<dyn std::error::Error>> where C: sea_orm::ConnectionTrait {
+        async fn get_all_tournaments<C>(&self, db: &C) -> Result<Vec<Option<sea_orm::prelude::Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
             let mut out = Vec::new();
             #(#get_all_tournament_extends)*
             Ok(out)
@@ -135,7 +135,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     });
 
     let save_all_fn = quote! {
-        async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn std::error::Error>> where C: sea_orm::ConnectionTrait {
+        async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
             let delete_map = self.deletions.clone().into_iter().into_group_map();
             #(#save_all_statements)*
             #(#delete_statements)*
@@ -224,7 +224,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     });
 
     let get_many_fn = quote! {
-        async fn get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Entity>, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
+        async fn get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Entity>, anyhow::Error> where C: sea_orm::ConnectionTrait {
             Ok(match entity_type {
                 #(#get_many_with_type_arms),*,
                 _ => panic!("Unknown Entity Type {:?}", entity_type)
@@ -242,7 +242,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     });
 
     let try_get_many_fn = quote! {
-        async fn try_get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Option<Entity>>, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
+        async fn try_get_many_with_type<C>(db: &C, entity_type: Self::TypeId, ids: Vec<Uuid>) -> Result<Vec<Option<Entity>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
             Ok(match entity_type {
                 #(#try_get_many_with_type_arms),*,
                 _ => panic!("Unknown Entity Type {:?}", entity_type)
@@ -292,7 +292,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
                 self.add(e);
             }
 
-            async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<Uuid, Box<dyn Error>> where C: sea_orm::ConnectionTrait {
+            async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<Uuid, anyhow::Error> where C: sea_orm::ConnectionTrait {
                 let last_log_entry = tournament_log::Entity::find()
                 .filter(tournament_log::Column::TournamentId.eq(tournament_id))
                 .order_by_desc(tournament_log::Column::SequenceIdx)

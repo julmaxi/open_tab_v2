@@ -66,7 +66,9 @@ const TournamentManager = () => {
         run();
     }, []);
 
-    return <TournamentOverview tournaments={tournaments} />;
+    return <div className="flex h-screen">
+      <TournamentOverview tournaments={tournaments} />
+    </div>;
 }
 
 export default TournamentManager;

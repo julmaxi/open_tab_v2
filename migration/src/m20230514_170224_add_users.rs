@@ -19,6 +19,7 @@ enum Participant {
 enum User {
     Table,
     Uuid,
+    UserEmail,
     PasswordHash
 }
 
@@ -57,6 +58,11 @@ impl MigrationTrait for Migration {
                             .uuid()
                             .not_null()
                             .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(User::UserEmail)
+                            .string()
+                            .unique_key()
                     )
                     .col(
                         ColumnDef::new(User::PasswordHash)

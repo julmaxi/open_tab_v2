@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap};
+use std::{error::Error, collections::HashMap, any};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -43,7 +43,7 @@ enum LoadFeedbackError {
 
 #[async_trait]
 impl TournamentEntity for FeedbackResponse {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         let existing_response = if guarantee_insert {
             None
         } else {
@@ -114,7 +114,7 @@ impl TournamentEntity for FeedbackResponse {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         let form_tournament_ids = schema::tournament_round::Entity::find()
             .left_join(schema::tournament_debate::Entity)
             .filter(schema::tournament_debate::Column::Uuid.is_in(entities.iter().map(|x| x.source_debate_id.clone()).collect::<Vec<Uuid>>()))
@@ -123,7 +123,7 @@ impl TournamentEntity for FeedbackResponse {
         entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.uuid).cloned().flatten())).collect()
     }
 
-    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), Box<dyn std::error::Error>> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         schema::feedback_response::Entity::delete_many().filter(
             schema::feedback_response::Column::Uuid.is_in(uuids)
         ).exec(db).await?;
@@ -134,7 +134,7 @@ impl TournamentEntity for FeedbackResponse {
 
 #[async_trait]
 impl LoadEntity for FeedbackResponse {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: ConnectionTrait {
         let responses = schema::feedback_response::Entity::batch_load::<_, Uuid>(db, uuids.clone()).await?;
         
         let mut response_values = schema::feedback_response_value::Entity::find()
@@ -158,7 +158,7 @@ impl LoadEntity for FeedbackResponse {
 }
 
 impl FeedbackResponse {
-    fn from_rows(response: schema::feedback_response::Model, values: Vec<schema::feedback_response_value::Model>) -> Result<Self, Box<dyn Error>> {
+    fn from_rows(response: schema::feedback_response::Model, values: Vec<schema::feedback_response_value::Model>) -> Result<Self, anyhow::Error> {
         let values : Result<HashMap<_, _>, _> = values.into_iter().map(
             |v| {
                 Ok((v.question_id, match (
@@ -187,7 +187,7 @@ impl FeedbackResponse {
         })
     }
 
-    pub async fn get_all_for_target_participant<C>(db: &C, target_id: Uuid) -> Result<Vec<Self>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn get_all_for_target_participant<C>(db: &C, target_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: ConnectionTrait {
         let responses = schema::feedback_response::Entity::find()
             .find_with_related(schema::feedback_response_value::Entity)
             .filter(schema::feedback_response::Column::TargetParticipantId.eq(target_id))

@@ -2,7 +2,7 @@ use std::{error::Error};
 
 
 use base64::{engine::general_purpose, Engine};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
 use sea_orm::prelude::*;
@@ -22,7 +22,7 @@ pub struct UpdateParticipantsAction {
 
 #[async_trait]
 impl ActionTrait for UpdateParticipantsAction {
-    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {

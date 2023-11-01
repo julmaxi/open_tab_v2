@@ -6,7 +6,7 @@ use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator,
 use sea_orm::prelude::*;
 
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -132,7 +132,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
     Ok(db)
 }
 
-async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, as_insert: bool) -> Result<(), Box<dyn Error>> where C: ConnectionTrait {
+async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
     participant.save(db, as_insert).await?;
 
     let mut saved_participant = Participant::get_many(
@@ -147,14 +147,14 @@ async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, a
     Ok(())
 }
 
-async fn test_participant_roundtrip(participant: Participant, as_insert: bool) -> Result<(), Box<dyn Error>> {
+async fn test_participant_roundtrip(participant: Participant, as_insert: bool) -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     test_participant_roundtrip_in_db(&db, participant, as_insert).await?;
     Ok(())
 }
 
 #[tokio::test]
-async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_speaker_roundtrip() -> Result<(), anyhow::Error> {
     test_participant_roundtrip(Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
@@ -175,7 +175,7 @@ async fn test_speaker_roundtrip() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_adjudicator_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_adjudicator_roundtrip() -> Result<(), anyhow::Error> {
     test_participant_roundtrip(Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
@@ -192,7 +192,7 @@ async fn test_adjudicator_roundtrip() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_save_adjudicator_round_availability_override() -> Result<(), Box<dyn Error>> {
+async fn test_save_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
     let participant = Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
@@ -211,7 +211,7 @@ async fn test_save_adjudicator_round_availability_override() -> Result<(), Box<d
 
 
 #[tokio::test]
-async fn test_remove_adjudicator_round_availability_override() -> Result<(), Box<dyn Error>> {
+async fn test_remove_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
@@ -248,7 +248,7 @@ async fn test_remove_adjudicator_round_availability_override() -> Result<(), Box
 
 
 #[tokio::test]
-async fn test_make_speaker_into_adjudicator() -> Result<(), Box<dyn Error>> {
+async fn test_make_speaker_into_adjudicator() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),
@@ -271,7 +271,7 @@ async fn test_make_speaker_into_adjudicator() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_make_adjudicator_into_speaker() -> Result<(), Box<dyn Error>> {
+async fn test_make_adjudicator_into_speaker() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),
@@ -294,7 +294,7 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_change_participant_name() -> Result<(), Box<dyn Error>> {
+async fn test_change_participant_name() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
     let mut participant = Participant {
         uuid: Uuid::from_u128(440),

@@ -2,7 +2,7 @@ use sea_orm::prelude::Uuid;
 
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::{prelude::*, QueryOrder};
@@ -25,7 +25,7 @@ pub struct LoadedRoundsView {
 }
 
 impl LoadedRoundsView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedRoundsView, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedRoundsView, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedRoundsView {
                 tournament_id: tournament_uuid,
@@ -37,7 +37,7 @@ impl LoadedRoundsView {
 
 #[async_trait]
 impl LoadedView for LoadedRoundsView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_rounds.len() > 0 {
             self.view = RoundsView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -51,7 +51,7 @@ impl LoadedView for LoadedRoundsView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -70,7 +70,7 @@ pub struct RoundOverview {
 
 
 impl RoundsView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<RoundsView, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<RoundsView, anyhow::Error> where C: ConnectionTrait {
         let rounds = schema::tournament_round::Entity::find().filter(
             tournament_round::Column::TournamentId.eq(tournament_uuid)
         ).order_by_asc(tournament_round::Column::Index).all(db).await?;

@@ -2,7 +2,7 @@ use sea_orm::prelude::Uuid;
 
 use std::{collections::HashMap, error::Error};
 
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::{prelude::*, QueryOrder};
@@ -21,7 +21,7 @@ pub struct LoadedInstitutionsView {
 }
 
 impl LoadedInstitutionsView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         Ok(
             Self {
                 tournament_id: tournament_uuid,
@@ -33,7 +33,7 @@ impl LoadedInstitutionsView {
 
 #[async_trait]
 impl LoadedView for LoadedInstitutionsView {
-    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, Box<dyn Error>> {
+    async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.tournament_institutions.len() > 0 {
             self.view = InstitutionsView::load_from_tournament(db, self.tournament_id).await?;
 
@@ -47,7 +47,7 @@ impl LoadedView for LoadedInstitutionsView {
         }
     }
 
-    async fn view_string(&self) -> Result<String, Box<dyn Error>> {
+    async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
     }
 }
@@ -65,7 +65,7 @@ pub struct InstitutionOverview {
 
 
 impl InstitutionsView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<InstitutionsView, Box<dyn Error>> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<InstitutionsView, anyhow::Error> where C: ConnectionTrait {
         let rounds = tournament_institution::Entity::find().filter(
             tournament_institution::Column::TournamentId.eq(tournament_uuid)
         ).order_by_asc(tournament_institution::Column::Name).all(db).await?;

@@ -1,7 +1,7 @@
 use std::{error::Error};
 
 use itertools::{Itertools};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::debate_backup_ballot::DebateBackupBallot};
 
 use sea_orm::prelude::*;
@@ -28,7 +28,7 @@ pub enum ScoreUpdate {
 
 #[async_trait]
 impl ActionTrait for UpdateScoresAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
         let mut debate = open_tab_entities::domain::debate::TournamentDebate::get(db, self.debate_id).await?;
         match self.update {

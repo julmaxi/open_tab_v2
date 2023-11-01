@@ -97,7 +97,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
 }
 
 #[tokio::test]
-async fn test_save_full_tournament() -> Result<(), Box<dyn Error>> {
+async fn test_save_full_tournament() -> Result<(), anyhow::Error> {
     let db = set_up_db().await?;
 
     let (changeset, ballot) = make_changeset();
@@ -112,7 +112,7 @@ async fn test_save_full_tournament() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_save_full_tournament_updates_log() -> Result<(), Box<dyn Error>> {
+async fn test_save_full_tournament_updates_log() -> Result<(), anyhow::Error> {
     let db = set_up_db().await?;
 
     let (changeset, _) = make_changeset();
@@ -129,7 +129,7 @@ async fn test_save_full_tournament_updates_log() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
+async fn test_versioned_save_preserves_uuids() -> Result<(), anyhow::Error> {
     let db = set_up_db().await?;
 
     let mut changeset = EntityGroup::new();
@@ -159,7 +159,7 @@ async fn test_versioned_save_preserves_uuids() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_deletion_removes_elements() -> Result<(), Box<dyn Error>> {
+async fn test_deletion_removes_elements() -> Result<(), anyhow::Error> {
     let db = set_up_db().await?;
 
     let (changeset, _) = make_changeset();

@@ -2,7 +2,7 @@ use std::error::Error;
 
 use open_tab_entities::{EntityGroup, EntityGroupTrait, Entity};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use crate::actions::ActionTrait;
@@ -19,7 +19,7 @@ pub struct CreateInstitutionAction {
 
 #[async_trait]
 impl ActionTrait for CreateInstitutionAction {
-    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut g = EntityGroup::new();
 
         g.add(

@@ -37,7 +37,7 @@ pub struct AuthenticatedUser {
 }
 
 impl AuthenticatedUser {
-    pub async fn check_is_authorized_for_tournament_administration<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn check_is_authorized_for_tournament_administration<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
         if let Some(authorized_only_for_tournament_id) = self.authorized_only_for_tournament {
             return Ok(authorized_only_for_tournament_id == tournament_id);
         }
@@ -50,7 +50,7 @@ impl AuthenticatedUser {
         }
     }
 
-    pub async fn check_is_authorized_as_participant<C>(&self, db: &C, participant_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn check_is_authorized_as_participant<C>(&self, db: &C, participant_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
         let user_participant_id = open_tab_entities::schema::user_participant::Entity::find().filter(
             open_tab_entities::schema::user_participant::Column::UserId.eq(self.uuid).and(
                 open_tab_entities::schema::user_participant::Column::ParticipantId.eq(participant_id)
@@ -59,7 +59,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id == Some(participant_id))
     }
 
-    pub async fn check_is_authorized_as_member_of_team<C>(&self, db: &C, team_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn check_is_authorized_as_member_of_team<C>(&self, db: &C, team_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
         let user_participant_id: Option<Uuid> = open_tab_entities::schema::speaker::Entity::find()
         .join(
             sea_orm::JoinType::InnerJoin,
@@ -76,7 +76,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id.is_some())
     }
 
-    pub async fn participant_id_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Option<Uuid>, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn participant_id_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
         let user_participant_id = open_tab_entities::schema::user_participant::Entity::find()
         .inner_join(
             open_tab_entities::schema::participant::Entity
@@ -89,7 +89,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id)
     }
 
-    pub async fn check_is_authorized_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+    pub async fn check_is_authorized_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
         Ok(self.participant_id_in_tournament(db, tournament_id).await?.is_some())
     }
 }
@@ -111,12 +111,18 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
             let decoded = basic_header.0;
             let user_name = decoded.username();
             let password = decoded.password();
-    
-            let user_uuid = Uuid::from_str(user_name).map_err(|_| (StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
-    
-            let user = open_tab_entities::schema::user::Entity::find_by_id(
-                user_uuid
-            ).one(&state.db).await.map_err(handle_error)?;
+
+            let user = if user_name.starts_with("mail:") {
+                open_tab_entities::schema::user::Entity::find().filter(
+                    open_tab_entities::schema::user::Column::UserEmail.eq(user_name.trim_start_matches("mail:"))
+                ).one(&state.db).await.map_err(handle_error)?
+             }
+            else {
+                let user_uuid = Uuid::from_str(user_name).map_err(|_| (StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
+                open_tab_entities::schema::user::Entity::find_by_id(
+                    user_uuid
+                ).one(&state.db).await.map_err(handle_error)?
+            };
     
             let user = user.ok_or((StatusCode::UNAUTHORIZED, "User not found or password incorrect"))?;
 
@@ -126,7 +132,7 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
             password_hash.verify_password(algs, password).map_err(|_| (StatusCode::UNAUTHORIZED, "User not found or password incorrect"))?;
 
             return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
-                uuid: user_uuid,
+                uuid: user.uuid,
                 authorized_only_for_tournament: None
             }))    
         }
@@ -162,6 +168,7 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserRequest {
     pub password: String,
+    pub user_email: Option<String>
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -189,7 +196,7 @@ pub struct RegisterUserResponse {
     pub token: String
 }
 
-pub fn hash_password(pwd: String) -> Result<String, Box<dyn Error>> {
+pub fn hash_password(pwd: String) -> Result<String, anyhow::Error> {
     let salt = SaltString::generate(&mut rand::thread_rng());
     let pwd = Argon2::default().hash_password(
         pwd.as_bytes(), 
@@ -205,11 +212,12 @@ pub async fn create_user_handler(
 ) -> Result<Json<CreateUserResponse>, APIError> {
     let pwd = request.password;
     let new_user_uuid = Uuid::new_v4();
-    let pwd = hash_password(pwd).map_err(handle_error_dyn)?;
+    let pwd = hash_password(pwd)?;
 
     let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
         uuid: new_user_uuid,
         password_hash: pwd,
+        user_email: None
     };
 
     model.into_active_model().insert(&db).await.map_err(
@@ -291,7 +299,8 @@ pub async fn register_user_handler(
                     let new_user_id = Uuid::new_v4();
                     let new_user = open_tab_entities::schema::user::Model {
                         uuid: new_user_id,
-                        password_hash: "".to_string()
+                        password_hash: "".to_string(),
+                        user_email: None
                     };
 
                     new_user.into_active_model().insert(&db).await.map_err(handle_error)?;

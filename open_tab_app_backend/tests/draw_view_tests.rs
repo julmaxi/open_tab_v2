@@ -9,7 +9,7 @@ use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 use open_tab_app_backend::{views::LoadedView, draw_view::{LoadedDrawView}};
 
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -27,7 +27,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
 
 
 #[tokio::test]
-async fn test_view_updates_when_ballot_updates() -> Result<(), Box<dyn Error>> {
+async fn test_view_updates_when_ballot_updates() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let mut loaded_view = LoadedDrawView::load(&db, Uuid::from_u128(100)).await?;

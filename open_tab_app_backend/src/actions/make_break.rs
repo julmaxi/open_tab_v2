@@ -1,7 +1,7 @@
 use std::{error::Error, collections::HashMap, cmp::Ordering};
 
 use itertools::{Itertools};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreakSourceRoundType, entity::LoadEntity}};
 
 use rand::{thread_rng, Rng};
@@ -84,7 +84,7 @@ fn find_speakers_not_in_teams(
 
 #[async_trait]
 impl ActionTrait for MakeBreakAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         let mut break_ = TournamentBreak::get_many(db, vec![self.break_id]).await?.pop().unwrap();

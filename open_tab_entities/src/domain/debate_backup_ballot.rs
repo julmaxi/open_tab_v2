@@ -21,7 +21,7 @@ pub struct DebateBackupBallot {
 
 
 impl DebateBackupBallot {
-    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         let debates_with_rounds = schema::tournament_debate::Entity::find()
             .filter(
                 schema::tournament_debate::Column::Uuid.is_in(entities.iter().map(|backup| backup.debate_id).collect_vec()

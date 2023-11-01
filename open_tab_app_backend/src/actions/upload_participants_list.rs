@@ -2,7 +2,7 @@ use std::{error::Error, collections::HashMap};
 
 use base64::{engine::general_purpose, Engine};
 use itertools::{Itertools};
-use migration::async_trait::async_trait;
+use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
 use rand::{thread_rng, Rng};
@@ -25,7 +25,7 @@ pub struct UploadParticipantsListAction {
 
 #[async_trait]
 impl ActionTrait for UploadParticipantsListAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, Box<dyn Error>> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
         let mut groups = EntityGroup::new();
         let file = std::fs::File::open(self.path.clone())?;
         let parse_result = self.parser_config.parse(&file)?;
@@ -94,7 +94,7 @@ impl ActionTrait for UploadParticipantsListAction {
 
 impl UploadParticipantsListAction {
     async fn get_participants<C>(&self, participants_with_uuid_and_role: Vec<(&ParticipantData, ParticipantRole, Uuid)>, db: &C) -> Result<
-        Vec<Entity>, Box<dyn Error>> where C: ConnectionTrait
+        Vec<Entity>, anyhow::Error> where C: ConnectionTrait
      {
         let mut out_entities = Vec::new();
         let mut existing_institution_uuids_by_name = open_tab_entities::schema::tournament_institution::Entity::find()

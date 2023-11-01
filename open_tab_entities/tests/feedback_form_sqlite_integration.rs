@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 
 #[tokio::test]
-async fn test_save_form_without_questions_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_save_form_without_questions_roundtrip() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let form = FeedbackForm {
@@ -35,7 +35,7 @@ async fn test_save_form_without_questions_roundtrip() -> Result<(), Box<dyn Erro
 
 
 #[tokio::test]
-async fn test_save_form_with_questions_roundtrip() -> Result<(), Box<dyn Error>> {
+async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let q1 = FeedbackQuestion {
@@ -92,7 +92,7 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), Box<dyn Error>>
 
 
 #[tokio::test]
-async fn test_save_form_change_question_order() -> Result<(), Box<dyn Error>> {
+async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let q1 = FeedbackQuestion {
@@ -159,7 +159,7 @@ async fn test_save_form_change_question_order() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_save_response() -> Result<(), Box<dyn Error>> {
+async fn test_save_response() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let q1 = FeedbackQuestion {
@@ -241,7 +241,7 @@ async fn test_save_response() -> Result<(), Box<dyn Error>> {
 
 
 #[tokio::test]
-async fn test_update_response() -> Result<(), Box<dyn Error>> {
+async fn test_update_response() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let q1 = FeedbackQuestion {

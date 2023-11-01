@@ -1,15 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, any};
 
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId};
+use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId, domain::entity::LoadEntity};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::error;
 use tracing::error_span;
 
-use crate::{state::AppState, response::{APIError, handle_error}};
+use crate::{state::AppState, response::{APIError, handle_error}, auth::ExtractAuthenticatedUser};
 use std::error::Error;
 
 
@@ -54,7 +54,7 @@ pub struct FatLog<E, T> where T: EntityTypeId {
     >
 }
 
-pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<Vec<open_tab_entities::schema::tournament_log::Model>, Box<dyn Error>> where C: ConnectionTrait  {
+pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<Vec<open_tab_entities::schema::tournament_log::Model>, anyhow::Error> where C: ConnectionTrait  {
     let log_query: Select<open_tab_entities::schema::tournament_log::Entity> = open_tab_entities::schema::tournament_log::Entity::find()
         .filter(open_tab_entities::schema::tournament_log::Column::TournamentId.eq(tournament_id))
         .order_by_asc(open_tab_entities::schema::tournament_log::Column::SequenceIdx);
@@ -62,7 +62,7 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
     let log_query = match since {
         None => log_query,
         Some(since) => {
-            let model = open_tab_entities::schema::tournament_log::Entity::find_by_id(since).one(transaction).await?.ok_or("since is not a valid log entry".to_string())?;
+            let model = open_tab_entities::schema::tournament_log::Entity::find_by_id(since).one(transaction).await?.ok_or(anyhow::anyhow!("Since is not a valid log entry"))?;
             log_query.filter(open_tab_entities::schema::tournament_log::Column::SequenceIdx.gt(model.sequence_idx))
         }
     };
@@ -74,8 +74,9 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
 }
 
 
-pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, Box<dyn Error>>
+pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, anyhow::Error>
     where C: ConnectionTrait  {
+    todo!();
     let log = get_log_since(transaction, tournament_id, since).await?;
     let flat_log = log.iter().map(
         LogEntry::from
@@ -114,9 +115,14 @@ pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, s
 
 async fn get_log(
     State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>
 ) -> Result<Json<FatLog<Entity, EntityType>>, APIError> {
+    if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
+        return Err(APIError::new("User is not authorized for tournament administration".into()));
+    }
+
     let since = match params.get("since").map(
         |since| since.parse::<Uuid>()
     ) {
@@ -137,6 +143,11 @@ async fn get_log(
     Ok(Json(
         fat_log
     ))
+}
+
+async fn mock<C>(db: &C) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    open_tab_entities::domain::tournament::Tournament::get(db, Uuid::from_u128(1)).await;
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -174,7 +185,7 @@ pub async fn reconcile_changes<C>(
     last_common_ancestor: Option<Uuid>,
     merge_strategy: MergeStrategy,
     return_entity_group: bool
-) -> Result<ReconciliationOutcome, Box<dyn Error>> where C: ConnectionTrait {
+) -> Result<ReconciliationOutcome, anyhow::Error> where C: ConnectionTrait {
     let local_log = get_log_since(db, tournament_id, last_common_ancestor).await?;
 
     if last_common_ancestor.is_none() && changes.log.len() == 0 {
@@ -275,9 +286,14 @@ pub struct SyncRequestResponse {
 
 async fn handle_sync_push_request(
     State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
     Json(request_body): Json<SyncRequest<Entity, EntityType>>
 ) -> Result<Json<SyncRequestResponse>, APIError> {
+    if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
+        return Err(APIError::new("User is not authorized for tournament administration".into()));
+    }
+
     let transaction = db.begin().await.map_err(|_| {
         tracing::error!("Failed to start transaction");
         APIError::new("Failed to start transaction".into())

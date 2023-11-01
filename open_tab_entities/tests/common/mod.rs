@@ -4,7 +4,7 @@ use migration::MigratorTrait;
 use open_tab_entities::{mock, EntityGroupTrait};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(

@@ -142,7 +142,7 @@ pub enum DrawEvaluationError {
     #[error("SeaORM Error")]
     SeaORMError(#[from] sea_orm::error::DbErr),
     #[error("Other")]
-    Other(#[from] Box<dyn std::error::Error>),
+    Other(#[from] anyhow::Error),
 }
 
 impl DrawEvaluator {

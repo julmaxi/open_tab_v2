@@ -64,7 +64,7 @@ pub struct DisplayBallotSpeech {
 }
 
 impl DisplayBallot {
-    async fn from_id<C>(ballot_id: Uuid, db: &C) -> Result<Self, Box<dyn Error>> where C: ConnectionTrait {
+    async fn from_id<C>(ballot_id: Uuid, db: &C) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let ballot = Ballot::get(db, ballot_id).await?;
 
         let teams = ballot.government.team.iter().chain(ballot.opposition.team.iter()).map(|u| *u).collect_vec();
@@ -204,7 +204,7 @@ async fn check_is_authorized_for_debate_result_submission<C>(
     db: &C,
     user: &AuthenticatedUser,
     debate_id: Uuid,
-) -> Result<bool, Box<dyn Error>> where C: ConnectionTrait {
+) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
     let r = schema::tournament_debate::Entity::find_by_id(debate_id)
     .find_with_related(schema::tournament_round::Entity).all(db).await?;
 

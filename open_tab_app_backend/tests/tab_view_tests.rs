@@ -10,7 +10,7 @@ use open_tab_app_backend::{views::tab_view::LoadedTabView };
 
 const TAB_TOLERANCE : f64 = 0.0001;
 
-pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dyn Error>> {
+pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
     let _r = db.execute(Statement::from_sql_and_values(
@@ -272,7 +272,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, Box<dy
 
 
 #[tokio::test]
-async fn test_team_ranking_has_all_teams() -> Result<(), Box<dyn Error>> {
+async fn test_team_ranking_has_all_teams() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
@@ -285,7 +285,7 @@ async fn test_team_ranking_has_all_teams() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_team_ranking_has_all_speakers() -> Result<(), Box<dyn Error>> {
+async fn test_team_ranking_has_all_speakers() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
@@ -298,7 +298,7 @@ async fn test_team_ranking_has_all_speakers() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn test_total_team_score_is_correct_for_faction_team() -> Result<(), Box<dyn Error>> {
+async fn test_total_team_score_is_correct_for_faction_team() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
@@ -313,7 +313,7 @@ async fn test_total_team_score_is_correct_for_faction_team() -> Result<(), Box<d
 }
 
 #[tokio::test]
-async fn test_total_team_score_is_correct_for_non_aligned_team() -> Result<(), Box<dyn Error>> {
+async fn test_total_team_score_is_correct_for_non_aligned_team() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
@@ -327,7 +327,7 @@ async fn test_total_team_score_is_correct_for_non_aligned_team() -> Result<(), B
 }
 
 /*#[tokio::test]
-async fn test_tab_has_correct_sequence() -> Result<(), Box<dyn Error>> {
+async fn test_tab_has_correct_sequence() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
