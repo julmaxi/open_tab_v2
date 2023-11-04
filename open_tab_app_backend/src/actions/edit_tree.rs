@@ -2,7 +2,7 @@ use std::error::Error;
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}}};
+use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule, self}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}}, EntityType};
 
 use sea_orm::prelude::*;
 
@@ -20,8 +20,8 @@ pub struct EditTreeAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum EditTreeActionType {
-    AddThreePreliminaryRounds { parent: Option<Uuid> },
-    AddMinorBreakRounds { parent: Uuid, draws: Vec<TabDrawConfig> },
+    AddPreliminaryRounds { parent: Option<Uuid> },
+    AddMinorBreakRounds { parent: Uuid, draws: Vec<FoldDrawConfig> },
     AddTimBreakRounds { parent: Uuid },
     AddKOStage { parent: Uuid, num_stages: u64 },
 }
@@ -37,249 +37,133 @@ impl ActionTrait for EditTreeAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
 
-        let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
+        //let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
 
         match self.action {
-            EditTreeActionType::AddThreePreliminaryRounds { parent } => {
-                let start_index = if let Some(parent) = parent {
-                    all_existing_rounds.iter().find(|r| r.uuid == parent).ok_or(
-                        EditTreeActionError::ParentRoundDoesNotExist { uuid: parent }
-                    )?.index + 1
-                }
-                else {
-                    0
-                };
-                all_existing_rounds.iter().for_each(|r| {
-                    if r.index >= start_index {
-                        let mut r = r.clone();
-                        r.index += 3;
-                        groups.add(Entity::TournamentRound(r));
-                    }
+            EditTreeActionType::AddPreliminaryRounds { parent: parent_node } => {
+                let node = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                    config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::Preliminaries { num_roundtrips: 1 },
+                    rounds: vec![]
                 });
-
-                let rounds = (start_index..(start_index + 3)).map(
-                    |index| TournamentRound {
-                        uuid: Uuid::new_v4(),
-                        tournament_id: self.tournament_id,
-                        index,
-                        draw_type: Some(DrawType::Preliminary),
-                        ..Default::default()
+                if let Some(parent_node) = parent_node {
+                    let current_edges = TournamentPlanEdge::get_all_for_sources(db, vec![parent_node]).await?;
+                    if let Some(first_child) = current_edges.first() {
+                        groups.delete(EntityType::TournamentPlanEdge, first_child.uuid);
+                        groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(node.uuid, first_child.target_id)));
                     }
-                ).collect_vec();
 
-                rounds.into_iter().for_each(|r| groups.add(Entity::TournamentRound(r)));
+                    groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(parent_node, node.uuid)));
+                }
 
-                //generator.generate_draw_for_rounds(context, rounds, evaluator)
+                groups.add(Entity::TournamentPlanNode(node));
             },
+            
             EditTreeActionType::AddKOStage { parent, num_stages } => {
-                let start_index = all_existing_rounds.iter().find(|r| r.uuid == parent).ok_or(
-                    EditTreeActionError::ParentRoundDoesNotExist { uuid: parent }
-                )?.index + 1;
-                all_existing_rounds.iter().for_each(|r| {
-                    if r.index >= start_index {
-                        let mut r = r.clone();
-                        r.index += num_stages;
-                        groups.add(Entity::TournamentRound(r));
-                    }
+                let mut nodes = vec![];
+                let mut edges = vec![];
+                let num_breaking_teams = 1 << num_stages;
+                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_breaking_teams }));
+                let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                    config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()
+                    },
+                    rounds: vec![]
                 });
 
-                let all_source_uuids = all_existing_rounds.iter().filter(
-                    |r| r.index < start_index
-                ).map(|r| r.uuid).collect_vec();
+                let first_break_id = first_break.uuid;
+                let first_round_id = first_round.uuid;
 
-                let mut added_breaks = vec![];
-                let mut added_rounds : Vec<TournamentRound> = vec![];
+                nodes.push(first_break);
+                nodes.push(first_round);
 
-                let mut tab_break = TournamentBreak::new(self.tournament_id, open_tab_entities::domain::tournament_break::BreakType::TabBreak { num_debates: 
-                    (2 as u32).pow(num_stages as u32) as u16
-                });
-                tab_break.source_rounds.extend(
-                    all_source_uuids.iter().map(|uuid| TournamentBreakSourceRound {
-                        uuid: *uuid,
-                        break_type: TournamentBreakSourceRoundType::Tab
-                }));
+                edges.push(TournamentPlanEdge::new(parent, first_break_id));
+                edges.push(TournamentPlanEdge::new(first_break_id, first_round_id));
 
-                for index in 0..num_stages {
-                    let round = TournamentRound {
-                        uuid: Uuid::new_v4(),
-                        tournament_id: self.tournament_id,
-                        index: start_index + index,
-                        draw_type: Some(DrawType::KnockoutDraw),
-                        ..Default::default()
-                    };
+                let mut last_id = first_round_id;
 
-                    (0..(2 as u32).pow((num_stages - index - 1) as u32)).for_each(
-                        |room_index| {
-                            let mut ballot = Ballot::default();
-                            ballot.uuid = Uuid::new_v4();
-                            let debate = TournamentDebate {
-                                uuid: Uuid::new_v4(),
-                                round_id: round.uuid,
-                                index: room_index as u64,
-                                ballot_id: ballot.uuid,
-                                is_motion_released_to_non_aligned: false,
-                                venue_id: None
-                            };
-                            groups.add(Entity::TournamentDebate(debate));
-                            groups.add(Entity::Ballot(ballot));
-                        }
-                    );
+                for stage_idx in 1..num_stages {
+                    let break_ = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::KnockoutBreak));
+                    let round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                        config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                            config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()
+                        },
+                        rounds: vec![]
+                    });
 
-                    if index != 0 {
-                        let mut break_ = TournamentBreak::new(self.tournament_id, open_tab_entities::domain::tournament_break::BreakType::KOBreak);
-                        break_.source_rounds.extend(
-                            all_source_uuids.iter().map(|uuid| TournamentBreakSourceRound {
-                                uuid: *uuid,
-                                break_type: TournamentBreakSourceRoundType::Tab
-                            })
-                        );
-    
-                        if added_rounds.len() > 0 {
-                            break_.source_rounds.push(TournamentBreakSourceRound {
-                                uuid: added_rounds.last().map(|r| r.uuid).unwrap(),
-                                break_type: TournamentBreakSourceRoundType::Knockout
-                            });    
-                        }
-    
-                        if added_rounds.len() > 1 {
-                            let tab_rounds = added_rounds[
-                                0..(added_rounds.len() - 1)
-                            ].iter().map(|r| r.uuid).collect_vec();
-    
-                            break_.source_rounds.extend(
-                                tab_rounds.iter().map(|uuid| TournamentBreakSourceRound {
-                                    uuid: *uuid,
-                                    break_type: TournamentBreakSourceRoundType::Tab
-                                })
-                            );
-                        }
-    
-                        break_.child_rounds.push(round.uuid);
-    
-                        added_breaks.push(break_);    
-                    }
-                    else {
-                        tab_break.child_rounds.push(round.uuid);
-                    }
-                    added_rounds.push(round);
+                    edges.push(TournamentPlanEdge::new(last_id, break_.uuid));
+                    edges.push(TournamentPlanEdge::new(break_.uuid, round.uuid));
+
+                    last_id = round.uuid;
+
+                    nodes.push(break_);
+                    nodes.push(round);
                 }
-                added_breaks.push(tab_break);
 
-                added_breaks.into_iter().for_each(|b| groups.add(Entity::TournamentBreak(b)));
-                added_rounds.into_iter().for_each(|r| groups.add(Entity::TournamentRound(r)));
-
-                //generator.generate_draw_for_rounds(context, rounds, evaluator)
+                edges.into_iter().for_each(|e| groups.add(Entity::TournamentPlanEdge(e)));
+                nodes.into_iter().for_each(|n| groups.add(Entity::TournamentPlanNode(n)));                
             },
             EditTreeActionType::AddMinorBreakRounds { parent, draws } => {
-                let mut rounds = vec![];
+                let mut nodes: Vec<TournamentPlanNode> = vec![];
+                let mut edges = vec![];
 
-                let start_index = all_existing_rounds.iter().find(|r| r.uuid == parent).ok_or(
-                    EditTreeActionError::ParentRoundDoesNotExist { uuid: parent }
-                )?.index + 1;
-                all_existing_rounds.iter().for_each(|r| {
-                    if r.index >= start_index {
-                        let mut r = r.clone();
-                        r.index += draws.len() as u64;
-                        groups.add(Entity::TournamentRound(r));
-                    }
-                });
+                let break_ = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TwoThirdsBreak));                
+                let break_id = break_.uuid;
+                nodes.push(break_);
 
-                let all_source_uuids = all_existing_rounds.iter().filter(
-                    |r| r.index < start_index
-                ).map(|r| r.uuid).collect_vec();
+                edges.push(TournamentPlanEdge::new(parent, break_id));
 
-                let mut break_ = TournamentBreak::new(self.tournament_id, open_tab_entities::domain::tournament_break::BreakType::TwoThirdsBreak);
-                break_.source_rounds.extend(
-                    all_source_uuids.iter().map(|uuid| TournamentBreakSourceRound {
-                        uuid: *uuid,
-                        break_type: TournamentBreakSourceRoundType::Tab
-                    })
-                );
+                let mut prev_node_id = break_id;
 
-                for (idx, draw) in draws.iter().enumerate() {
-                    let draw_type : DrawType = DrawType::TabDraw { config: draw.clone() };
-                    let round = TournamentRound {
-                        uuid: Uuid::new_v4(),
-                        tournament_id: self.tournament_id,
-                        index: start_index + idx as u64,
-                        draw_type: Some(draw_type),
-                        ..Default::default()
-                    };
+                for setting in draws {
+                    let round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                        config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw{config: setting},
+                        rounds: vec![]
+                    });
 
-                    break_.child_rounds.push(round.uuid);
+                    edges.push(TournamentPlanEdge::new(prev_node_id, round.uuid));
+                    prev_node_id = round.uuid;
 
-                    rounds.push(round);
+                    nodes.push(round);
                 }
 
-                rounds.into_iter().for_each(|r| groups.add(Entity::TournamentRound(r)));
-                groups.add(Entity::TournamentBreak(break_));
+                edges.into_iter().for_each(|e| groups.add(Entity::TournamentPlanEdge(e)));
+                nodes.into_iter().for_each(|n| groups.add(Entity::TournamentPlanNode(n)));
+
             },
             EditTreeActionType::AddTimBreakRounds { parent } => {
-                let start_index = all_existing_rounds.iter().find(|r| r.uuid == parent).ok_or(
-                    EditTreeActionError::ParentRoundDoesNotExist { uuid: parent }
-                )?.index + 1;
-                all_existing_rounds.iter().for_each(|r| {
-                    if r.index >= start_index {
-                        let mut r = r.clone();
-                        r.index += 2;
-                        groups.add(Entity::TournamentRound(r));
-                    }
+                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TwoThirdsBreak));
+                let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                    config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
+                            team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::Random,
+                            non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random,
+                            team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        },
+                    },
+                    rounds: vec![]
                 });
 
-                let all_source_uuids = all_existing_rounds.iter().filter(
-                    |r| r.index < start_index
-                ).map(|r| r.uuid).collect_vec();
+                let second_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TimBreak));
+                let second_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                    config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
+                            team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::PowerPaired,
+                            non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random,
+                            team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        },
+                    },
+                    rounds: vec![]
+                });
 
-                let mut break_after_tab = TournamentBreak::new(self.tournament_id, open_tab_entities::domain::tournament_break::BreakType::TwoThirdsBreak);
-                break_after_tab.source_rounds.extend(
-                    all_source_uuids.iter().map(|uuid| TournamentBreakSourceRound {
-                        uuid: *uuid,
-                        break_type: TournamentBreakSourceRoundType::Tab
-                    })
-                );
-                let first_round = TournamentRound {
-                    uuid: Uuid::new_v4(),
-                    tournament_id: self.tournament_id,
-                    index: start_index,
-                    draw_type: Some(DrawType::TabDraw { config: TabDrawConfig { team_draw: open_tab_entities::domain::round::TeamDrawMode::Random, speaker_draw: open_tab_entities::domain::round::SpeakerDrawMode::Random, team_assignment_rule: TeamAssignmentRule::Random } }),
-                    ..Default::default()
-                };
+                groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(parent, first_break.uuid)));
+                groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(first_break.uuid, first_round.uuid)));
+                groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(first_round.uuid, second_break.uuid)));
+                groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(second_break.uuid, second_round.uuid)));
 
-                break_after_tab.child_rounds.push(first_round.uuid);
-
-                let mut second_break = TournamentBreak::new(self.tournament_id, open_tab_entities::domain::tournament_break::BreakType::TimBreak);
-                second_break.source_rounds.extend(
-                    all_source_uuids.iter().map(|uuid| TournamentBreakSourceRound {
-                        uuid: *uuid,
-                        break_type: TournamentBreakSourceRoundType::Tab
-                    })
-                );
-                second_break.source_rounds.push(
-                    TournamentBreakSourceRound {
-                        uuid: first_round.uuid,
-                        break_type: TournamentBreakSourceRoundType::Tab
-                    }
-                );
-
-                let second_round = TournamentRound {
-                    uuid: Uuid::new_v4(),
-                    tournament_id: self.tournament_id,
-                    index: start_index + 1,
-                    draw_type: Some(DrawType::TabDraw {
-                        config: TabDrawConfig {
-                            team_draw: open_tab_entities::domain::round::TeamDrawMode::Random,
-                            speaker_draw: open_tab_entities::domain::round::SpeakerDrawMode::Random,
-                            team_assignment_rule: open_tab_entities::domain::round::TeamAssignmentRule::Random,
-                        }
-                    }),
-                    ..Default::default()
-                };
-
-                second_break.child_rounds.push(second_round.uuid);
-                groups.add(Entity::TournamentBreak(break_after_tab));
-                groups.add(Entity::TournamentRound(first_round));
-                groups.add(Entity::TournamentBreak(second_break));
-                groups.add(Entity::TournamentRound(second_round));
+                groups.add(Entity::TournamentPlanNode(first_break));
+                groups.add(Entity::TournamentPlanNode(first_round));
+                groups.add(Entity::TournamentPlanNode(second_break));
+                groups.add(Entity::TournamentPlanNode(second_round));
             },
         }
 

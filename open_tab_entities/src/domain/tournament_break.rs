@@ -193,19 +193,6 @@ impl TournamentBreak {
     }
 }
 
-pub fn pad<E>(vec: Vec<E>, mask: &[bool]) -> Vec<Option<E>> {
-    let mut out = vec![];
-    let mut it = vec.into_iter();
-    let mut mask = mask.iter();
-    for v in it {
-        if let Some(&true) = mask.next() {
-            out.push(Some(v));
-        } else {
-            out.push(None);
-        }
-    }
-    out
-}
 
 #[async_trait]
 impl LoadEntity for TournamentBreak {
@@ -229,7 +216,7 @@ impl LoadEntity for TournamentBreak {
         ).into_iter().map(|(break_row, source_rounds, child_rounds, teams, speakers)| {
             Self::from_rows(break_row, source_rounds, child_rounds, teams, speakers)
         }).collect();
-        r.map(|r| pad(r, &exists_mask))
+        r.map(|r| super::utils::pad(r, &exists_mask))
     }
 }
 

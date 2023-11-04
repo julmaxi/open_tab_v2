@@ -542,10 +542,10 @@ async fn test_getting_missing_ballot_raises_error() -> Result<(), anyhow::Error>
     assert!(retrieved.is_err());
 
     if let Err(v) = retrieved {
-        let err : Result<Box<LoadError>, _> = v.downcast();
-        let err: Box<LoadError> = err.expect("Expected BallotParseError, got something else");
+        let err : Result<LoadError, _> = v.downcast();
+        let err: LoadError = err.expect("Expected BallotParseError, got something else");
 
-        if let LoadError::EntitiesNotFound {..} = err.as_ref() {
+        if let LoadError::EntitiesNotFound {..} = err {
             // pass
         }
         else {

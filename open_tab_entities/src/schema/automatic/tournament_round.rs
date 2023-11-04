@@ -59,5 +59,18 @@ impl Related<super::adjudicator::Entity> for Entity {
     }
 }
 
+impl Related<super::tournament_break::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::tournament_break_child_round::Relation::TournamentBreak.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::tournament_break_child_round::Relation::TournamentRound
+                .def()
+                .rev(),
+        )
+    }
+}
+
 
 impl ActiveModelBehavior for ActiveModel {}

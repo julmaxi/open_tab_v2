@@ -7,7 +7,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub annoucements_password: Option<String>
+    pub annoucements_password: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -24,6 +24,8 @@ pub enum Relation {
     TournamentInstitution,
     #[sea_orm(has_many = "super::tournament_log::Entity")]
     TournamentLog,
+    #[sea_orm(has_many = "super::tournament_plan_node::Entity")]
+    TournamentPlanNode,
     #[sea_orm(has_many = "super::tournament_round::Entity")]
     TournamentRound,
     #[sea_orm(has_many = "super::tournament_venue::Entity")]
@@ -65,6 +67,12 @@ impl Related<super::tournament_institution::Entity> for Entity {
 impl Related<super::tournament_log::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TournamentLog.def()
+    }
+}
+
+impl Related<super::tournament_plan_node::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentPlanNode.def()
     }
 }
 

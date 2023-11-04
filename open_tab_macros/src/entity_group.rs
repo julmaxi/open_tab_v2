@@ -137,8 +137,8 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     let save_all_fn = quote! {
         async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
             let delete_map = self.deletions.clone().into_iter().into_group_map();
-            #(#save_all_statements)*
             #(#delete_statements)*
+            #(#save_all_statements)*
             Ok(())
         }
     };

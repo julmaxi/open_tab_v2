@@ -19,7 +19,7 @@ open_tab_macros = { path = "../open_tab_macros" }
 thiserror= "*"
 base64 = "0.21"
 ordered-float = "4.1.0"
-anyhow = "*"
+anyhow = {version = "*", features = ["backtrace"]}
 
 [dependencies.uuid]
 version = "1.3.0"

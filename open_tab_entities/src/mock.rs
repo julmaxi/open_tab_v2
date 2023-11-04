@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap};
 
-use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash, feedback_question::FeedbackQuestion, feedback_form::{FeedbackForm, FeedbackFormVisibility}}};
+use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash, feedback_question::FeedbackQuestion, feedback_form::{FeedbackForm, FeedbackFormVisibility}, tournament_plan_node::{TournamentPlanNode, PlanNodeType, RoundGroupConfig, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge}};
 use sea_orm::{prelude::*};
 use crate::prelude::*;
 use itertools::{Itertools};
@@ -54,6 +54,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     Venues: 500
     Feedback Questions: 600
     Feedback Forms: 700
+    Plan Nodes: 800
+    Plan Edges: 80000
     */
 
     assert!(options.num_teams % 3 == 0);
@@ -340,8 +342,37 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
         }).collect_vec();
 
         ballots.into_iter().flatten().for_each(|ballot| groups.add(Entity::Ballot(ballot)));
-        debates.into_iter().flatten().for_each(|debate| groups.add(Entity::TournamentDebate(debate)));    
+        debates.into_iter().flatten().for_each(|debate| groups.add(Entity::TournamentDebate(debate)));
     }
+
+    let prelim_plan_node = TournamentPlanNode::new(
+        tournament_uuid,
+        PlanNodeType::Round {
+            config: RoundGroupConfig::Preliminaries { num_roundtrips: 1 },
+            rounds: if rounds.len() > 0 {vec![
+                rounds[0].uuid,
+                rounds[1].uuid,
+                rounds[2].uuid,
+            ]} else { vec![] }
+        }
+    );
+    let finals_break_plan_node = TournamentPlanNode::new(
+        tournament_uuid,
+        PlanNodeType::Break { config: crate::domain::tournament_plan_node::BreakConfig::TabBreak { num_breaking_teams: 2 }, break_id: None }
+    );
+    let finals_round_node = TournamentPlanNode::new(
+        tournament_uuid,
+        PlanNodeType::Round {
+            config: RoundGroupConfig::FoldDraw{config: FoldDrawConfig::default_ko_fold()},
+            rounds: vec![]
+        }
+    );
+
+    let edges = vec![
+        TournamentPlanEdge::new(prelim_plan_node.uuid, finals_break_plan_node.uuid),
+        TournamentPlanEdge::new(finals_break_plan_node.uuid, finals_round_node.uuid),
+    ];
+    let plan_nodes = vec![prelim_plan_node, finals_break_plan_node, finals_round_node];
 
     teams.into_iter().for_each(|team| groups.add(Entity::Team(team)));
     speakers.into_iter().flatten().for_each(|speaker| groups.add(Entity::Participant(speaker)));
@@ -350,6 +381,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     institutions.into_iter().for_each(|i| groups.add(Entity::TournamentInstitution(i)));
     clashes.into_iter().for_each(|c| groups.add(Entity::ParticipantClash(c)));
     venues.into_iter().for_each(|v| groups.add(Entity::TournamentVenue(v)));
+    plan_nodes.into_iter().for_each(|p| groups.add(Entity::TournamentPlanNode(p)));
+    edges.into_iter().for_each(|e| groups.add(Entity::TournamentPlanEdge(e)));
 
     groups
 }

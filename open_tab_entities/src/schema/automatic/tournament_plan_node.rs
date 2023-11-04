@@ -3,12 +3,13 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "tournament_break")]
+#[sea_orm(table_name = "tournament_plan_node")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
+    pub config: String,
     pub tournament_id: Uuid,
-    pub break_type: String,
+    pub break_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -21,8 +22,16 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tournament,
-    #[sea_orm(has_many = "super::tournament_plan_node::Entity")]
-    TournamentPlanNode,
+    #[sea_orm(
+        belongs_to = "super::tournament_break::Entity",
+        from = "Column::BreakId",
+        to = "super::tournament_break::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    TournamentBreak,
+    #[sea_orm(has_many = "super::tournament_plan_node_round::Entity")]
+    TournamentRound,
 }
 
 impl Related<super::tournament::Entity> for Entity {
@@ -31,37 +40,29 @@ impl Related<super::tournament::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament_plan_node::Entity> for Entity {
+impl Related<super::tournament_break::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::TournamentPlanNode.def()
+        Relation::TournamentBreak.def()
     }
 }
 
-impl Related<super::team::Entity> for Entity {
+impl Related<super::tournament_round::Entity> for Entity {
     fn to() -> RelationDef {
-        super::tournament_break_team::Relation::Team.def()
+        super::tournament_plan_node_round::Relation::TournamentRound.def()
     }
     fn via() -> Option<RelationDef> {
         Some(
-            super::tournament_break_team::Relation::TournamentBreak
+            super::tournament_plan_node_round::Relation::TournamentPlanNode
                 .def()
                 .rev(),
         )
     }
 }
 
-impl Related<super::speaker::Entity> for Entity {
+impl Related<super::tournament_plan_node_round::Entity> for Entity {
     fn to() -> RelationDef {
-        super::tournament_break_speaker::Relation::Speaker.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(
-            super::tournament_break_speaker::Relation::TournamentBreak
-                .def()
-                .rev(),
-        )
+        Relation::TournamentRound.def()
     }
 }
-
 
 impl ActiveModelBehavior for ActiveModel {}

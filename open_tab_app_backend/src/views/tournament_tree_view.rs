@@ -1,8 +1,11 @@
 use open_tab_entities::domain::round::{DrawType, TabDrawConfig};
 use open_tab_entities::domain::tournament_break::{TournamentBreak};
+use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
 use sea_orm::prelude::Uuid;
 
 
+use std::collections::HashSet;
+use std::hash::Hash;
 use std::vec;
 use std::{collections::HashMap, error::Error};
 
@@ -38,7 +41,7 @@ impl LoadedTournamentTreeView {
 #[async_trait]
 impl LoadedView for LoadedTournamentTreeView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_rounds.len() > 0 {
+        if changes.tournament_rounds.len() > 0 || changes.tournament_breaks.len() > 0 || changes.tournament_plan_nodes.len() > 0 || changes.tournament_plan_edges.len() > 0 {
             self.view = TournamentTreeView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out = HashMap::new();
@@ -71,14 +74,21 @@ struct AvailableAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RoundInfo {
-    uuid: Uuid,
-    round_number: i32,
+    uuid: Option<Uuid>,
     name: String,
+    plan_state: RoundInfoState
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum RoundInfoState {
+    Ok,
+    Ghost,
+    Superflous,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BreakInfo {
-    uuid: Uuid,
+    uuid: Option<Uuid>,
     break_description: String
 }
 
@@ -91,7 +101,6 @@ struct RoundGroupInfo {
 #[serde(tag = "type")]
 enum TournamentTreeNodeContent {
     Root,
-    Round(RoundInfo),
     RoundGroup(RoundGroupInfo),
     Break(BreakInfo),
     Error
@@ -107,10 +116,195 @@ enum BreakOrRound {
     Round(TournamentRound),
 }
 
+fn is_pow2(n: i32) -> bool {
+    n > 0 && (n & (n - 1)) == 0
+}
+
+fn num_teams_to_round_name(num_teams: i32) -> String {
+    match num_teams {
+        2 => "Finals".into(),
+        4 => "Semi-Finals".into(),
+        8 => "Quarter-Finals".into(),
+        16 => "Octo-Finals".into(),
+        32 => "Double-Octo-Finals".into(),
+        _ if is_pow2(num_teams) => format!("1/{} Break", num_teams / 2),
+        _ => format!("{}-Team Break", num_teams),
+    }
+}
+
+fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32> {
+    if breaks.len() == 0 {
+        return None;
+    }
+
+    let mut num_remaining = None;
+
+    for break_ in breaks {
+        num_remaining = match break_ {
+            BreakConfig::Manual => None,
+            BreakConfig::TabBreak { num_breaking_teams } => num_remaining,
+            BreakConfig::KnockoutBreak => if let Some(remaining) = num_remaining {
+                if remaining % 2 == 0 {
+                    Some(remaining / 2)
+                }
+                else {
+                    return None;
+                }
+            }
+            else {
+                None
+            },
+            BreakConfig::TwoThirdsBreak => if let Some(remaining) = num_remaining {
+                if remaining % 3 == 0 {
+                    Some(remaining * 2 / 3)
+                }
+                else {
+                    return None;
+                }
+            }
+            else {
+                None
+            },
+            BreakConfig::TimBreak => {
+                if let Some(remaining) = num_remaining{
+                    if remaining % 2 == 0 {
+                        Some(remaining / 2)
+                    }
+                    else {
+                        return None;
+                    }
+                }
+                else {
+                    None
+                }
+            },
+        }
+    }
+
+    num_remaining
+}
+
 impl TournamentTreeView {
+    fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<String> {
+        let most_recent = breaks.last();
+
+        if breaks.is_empty() {
+            return None;
+        }
+        let most_recent = most_recent.unwrap();
+
+        match most_recent {
+            BreakConfig::TabBreak { num_breaking_teams } => if breaks.len() == 1 && is_pow2(*num_breaking_teams as i32) && *num_breaking_teams > 1 {
+                Some(num_teams_to_round_name(*num_breaking_teams as i32))
+            }
+            else {
+                None
+            },
+            BreakConfig::KnockoutBreak => {
+                let remaining_teams = get_num_remaining_teams_from_breaks(breaks);
+                if let Some(remaining_teams) = remaining_teams {
+                    Some(num_teams_to_round_name(remaining_teams))
+                }
+                else {
+                    None
+                }
+            },
+            _ => None
+        }
+    }
+
+    fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<HashMap<(Uuid, usize), String>, anyhow::Error> {
+        let mut explore_queue = roots.clone().into_iter().map(|r| (r, vec![])).collect_vec();
+
+        if explore_queue.len() == 0 && nodes.len() > 0 {
+            return Err(anyhow::anyhow!("Tournament plan is not a tree"));
+        }
+
+        let mut names = HashMap::new();
+        let mut visited = HashSet::new();
+
+        let mut curr_idx = 0;
+
+        let empty_vec = vec![];
+
+        while explore_queue.len() > 0 {
+            let (next_node_id, prev_breaks) = explore_queue.pop().unwrap();
+
+            if visited.contains(&next_node_id) {
+                return Err(anyhow::anyhow!("Tournament plan is not a tree"));
+            }
+            visited.insert(next_node_id);
+
+            let next_node = nodes.iter().find(|n| n.uuid == next_node_id).unwrap();
+
+            match &next_node.config {
+                domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
+                    let num_rounds_to_consider = usize::max(rounds.len(), config.num_rounds() as usize);
+                    let special_name = if num_rounds_to_consider == 1 {
+                        let special_name = Self::get_special_name_from_preceding_breaks(&prev_breaks);
+                        special_name
+                    } else {
+                        None
+                    };
+
+                    for idx in 0..num_rounds_to_consider {
+                        if let Some(special_name) = &special_name {
+                            names.insert((next_node_id, idx), special_name.clone());
+                        }
+                        else {
+                            let round_number = curr_idx + idx + 1;
+                            names.insert((next_node_id, idx), format!("Round {}", round_number));
+                        }
+                    }
+                    curr_idx += rounds.len();
+                    let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
+                    for child in children {
+                        explore_queue.push((*child, prev_breaks.clone()));
+                    }
+                },
+                domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+                    let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
+                    for child in children {
+                        let mut breaks = prev_breaks.clone();
+                        breaks.push(&config);
+                        explore_queue.push((*child, breaks));
+                    }
+                },
+            }
+
+        }
+
+        Ok(names)
+    }
+
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
         let breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
+        let nodes = domain::tournament_plan_node::TournamentPlanNode::get_all_in_tournament(db, tournament_uuid).await?;
+        let edges = domain::tournament_plan_edge::TournamentPlanEdge::get_all_for_sources(db, nodes.iter().map(|n| n.uuid).collect_vec()).await?;
+
+        let nodes_to_parents = edges.iter().map(
+            |edge| {
+                (edge.target_id, edge.source_id)
+            }
+        ).collect::<HashMap<_, _>>();
+
+        let node_children = edges.iter().map(
+            |edge| {
+                (edge.source_id, edge.target_id)
+            }
+        ).into_group_map();
+
+        let names = Self::get_round_names(nodes.clone(), &node_children, &nodes.iter().filter_map(
+            |n| {
+                if nodes_to_parents.contains_key(&n.uuid) {
+                    None
+                }
+                else {
+                    Some(n.uuid)
+                }
+            }
+        ).collect::<Vec<_>>())?;
 
         let rounds = rounds.into_iter().map(
             |r| {
@@ -126,270 +320,121 @@ impl TournamentTreeView {
             }
         ).collect::<HashMap<_, _>>();
 
-        let last_rounds_before_break_map : Result<HashMap<_, _>, anyhow::Error> = breaks.iter().map(
-            |b: &domain::tournament_break::TournamentBreak| {
-                let source_rounds : Result<Vec<_>, _> = b.source_rounds.iter().map(|r| rounds.get(&r.uuid).ok_or(
-                    anyhow::anyhow!("Round {} not found", r.uuid)
-                )).collect();
-                let mut source_rounds = source_rounds?;
-                source_rounds.sort_by_key(|r| -(r.index as i32));
-                let last_round = source_rounds.into_iter().next().ok_or(
-                    anyhow::anyhow!("No source rounds for break")
-                );
-                Ok((b.uuid, last_round?.uuid))
+        let nodes = nodes.into_iter().map(
+            |n| {
+                (n.uuid, n)
             }
-        ).collect();
+        ).collect::<HashMap<_, _>>();
 
-        let mut rounds_by_break_requirements = rounds.values().sorted_by_key(|r| r.index).map(
-            |r| {
-                (round_breaks.get(&r.uuid).map(|u| *u), r)
+        let root_nodes = nodes.iter().filter_map(
+            |(uuid, node)| {
+                if nodes_to_parents.contains_key(uuid) {
+                    None
+                }
+                else {
+                    Some(node)
+                }
             }
-        ).into_group_map();
+        ).collect::<Vec<_>>();
 
-        let tree_children = if rounds_by_break_requirements.len() > 0 {
+        let tree_nodes = root_nodes.into_iter().map(
+            |node| {
+                Box::new(Self::subtree_from_node(node.uuid, &nodes, &rounds,  &node_children, &names))
+            }
+        ).collect::<Vec<_>>();
 
-            for entry in rounds_by_break_requirements.iter_mut() {
-                entry.1.sort_by_key(|r| r.index);
-            }
-    
-            let mut children = HashMap::new();
-    
-            //Every break is a child of the last round before it
-            for (break_uuid, round_uuid) in last_rounds_before_break_map? {
-                children.entry(round_uuid).or_insert_with(Vec::new).push(
-                    break_uuid
-                );
-            }
-    
-            //Every round is a child of the round immediately preceding it according to index
-            //provided it is in the same break
-            for (_, rounds) in rounds_by_break_requirements.iter() {
-                let mut rounds = rounds.into_iter().peekable();
-                while let Some(round) = rounds.next() {
-                    if let Some(next_round) = rounds.peek() {
-                        children.entry(round.uuid).or_insert_with(Vec::new).push(
-                            next_round.uuid
-                        );
-                    }
-                }
-            }
-    
-            let first_round_uuid = rounds_by_break_requirements.get(&None).and_then(|r| r.first()).map(|r| r.uuid);
-    
-            if !first_round_uuid.is_some() {
-                return Err(anyhow::anyhow!("No first round"));
-            }
-            let first_round_uuid = first_round_uuid.unwrap();
-    
-            let breaks_and_round_by_uuid = breaks.into_iter().map(
-                |b| {
-                    (b.uuid, BreakOrRound::Break(b))
-                }
-            ).chain(
-                rounds.clone().into_iter().map(
-                    |r| {
-                        (r.0, BreakOrRound::Round(r.1))
-                    }
-                )
-            ).collect::<HashMap<_, _>>();
-    
-            //The first round in a break is a child of the break
-            for (break_uuid, rounds) in rounds_by_break_requirements {
-                if break_uuid.is_none() {
-                    continue;
-                }
-                let mut rounds = rounds.into_iter().sorted_by_key(|r| r.index).peekable();
-                if let Some(round) = rounds.next() {
-                    children.entry(break_uuid.unwrap()).or_insert_with(Vec::new).push(
-                        round.uuid
-                    );
-                }
-            }
-            vec![Box::new(Self::subtree_from_node(first_round_uuid, &children, &breaks_and_round_by_uuid))]
-        }
-        else {
-            vec![]
-        };
-        
         Ok(TournamentTreeView {
             tree: TournamentTreeNode {
                 content: TournamentTreeNodeContent::Root,
-                children: tree_children,
+                children: tree_nodes,
                 available_actions: vec![
                     AvailableAction {
                         description: "Add Three Preliminary Rounds".to_string(),
-                        action: EditTreeActionType::AddThreePreliminaryRounds { parent: None }
+                        action: EditTreeActionType::AddPreliminaryRounds { parent: None }
                     },
                 ],
             }
         })
     }
     
-    fn subtree_from_node(node_uuid: Uuid, all_children: &HashMap<Uuid, Vec<Uuid>>, breaks_and_round_by_uuid: &HashMap<Uuid, BreakOrRound>) -> TournamentTreeNode {
-        let children = all_children.get(&node_uuid);
-        let content = breaks_and_round_by_uuid.get(&node_uuid);
-
-        let mut local_children = children.map(|c| c.clone()).unwrap_or_else(Vec::new);
-
-        let node_content = if let Some(BreakOrRound::Round(parent_round)) = content {
-            let mut collated_children = Vec::new();
-
-            match &parent_round.draw_type {
-                Some(DrawType::Preliminary) => {
-                    let mut unexplored_children: Vec<Uuid> = local_children.clone();
-                    local_children.clear(); // We need to reconstruct the children for grouping
-                    while unexplored_children.len() > 0 {
-                        let child_uuid = unexplored_children.pop().unwrap();
-                        let child = breaks_and_round_by_uuid.get(&child_uuid);
-    
-                        let mut did_collate_child = false;
-                        
-                        if let Some(BreakOrRound::Round(child)) = child {
-                            if child.draw_type == Some(DrawType::Preliminary) {
-                                did_collate_child = true;
-                                if let Some(c) = all_children.get(&child_uuid) {
-                                    unexplored_children.extend(c);
-                                }
-                                collated_children.push(child_uuid);
-                            }
-                        }
-    
-                        if !did_collate_child {
-                            local_children.push(child_uuid);
-                        }
-                    }
-    
-                    local_children.extend(unexplored_children);
-                }
-
-                Some(DrawType::TabDraw { .. }) => {
-                    let mut unexplored_children: Vec<Uuid> = local_children.clone();
-                    local_children.clear(); // We need to reconstruct the children for grouping
-                    while unexplored_children.len() > 0 {
-                        let child_uuid = unexplored_children.pop().unwrap();
-                        let child = breaks_and_round_by_uuid.get(&child_uuid);
-    
-                        let mut did_collate_child = false;
-                        
-                        if let Some(BreakOrRound::Round(child)) = child {
-                            match &child.draw_type {
-                                Some(DrawType::TabDraw { .. }) => {
-                                    did_collate_child = true;
-                                    if let Some(c) = all_children.get(&child_uuid) {
-                                        unexplored_children.extend(c);
-                                    }
-                                    collated_children.push(child_uuid);
-                                }
-                                _ => {}
-                            }
-                        }
-    
-                        if !did_collate_child {
-                            local_children.push(child_uuid);
-                        }
-                    }
-    
-                    local_children.extend(unexplored_children);
-                }
-
-                _ => {}
+    fn subtree_from_node(node_uuid: Uuid, nodes: &HashMap<Uuid, TournamentPlanNode>, rounds: &HashMap<Uuid, TournamentRound>, node_children: &HashMap<Uuid, Vec<Uuid>>, names: &HashMap<(Uuid, usize), String>) -> TournamentTreeNode {
+        let empty_vec = vec![];
+        let children = node_children.get(&node_uuid).unwrap_or(&empty_vec);
+        
+        let child_nodes = children.iter().map(
+            |child_uuid| {
+                Self::subtree_from_node(*child_uuid, nodes, rounds, node_children, names)
             }
+        ).collect::<Vec<_>>();
 
+        let node = nodes.get(&node_uuid).unwrap();
 
-            let collated_children = collated_children.into_iter().filter_map(
-                |child_uuid| {
-                let child = breaks_and_round_by_uuid.get(&child_uuid);
-                if let Some(BreakOrRound::Round(child)) = child {
-                    Some(
-                        RoundInfo {
-                            uuid: child_uuid,
-                            name: format!("Runde {}", child.index + 1),
-                            round_number: child.index as i32,
-                            //draw_type: child.draw_type,
-                            //children: TournamentTreeNode::subtree_from_node(child_uuid, all_children, breaksAndRoundByUuid)
+        let (content, available_actions) = match &node.config {
+            domain::tournament_plan_node::PlanNodeType::Round { config, rounds: node_rounds } => {
+                let mut actual_rounds = node_rounds.iter().enumerate().filter_map(
+                    |(round_idx, round_uuid)| {
+                        rounds.get(round_uuid).map(
+                            |round| {
+                                let name = names.get(&(node_uuid, round_idx)).cloned().unwrap_or("Unknown Round".into());
+                                let plan_state = RoundInfoState::Ok;
+
+                                RoundInfo {
+                                    uuid: Some(round.uuid),
+                                    name,
+                                    plan_state
+                                }
+                            }
+                        )
+                    }
+                ).collect::<Vec<_>>();
+
+                if actual_rounds.len() as i32 >= config.num_rounds() {
+                    actual_rounds.iter_mut().enumerate().for_each(|(idx, round)| {
+                        if idx >= config.num_rounds() as usize {
+                            round.plan_state = RoundInfoState::Superflous;
                         }
-                    )
+                    });
                 }
                 else {
-                    None
-                }
-            }).collect_vec();
+                    for idx in (actual_rounds.len() as i32)..(config.num_rounds()) {
+                        let name = names.get(&(node_uuid, idx as usize)).cloned().unwrap_or("Unknown Round".into());
+                        let plan_state = RoundInfoState::Ghost;
 
-            let base_info = RoundInfo {
-                uuid: node_uuid,
-                name: format!("Runde {}", parent_round.index + 1),
-                round_number: parent_round.index as i32,
-            };
-            if collated_children.len() > 0 {
-                let grouped_rounds = vec![base_info].into_iter().chain(collated_children).collect_vec();
-                TournamentTreeNodeContent::RoundGroup(
-                    RoundGroupInfo { rounds: grouped_rounds }
-                )
-            }
-            else {
-                TournamentTreeNodeContent::Round(
-                    base_info
-                )
-            }
-        }
-        else if let Some(BreakOrRound::Break(parent_break)) = content {
-            TournamentTreeNodeContent::Break(
-                BreakInfo {
-                    uuid: parent_break.uuid,
-                    break_description: parent_break.break_type.human_readable_description(),
+                        actual_rounds.push(
+                            RoundInfo {
+                                uuid: None,
+                                name,
+                                plan_state
+                            }
+                        );
+                    }
                 }
-            )
-        }
-        else  {
-            TournamentTreeNodeContent::Error
+                (TournamentTreeNodeContent::RoundGroup(RoundGroupInfo {
+                    rounds: actual_rounds
+                }),  Self::get_standard_node_actions(node_uuid))
+            },
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+                let break_description = config.human_readable_description();
+
+                (TournamentTreeNodeContent::Break(BreakInfo {
+                    uuid: *break_id,
+                    break_description
+                }),  Self::get_standard_node_actions(node_uuid),)
+            },
         };
 
-        let child_trees = local_children.into_iter().map(
-            |child_uuid| {
-                Box::new(Self::subtree_from_node(child_uuid, all_children, breaks_and_round_by_uuid))
-            }
-        ).collect_vec();
-
         TournamentTreeNode {
-            children: child_trees,
-            available_actions: match &node_content {
-                TournamentTreeNodeContent::RoundGroup(g) => Self::get_standard_round_actions(g.rounds.last().unwrap().uuid),
-                TournamentTreeNodeContent::Round(r) => Self::get_standard_round_actions(r.uuid),
-                TournamentTreeNodeContent::Break(_b) => vec![],
-                _ => vec![] // These never appear in this recursion
-            },
-            content: node_content,
+            content,
+            children: child_nodes.into_iter().map(|c| Box::new(c)).collect(),
+            available_actions
         }
-
-            /*
-            // We group preliminaries without any other children into a group
-            let group_children = if let Some(BreakOrRound::Round(round)) = content {
-                if let Some(BreakOrRound::Round(child_round)) = children {
-                    if child_round.draw_type == Some(DrawType::StandardPreliminaryDraw) && children.len() == 1 {
-                        let child = breaksAndRoundByUuid.get(&children[0]);
-                        match child {
-                            Some(BreakOrRound::Round(round)) => {
-                                round.draw_type == Some(DrawType::StandardPreliminaryDraw)
-                            }
-                            _ => false
-                        }
-                    }
-                    else {
-                        false
-                    };
-                }
-                else {
-                    false
-                }
-            }
-             */
     }
 
-    fn get_standard_round_actions(round_uuid: Uuid) -> Vec<AvailableAction> {
+    fn get_standard_node_actions(round_uuid: Uuid) -> Vec<AvailableAction> {
         vec![
             AvailableAction {
-                description: "Add Three Preliminary Rounds".to_string(),
-                action: EditTreeActionType::AddThreePreliminaryRounds { parent: Some(round_uuid) }
+                description: "Add Preliminary Rounds".to_string(),
+                action: EditTreeActionType::AddPreliminaryRounds { parent: Some(round_uuid) }
             },
             AvailableAction {
                 description: "Add Finals".to_string(),
@@ -410,50 +455,50 @@ impl TournamentTreeView {
             AvailableAction {
                 description: "Add Minor Break (1 round)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::PowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
-                    }
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::BalancedPowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
+                    },
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (1 round, balanced)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::BalancedPowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
-                    }
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::BalancedPowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
+                    },
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (2 rounds)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::InversePowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::InversePowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
                     },
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::PowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
-                    },
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::PowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
+                    }
                 ] }
             },
             AvailableAction {
                 description: "Add Minor Break (2 rounds, balanced)".to_string(),
                 action: EditTreeActionType::AddMinorBreakRounds { parent: round_uuid, draws: vec![
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::InversePowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::InversePowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
                     },
-                    TabDrawConfig {
-                        team_draw: domain::round::TeamDrawMode::BalancedPowerPaired,
-                        team_assignment_rule: domain::round::TeamAssignmentRule::Fixed,
-                        speaker_draw: domain::round::SpeakerDrawMode::Random,
+                    FoldDrawConfig {
+                        team_fold_method: domain::tournament_plan_node::TeamFoldMethod::BalancedPowerPaired,
+                        team_assignment_rule: domain::tournament_plan_node::TeamAssignmentRule::Random,
+                        non_aligned_fold_method: domain::tournament_plan_node::NonAlignedFoldMethod::Random,
                     }
                 ] }
             },
