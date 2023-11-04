@@ -205,6 +205,7 @@ async fn create_test_user(db: DatabaseConnection) {
     let user: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
         uuid: Uuid::from_u128(13000),
         password_hash: "".to_string(), // Empty password hash
+        user_email: None
     };
     let key = get_test_user_key();
     let user_participant = open_tab_entities::schema::user_participant::Model {

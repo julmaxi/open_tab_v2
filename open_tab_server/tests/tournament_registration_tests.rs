@@ -14,6 +14,7 @@ async fn test_create_user() {
         .await
         .post_json("/api/users", CreateUserRequest {
             password: "test".to_string(),
+            user_email: None
         })
         .await;
 
@@ -43,6 +44,7 @@ async fn test_can_create_generic_token_with_login() {
     let mut response = fixture
         .post_json("/api/users", CreateUserRequest {
             password: "test".to_string(),
+            user_email: None
         })
         .await;
     assert_eq!(response.status(), 200);
@@ -70,6 +72,7 @@ async fn test_can_not_create_generic_token_with_wrong_password() {
     let mut response = fixture
         .post_json("/api/users", CreateUserRequest {
             password: "test".to_string(),
+            user_email: None
         })
         .await;
     assert_eq!(response.status(), 200);

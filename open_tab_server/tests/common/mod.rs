@@ -78,6 +78,7 @@ impl Fixture {
             let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
                 uuid: new_user_uuid,
                 password_hash: pwd,
+                user_email: None
             };
         
             model.into_active_model().insert(&state.db).await.unwrap();
@@ -116,6 +117,7 @@ impl Fixture {
         let mut response = self
             .post_json("/api/users", CreateUserRequest {
                 password: "test".to_string(),
+                user_email: None,
             })
             .await;
         assert_eq!(response.status(), 200);
