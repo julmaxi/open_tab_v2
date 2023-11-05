@@ -61,6 +61,7 @@ impl LoadedView for LoadedTournamentTreeView {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TournamentTreeNode {
+    uuid: Option<Uuid>,
     content: TournamentTreeNodeContent,
     children: Vec<Box<TournamentTreeNode>>,
     available_actions: Vec<AvailableAction>,
@@ -111,10 +112,6 @@ pub struct TournamentTreeView {
     tree: TournamentTreeNode,
 }
 
-enum BreakOrRound {
-    Break(TournamentBreak),
-    Round(TournamentRound),
-}
 
 fn is_pow2(n: i32) -> bool {
     n > 0 && (n & (n - 1)) == 0
@@ -132,6 +129,35 @@ fn num_teams_to_round_name(num_teams: i32) -> String {
     }
 }
 
+fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<String> {
+    let most_recent = breaks.last();
+
+    if breaks.is_empty() {
+        return None;
+    }
+    let most_recent = most_recent.unwrap();
+
+    match most_recent {
+        BreakConfig::TabBreak { num_debates } => if breaks.len() == 1 && is_pow2(*num_debates as i32) && *num_debates > 0 {
+            Some(num_teams_to_round_name((num_debates * 2) as i32))
+        }
+        else {
+            None
+        },
+        BreakConfig::KnockoutBreak => {
+            let remaining_teams = get_num_remaining_teams_from_breaks(breaks);
+            if let Some(remaining_teams) = remaining_teams {
+                Some(num_teams_to_round_name(remaining_teams))
+            }
+            else {
+                None
+            }
+        },
+        _ => None
+    }
+}
+
+
 fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32> {
     if breaks.len() == 0 {
         return None;
@@ -142,7 +168,7 @@ fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32
     for break_ in breaks {
         num_remaining = match break_ {
             BreakConfig::Manual => None,
-            BreakConfig::TabBreak { num_breaking_teams } => num_remaining,
+            BreakConfig::TabBreak { num_debates } => Some((num_debates * 2) as i32),
             BreakConfig::KnockoutBreak => if let Some(remaining) = num_remaining {
                 if remaining % 2 == 0 {
                     Some(remaining / 2)
@@ -185,34 +211,6 @@ fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32
 }
 
 impl TournamentTreeView {
-    fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<String> {
-        let most_recent = breaks.last();
-
-        if breaks.is_empty() {
-            return None;
-        }
-        let most_recent = most_recent.unwrap();
-
-        match most_recent {
-            BreakConfig::TabBreak { num_breaking_teams } => if breaks.len() == 1 && is_pow2(*num_breaking_teams as i32) && *num_breaking_teams > 1 {
-                Some(num_teams_to_round_name(*num_breaking_teams as i32))
-            }
-            else {
-                None
-            },
-            BreakConfig::KnockoutBreak => {
-                let remaining_teams = get_num_remaining_teams_from_breaks(breaks);
-                if let Some(remaining_teams) = remaining_teams {
-                    Some(num_teams_to_round_name(remaining_teams))
-                }
-                else {
-                    None
-                }
-            },
-            _ => None
-        }
-    }
-
     fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<HashMap<(Uuid, usize), String>, anyhow::Error> {
         let mut explore_queue = roots.clone().into_iter().map(|r| (r, vec![])).collect_vec();
 
@@ -241,7 +239,7 @@ impl TournamentTreeView {
                 domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
                     let num_rounds_to_consider = usize::max(rounds.len(), config.num_rounds() as usize);
                     let special_name = if num_rounds_to_consider == 1 {
-                        let special_name = Self::get_special_name_from_preceding_breaks(&prev_breaks);
+                        let special_name = get_special_name_from_preceding_breaks(&prev_breaks);
                         special_name
                     } else {
                         None
@@ -345,6 +343,7 @@ impl TournamentTreeView {
 
         Ok(TournamentTreeView {
             tree: TournamentTreeNode {
+                uuid: None,
                 content: TournamentTreeNodeContent::Root,
                 children: tree_nodes,
                 available_actions: vec![
@@ -424,6 +423,7 @@ impl TournamentTreeView {
         };
 
         TournamentTreeNode {
+            uuid: Some(node_uuid),
             content,
             children: child_nodes.into_iter().map(|c| Box::new(c)).collect(),
             available_actions

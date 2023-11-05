@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
-use open_tab_entities::{prelude::Ballot, domain::round::{TeamDrawMode, TeamAssignmentRule, SpeakerDrawMode}};
+use open_tab_entities::{prelude::{Ballot, Team}, domain::{round::{TeamDrawMode, SpeakerDrawMode}, tournament_plan_node::{TeamFoldMethod, TeamAssignmentRule, NonAlignedFoldMethod}}, tab::TeamRoundRole};
 use rand::{thread_rng, seq::SliceRandom, Rng};
 use sea_orm::prelude::Uuid;
 
@@ -8,6 +10,27 @@ use sea_orm::prelude::Uuid;
 pub struct TeamPair {
     pub government_id: Uuid,
     pub opposition_id: Uuid,
+}
+
+impl TeamPair {
+    pub fn shuffled(self) -> Self {
+        let mut rng = thread_rng();
+        if rng.gen_bool(0.5) {
+            Self {
+                government_id: self.opposition_id,
+                opposition_id: self.government_id,
+            }
+        } else {
+            self
+        }
+    }
+
+    pub fn inverted(self) -> Self {
+        Self {
+            government_id: self.opposition_id,
+            opposition_id: self.government_id,
+        }
+    }
 }
 
 pub fn reverse_fold(
@@ -23,13 +46,12 @@ pub fn reverse_fold(
 
 pub fn pair_teams(
     breaking_teams: &Vec<Uuid>,
-    team_draw_mode: TeamDrawMode,
-    team_assignment_rule: TeamAssignmentRule,
+    team_draw_mode: &TeamFoldMethod,
 ) -> Vec<TeamPair> {
     assert!(breaking_teams.len() % 2 == 0, "Breaking teams must be even");
     let mut rng = thread_rng();
     let mut pairs = match team_draw_mode {
-        TeamDrawMode::PowerPaired => {
+        TeamFoldMethod::PowerPaired => {
             let gov_iter = breaking_teams.iter().step_by(2);
             let opp_iter = breaking_teams.iter().skip(1).step_by(2);
             gov_iter.zip(opp_iter).map(|(gov, opp)| TeamPair {
@@ -37,10 +59,10 @@ pub fn pair_teams(
                 opposition_id: *opp,
             }).collect_vec()        
         }
-        TeamDrawMode::InversePowerPaired => {
+        TeamFoldMethod::InversePowerPaired => {
             reverse_fold(breaking_teams)        
         }
-        TeamDrawMode::BalancedPowerPaired => {
+        TeamFoldMethod::BalancedPowerPaired => {
             let mut half_team_count = breaking_teams.len() / 2;
 
             if half_team_count % 2 != 0 {
@@ -71,7 +93,7 @@ pub fn pair_teams(
             
             upper_pairs.into_iter().chain(center_pair.into_iter()).chain(lower_pairs.into_iter()).collect_vec()
         }
-        TeamDrawMode::Random => {
+        TeamFoldMethod::Random => {
             let mut teams = breaking_teams.clone();
             teams.shuffle(&mut rng);
             teams.iter().step_by(2).zip(teams.iter().skip(1).step_by(2)).map(|(gov, opp)| TeamPair {
@@ -81,24 +103,6 @@ pub fn pair_teams(
         }
     };
 
-    let pairs = match team_assignment_rule {
-        TeamAssignmentRule::Random => {
-            pairs.into_iter().map(
-                |pair| {
-                    let mut rng = thread_rng();
-                    if rng.gen() {
-                        pair
-                    } else {
-                        TeamPair {
-                            government_id: pair.opposition_id,
-                            opposition_id: pair.government_id,
-                        }
-                    }
-                }
-            ).collect_vec()
-        }
-        TeamAssignmentRule::Fixed => pairs
-    };
     pairs
 }
 
@@ -114,17 +118,53 @@ pub fn pair_consequtive_speakers(speakers: &Vec<Uuid>) -> Vec<Vec<Uuid>> {
 
 }
 
-pub fn pair_speakers(breaking_speakers: &Vec<Uuid>, speaker_draw_mode: SpeakerDrawMode) -> Vec<Vec<Uuid>> {
+pub fn pair_speakers(breaking_speakers: &Vec<Uuid>, speaker_draw_mode: &NonAlignedFoldMethod) -> Vec<Vec<Uuid>> {
     let mut rng = thread_rng();
     let pairs = match speaker_draw_mode {
-        SpeakerDrawMode::PowerPaired => {
+        NonAlignedFoldMethod::TabOrder => {
             pair_consequtive_speakers(breaking_speakers)
         }
-        SpeakerDrawMode::Random => {
+        NonAlignedFoldMethod::Random => {
             let mut speakers = breaking_speakers.clone();
             speakers.shuffle(&mut rng);
             pair_consequtive_speakers(&speakers)
         }
     };
     pairs
+}
+
+pub fn assign_teams(
+    team_pairs: Vec<TeamPair>,
+    config: &open_tab_entities::domain::tournament_plan_node::FoldDrawConfig,
+    preceding_round_gov_opp_assignments: Option<&HashMap<Uuid, TeamRoundRole>>,
+) -> Vec<TeamPair> {
+    match config.team_assignment_rule {
+        open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random => {
+            team_pairs.into_iter().map(|p| p.shuffled()).collect_vec()
+        },
+        open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::InvertPrevious => {
+            team_pairs.into_iter().map(|p| {
+                let p = p.shuffled();
+                if let Some(preceding_round_gov_opp_assignments) = &preceding_round_gov_opp_assignments {
+                    let prev_gov_role = preceding_round_gov_opp_assignments.get(&p.government_id);
+                    let prev_opp_role = preceding_round_gov_opp_assignments.get(&p.opposition_id);
+                    if prev_gov_role == prev_gov_role  {
+                        p.shuffled()
+                    }
+                    else {
+                        if prev_gov_role == Some(&TeamRoundRole::Government) || prev_opp_role == Some(&TeamRoundRole::Opposition) {
+                            p.inverted()
+                        }
+                        else {
+                            p
+                        }
+        
+                    }
+                }
+                else {
+                    p.shuffled()
+                }
+            }).collect_vec()
+        },
+    }
 }

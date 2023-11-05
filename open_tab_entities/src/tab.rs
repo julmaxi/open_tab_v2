@@ -50,7 +50,7 @@ impl TeamTabEntryDetailedScore {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TeamRoundRole {
     Government,
     Opposition,

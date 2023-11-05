@@ -1,8 +1,8 @@
-use std::error::Error;
+use std::{error::Error, collections::{HashMap, self}};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule, self}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}}, EntityType};
+use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule, self}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType, self}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType, group, schema::tournament_round};
 
 use sea_orm::prelude::*;
 
@@ -32,12 +32,66 @@ pub enum EditTreeActionError {
     ParentRoundDoesNotExist {uuid: Uuid},
 }
 
+
+pub fn reindex_rounds(
+    all_nodes: &Vec<TournamentPlanNode>,
+    all_edges: &Vec<TournamentPlanEdge>,
+    all_rounds: &Vec<TournamentRound>
+) -> Vec<TournamentRound> {
+    let mut changed_rounds = vec![];
+
+    let all_rounds = all_rounds.into_iter().map(|r| (r.uuid, r)).collect::<HashMap<Uuid, _>>();
+
+    let node_parents = all_edges.iter().map(|e| (e.target_id, e.source_id)).collect::<HashMap<Uuid, Uuid>>();
+    let roots = all_nodes.iter().filter(|n| !node_parents.contains_key(&n.uuid)).map(|n| n.uuid).collect::<Vec<Uuid>>();
+    let node_children = all_edges.iter().map(|e| (e.source_id, e.target_id)).into_group_map();
+
+    let mut explore_queue = vec![];
+
+    explore_queue.extend(roots);
+
+    let mut visited = collections::HashSet::new();
+
+    let mut curr_round_index = 0;
+
+    while let Some(next) = explore_queue.pop() {
+        if visited.contains(&next) {
+            continue;
+        }
+        visited.insert(next);
+
+        let node = all_nodes.iter().find(|n| n.uuid == next).unwrap();
+        match &node.config {
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
+                let num_to_label = usize::max(config.num_rounds() as usize, rounds.len());
+                for (local_idx, round_) in rounds.iter().enumerate() {
+                    let mut round = all_rounds.get(round_).expect("Guaranteed by db constraints").clone().clone();
+                    if round.index != curr_round_index {
+                        round.index = curr_round_index + local_idx as u64;
+                        changed_rounds.push(round);
+                    }
+                }
+
+                curr_round_index += num_to_label as u64;
+            },
+            _ => {},
+        }
+
+        explore_queue.extend(node_children.get(&next).unwrap_or(&vec![]));
+    }
+
+    changed_rounds
+}
+
 #[async_trait]
 impl ActionTrait for EditTreeAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         //let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
+
+        let mut all_nodes = TournamentPlanNode::get_all_in_tournament(db, self.tournament_id).await?;
+        let mut all_edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect()).await?;
 
         match self.action {
             EditTreeActionType::AddPreliminaryRounds { parent: parent_node } => {
@@ -49,6 +103,8 @@ impl ActionTrait for EditTreeAction {
                     let current_edges = TournamentPlanEdge::get_all_for_sources(db, vec![parent_node]).await?;
                     if let Some(first_child) = current_edges.first() {
                         groups.delete(EntityType::TournamentPlanEdge, first_child.uuid);
+                        let edge = all_edges.iter_mut().find_position(|e| e.uuid == first_child.uuid).unwrap().0;
+                        all_edges.remove(edge);
                         groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(node.uuid, first_child.target_id)));
                     }
 
@@ -61,11 +117,10 @@ impl ActionTrait for EditTreeAction {
             EditTreeActionType::AddKOStage { parent, num_stages } => {
                 let mut nodes = vec![];
                 let mut edges = vec![];
-                let num_breaking_teams = 1 << num_stages;
-                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_breaking_teams }));
+                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_debates: u32::pow(2, (num_stages - 1) as u32) as u32 }));
                 let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                     config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
-                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()
+                        round_configs: vec![open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()]
                     },
                     rounds: vec![]
                 });
@@ -85,7 +140,7 @@ impl ActionTrait for EditTreeAction {
                     let break_ = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::KnockoutBreak));
                     let round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                         config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
-                            config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()
+                            round_configs: vec![open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()]
                         },
                         rounds: vec![]
                     });
@@ -112,19 +167,12 @@ impl ActionTrait for EditTreeAction {
 
                 edges.push(TournamentPlanEdge::new(parent, break_id));
 
-                let mut prev_node_id = break_id;
+                let node = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
+                    config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw{round_configs: draws},
+                    rounds: vec![]
+                });
 
-                for setting in draws {
-                    let round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
-                        config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw{config: setting},
-                        rounds: vec![]
-                    });
-
-                    edges.push(TournamentPlanEdge::new(prev_node_id, round.uuid));
-                    prev_node_id = round.uuid;
-
-                    nodes.push(round);
-                }
+                edges.push(TournamentPlanEdge::new(break_id, node.uuid));
 
                 edges.into_iter().for_each(|e| groups.add(Entity::TournamentPlanEdge(e)));
                 nodes.into_iter().for_each(|n| groups.add(Entity::TournamentPlanNode(n)));
@@ -134,11 +182,11 @@ impl ActionTrait for EditTreeAction {
                 let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TwoThirdsBreak));
                 let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                     config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
-                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
+                        round_configs: vec![open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
                             team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::Random,
                             non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random,
                             team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
-                        },
+                        }],
                     },
                     rounds: vec![]
                 });
@@ -146,11 +194,11 @@ impl ActionTrait for EditTreeAction {
                 let second_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TimBreak));
                 let second_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                     config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
-                        config: open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
+                        round_configs: vec![open_tab_entities::domain::tournament_plan_node::FoldDrawConfig {
                             team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::PowerPaired,
                             non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random,
                             team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
-                        },
+                        }],
                     },
                     rounds: vec![]
                 });
@@ -166,6 +214,16 @@ impl ActionTrait for EditTreeAction {
                 groups.add(Entity::TournamentPlanNode(second_round));
             },
         }
+
+        all_edges.extend(groups.tournament_plan_edges.iter().map(|e| e.clone()));
+        all_nodes.extend(groups.tournament_plan_nodes.iter().map(|n| n.clone()));
+
+        let all_rounds = domain::round::TournamentRound::get_all_in_tournament(
+            db,
+            self.tournament_id
+        ).await?;
+    
+        reindex_rounds(&all_nodes, &all_edges, &all_rounds).into_iter().for_each(|r| groups.add(Entity::TournamentRound(r)));
 
         Ok(groups)
     }

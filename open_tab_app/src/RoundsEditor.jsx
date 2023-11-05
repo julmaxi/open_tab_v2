@@ -13,28 +13,10 @@ function RoundCard(props) {
 function RoundGroup(props) {
     return <div className="flex flex-col items-center">
         {
-            props.rounds.map((round) => 
-                <RoundCard round={round} key={round.uuid} />
+            props.rounds.map((round, idx) => 
+                <RoundCard round={round} key={round.uuid ? round.uuid : idx} />
             )
         }
-    </div>
-}
-
-function RoundBreakHierarchy(props) {
-    return <div className="flex-col w-full h-full border-t">
-        <RoundGroup rounds={props.rounds} />
-        <div className="flex flex-row justify-center">
-            <Button role="primary">Add Break…</Button>
-        </div>
-        <div className="flex flex-row">
-            {
-                props.breaks.map((roundBreak) => 
-                    <div className="flex flex-1">
-                        <RoundBreakHierarchy rounds={roundBreak.rounds} key={roundBreak.uuid} breaks={roundBreak.breaks || []} />
-                    </div>
-                )
-            }
-        </div>
     </div>
 }
 
@@ -48,16 +30,16 @@ function RoundsContainer(props) {
     let tournamentContext = useContext(TournamentContext);
     return <div className="overflow-clip rounded bg-gray-300">
         {
-            props.rounds.map((round) => 
-                <RoundContainer round={round} key={round.uuid} />
+            props.rounds.map((round, idx) => 
+                <RoundContainer round={round} key={round.uuid ? round.uuid : idx} />
             )
         }
         <button className="text-xs text-center w-full" onClick={
             (e) => {
                 executeAction(
-                    "GenerateDraw",
+                    "ExecutePlanNode",
                     {
-                        "draw_rounds": props.rounds.map((round) => round.uuid),
+                        "plan_node": props.nodeId,
                         "tournament_id": tournamentContext.uuid
                     }
                 );
@@ -69,7 +51,7 @@ function RoundsContainer(props) {
 }
 
 function BreakContainer(props) {
-    console.log(props)
+    let tournamentContext = useContext(TournamentContext);
     return <div className="rounded border-2 p-1 text-center w-28">
         Break
 
@@ -80,9 +62,10 @@ function BreakContainer(props) {
         <button className="text-xs text-center w-full" onClick={
             (e) => {
                 executeAction(
-                    "MakeBreak",
+                    "ExecutePlanNode",
                     {
-                        "break_id": props.break.uuid
+                        "plan_node": props.nodeId,
+                        "tournament_id": tournamentContext.uuid
                     }
                 );
             }
@@ -96,16 +79,11 @@ function NodeContent(props) {
     if (props.node.type == "RoundGroup") {
         return <RoundsContainer
             rounds={props.node.rounds}
+            nodeId={props.nodeId}
         />
     }
     else if (props.node.type == "Break") {
-        return <BreakContainer break={props.node} />
-    }
-    else if (props.node.type == "Round") {
-        //return <RoundContainer round={props.node} />
-        return <RoundsContainer
-            rounds={[props.node]}
-        />
+        return <BreakContainer break={props.node} nodeId={props.nodeId} />
     }
 
     return props.node.type
@@ -113,13 +91,13 @@ function NodeContent(props) {
 
 function NodeContainer(props) {
     return <div className="flex flex-col items-center">
-        <NodeContent node={props.node} />
+        <NodeContent node={props.node} nodeId={props.nodeId} />
     </div>
 }
 
 function TournamentSubtree(props) {
     return <div className="flex flex-col items-center">
-        <NodeContainer node={props.tree.content} />
+        <NodeContainer node={props.tree.content} nodeId={props.tree.uuid} />
         {props.tree.available_actions.length > 0 ? <AddButton actions={props.tree.available_actions} /> : []}
         <div className="flex flex-row p-1">
             {

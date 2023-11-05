@@ -78,8 +78,7 @@ async fn test_save_empty_round_node() {
     ).await;
 
     if let Err(e) = e {
-        dbg!(e.backtrace());
-        assert_eq!(0, 1);
+        panic!("Error: {}", e)
     }
 }
 

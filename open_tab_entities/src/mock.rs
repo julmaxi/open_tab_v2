@@ -358,12 +358,12 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     );
     let finals_break_plan_node = TournamentPlanNode::new(
         tournament_uuid,
-        PlanNodeType::Break { config: crate::domain::tournament_plan_node::BreakConfig::TabBreak { num_breaking_teams: 2 }, break_id: None }
+        PlanNodeType::Break { config: crate::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates: 1 }, break_id: None }
     );
     let finals_round_node = TournamentPlanNode::new(
         tournament_uuid,
         PlanNodeType::Round {
-            config: RoundGroupConfig::FoldDraw{config: FoldDrawConfig::default_ko_fold()},
+            config: RoundGroupConfig::FoldDraw{round_configs: vec![FoldDrawConfig::default_ko_fold()]},
             rounds: vec![]
         }
     );

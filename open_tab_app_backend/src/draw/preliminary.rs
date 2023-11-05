@@ -22,6 +22,7 @@ use super::{evaluation::DrawEvaluator, optimization::find_best_ballot_assignment
 
 pub struct RoundGenerationContext {
     pub teams: Vec<DrawTeamInfo>,
+    pub speakers: Vec<Uuid>,
     pub adjudicators: Vec<Uuid>,
 }
 
@@ -408,6 +409,7 @@ mod test {
                 })
                 .collect(),
             adjudicators: vec![],
+            speakers: vec![]
         };
 
         let generator = PreliminaryRoundGenerator {

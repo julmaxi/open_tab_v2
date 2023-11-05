@@ -167,8 +167,6 @@ impl ExpandingPageTemplate {
     }
 
     pub fn layout(&self, context: &mut LayoutContext, value: &LayoutValue) -> Vec<PageLayoutInfo> {
-        dbg!(&value);
-
         let mut pages = vec![];
 
         for entry in self.elements.iter() {

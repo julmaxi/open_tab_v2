@@ -26,7 +26,6 @@ pub enum TeamFoldMethod {
     PowerPaired,
     InversePowerPaired,
     BalancedPowerPaired,
-    KOPaired,
     Random
 }
 
@@ -53,7 +52,7 @@ pub struct FoldDrawConfig {
 impl FoldDrawConfig {
     pub fn default_ko_fold() -> Self {
         FoldDrawConfig {
-            team_fold_method: TeamFoldMethod::KOPaired,
+            team_fold_method: TeamFoldMethod::InversePowerPaired,
             team_assignment_rule: TeamAssignmentRule::Random,
             non_aligned_fold_method: NonAlignedFoldMethod::Random,
         }
@@ -63,9 +62,8 @@ impl FoldDrawConfig {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum RoundGroupConfig {
     Preliminaries {num_roundtrips: i32},
-    MinorDraw {round_configs: Vec<MinorDrawConfig>},
     FoldDraw {
-        config: FoldDrawConfig
+        round_configs: Vec<FoldDrawConfig>
     },
 }
 
@@ -73,8 +71,7 @@ impl RoundGroupConfig {
     pub fn num_rounds(&self) -> i32 {
         match self {
             RoundGroupConfig::Preliminaries {num_roundtrips} => num_roundtrips * 3,
-            RoundGroupConfig::MinorDraw {round_configs} => round_configs.len() as i32,
-            RoundGroupConfig::FoldDraw {..} => 1,
+            RoundGroupConfig::FoldDraw {round_configs} => round_configs.len() as i32,
         }
     }
 }
@@ -82,7 +79,7 @@ impl RoundGroupConfig {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum BreakConfig {
     Manual,
-    TabBreak {num_breaking_teams: u32},
+    TabBreak {num_debates: u32},
     KnockoutBreak,
     TwoThirdsBreak,
     TimBreak,
@@ -91,7 +88,7 @@ pub enum BreakConfig {
 impl BreakConfig {
     pub fn human_readable_description(&self) -> String {
         match self {
-            BreakConfig::TabBreak{num_breaking_teams} => format!("Top {0} break", num_breaking_teams),
+            BreakConfig::TabBreak{num_debates } => format!("Top {0} break", num_debates * 2),
             BreakConfig::TwoThirdsBreak => "Upper 2/3rds break".to_string(),
             BreakConfig::KnockoutBreak => "Debate winners break".to_string(),
             BreakConfig::TimBreak => "Upper 1/3rd breaks, along with non-aligned".to_string(),
@@ -253,7 +250,7 @@ impl TournamentEntity for TournamentPlanNode {
             model.insert(db).await?;
         }
         else {
-            let prev_model = schema::tournament_break::Entity::find_by_id(self.uuid).one(db).await?;
+            let prev_model = schema::tournament_plan_node::Entity::find_by_id(self.uuid).one(db).await?;
 
             if let Some(_) = prev_model {
                 model.update(db).await?;

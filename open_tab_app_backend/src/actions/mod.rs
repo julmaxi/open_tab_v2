@@ -27,7 +27,7 @@ pub use self::update_participant::UpdateParticipantsAction;
 pub use self::upload_participants_list::UploadParticipantsListAction;
 pub use self::update_scores::UpdateScoresAction;
 pub use self::edit_tree::EditTreeAction;
-pub use self::generate_draw::GenerateDrawAction;
+pub use self::generate_draw::ExecutePlanNodeAction;
 pub use self::make_break::MakeBreakAction;
 pub use self::update_round::UpdateRoundAction;
 pub use self::create_institution::CreateInstitutionAction;
@@ -42,7 +42,7 @@ pub enum Action {
     UpdateScores { action: UpdateScoresAction },
     UploadParticipantsList { action: UploadParticipantsListAction },
     EditTournamentTree { action: EditTreeAction },
-    GenerateDraw { action: GenerateDrawAction },
+    ExecutePlanNode { action: ExecutePlanNodeAction },
     MakeBreak { action: MakeBreakAction },
     UpdateRound { action: UpdateRoundAction },
     CreateInstitution { action: CreateInstitutionAction },
@@ -57,7 +57,7 @@ impl Action {
             Action::UpdateScores{action} => action.get_changes(db).await,
             Action::UploadParticipantsList { action } => action.get_changes(db).await,
             Action::EditTournamentTree { action } => action.get_changes(db).await,
-            Action::GenerateDraw { action } => action.get_changes(db).await,
+            Action::ExecutePlanNode { action } => action.get_changes(db).await,
             Action::MakeBreak { action } => action.get_changes(db).await,
             Action::UpdateRound { action } => action.get_changes(db).await,
             Action::CreateInstitution { action } => action.get_changes(db).await,
