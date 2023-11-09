@@ -3,32 +3,31 @@ import Button from "./Button";
 
 import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
+import { ask } from '@tauri-apps/api/dialog';
 
-function RoundCard(props) {
-    return <div className="bg-gray-200 rounded-lg p-2 m-2">
-        {props.round.name}
-    </div>
-}
-
-function RoundGroup(props) {
-    return <div className="flex flex-col items-center">
-        {
-            props.rounds.map((round, idx) => 
-                <RoundCard round={round} key={round.uuid ? round.uuid : idx} />
-            )
-        }
-    </div>
-}
 
 function RoundContainer(props) {
-    return <div className="bg-gray-300 p-1 text-center w-28">
+    let style = "p-1 text-center w-28";
+    if (props.round.plan_state == "Superflous") {
+        style += " text-red"
+    }
+    else if (props.round.plan_state == "Ghost") {
+        style += " text-gray-300"
+    } 
+
+    return <div className={style}>
         {props.round.name}
+        {props.round.plan_state == "Ghost" ?
+            <p className="text-gray-300 text-xs">Not yet drawn</p>
+            :
+            []
+        }
     </div>
 }
 
 function RoundsContainer(props) {
     let tournamentContext = useContext(TournamentContext);
-    return <div className="overflow-clip rounded bg-gray-300">
+    return <div className="overflow-clip rounded border-2 p-1 ">
         {
             props.rounds.map((round, idx) => 
                 <RoundContainer round={round} key={round.uuid ? round.uuid : idx} />
@@ -36,13 +35,30 @@ function RoundsContainer(props) {
         }
         <button className="text-xs text-center w-full" onClick={
             (e) => {
-                executeAction(
-                    "ExecutePlanNode",
-                    {
-                        "plan_node": props.nodeId,
-                        "tournament_id": tournamentContext.uuid
-                    }
-                );
+                if (!props.rounds.every(r => r.plan_state == "Ghost")) {
+                    ask('Are you sure? This will override the previous break', { title: 'Generate Break', type: 'warning' }).then(
+                        (yes) => {
+                            if (yes) {
+                                executeAction(
+                                    "ExecutePlanNode",
+                                    {
+                                        "plan_node": props.nodeId,
+                                        "tournament_id": tournamentContext.uuid
+                                    }
+                                );                
+                            }
+                        }
+                    )
+                }
+                else {
+                    executeAction(
+                        "ExecutePlanNode",
+                        {
+                            "plan_node": props.nodeId,
+                            "tournament_id": tournamentContext.uuid
+                        }
+                    );    
+                }
             }
         }>
             Generate Draw
@@ -58,16 +74,36 @@ function BreakContainer(props) {
         <div className="text-sm text-center w-full">
             {props.break.break_description}
         </div>
+        {props.break.uuid === null ? <p className="text-gray-300 text-xs">No break yet</p> : []}
 
         <button className="text-xs text-center w-full" onClick={
             (e) => {
-                executeAction(
-                    "ExecutePlanNode",
-                    {
-                        "plan_node": props.nodeId,
-                        "tournament_id": tournamentContext.uuid
-                    }
-                );
+                if (props.break.uuid !== null) {
+                    ask('Are you sure? This will override the previous break', { title: 'Generate Break', type: 'warning' }).then(
+                        (yes) => {
+                            if (yes) {
+                                executeAction(
+                                    "ExecutePlanNode",
+                                    {
+                                        "plan_node": props.nodeId,
+                                        "tournament_id": tournamentContext.uuid
+                                    }
+                                );    
+                            }
+                        }
+                    );    
+                }
+                else {
+                    executeAction(
+                        "ExecutePlanNode",
+                        {
+                            "plan_node": props.nodeId,
+                            "tournament_id": tournamentContext.uuid
+                        }
+                    );
+                }
+
+                
             }
         }>
             Generate Break

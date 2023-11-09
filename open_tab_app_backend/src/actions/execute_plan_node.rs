@@ -247,6 +247,27 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
         },
     };
 
+    let mut optimization_state = OptimizationState::load_from_rounds_and_draw_ballots(db, tournament_id, rounds.iter().zip(ballots.iter()).collect(), Arc::new(OptimizationOptions::default()), Arc::new(draw_evaluator)).await?;
+
+    optimization_state.update_state_by_assigning_adjudicators();
+
+    let ballots = optimization_state.rounds.iter().zip(ballots).map(|(r, ballots)| {
+        r.debates.iter().zip(ballots.iter()).map(
+            |(debate, ballot)| {
+                let mut ballot = ballot.clone();
+                ballot.adjudicators = debate.chair.iter().chain(debate.wings.iter()).map(
+                    |debate_adjudicator| SetDrawAdjudicator{
+                        adjudicator: DrawAdjudicator {
+                        uuid: *debate_adjudicator,
+                        ..Default::default()
+                    }, ..Default::default()
+                    }
+                ).collect();
+                ballot
+            }
+        ).collect_vec()
+    }).collect_vec();
+
     let existing_debates = TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|r| r.uuid).collect()).await?;
     let mut all_venues = TournamentVenue::get_all_in_tournament(db, tournament_id).await?;
     all_venues.sort_by_key(|v| v.ordering_index);

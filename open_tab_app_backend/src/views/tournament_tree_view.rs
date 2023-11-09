@@ -77,10 +77,12 @@ struct AvailableAction {
 struct RoundInfo {
     uuid: Option<Uuid>,
     name: String,
+    #[serde(flatten)]
     plan_state: RoundInfoState
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag="plan_state")]
 enum RoundInfoState {
     Ok,
     Ghost,
@@ -375,6 +377,7 @@ impl TournamentTreeView {
                         rounds.get(round_uuid).map(
                             |round| {
                                 let name = names.get(&(node_uuid, round_idx)).cloned().unwrap_or("Unknown Round".into());
+
                                 let plan_state = RoundInfoState::Ok;
 
                                 RoundInfo {
