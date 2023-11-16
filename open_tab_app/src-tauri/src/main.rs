@@ -267,6 +267,7 @@ async fn connect_db_to_file(path: Option<PathBuf>) -> Result<DatabaseConnection,
         let second_tournament = Tournament {
             uuid: Uuid::from_u128(2),
             annoucements_password: None,
+            name: "Empty Demonstration Tournament".into()
         };
         mock_data.add(Entity::Tournament(second_tournament));
 
@@ -487,7 +488,7 @@ struct TournamentListEntry {
 impl From<schema::tournament::Model> for TournamentListEntry {
     fn from(model: schema::tournament::Model) -> Self {
         TournamentListEntry {
-            name: "Test Tournament".into(),
+            name: model.name,
             uuid: model.uuid
         }
     }

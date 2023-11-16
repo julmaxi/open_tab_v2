@@ -11,6 +11,7 @@ impl MigrationName for Migration {
 #[derive(Iden)]
 enum Tournament {
     Table,
+    Name,
     Uuid,
     AnnoucementsPassword,
 }
@@ -277,6 +278,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Tournament::AnnoucementsPassword).string())
+                    .col(ColumnDef::new(Tournament::Name).string().not_null())
                     .to_owned(),
             )
             .await?;

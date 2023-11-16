@@ -82,13 +82,17 @@ function DebateResultCard(props) {
 
 function BallotEditor(props) {
     let [ballot, setBallot] = useState(props.initialBallot);
+    let [disableRepetitionConstraints, setDisableRepetitionConstraints] = useState(false);
     return <div className="">
-        <div><BallotEditTable ballot={ballot} onBallotChanged={(ballot) => setBallot(ballot)} />
+        <div><BallotEditTable ballot={ballot} onBallotChanged={(ballot) => setBallot(ballot)} disableRepetitionConstraints={disableRepetitionConstraints} />
         </div>
         <div className="flex justify-end">
             <Button role="secondary" onClick={props.onAbort}>Abort</Button>
             <Button role="primary" onClick={() => props.onSave(ballot)}>Save</Button>
         </div>
+
+        <input type="checkbox" checked={disableRepetitionConstraints} onChange={(evt) => setDisableRepetitionConstraints(evt.target.checked)} />
+        <label>Disable one speech per speaker constraint (allows opt-out)</label>
     </div>
 }
 
@@ -121,7 +125,7 @@ function BallotEditTable(props) {
                                 let newBallot = {...props.ballot, speeches: [...props.ballot.speeches]};
                                 newBallot.speeches[idx] = newSpeech;
 
-                                if (newSpeech.speaker?.uuid !== props.ballot.speeches[idx].speaker?.uuid && newSpeech.speaker?.uuid !== null) {
+                                if (!props.disableRepetitionConstraints && newSpeech.speaker?.uuid !== props.ballot.speeches[idx].speaker?.uuid && newSpeech.speaker?.uuid !== null) {
                                     let prevIdx = props.ballot.speeches.findIndex(
                                         (s) => s.speaker?.uuid === newSpeech.speaker.uuid
                                     );

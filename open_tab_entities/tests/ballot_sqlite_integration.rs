@@ -20,6 +20,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
         let a : open_tab_entities::schema::tournament::ActiveModel = open_tab_entities::schema::tournament::Model {
             uuid: Uuid::from_u128(1),
             annoucements_password: Some("password".into()),
+            name: "Test Tournament".into(),
         }.into();
         a.insert(&db).await?;
          open_tab_entities::schema::team::Entity::insert_many(vec![

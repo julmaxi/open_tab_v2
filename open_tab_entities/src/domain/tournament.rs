@@ -9,7 +9,8 @@ use serde::{Serialize, Deserialize};
 #[tournament_id = "uuid"]
 pub struct Tournament {
     pub uuid: Uuid,
-    pub annoucements_password: Option<String>
+    pub annoucements_password: Option<String>,
+    pub name: String
 }
 
 
@@ -17,7 +18,8 @@ impl Tournament {
     pub fn new() -> Self {
         Tournament {
             uuid: Uuid::new_v4(),
-            annoucements_password: None
+            annoucements_password: None,
+            name: "New Tournament".into()
         }
     }
 }

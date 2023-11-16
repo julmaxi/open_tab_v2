@@ -66,6 +66,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     groups.add(Entity::Tournament(Tournament {
         uuid: tournament_uuid,
         annoucements_password: Some("password".into()),
+        name: "Demonstration Tournament".to_string(),
         ..Default::default()
     }));
 

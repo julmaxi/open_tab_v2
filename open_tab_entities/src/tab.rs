@@ -85,10 +85,10 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
         }
     }
 
-    /*fn get(&self, key: &K, index: usize) -> Option<&V> {
+    fn get(&self, key: &K, index: usize) -> Option<&V> {
         let vec = self.store.get(key)?;
         vec.get(index)?.as_ref()
-    }*/
+    }
 
     fn get_mut(&mut self, key: &K, index: usize) -> Option<&mut V> {
         let vec = self.store.get_mut(key)?;
@@ -158,7 +158,7 @@ impl TabView {
             team_tab_entries.reserve(team, num_rounds);
         }
 
-        let mut speaker_tab_entries = VecMap::new();
+        let mut speaker_tab_entries: VecMap<Uuid, SpeakerTabEntryDetailedScore> = VecMap::new();
         for speaker in speaker_info.speaker_teams.keys() {
             speaker_tab_entries.reserve(speaker, num_rounds);
         }
@@ -195,6 +195,15 @@ impl TabView {
                     }
 
                     if let Some(score) = speech.speaker_score() {
+                        if let Some(prev_score) = speaker_tab_entries.get(
+                            &speaker,
+                            round.index as usize
+                        ) {
+                            // Handle the super clevery thought out opt-out rule
+                            if prev_score.score > score {
+                                continue;
+                            }
+                        }
                         speaker_tab_entries.insert(
                             &speaker,
                             round.index as usize,
