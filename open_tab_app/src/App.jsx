@@ -47,6 +47,7 @@ function SideNav(props) {
   let roundsOverview = useView(currentView, {"rounds": []});
   let rounds = roundsOverview.rounds;
 
+  // Final item is a buffer so we never have the last item blocked by the connectivity status
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
     {
       rounds.map((round) => 
@@ -75,6 +76,8 @@ function SideNav(props) {
     <NavItem href="/status">
       Status
     </NavItem>
+    <div className="h-8">
+    </div>
   </nav>
 }
 

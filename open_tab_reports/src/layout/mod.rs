@@ -1,273 +1,139 @@
-use std::{sync::Arc, borrow::BorrowMut, collections::HashMap, hash::Hash, fmt::Debug};
+use std::{collections::HashMap, cell::RefCell};
 
-use ab_glyph::Font;
-use encoding_rs::WINDOWS_1252;
-use font_kit::{source::SystemSource, font};
-use itertools::{izip, Itertools};
-use pdf_writer::{Ref, Rect, Name, Finish, Content, Str, TextStr, Filter, PdfWriter, types::{SystemInfo, FontFlags}, writers::Resources};
-use serde::{Deserialize, Serialize};
-use subsetter::{Profile, subset};
-use svg2pdf::Options;
-use swash::{FontRef, shape::{ShapeContext, Shaper, Direction}, text::{Script, analyze, cluster::{Parser, CharInfo, Token, CharCluster}}, CacheKey};
-use tera::Tera;
-use usvg::{TreeParsing, TreeTextToPath};
+use pdf_writer::Rect;
 
-use ::image::{ColorType, GenericImageView, ImageFormat, DynamicImage, EncodableLayout};
-use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
+pub mod font;
+pub mod design;
 
-use std::collections::HashSet;
+use font::Font;
 
-use crate::pdf::writable::{ContentWriteable, XObjectRenderable};
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FontRef(pub(crate) usize);
 
-mod text;
-mod image;
-mod context;
-mod layout_trait;
-mod page;
-mod grid;
-
-pub use layout_trait::{LayoutValue, LayoutResult};
-pub use page::{SinglePageTemplate, DocumentTemplate};
-pub use grid::{TransformLayout, DynamicRowLayout};
-
-pub use context::LayoutContext;
-pub use text::{DynamicTextBox, LayoutDirection, TextLayoutResult, Instruction};
-pub use self::image::FixedImage;
-use self::page::PageLayoutInfo;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ImageName {
-    Path(String),
-    Form(FormName)
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum XObjectRef {
-    Image { id: u32 },
-    XObject { id: u32 },
-}
-
-
-#[derive(Debug, Clone)]
-pub struct XObjectLayout {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-    pub obj_ref: XObjectRef,
-}
-
-pub struct LayoutedElements {
-    pub content: Vec<Box<dyn ContentWriteable>>
-}
-
-impl LayoutedElements {
-    pub fn new() -> Self {
-        Self {
-            content: vec![]
-        }
-    }
-
-    pub fn push(&mut self, element: Box<dyn ContentWriteable>) {
-        self.content.push(element);
-    }
-}
-
-impl From<Vec<Box<dyn ContentWriteable>>> for LayoutedElements {
-    fn from(vec: Vec<Box<dyn ContentWriteable>>) -> Self {
-        Self {
-            content: vec
-        }
-    }
-}
-
-impl Extend<Box<dyn ContentWriteable>> for LayoutedElements {
-    fn extend<T: IntoIterator<Item = Box<dyn ContentWriteable>>>(&mut self, iter: T) {
-        self.content.extend(iter);
+impl FontRef {
+    pub fn new(id: usize) -> Self {
+        return Self(id)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FontUseRef {
-    id: u32,
+pub(crate) enum GraphicsRef {
+    Template(usize),
+    Image(usize)
 }
 
-
-pub struct FontCollection {
-    pub(crate) fonts: HashMap<FontUseRef, Arc<Vec<u8>>>,
-
-    pub(crate) font_names: HashMap<String, FontUseRef>,
-    pub(crate) reverse_font_names: HashMap<FontUseRef, String>,
-
-    pub(crate) offsets: HashMap<FontUseRef, u32>,
-
-    next_id: u32,
-
-    keys: HashMap<FontUseRef, CacheKey>,
+pub(crate) struct Image {
+    pub(crate) data: Vec<u8>
 }
 
-impl FontCollection {
-    pub fn new() -> Self {
+#[derive(Debug, Clone, Copy)]
+pub struct PageDimensions {
+    pub width: f32,
+    pub height: f32
+}
+
+impl PageDimensions {
+    pub fn a4() -> Self {
         Self {
-            fonts: HashMap::new(),
-            font_names: HashMap::new(),
-            reverse_font_names: HashMap::new(),
-            next_id: 1,
-            keys: HashMap::new(),
-            offsets: HashMap::new()
+            width: 595.0,
+            height: 842.0
         }
-    }
-
-    pub fn get_font_ref_from_postscript_name<'a>(&'a mut self, name: &str) -> FontRef<'a> {
-        let font_id = if let Some(font_id) = self.font_names.get(name) {
-            *font_id
-        }
-        else {
-            self.load_font_from_postscript_name(name)
-        };
-
-        self.get_font_ref(&font_id)
-    }
-
-    pub fn get_id_from_postscript_name(&self, name: &str) -> Option<FontUseRef> {
-        self.font_names.get(name).cloned()
-    }
-
-    pub fn get_font_ref<'a>(&'a self, font_id: &FontUseRef) -> FontRef<'a> {
-        FontRef {
-            data: self.fonts.get(&font_id).unwrap(),
-            offset: self.offsets.get(&font_id).unwrap().clone(),
-            key: self.keys.get(&font_id).unwrap().clone()
-        }
-    }
-
-    pub fn load_font_from_postscript_name(
-        &mut self,
-        name: &str,
-    ) -> FontUseRef {
-        let font = SystemSource::new()
-        .select_by_postscript_name(name).unwrap();
-        let font_id = FontUseRef { id: self.next_id };
-        self.next_id += 1;
-
-        let (buf, font_index)= match font.clone() {
-            font_kit::handle::Handle::Path { path, .. } => {
-                println!("Path: {:?}", path);
-                panic!("Path not supported")
-            },
-            font_kit::handle::Handle::Memory { bytes, font_index } => {
-                (bytes, font_index as usize)
-            }
-        };
-        self.fonts.insert(font_id, buf);
-        let buf = self.fonts.get(&font_id).unwrap();
-
-        let font = FontRef::from_index(&buf, font_index).unwrap();
-        let (offset, key) = (font.offset, font.key);
-        self.keys.insert(font_id, key);
-        self.offsets.insert(font_id, offset);
-
-        self.font_names.insert(name.to_string(), font_id);
-        self.reverse_font_names.insert(font_id, name.to_string());
-
-        font_id
     }
 }
 
-
-pub struct GraphicsCollection {
-    pub objects: HashMap<XObjectRef, Box<dyn XObjectRenderable>>,
-
-    pub loaded_images: HashMap<ImageName, XObjectRef>,
+impl Into<Rect> for PageDimensions {
+    fn into(self) -> Rect {
+        Rect { x1: 0.0, y1: 0.0, x2: self.width, y2: self.height }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FormName(pub String);
+pub struct LayoutedPage {
+    pub(crate) dimensions: PageDimensions,
+    pub(crate) elements: Vec<LayoutedElement>
+}
 
-impl GraphicsCollection {
-    pub fn new() -> Self {
+impl LayoutedPage {
+    pub fn new(dimensions: PageDimensions) -> Self {
         Self {
-            objects: HashMap::new(),
-            loaded_images: HashMap::new(),
+            dimensions,
+            elements: vec![]
         }
     }
 
-    pub fn get_fonts_and_glyphs(&self) -> HashMap<FontUseRef, HashSet<u16>> {
-        let mut used_fonts = HashMap::new();
-        for obj in self.objects.values() {
-            for (font, used_glyphs) in obj.get_fonts_and_glyphs() {
-                used_fonts.entry(font).or_insert_with(|| HashSet::new()).extend(used_glyphs);
-            }
-        }
-        used_fonts
-    }
-    
-    pub fn register_form(
-        &mut self,
-        name: FormName,
-        elements: LayoutedElements,
-    ) {
-        let id = self.objects.len() as u32;
-        self.objects.insert(XObjectRef::XObject { id }, Box::new(XObjectForm { elements, bounding_box: Rect::new(0.0, 0.0, 842.0, 595.0) }));
-        self.loaded_images.insert(ImageName::Form(name.clone()), XObjectRef::XObject { id });
-        
+    pub fn add_element(&mut self, element: LayoutedElement) {
+        self.elements.push(element);
     }
 
-    pub fn get_image_ref(&mut self, image_name: &ImageName) -> XObjectRef {
-        if let Some(id) = self.loaded_images.get(image_name) {
-            return id.clone();
-        }
-        match image_name {
-            ImageName::Path(path) => {
-                let image = Image::from_path(&path);
-                let id = self.objects.len() as u32;
-                self.objects.insert(XObjectRef::Image { id }, Box::new(image));
-                XObjectRef::Image { id }
-            }
-            ImageName::Form(template) => {
-                panic!("Unregistered Template!")
-            }
-        }
+    pub fn add_text(&mut self, element: TextElement) {
+        self.add_element(LayoutedElement::Text(element));
     }
+}
+
+pub enum LayoutedElement {
+    Text(TextElement),
+    Image(GraphicElement),
+    Group(GroupElement)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Position {
+    pub(crate) x: f32,
+    pub(crate) y: f32
+}
+
+impl Position {
+    pub fn new(x: f32, y: f32) -> Self {
+        Position { x, y }
+    }
+}
+
+#[derive(Debug)]
+pub enum Instruction {
+    Run{start: usize, stop: usize},
+    MoveTo{ x: f32, y: f32 },
+}
+
+
+pub struct TextElement {
+    pub glyph_ids: Vec<u16>,
+    pub instructions: Vec<Instruction>,
+    pub font_size: f32,
+    pub font: FontRef
+}
+
+pub struct GraphicElement {
+    pub(crate) pos: Position,
+    pub(crate) image: GraphicsRef
+}
+
+pub struct GroupElement {
+    pub(crate) children: Vec<Box<LayoutedElement>>
 }
 
 pub struct LayoutedDocument {
-    pub pages: Vec<PageLayoutInfo>,
+    pub(crate) fonts: Vec<Font>,
+    pub(crate) graphics: Vec<Image>,
+    pub(crate) pages: Vec<LayoutedPage>,
+    pub(crate) templates: HashMap<usize, LayoutedPage>
 }
 
 impl LayoutedDocument {
-    pub fn get_fonts_and_glyphs(&self) -> HashMap<FontUseRef, HashSet<u16>> {
-        let mut used_fonts = HashMap::new();
-        for page in self.pages.iter() {
-            for (font, used_glyphs) in page.elements.get_fonts_and_glyphs() {
-                used_fonts.entry(font).or_insert_with(|| HashSet::new()).extend(used_glyphs);
-            }
+    pub fn new() -> Self {
+        Self {
+            fonts: vec![],
+            graphics: vec![],
+            pages: vec![],
+            templates: HashMap::new()
         }
-        used_fonts
-    }
-}
-
-impl LayoutedElements {
-    pub(crate) fn get_fonts_and_glyphs(&self) -> HashMap<FontUseRef, HashSet<u16>> {
-        let mut used_fonts = HashMap::new();
-        for (font, glyphs) in self.content.iter().flat_map(|c| c.get_fonts_and_glyphs()) {
-            used_fonts.entry(*font).or_insert_with(|| HashSet::new()).extend(glyphs);
-        }
-        used_fonts
     }
 
-    pub(crate) fn get_xobjects(&self) -> Vec<&XObjectRef> {
-        self.content.iter().flat_map(|c| c.get_xobjects()).collect_vec()
+    pub fn add_font(&mut self, font: Font) -> FontRef {
+        let id = self.fonts.len();
+        self.fonts.push(font);
+        FontRef::new(id)
     }
-}
 
-pub struct Image {
-    pub(crate) data: DynamicImage,
-    pub(crate) format: ImageFormat,
-}
-
-pub struct XObjectForm {
-    pub elements: LayoutedElements,
-    pub bounding_box: Rect
+    pub fn add_page(&mut self, page: LayoutedPage) {
+        self.pages.push(page);
+    }
 }

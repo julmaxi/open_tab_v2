@@ -1,5 +1,45 @@
-fn main() {
+use allsorts::{tag, font::MatchingPresentation};
+use itertools::Itertools;
+use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}};
 
+
+fn main() {
+    let mut doc = LayoutedDocument::new();
+
+    let source = FontLoader::new();
+    let font = source.load_from_postscript_name("Apple Chancery".into()).unwrap();
+
+    let mut allsorts_font = font.as_allsorts();
+    let font2= source.load_from_postscript_name("Apple Chancery".into()).unwrap();
+
+    let font_ref = doc.add_font(font2);
+
+    let mut page = LayoutedPage::new(
+        PageDimensions::a4()
+    );
+
+    let glyphs = allsorts_font.map_glyphs("Shaping in a jiffy.", tag::LATN, MatchingPresentation::NotRequired);
+
+    let glyphs = glyphs.iter().map(|g| g.glyph_index).collect_vec();
+    let glyph_len = glyphs.len();    
+
+    let text = TextElement {
+        glyph_ids: glyphs,
+        instructions: vec![
+            Instruction::MoveTo { x: 100.0, y: 100.0 },
+            Instruction::Run { start: 0, stop: glyph_len }
+        ],
+        font_size: 66.0,
+        font: font_ref,
+    };
+
+    page.add_text(text);
+
+    doc.add_page(page);
+
+    let buf = doc.write_as_pdf().unwrap();
+
+    std::fs::write("test_x.pdf", buf).unwrap();
 }
 
 /* 

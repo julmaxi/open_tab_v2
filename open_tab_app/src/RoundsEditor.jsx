@@ -212,10 +212,12 @@ function RoundsOverview(props) {
     let tournamentTree = tree;
     console.log(tournamentTree);
 
-    return tournamentTree != null ? <TournamentSubtree tree={tournamentTree.tree} /> : <div>Loading...</div>;
+    return <div className="flex flex-row justify-center w-full h-full overflow-scroll">
+        {tournamentTree != null ? <TournamentSubtree tree={tournamentTree.tree} /> : <div>Loading...</div>}
+    </div>
 }
 
 
 export function RoundsEditorRoute(props) {
-    return <div><RoundsOverview /></div>
+    return <div className="w-full h-full"><RoundsOverview /></div>
 }
