@@ -92,7 +92,8 @@ enum RoundInfoState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BreakInfo {
     uuid: Option<Uuid>,
-    break_description: String
+    break_description: String,
+    config: BreakConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -420,7 +421,8 @@ impl TournamentTreeView {
 
                 (TournamentTreeNodeContent::Break(BreakInfo {
                     uuid: *break_id,
-                    break_description
+                    break_description,
+                    config: config.clone()
                 }),  Self::get_standard_node_actions(node_uuid),)
             },
         };

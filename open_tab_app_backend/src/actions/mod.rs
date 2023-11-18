@@ -15,11 +15,12 @@ mod update_participant;
 mod upload_participants_list;
 mod update_scores;
 mod edit_tree;
-mod execute_plan_node;
+pub(crate) mod execute_plan_node;
 mod make_break;
 mod update_round;
 mod create_institution;
 mod update_venues;
+mod set_manual_break;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -28,7 +29,7 @@ pub use self::upload_participants_list::UploadParticipantsListAction;
 pub use self::update_scores::UpdateScoresAction;
 pub use self::edit_tree::EditTreeAction;
 pub use self::execute_plan_node::ExecutePlanNodeAction;
-pub use self::make_break::MakeBreakAction;
+pub use self::set_manual_break::SetManualBreakAction;
 pub use self::update_round::UpdateRoundAction;
 pub use self::create_institution::CreateInstitutionAction;
 pub use self::update_venues::UpdateVenuesAction;
@@ -43,10 +44,10 @@ pub enum Action {
     UploadParticipantsList { action: UploadParticipantsListAction },
     EditTournamentTree { action: EditTreeAction },
     ExecutePlanNode { action: ExecutePlanNodeAction },
-    MakeBreak { action: MakeBreakAction },
     UpdateRound { action: UpdateRoundAction },
     CreateInstitution { action: CreateInstitutionAction },
     UpdateVenues { action: UpdateVenuesAction },
+    SetManualBreak { action: SetManualBreakAction },
 }
 
 impl Action {
@@ -58,10 +59,10 @@ impl Action {
             Action::UploadParticipantsList { action } => action.get_changes(db).await,
             Action::EditTournamentTree { action } => action.get_changes(db).await,
             Action::ExecutePlanNode { action } => action.get_changes(db).await,
-            Action::MakeBreak { action } => action.get_changes(db).await,
             Action::UpdateRound { action } => action.get_changes(db).await,
             Action::CreateInstitution { action } => action.get_changes(db).await,
             Action::UpdateVenues { action } => action.get_changes(db).await,
+            Action::SetManualBreak { action } => action.get_changes(db).await,
         }
     }
 }

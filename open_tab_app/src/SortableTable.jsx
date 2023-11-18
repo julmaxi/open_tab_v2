@@ -1,8 +1,10 @@
 import React from "react";
 import { useState, useMemo } from "react";
 
-export function SortableTable({ selectedRowId, onSelectRow, rowId, ...props }) {
+export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, ...props }) {
     let [sortOrder, setSortOrder] = useState(null);
+
+    let rowStylerFn = rowStyler ?? (() => "");
 
     let { orderedRows, groups } = useMemo(
         () => {
@@ -60,6 +62,7 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, ...props }) {
             <tbody>
                 {orderedRows.map((row, rowIdx) => {
                     let className = [selectedRowId === row[rowId] ? "bg-sky-500" : (rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white")].join(" ");
+                    className += " " + rowStylerFn(rowIdx, row);
 
                     return <tr key={row[rowId]} className={className} onClick={() => onSelectRow && onSelectRow(row[rowId])}>
                         {props.columns.filter(col => !col.group || groups.get(col)[rowIdx].start == rowIdx).map(

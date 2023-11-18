@@ -7,6 +7,7 @@ use sea_orm::prelude::Uuid;
 
 
 
+#[derive(Debug, Clone)]
 pub struct TeamPair {
     pub government_id: Uuid,
     pub opposition_id: Uuid,

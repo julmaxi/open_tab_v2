@@ -31,12 +31,14 @@ pub enum TeamFoldMethod {
 
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag = "non_aligned_fold_method")]
 pub enum NonAlignedFoldMethod {
     TabOrder,
     Random
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag = "team_assignment_rule")]
 pub enum TeamAssignmentRule {
     Random,
     InvertPrevious,
@@ -45,7 +47,9 @@ pub enum TeamAssignmentRule {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct FoldDrawConfig {
     pub team_fold_method: TeamFoldMethod,
+    #[serde(flatten)]
     pub team_assignment_rule: TeamAssignmentRule,
+    #[serde(flatten)]
     pub non_aligned_fold_method: NonAlignedFoldMethod,
 }
 
@@ -60,8 +64,9 @@ impl FoldDrawConfig {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum RoundGroupConfig {
-    Preliminaries {num_roundtrips: i32},
+    Preliminaries { num_roundtrips: i32 },
     FoldDraw {
         round_configs: Vec<FoldDrawConfig>
     },
@@ -77,6 +82,7 @@ impl RoundGroupConfig {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum BreakConfig {
     Manual,
     TabBreak {num_debates: u32},
@@ -98,6 +104,7 @@ impl BreakConfig {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum PlanNodeConfig {
     RoundGroup{config: RoundGroupConfig},
     Break{config: BreakConfig},

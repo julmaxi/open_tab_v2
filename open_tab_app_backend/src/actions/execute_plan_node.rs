@@ -136,7 +136,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
             let break_ = TournamentBreak::get(db, relevant_break_id).await?;
             let teams = break_.breaking_teams;
             let speakers = break_.breaking_speakers;
-
+            
             (
                 all_teams.into_iter().filter(|t| teams.contains(&t.uuid)).collect_vec(),
                 all_participants.into_iter().filter(|s| speakers.contains(&s.uuid)).collect_vec()
@@ -210,7 +210,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
             ballots
         },
         RoundGroupConfig::FoldDraw { round_configs } => {
-            let mut team_pairs = round_configs.iter().map(|c| pair_teams(&all_teams.iter().map(|t| t.uuid).collect_vec(), &c.team_fold_method)).collect_vec();
+            let team_pairs = round_configs.iter().map(|c| pair_teams(&all_teams.iter().map(|t| t.uuid).collect_vec(), &c.team_fold_method)).collect_vec();
             
             let mut preceding_round_gov_opp_assignments = if let Some(immediately_preceding_round_id) = immediately_preceding_round_id {
                 let (_, round_ballots) = Ballot::get_all_in_rounds(db, vec![immediately_preceding_round_id]).await?.into_iter().next().expect("Round existence guaranteed by db constraints.");
@@ -287,6 +287,16 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
             round_existing_debates.into_iter().chain(
                 new_debates
             ).collect_vec()
+        }
+        else if round_existing_debates.len() > round_new_ballots.len() {
+            for debate in round_existing_debates.iter().skip(round_new_ballots.len()) {
+                changes.delete(
+                    EntityType::TournamentDebate,
+                    debate.uuid
+                );
+            }
+
+            round_existing_debates.into_iter().take(round_new_ballots.len()).collect_vec()
         }
         else {
             round_existing_debates
@@ -368,41 +378,61 @@ pub enum MakeBreakError {
     IsManualBreak,
 }
 
+pub struct BreakNodeBackgroundInfo {
+    pub all_nodes: HashMap<Uuid, TournamentPlanNode>,
+    pub preceding_rounds: Vec<Uuid>,
+    pub relevant_break_id: Option<Option<Uuid>>
+}
+
+impl BreakNodeBackgroundInfo {
+    fn new(all_nodes: HashMap<Uuid, TournamentPlanNode>, preceding_rounds: Vec<Uuid>, relevant_break_id: Option<Option<Uuid>>) -> Self {
+        Self {
+            all_nodes,
+            preceding_rounds,
+            relevant_break_id
+        }
+    }
+
+    pub async fn load_for_break_node<C>(db: &C, tournament_id: Uuid, node_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+        let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_id).await?;
+        let edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect()).await?;
+        let all_nodes = all_nodes.into_iter().map(|n| (n.uuid, n)).collect::<HashMap<_, _>>();
+        let parent_map = edges.into_iter().map(|e| (e.target_id, e.source_id)).collect::<HashMap<_, _>>();
+        let mut curr_node_id = node_id;
+        let mut relevant_break_id = None;
+        let mut preceding_rounds = vec![];
+        loop {
+            let node = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
+            match &node.config {
+                PlanNodeType::Break { config, break_id } => {
+                    if relevant_break_id.is_none() {
+                        relevant_break_id = Some(break_id.clone());
+                    }
+                },
+                PlanNodeType::Round { config, rounds } => {
+                    preceding_rounds.extend(rounds);
+                }
+            }
+    
+            let parent = parent_map.get(&curr_node_id);
+            if let Some(parent) = parent {
+                curr_node_id = *parent;
+            } else {
+                break;
+            }
+        };
+        Ok(Self::new(all_nodes, preceding_rounds, relevant_break_id))
+    }
+}
 
 async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
     let mut groups = EntityGroup::new();
 
-    let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_id).await?;
-    let edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect()).await?;
-    
-    let all_nodes = all_nodes.into_iter().map(|n| (n.uuid, n)).collect::<HashMap<_, _>>();
-    let parent_map = edges.into_iter().map(|e| (e.target_id, e.source_id)).collect::<HashMap<_, _>>();
+    let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
 
-    let mut curr_node_id = node_id;
-
-    let mut relevant_break_id = None;
-    let mut preceding_rounds = vec![];
-
-    loop {
-        let node = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
-        match &node.config {
-            PlanNodeType::Break { config, break_id } => {
-                if relevant_break_id.is_none() {
-                    relevant_break_id = Some(break_id.clone());
-                }
-            },
-            PlanNodeType::Round { config, rounds } => {
-                preceding_rounds.extend(rounds);
-            }
-        }
-
-        let parent = parent_map.get(&curr_node_id);
-        if let Some(parent) = parent {
-            curr_node_id = *parent;
-        } else {
-            break;
-        }
-    };
+    let all_nodes = break_background.all_nodes;
+    let preceding_rounds = break_background.preceding_rounds;
+    let relevant_break = break_background.relevant_break_id;
 
     let speaker_info = TournamentParticipantsInfo::load(db, tournament_id).await?;
 
@@ -420,7 +450,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
         |s: &&crate::tab_view::SpeakerTabEntry| ordered_float::NotNan::new(s.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap()
     ).rev().map(|s| s.speaker_uuid).collect_vec();
 
-    let mut break_ = TournamentBreak::new(tournament_id, open_tab_entities::domain::tournament_break::BreakType::KOBreak);
+    let mut break_ = TournamentBreak::new(tournament_id);
 
     match config {
         open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates } => {
@@ -574,6 +604,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
 
     Ok(groups)
 }
+
 
 #[async_trait]
 impl ActionTrait for ExecutePlanNodeAction {

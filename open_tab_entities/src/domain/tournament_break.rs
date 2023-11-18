@@ -88,13 +88,13 @@ pub struct TournamentBreak {
 }
 
 impl TournamentBreak {
-    pub fn new(tournament_id: Uuid, break_type: BreakType) -> Self {
+    pub fn new(tournament_id: Uuid) -> Self {
         TournamentBreak {
             uuid: Uuid::new_v4(),
             source_rounds: vec![],
             child_rounds: vec![],
             tournament_id,
-            break_type,
+            break_type: BreakType::KOBreak,
             breaking_teams: vec![],
             breaking_speakers: vec![],
         }

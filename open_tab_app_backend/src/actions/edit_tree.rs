@@ -24,6 +24,7 @@ pub enum EditTreeActionType {
     AddMinorBreakRounds { parent: Uuid, draws: Vec<FoldDrawConfig> },
     AddTimBreakRounds { parent: Uuid },
     AddKOStage { parent: Uuid, num_stages: u64 },
+    UpdateNode { node: Uuid, config: PlanNodeConfig },
 }
 
 #[derive(Error, Debug)]
@@ -112,8 +113,7 @@ impl ActionTrait for EditTreeAction {
                 }
 
                 groups.add(Entity::TournamentPlanNode(node));
-            },
-            
+            },         
             EditTreeActionType::AddKOStage { parent, num_stages } => {
                 let mut nodes = vec![];
                 let mut edges = vec![];
@@ -213,6 +213,20 @@ impl ActionTrait for EditTreeAction {
                 groups.add(Entity::TournamentPlanNode(second_break));
                 groups.add(Entity::TournamentPlanNode(second_round));
             },
+            EditTreeActionType::UpdateNode { node, config } => {
+                //TODO:  Validation?
+                let node = all_nodes.iter_mut().find(|n| n.uuid == node).unwrap();
+                match (&mut node.config, config) {
+                    (domain::tournament_plan_node::PlanNodeType::Round { config, .. }, PlanNodeConfig::RoundGroup { config: new_config }) => {
+                        *config = new_config
+                    },
+                    (domain::tournament_plan_node::PlanNodeType::Break { config, .. }, PlanNodeConfig::Break { config: new_config }) => {
+                        *config = new_config
+                    },
+                    _ => return Err(anyhow::anyhow!("Invalid node type for update"))
+                }
+                groups.add(Entity::TournamentPlanNode(node.clone()));
+            }
         }
 
         all_edges.extend(groups.tournament_plan_edges.iter().map(|e| e.clone()));
