@@ -652,7 +652,7 @@ function RoundsEditor() {
         }
     }, [selectedNodeId, tournamentTree]);
 
-    return <div className="w-full h-full">
+    return <div className="w-full h-screen">
         <ContentView forceOpen={selectedNodeId !== null}>
             <ContentView.Content>
                 <RoundsOverview tournamentTree={tournamentTree} onSelectNode={

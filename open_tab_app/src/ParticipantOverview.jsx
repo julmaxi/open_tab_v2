@@ -493,8 +493,26 @@ function CSVImportDialog(props) {
     </div>   
 }
 
+async function openImportDialog() {
+    const selected = await open({
+        multiple: false,
+        filters: [{
+            name: 'csv',
+            extensions: ['csv']
+        }]
+    });
 
-
+    if (selected !== null) {
+        let proposedConfig = await invoke("guess_csv_config", {path: selected});
+        return {
+            file: selected,
+            proposedConfig
+        };
+    }
+    else {
+        return null;
+    }
+}
 
 export function ParticipantOverview() {
     let tournamentContext = useContext(TournamentContext);
@@ -503,23 +521,6 @@ export function ParticipantOverview() {
     let participants = useView(currentView, {"teams": {}, "adjudicators": {}});
 
     let [importDialogState, setImportDialogState] = useState(null);
-
-    let openImportDialog = useCallback(async () => {
-        const selected = await open({
-            multiple: false,
-            filters: [{
-                name: 'csv',
-                extensions: ['csv']
-            }]
-        });
-        if (selected !== null) {
-            let proposedConfig = await invoke("guess_csv_config", {path: selected});
-            setImportDialogState({
-                file: selected,
-                proposedConfig
-            });
-        }
-    }, []);
 
     return <div className="flex flex-col h-full w-full" onKeyDown={(e) => {
         if (e.nativeEvent.key == "Escape") {
@@ -555,7 +556,13 @@ export function ParticipantOverview() {
             }
         </div>
         <div className="flex-none w-full h-12 bg-gray-200">
-            <button onClick={openImportDialog} className="h-full">Import…</button>
+            <button onClick={() => {
+                openImportDialog().then((result) => {
+                    if (result !== null) {
+                        setImportDialogState(result);
+                    }
+                });
+            }} className="h-full">Import…</button>
         </div>
     </div>
 }

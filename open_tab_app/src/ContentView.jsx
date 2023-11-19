@@ -14,7 +14,7 @@ const ContentView = ({ children, forceOpen }) => {
 
   return (
     <div className="flex h-full relative">
-      <div className="flex-1">
+      <div className="flex flex-1">
         {subcomponents.Content || ""}
       </div>
       <button 

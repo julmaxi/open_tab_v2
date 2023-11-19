@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 import { invoke } from '@tauri-apps/api/tauri';
+import TournamentCreationForm from './TournamentCreationForm';
 
-const TournamentOverview = ({ tournaments }) => {
+const TournamentOverview = ({ tournaments, onCreateNew }) => {
   const [selectedTournament, setSelectedTournament] = useState(null);
 
   const handleRowClick = (uuid) => {
@@ -10,13 +11,12 @@ const TournamentOverview = ({ tournaments }) => {
   };
 
   const handleRowDoubleClick = (uuid) => {
-    // Placeholder for opening the tournament
     invoke("open_tournament", { tournamentId: uuid })
   };
 
   const handleNewTournament = () => {
     // Placeholder for new tournament action
-    console.log("Creating a new tournament");
+    onCreateNew();
   };
 
   return (
@@ -55,6 +55,7 @@ const TournamentOverview = ({ tournaments }) => {
 
 const TournamentManager = () => {
     let [tournaments, setTournaments] = useState([]);
+    let [isCreatingNew, setIsCreatingNew] = useState(false);
 
     useEffect(() => {
         const run = async () => {
@@ -67,7 +68,23 @@ const TournamentManager = () => {
     }, []);
 
     return <div className="flex h-screen">
-      <TournamentOverview tournaments={tournaments} />
+
+      {
+        isCreatingNew ?
+        <TournamentCreationForm onAbort={() => {
+          setIsCreatingNew(false);
+        }
+        } onSubmit={(config) => {
+          invoke("create_tournament", {config}).then((tournament) => {
+            setIsCreatingNew(false);
+            invoke("open_tournament", { tournamentId: tournament.uuid })
+          });
+        }} />
+        :
+        <TournamentOverview tournaments={tournaments} onCreateNew={() => {
+          setIsCreatingNew(true);
+        }} />
+      }
     </div>;
 }
 

@@ -4,7 +4,7 @@
 use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError};
 
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo};
 use open_tab_reports::{TemplateContext, make_open_office_ballots};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, app};
 //use open_tab_server::{TournamentChanges};
@@ -21,6 +21,8 @@ use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
 
 use std::sync::Arc;
+
+mod tournament_creation;
 
 fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
     let basic_questions = vec![
@@ -1346,6 +1348,171 @@ async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: S
     Ok(())
 }
 
+#[tauri::command]
+async fn create_tournament(db: State<'_, DatabaseConnection>, config: tournament_creation::TournamentCreationConfig) -> Result<open_tab_entities::domain::tournament::Tournament, ()> {
+    let mut tournament = open_tab_entities::domain::tournament::Tournament::new();
+    tournament.name = config.name;
+
+    let num_prelim_roundtrips = (config.num_preliminaries / 3) as i32;
+
+    let mut all_edges = Vec::new();
+    let mut all_nodes = Vec::new();
+    
+    let prelim_node = TournamentPlanNode::new(
+        tournament.uuid,
+        PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::Preliminaries { num_roundtrips: num_prelim_roundtrips }, rounds: vec![] }
+    );
+
+    let prelim_node_uuid = prelim_node.uuid;
+    all_nodes.push(prelim_node);
+
+    let final_node_id = if config.num_preliminaries % 3 != 0 {
+        let minor_break_node = TournamentPlanNode::new(
+            tournament.uuid,
+            PlanNodeType::Break { config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TwoThirdsBreak, break_id: None }
+        );
+        let minor_break_node_uuid = minor_break_node.uuid;
+
+        let (minor_break_subtree_start_id, minor_break_subtree_end_id, nodes, edges) = if config.num_preliminaries % 3 == 1 {
+            let minor_break_round = TournamentPlanNode::new(
+                tournament.uuid,
+                PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                    round_configs: vec![
+                        FoldDrawConfig {
+                            team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::PowerPaired,
+                            team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
+                            non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
+                        }
+                    ]
+                }, rounds: vec![] }
+            );
+            (
+                minor_break_round.uuid,
+                minor_break_node.uuid,
+                vec![minor_break_round],
+                vec![]
+            )
+        } else {
+            let first_round = TournamentPlanNode::new(
+                tournament.uuid,
+                PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                    round_configs: vec![
+                        FoldDrawConfig {
+                            team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::InversePowerPaired,
+                            team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
+                            non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
+                        }
+                    ]
+                }, rounds: vec![] }
+            );
+
+            let break_ = TournamentPlanNode::new(
+                tournament.uuid,
+                PlanNodeType::Break { config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak, break_id: None }
+            );
+
+            let second_round = TournamentPlanNode::new(
+                tournament.uuid,
+                PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
+                    round_configs: vec![
+                        FoldDrawConfig {
+                            team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::BalancedPowerPaired,
+                            team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::InvertPrevious,
+                            non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
+                        }
+                    ]
+                }, rounds: vec![] }
+            );
+
+            let first_uuid = first_round.uuid;
+            let second_uuid = second_round.uuid;
+            let break_uuid = break_.uuid;
+
+            (
+                first_uuid,
+                second_uuid,
+                vec![first_round, second_round, break_],
+                vec![(first_uuid, break_uuid), (break_uuid, second_uuid)]
+            )
+        };
+
+        all_nodes.push(
+            minor_break_node
+        );
+        all_nodes.extend(
+            nodes
+        );
+        all_edges.push(
+            TournamentPlanEdge::new(prelim_node_uuid, minor_break_node_uuid)
+        );
+        all_edges.push(
+            TournamentPlanEdge::new(minor_break_node_uuid, minor_break_subtree_start_id)
+        );
+
+        for (src, tgt) in edges {
+            all_edges.push(
+                TournamentPlanEdge::new(src, tgt)
+            );
+        }
+
+        minor_break_subtree_end_id
+    }
+    else {
+        prelim_node_uuid
+    };
+
+    let mut prev_id = final_node_id;
+
+    for break_round_idx in 0..config.num_break_rounds {
+        let num_debates = u32::pow(2, config.num_break_rounds - break_round_idx - 1);
+
+        let break_node = TournamentPlanNode::new(
+            tournament.uuid,
+            PlanNodeType::Break { config: if break_round_idx == 0 {
+                open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates: num_debates }
+            } else {
+                open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak
+            }, break_id: None }
+        );
+        let break_node_id = break_node.uuid;
+
+        let node = TournamentPlanNode::new(
+            tournament.uuid,
+            PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw { round_configs: vec![
+                FoldDrawConfig {
+                    team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::InversePowerPaired,
+                    team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
+                    non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
+                }
+            ]}, rounds: vec![] 
+            }
+        );
+
+        all_edges.push(
+            TournamentPlanEdge::new(prev_id, break_node_id)
+        );
+        all_edges.push(
+            TournamentPlanEdge::new(break_node_id, node.uuid)
+        );
+        prev_id = node.uuid;
+        all_nodes.push(break_node);
+        all_nodes.push(node);
+    }
+
+    let mut changes = EntityGroup::new();
+    changes.add(Entity::Tournament(tournament.clone()));
+    all_nodes.into_iter().for_each(
+        |n| changes.add(Entity::TournamentPlanNode(n))
+    );
+    all_edges.into_iter().for_each(
+        |e| changes.add(Entity::TournamentPlanEdge(e))
+    );
+
+    changes.save_all_and_log_for_tournament(db.inner(), tournament.uuid).await.map_err(handle_error)?;
+
+    Ok(tournament)
+}
+
 fn main() {
     let db_path = dirs::document_dir().unwrap_or(PathBuf::from(".")).join("open_tab_db.sqlite3");
 
@@ -1373,7 +1540,8 @@ fn main() {
             get_tournament_connectivity_status,
             login_to_remote,
             create_user_account_for_remote,
-            save_round_files
+            save_round_files,
+            create_tournament
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))
