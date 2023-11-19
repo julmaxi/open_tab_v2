@@ -1,8 +1,17 @@
 use allsorts::{tag, font::MatchingPresentation};
 use itertools::Itertools;
-use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}};
+use open_tab_entities::derived_models::mock_draw_presentation_info;
+use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}, template::{make_open_office_ballots, TemplateContext}};
+
+fn main() {
+    let presentation_info = mock_draw_presentation_info();
+    let file = std::fs::File::create("test.odg").unwrap();
+    let context = TemplateContext::new("templates".into()).unwrap();
+    make_open_office_ballots(&context, file, presentation_info).unwrap();
+}
 
 
+/*
 fn main() {
     let mut doc = LayoutedDocument::new();
 
@@ -41,7 +50,7 @@ fn main() {
 
     std::fs::write("test_x.pdf", buf).unwrap();
 }
-
+*/
 /* 
 use std::{sync::Arc, borrow::BorrowMut, collections::HashMap, hash::Hash, fmt::Debug};
 

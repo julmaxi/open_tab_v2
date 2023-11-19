@@ -30,6 +30,7 @@ keyring = "*"
 dirs = "*"
 thiserror = "*"
 anyhow = "*"
+open_tab_reports = { path = "../../open_tab_reports" }
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

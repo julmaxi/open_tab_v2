@@ -9,6 +9,8 @@ import {useView} from "./View";
 import { executeAction } from "./Action";
 import ModalOverlay from "./Modal";
 import Button from "./Button";
+import { invoke } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/dialog";
 
 function DateTimeSelectorButton({label, onSetDate}) {
     let [isOpen, setIsOpen] = useState(false);
@@ -222,16 +224,30 @@ export function RoundPublicationView({roundId}) {
             />
         </div>
 
-        <input
-            type="checkbox"
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            checked={publicationInfo.is_silent}
-            onChange={(event) => {
-                let val = event.target.checked;
-                executeAction("UpdateRound", {update: {is_silent: val}, round_id: roundId});
-            }}
-        />
-        <label className="ml-2 text-sm font-medium text-gray-900">Silent Round</label>
+        <div>
+            <input
+                type="checkbox"
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                checked={publicationInfo.is_silent}
+                onChange={(event) => {
+                    let val = event.target.checked;
+                    executeAction("UpdateRound", {update: {is_silent: val}, round_id: roundId});
+                }}
+            />
+            <label className="ml-2 text-sm font-medium text-gray-900">Silent Round</label>
+        </div>
+
+        <div>
+            <Button role="primary" onClick={
+                () => {
+                    open({directory: true}).then((result) => {
+                        invoke("save_round_files", {roundId: roundId, dirPath: result}).then((result) => {
+                            console.log(result);
+                        });
+                    });
+                }
+            }>Export Ballots/Presentation</Button>
+        </div>
     </div>
 }
 

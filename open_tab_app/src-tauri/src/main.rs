@@ -1,10 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter}, time::Duration, iter::zip, borrow::BorrowMut, path::PathBuf, fs::{File, create_dir}, sync::PoisonError};
+use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError};
 
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo};
+use open_tab_reports::{TemplateContext, make_open_office_ballots};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, app};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
@@ -499,6 +500,11 @@ async fn get_tournament_list(db: State<'_, DatabaseConnection>) -> Result<Vec<To
     let tournaments = schema::tournament::Entity::find().all(db.inner()).await.map_err(|_| ())?;
 
     Ok(tournaments.into_iter().map(TournamentListEntry::from).collect())
+}
+
+
+fn handle_error<E>(e: E) where E: Debug {
+    dbg!(&e);
 }
 
 
@@ -1129,7 +1135,7 @@ struct RemoteSettings {
 
 impl AppSettings {
     fn settings_path() -> PathBuf {
-        let settings_dir = dirs::config_dir().unwrap_or(PathBuf::from(".")).join("com.juliussteen.open_tab");
+        let settings_dir = dirs::config_dir().unwrap_or(PathBuf::from(".")).join("com.juliussteen.open-tab");
         let settings_path = settings_dir.join("settings.json");
         settings_path
     }
@@ -1330,6 +1336,15 @@ async fn create_user_account_for_remote(
     Ok(true)
 }
 
+#[tauri::command]
+async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, round_id: Uuid, dir_path: String) -> Result<(), ()> {
+    let presentation = DrawPresentationInfo::load_for_round(db.inner(), round_id).await.map_err(handle_error)?;
+
+    let file = File::create(Path::new(&dir_path).join(format!("ballots_r{}.odg", presentation.round_index + 1))).map_err(handle_error)?;
+    make_open_office_ballots(&template_context, file, presentation).map_err(handle_error)?;
+
+    Ok(())
+}
 
 fn main() {
     let db_path = dirs::document_dir().unwrap_or(PathBuf::from(".")).join("open_tab_db.sqlite3");
@@ -1344,6 +1359,7 @@ fn main() {
         send
     )));
 
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             subscribe_to_view,
@@ -1356,14 +1372,18 @@ fn main() {
             set_remote,
             get_tournament_connectivity_status,
             login_to_remote,
-            create_user_account_for_remote
+            create_user_account_for_remote,
+            save_round_files
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))
         .manage(open_tournaments_manager)
         .manage(RwLock::new(settings))
         .manage(Client::new())
-        .setup(|app| {
+        .setup(|app: &mut tauri::App| {
+            let template_path = app.path_resolver().resolve_resource("../../open_tab_reports/templates").expect("Could not resolve template path");
+            let template_context = TemplateContext::new(template_path.to_string_lossy().into_owned()).expect("Could not create template context");
+            app.manage(template_context);
 
             let open_tournaments_manager = app.state::<Arc<Mutex<OpenTournamentManager>>>().inner().clone();
 

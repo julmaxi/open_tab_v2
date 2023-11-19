@@ -21,6 +21,9 @@
         "all": true,
         "open": true,
         "save": true
+      },
+      "fs": {
+        "scope": ["$RESOURCE/*"]
       }
     },
     "bundle": {
@@ -32,7 +35,10 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.juliussteen.open_tab",
+      "resources": [
+        "../../open_tab_reports/templates"
+      ],
+      "identifier": "com.juliussteen.open-tab",
       "targets": "all"
     },
     "security": {

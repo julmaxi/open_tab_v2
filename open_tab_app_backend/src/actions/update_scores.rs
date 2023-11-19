@@ -6,7 +6,7 @@ use open_tab_entities::{prelude::*, domain::debate_backup_ballot::DebateBackupBa
 
 use sea_orm::prelude::*;
 
-use crate::{round_results_view::DisplayBallot};
+use open_tab_entities::derived_models::DisplayBallot;
 use serde::{Serialize, Deserialize};
 use open_tab_entities::domain::entity::LoadEntity;
 

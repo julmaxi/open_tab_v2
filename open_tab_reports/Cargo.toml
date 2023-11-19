@@ -25,3 +25,6 @@ tera = "1.19.1"
 typetag = "0.2.13"
 usvg = "0.32.0"
 anyhow = "*"
+open_tab_entities = { path = "../open_tab_entities" }
+lazy_static = "1.4.0"
+zip = "0.6.6"
