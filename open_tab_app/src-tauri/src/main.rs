@@ -1388,7 +1388,7 @@ async fn create_tournament(db: State<'_, DatabaseConnection>, config: tournament
             );
             (
                 minor_break_round.uuid,
-                minor_break_node.uuid,
+                minor_break_round.uuid,
                 vec![minor_break_round],
                 vec![]
             )

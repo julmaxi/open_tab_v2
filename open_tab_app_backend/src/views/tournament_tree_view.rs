@@ -141,7 +141,7 @@ fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<
     let most_recent = most_recent.unwrap();
 
     match most_recent {
-        BreakConfig::TabBreak { num_debates } => if breaks.len() == 1 && is_pow2(*num_debates as i32) && *num_debates > 0 {
+        BreakConfig::TabBreak { num_debates } => if is_pow2(*num_debates as i32) && *num_debates > 0 {
             Some(num_teams_to_round_name((num_debates * 2) as i32))
         }
         else {
