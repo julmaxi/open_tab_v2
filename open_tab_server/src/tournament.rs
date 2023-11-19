@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum::{Json, Router, routing::post};
 use axum::body::Body;
 use base64::Engine;
-use hyper::StatusCode;
+use axum::http::StatusCode;
 use open_tab_entities::schema::user_tournament;
 use open_tab_entities::{EntityGroup, EntityGroupTrait};
 use rand::{thread_rng, Rng};
@@ -35,7 +35,6 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
         uuid,
         annoucements_password: Some("password".into()),
         name: "Test Tournament".into(),
-
     };
     changes.add(open_tab_entities::Entity::Tournament(tournament));
 

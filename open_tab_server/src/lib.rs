@@ -14,7 +14,7 @@ use axum::headers::Authorization;
 use axum::headers::authorization::Basic;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use hyper::{http::request::Parts, Method};
+use axum::http::Method;
 use tower::Service; // for `call`
 use tower::ServiceExt; // for `oneshot` and `ready`
 
