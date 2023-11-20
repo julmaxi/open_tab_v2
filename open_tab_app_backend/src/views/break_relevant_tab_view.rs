@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use open_tab_entities::{tab::TabView, domain::entity::LoadEntity, info::TournamentParticipantsInfo, EntityGroup};
+use open_tab_entities::{tab::TabView, domain::{entity::LoadEntity, tournament_plan_node::PlanNodeType}, info::TournamentParticipantsInfo, EntityGroup};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 use serde::Serialize;
 
@@ -27,7 +27,7 @@ impl LoadedBreakRelevantTabView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedBreakRelevantTabView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_plan_nodes.len() > 0 || changes.tournament_debates.len() > 0 || changes.tournament_rounds.len() > 0 || changes.participants.len() > 0 || changes.ballots.len() > 0 {
+        if changes.tournament_plan_nodes.len() > 0 || changes.tournament_debates.len() > 0 || changes.tournament_rounds.len() > 0 || changes.participants.len() > 0 || changes.ballots.len() > 0 || changes.tournament_breaks.len() > 0 {
             self.view = BreakRelevantTabView::load_from_node(db, self.node_uuid).await?;
 
             let mut out = HashMap::new();
@@ -49,7 +49,9 @@ impl LoadedView for LoadedBreakRelevantTabView {
 pub struct BreakRelevantTabView {
     tab: TabView,
     speaker_teams: HashMap<Uuid, Uuid>,
-    team_members: HashMap<Uuid, Vec<Uuid>>
+    team_members: HashMap<Uuid, Vec<Uuid>>,
+    breaking_teams: Vec<Uuid>,
+    breaking_speakers: Vec<Uuid>
 }
 
 impl BreakRelevantTabView {
@@ -57,6 +59,22 @@ impl BreakRelevantTabView {
         let target_node = open_tab_entities::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
         let break_background = crate::actions::execute_plan_node::BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
         let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
+
+        let break_id = match target_node.config {
+            PlanNodeType::Break { break_id, .. } => {
+                break_id
+            },
+            _ =>  None
+        };
+
+        let (breaking_teams, breaking_speakers) = match break_id {
+            Some(break_id) => {
+                let break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
+
+                (break_.breaking_teams, break_.breaking_speakers)
+            },
+            None => (vec![], vec![])
+        };
 
         let tab = views::tab_view::TabView::load_from_rounds(
             db,
@@ -67,7 +85,9 @@ impl BreakRelevantTabView {
         Ok(BreakRelevantTabView {
             tab,
             speaker_teams: speaker_info.speaker_teams,
-            team_members: speaker_info.team_members
+            team_members: speaker_info.team_members,
+            breaking_teams,
+            breaking_speakers: breaking_speakers
         })
     }
 }

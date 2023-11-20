@@ -6,7 +6,6 @@ import _ from 'lodash';
 
 export function useView(viewDef, defaultVal) {
     let [view, setView] = useState(defaultVal);
-    console.log("useView", viewDef);
 
     useEffect(() => {
         invoke("subscribe_to_view", {view: viewDef}).then((msg) => {

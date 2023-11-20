@@ -132,7 +132,7 @@ fn num_teams_to_round_name(num_teams: i32) -> String {
     }
 }
 
-fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<String> {
+pub fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Option<String> {
     let most_recent = breaks.last();
 
     if breaks.is_empty() {
@@ -213,71 +213,71 @@ fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32
     num_remaining
 }
 
-impl TournamentTreeView {
-    fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<HashMap<(Uuid, usize), String>, anyhow::Error> {
-        let mut explore_queue = roots.clone().into_iter().map(|r| (r, vec![])).collect_vec();
+pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<HashMap<(Uuid, usize), String>, anyhow::Error> {
+    let mut explore_queue = roots.clone().into_iter().map(|r| (r, vec![])).collect_vec();
 
-        if explore_queue.len() == 0 && nodes.len() > 0 {
-            return Err(anyhow::anyhow!("Tournament plan is not a tree"));
-        }
-
-        let mut names = HashMap::new();
-        let mut visited = HashSet::new();
-
-        let mut curr_idx = 0;
-
-        let empty_vec = vec![];
-
-        while explore_queue.len() > 0 {
-            let (next_node_id, prev_breaks) = explore_queue.pop().unwrap();
-
-            if visited.contains(&next_node_id) {
-                return Err(anyhow::anyhow!("Tournament plan is not a tree"));
-            }
-            visited.insert(next_node_id);
-
-            let next_node = nodes.iter().find(|n| n.uuid == next_node_id).unwrap();
-
-            match &next_node.config {
-                domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
-                    let num_rounds_to_consider = usize::max(rounds.len(), config.num_rounds() as usize);
-                    let special_name = if num_rounds_to_consider == 1 {
-                        let special_name = get_special_name_from_preceding_breaks(&prev_breaks);
-                        special_name
-                    } else {
-                        None
-                    };
-
-                    for idx in 0..num_rounds_to_consider {
-                        if let Some(special_name) = &special_name {
-                            names.insert((next_node_id, idx), special_name.clone());
-                        }
-                        else {
-                            let round_number = curr_idx + idx + 1;
-                            names.insert((next_node_id, idx), format!("Round {}", round_number));
-                        }
-                    }
-                    curr_idx += rounds.len();
-                    let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
-                    for child in children {
-                        explore_queue.push((*child, prev_breaks.clone()));
-                    }
-                },
-                domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
-                    let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
-                    for child in children {
-                        let mut breaks = prev_breaks.clone();
-                        breaks.push(&config);
-                        explore_queue.push((*child, breaks));
-                    }
-                },
-            }
-
-        }
-
-        Ok(names)
+    if explore_queue.len() == 0 && nodes.len() > 0 {
+        return Err(anyhow::anyhow!("Tournament plan is not a tree"));
     }
 
+    let mut names = HashMap::new();
+    let mut visited = HashSet::new();
+
+    let mut curr_idx = 0;
+
+    let empty_vec = vec![];
+
+    while explore_queue.len() > 0 {
+        let (next_node_id, prev_breaks) = explore_queue.pop().unwrap();
+
+        if visited.contains(&next_node_id) {
+            return Err(anyhow::anyhow!("Tournament plan is not a tree"));
+        }
+        visited.insert(next_node_id);
+
+        let next_node = nodes.iter().find(|n| n.uuid == next_node_id).unwrap();
+
+        match &next_node.config {
+            domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
+                let num_rounds_to_consider = usize::max(rounds.len(), config.num_rounds() as usize);
+                let special_name = if num_rounds_to_consider == 1 {
+                    let special_name = get_special_name_from_preceding_breaks(&prev_breaks);
+                    special_name
+                } else {
+                    None
+                };
+
+                for idx in 0..num_rounds_to_consider {
+                    if let Some(special_name) = &special_name {
+                        names.insert((next_node_id, idx), special_name.clone());
+                    }
+                    else {
+                        let round_number = curr_idx + idx + 1;
+                        names.insert((next_node_id, idx), format!("Round {}", round_number));
+                    }
+                }
+                curr_idx += rounds.len();
+                let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
+                for child in children {
+                    explore_queue.push((*child, prev_breaks.clone()));
+                }
+            },
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+                let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
+                for child in children {
+                    let mut breaks = prev_breaks.clone();
+                    breaks.push(&config);
+                    explore_queue.push((*child, breaks));
+                }
+            },
+        }
+
+    }
+
+    Ok(names)
+}
+
+impl TournamentTreeView {
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
         let breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
@@ -296,7 +296,7 @@ impl TournamentTreeView {
             }
         ).into_group_map();
 
-        let names = Self::get_round_names(nodes.clone(), &node_children, &nodes.iter().filter_map(
+        let names = get_round_names(nodes.clone(), &node_children, &nodes.iter().filter_map(
             |n| {
                 if nodes_to_parents.contains_key(&n.uuid) {
                     None

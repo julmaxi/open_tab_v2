@@ -114,7 +114,7 @@ impl ActionTrait for MakeBreakAction {
                 let speakers = find_speakers_not_in_teams(&teams, &speaker_ranking, &speaker_info.team_members);
 
                 break_.breaking_teams = teams;
-                break_.breaking_speakers = speakers;
+                break_.breaking_speakers = speakers.into_iter().take(num_debates as usize * 3).collect();
 
                 groups.add(Entity::TournamentBreak(break_));
             },

@@ -25,31 +25,52 @@ function ScoreTable({descriptionName, numRounds, children}) {
     </div>
 }
 
-function TeamTab({tab, numRounds}) {
-    return <ScoreTable numRounds={numRounds} descriptionName={"Team"}>
-            {tab.map((team) => <tr key={team.team_uuid}>
-                <td className='text-center'>{team.rank + 1}</td>
-                <td>{team.team_name}</td>
-                <td className='text-center'>{team.avg_points == null ? "–" : avgPointFormat.format(team.avg_points) }</td>
 
-                {
-                    team.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <TeamScoreDetailCell details={details} /> : "–"}</td>)
+function TeamTabRow({team, markedBreaks}) {
+    return <tr key={team.team_uuid}>
+        <td className='text-center'>{team.rank + 1}</td>
+        <td>{team.team_name}{markedBreaks.length > 0 ? (<p className='text-xs'>{markedBreaks.join(", ")}</p>) : []}</td>
+        <td className='text-center'>{team.avg_points == null ? "–" : avgPointFormat.format(team.avg_points) }</td>
+
+        {
+            team.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <TeamScoreDetailCell details={details} /> : "–"}</td>)
+        }
+    </tr>
+}
+
+function TeamTab({tab, numRounds, markedBreaks}) {
+    return <ScoreTable numRounds={numRounds} descriptionName={"Team"}>
+        {
+            tab.map(
+                (team) => {
+                    let teamMarkedBreaks = Object.keys(markedBreaks).filter((key) => markedBreaks[key].includes(team.team_uuid));
+                    return <TeamTabRow team={team} markedBreaks={teamMarkedBreaks} />
                 }
-            </tr>)}
+            )
+        }
     </ScoreTable>
 }
 
 
-function SpeakerTab({tab, numRounds}) {
+function SpeakerTab({tab, numRounds, markedBreaks}) {
     return <ScoreTable numRounds={numRounds} descriptionName={"Speaker"}>
-            {tab.map((speaker) => <tr key={speaker.speaker_uuid}>
-                <td className='text-center'>{speaker.rank + 1}</td>
-                <td>{speaker.speaker_name}</td>
-                <td className='text-center'>{speaker.avg_points == null ? "–" : avgPointFormat.format(speaker.avg_points) }</td>
-                {
-                    speaker.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <SpeakerScoreDetailCell details={details} /> : "–"}</td>)
-                }
-            </tr>)}
+        {
+            tab.map((speaker) => {
+                let speakerMarkedBreaks = Object.keys(markedBreaks).filter((key) => markedBreaks[key].includes(speaker.speaker_uuid));
+                return <tr key={speaker.speaker_uuid}>
+                    <td className='text-center'>{speaker.rank + 1}</td>
+                    <td>
+                        {speaker.speaker_name}
+                        {speakerMarkedBreaks.length > 0 ? (<p className='text-xs'>{speakerMarkedBreaks.join(", ")}</p>) : []}    
+                    </td>
+                    <td className='text-center'>{speaker.avg_points == null ? "–" : avgPointFormat.format(speaker.avg_points) }</td>
+                    {
+                        speaker.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <SpeakerScoreDetailCell details={details} /> : "–"}</td>)
+                    }
+                </tr>
+            }
+        )
+    }
     </ScoreTable>
 }
 
@@ -122,34 +143,64 @@ function TabHeader({children}) {
 }
 
 
-function TabView() {
+function CurrentTabView() {
     let tournament = useContext(TournamentContext);
 
     let tabView = useView({type: "Tab", tournament_uuid: tournament.uuid}, null);
+    return <TabView tabView={tabView} />
+}
+
+function TabView({tabView, breakingTeams: breakingTeams = [], breakingSpeakers: breakingSpeakers = [], teamBreakingSpeakers: teamBreakingSpeakers = []}) {
     return (
         <div className='flex w-full h-full'>
             <div className='flex-1 h-full flex flex-col'>
                 <TabHeader>Teams</TabHeader>
                 {
-                    tabView == null ? <div>Loading...</div> : <TeamTab tab={tabView.team_tab} numRounds={tabView.num_rounds} />
-                    
+                    tabView == null ? <div>Loading...</div> : <TeamTab tab={tabView.team_tab} numRounds={tabView.num_rounds} markedBreaks={
+                        {"Break": breakingTeams}
+                    } />
                 }
             </div>
             <div className='flex-1 h-full flex flex-col'>
                 <TabHeader>Speakers</TabHeader>
                 {
-                    tabView == null ? <div>Loading...</div> : <SpeakerTab tab={tabView.speaker_tab} numRounds={tabView.num_rounds} />
+                    tabView == null ? <div>Loading...</div> : <SpeakerTab tab={tabView.speaker_tab} numRounds={tabView.num_rounds} markedBreaks={
+                        {"Break": breakingSpeakers, "Break in Team": teamBreakingSpeakers}
+                    } />
                 }
             </div>
         </div>
     )
 }
 
+function BreakTabView({breakNodeId}) {
+    let tabView = useView({type: "BreakRelevantTab", node_uuid: breakNodeId}, null);
+    let teamBreakingSpeakers = [];
+
+    for (let team of tabView?.breaking_teams || []) {
+        teamBreakingSpeakers.push(...tabView.team_members[team]);
+    }
+
+    return tabView ? <TabView tabView={tabView.tab} breakingSpeakers={tabView.breaking_speakers} teamBreakingSpeakers={teamBreakingSpeakers} breakingTeams={tabView.breaking_teams} /> : <div>Loading...</div>;
+}
+
 function TabsView() {
+    let tournamentUuid = useContext(TournamentContext).uuid;
+    let breaks = useView({type: "Breaks", tournament_uuid: tournamentUuid}, null);
+
     return <TabGroup>
         <Tab name="Overview" autoScroll={false}>
-            <TabView />
+            <CurrentTabView />
         </Tab>
+        {
+            (breaks?.breaks || []).map(
+                (break_, idx) => {
+                return <Tab name={break_.name} key={break_.node_id} autoScroll={false}>
+                    <BreakTabView breakNodeId={break_.node_id} />
+                </Tab>
+                }
+            )
+        }
     </TabGroup>
 }
 

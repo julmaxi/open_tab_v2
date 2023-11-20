@@ -459,6 +459,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 return Err(MakeBreakError::NotEnoughTeams.into());
             }
             let speakers = find_speakers_not_in_teams(&teams, &speaker_ranking, &speaker_info.team_members);
+            let speakers = speakers.into_iter().take((num_debates * 3) as usize).collect_vec();
 
             break_.breaking_teams = teams;
             break_.breaking_speakers = speakers;

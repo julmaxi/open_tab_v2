@@ -951,7 +951,6 @@ enum TournamentUpdateError {
 impl TournamentUpdateProcess {
     async fn run(self) -> Result<(), TournamentUpdateError> {
         let mut last_sync = None;
-        println!("Start");
 
         loop {
             if let Some(last_sync) = last_sync {
@@ -994,7 +993,6 @@ impl TournamentUpdateProcess {
                 break Err(TournamentUpdateError::NoApiKey);
             }
             let api_key: &String = api_key.as_ref().unwrap();
-            dbg!(&api_key, target_tournament_remote.created_at);
 
             if target_tournament_remote.created_at.is_none() {
                 let result = self.client.post(format!("{}/api/tournaments", target_tournament_remote.url)).bearer_auth(api_key).json(
@@ -1256,8 +1254,6 @@ async fn run_login(
         } else {
             true
         };
-
-        dbg!(is_finished);
 
         if is_finished {
             let (config_msg_sender, config_msg_receiver) = tokio::sync::mpsc::channel::<ProcessSettingsUpdate>(1);

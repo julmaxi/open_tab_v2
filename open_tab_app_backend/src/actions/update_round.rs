@@ -63,6 +63,8 @@ pub struct RoundUpdate {
     #[serde(default)]
     pub team_motion_release_time: PatchValue<Option<chrono::NaiveDateTime>>,
     #[serde(default)]
+    pub debate_start_time: PatchValue<Option<chrono::NaiveDateTime>>,
+    #[serde(default)]
     pub full_motion_release_time: PatchValue<Option<chrono::NaiveDateTime>>,
     #[serde(default)]
     pub round_close_time: PatchValue<Option<chrono::NaiveDateTime>>,
@@ -96,6 +98,9 @@ impl ActionTrait for UpdateRoundAction {
         }
         if let PatchValue::Set(team_motion_release_time) = self.update.team_motion_release_time {
             existing_round.team_motion_release_time = team_motion_release_time;
+        }
+        if let PatchValue::Set(debate_start_time) = self.update.debate_start_time {
+            existing_round.debate_start_time = debate_start_time;
         }
         if let PatchValue::Set(full_motion_release_time) = self.update.full_motion_release_time {
             existing_round.full_motion_release_time = full_motion_release_time;

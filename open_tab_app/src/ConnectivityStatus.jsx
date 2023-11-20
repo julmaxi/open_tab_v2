@@ -123,7 +123,17 @@ function ConnectivityStatus() {
                 defaultUserName={defaultUserId}
                 url={tournamentView !== null ? tournamentView.remote_url: ""}
                 onLogin={(username, password) => {
-                    console.log("Logging in with", username, password);
+                    invoke("login_to_remote", {
+                        userName: username,
+                        password: password,
+                    }).then((msg) => {
+                        if (msg.success) {
+                            setShowLogin(false);
+                        }
+                        else {
+                            console.log(msg);
+                        }
+                    });
                 }}
                 onAbort={() => {
                     setShowLogin(false);

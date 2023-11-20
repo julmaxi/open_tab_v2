@@ -10,6 +10,7 @@ pub mod institutions_view;
 pub mod venue_list_view;
 pub mod tournament_status_view;
 pub mod break_relevant_tab_view;
+pub mod breaks;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
@@ -25,6 +26,7 @@ use self::institutions_view::LoadedInstitutionsView;
 use self::venue_list_view::LoadedVenueListView;
 use self::tournament_status_view::LoadedTournamentStatusView;
 use self::break_relevant_tab_view::LoadedBreakRelevantTabView;
+use self::breaks::LoadedBreaksView;
 
 
 use std::error::Error;
@@ -51,6 +53,7 @@ pub enum View {
     Venues{tournament_uuid: Uuid},
     TournamentStatus{tournament_uuid: Uuid},
     BreakRelevantTab{node_uuid: Uuid},
+    Breaks{tournament_uuid: Uuid},
 }
 
 impl View {
@@ -99,6 +102,9 @@ impl View {
             },
             View::BreakRelevantTab { node_uuid } => {
                 Box::new(LoadedBreakRelevantTabView::load(db, *node_uuid).await?)
+            },
+            View::Breaks { tournament_uuid } => {
+                Box::new(LoadedBreaksView::load(db, *tournament_uuid).await?)
             },
         })
     }
