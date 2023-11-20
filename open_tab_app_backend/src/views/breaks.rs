@@ -99,7 +99,7 @@ impl BreaksView {
                     
                     let break_name = match break_node_children.len() {
                         0 => "Break to Nowhere".to_string(),
-                        1 => round_names.get(&(break_node_children[0], 0)).unwrap_or(&"Unknown round".to_string()).clone(),
+                        1 => format!("Break to {}", round_names.get(&(break_node_children[0], 0)).unwrap_or(&"Unknown round".to_string()).clone()),
                         _ => "Break to Multiple Rounds".to_string() // This should never happen in normal use, but it could with special configuration
                     };
 
