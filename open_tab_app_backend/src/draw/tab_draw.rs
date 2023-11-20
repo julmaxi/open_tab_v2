@@ -49,7 +49,7 @@ pub fn pair_teams(
     breaking_teams: &Vec<Uuid>,
     team_draw_mode: &TeamFoldMethod,
 ) -> Vec<TeamPair> {
-    assert!(breaking_teams.len() % 2 == 0, "Breaking teams must be even");
+    assert!(breaking_teams.len() % 2 == 0, "Breaking teams must be even is {:?}", breaking_teams.len());
     let mut rng = thread_rng();
     let mut pairs = match team_draw_mode {
         TeamFoldMethod::PowerPaired => {

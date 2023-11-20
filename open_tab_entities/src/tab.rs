@@ -180,15 +180,17 @@ impl TabView {
                                     team_entry.speaker_score += speech.speaker_score().unwrap_or(0.0);
                                 },
                                 None => {
-                                    team_tab_entries.insert(
-                                        speaker_team,
-                                        round.index as usize,
-                                        TeamTabEntryDetailedScore {
-                                            team_score: None,
-                                            speaker_score: speech.speaker_score().unwrap_or(0.0),
-                                            role: TeamRoundRole::NonAligned
-                                        }
-                                    );
+                                    if let Some(speaker_score) = speech.speaker_score() {
+                                        team_tab_entries.insert(
+                                            speaker_team,
+                                            round.index as usize,
+                                            TeamTabEntryDetailedScore {
+                                                team_score: None,
+                                                speaker_score,
+                                                role: TeamRoundRole::NonAligned
+                                            }
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -306,11 +308,13 @@ impl TabView {
                 TeamRoundRole::NonAligned => panic!("Can't compute team score for non-aligned speakers")
             };
 
-            team_tab_entries.insert(
-                &team,
-                round.index as usize,
-                TeamTabEntryDetailedScore { team_score: total_score, speaker_score: speaker_scores.into_iter().sum(), role: team_role }
-            );
+            if total_score.is_some() || speaker_scores.len() > 0 {
+                team_tab_entries.insert(
+                    &team,
+                    round.index as usize,
+                    TeamTabEntryDetailedScore { team_score: total_score, speaker_score: speaker_scores.into_iter().sum(), role: team_role }
+                );
+            }
         }
     }
 }
