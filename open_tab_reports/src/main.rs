@@ -8,7 +8,7 @@ fn main() {
     let file = std::fs::File::create("test.odp").unwrap();
     let context = TemplateContext::new("templates".into()).unwrap();
     //make_open_office_ballots(&context, file, presentation_info).unwrap();
-    make_open_office_presentation(&context, file, presentation_info).unwrap();
+    make_open_office_presentation(&context, file, &presentation_info).unwrap();
 }
 
 

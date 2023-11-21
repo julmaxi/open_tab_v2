@@ -240,7 +240,7 @@
                 </presentation:notes>
             </draw:page>
             {% for debate in debates %}
-            <draw:page draw:master-page-name="Impress1" draw:name="Raum {{loop.index}}" draw:style-name="dp1" presentation:presentation-page-layout-name="AL2T18">
+            <draw:page draw:master-page-name="Impress1" draw:name="Raum {{loop.index + 1}}" draw:style-name="dp1" presentation:presentation-page-layout-name="AL2T18">
                 <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
                 <draw:frame draw:layer="layout" presentation:class="title" presentation:style-name="pr4" presentation:user-transformed="true" svg:height="3.507cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
                     <draw:text-box>
