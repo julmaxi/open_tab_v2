@@ -5,7 +5,7 @@ use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}
 
 use migration::{MigratorTrait};
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
-use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab}};
+use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, app};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
@@ -1339,7 +1339,9 @@ async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: S
     let presentation = DrawPresentationInfo::load_for_round(db.inner(), round_id).await.map_err(handle_error)?;
 
     let file = File::create(Path::new(&dir_path).join(format!("ballots_r{}.odg", presentation.round_index + 1))).map_err(handle_error)?;
-    make_open_office_ballots(&template_context, file, presentation).map_err(handle_error)?;
+    make_open_office_ballots(&template_context, file, &presentation).map_err(handle_error)?;
+    let presentation_file = File::create(Path::new(&dir_path).join(format!("presentation_r{}.odp", presentation.round_index + 1))).map_err(handle_error)?;
+    make_open_office_presentation(&template_context, presentation_file, &presentation).map_err(handle_error)?;
 
     Ok(())
 }

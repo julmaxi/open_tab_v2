@@ -155,7 +155,7 @@ impl OpenOfficeDocument {
     }
 }
 
-pub fn make_open_office_ballots<W>(context: &TemplateContext, writer: W, info: DrawPresentationInfo) ->
+pub fn make_open_office_ballots<W>(context: &TemplateContext, writer: W, info: &DrawPresentationInfo) ->
     Result<(), anyhow::Error> where W: Write + std::io::Seek {
     let ballot_xml = context.tera.render("open_office/ballot.xml", &Context::from_serialize(&info)?)?;
     let styles_xml = context.tera.render("open_office/ballot_styles.xml", &Context::new())?;
@@ -174,6 +174,25 @@ pub fn make_open_office_ballots<W>(context: &TemplateContext, writer: W, info: D
             ("Pictures/ballot_background.png".into(), image_file)
         ].into_iter().collect(),
         doc_media_type: "application/vnd.oasis.opendocument.graphics".into(),
+    }.write(&context, writer)?;
+
+    return Ok(());
+}
+
+
+pub fn make_open_office_presentation<W>(context: &TemplateContext, writer: W, info: &DrawPresentationInfo) ->
+    Result<(), anyhow::Error> where W: Write + std::io::Seek {
+    let presentation_xml = context.tera.render("open_office/presentation.xml", &Context::from_serialize(&info)?)?;
+    let styles_xml = context.tera.render("open_office/presentation_styles.xml", &Context::new())?;
+
+    OpenOfficeDocument {
+        content: presentation_xml,
+        styles: styles_xml,
+        additional_files: vec![
+        ],
+        additional_files_data: vec![
+        ].into_iter().collect(),
+        doc_media_type: "application/vnd.oasis.opendocument.presentation".into(),
     }.write(&context, writer)?;
 
     return Ok(());

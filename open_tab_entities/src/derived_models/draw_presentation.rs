@@ -85,7 +85,7 @@ impl DrawPresentationInfo {
         Ok(Self {
             round_id: round_id,
             round_index: round.index as u32,
-            round_name: format!("{}", round.index + 1),
+            round_name: format!("Runde {}", round.index + 1),
             debates,
             motion: round.motion.unwrap_or("<No motion>".into()),
             info_slide: round.info_slide
@@ -187,7 +187,7 @@ pub struct TeamPresentationInfo {
 impl TeamPresentationInfo {
     fn from_team(team: crate::prelude::Team, participants_by_team_id: &HashMap<Uuid, Vec<ParticipantPresentationInfo>>) -> TeamPresentationInfo {
         let members = participants_by_team_id.get(&team.uuid).cloned().unwrap_or_default();
-        let mut all_institutions = members.iter().flat_map(
+        let all_institutions = members.iter().flat_map(
             |m| {
                 let institutions = m.institutions.clone();
                 institutions

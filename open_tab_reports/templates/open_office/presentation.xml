@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content office:version="1.2" xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0" xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:css3t="http://www.w3.org/TR/css3-text/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dom="http://www.w3.org/2001/xml-events" xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:drawooo="http://openoffice.org/2010/draw" xmlns:field="urn:openoffice:names:experimental:ooo-ms-interop:xmlns:field:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0" xmlns:formx="urn:openoffice:names:experimental:ooxml-odf-interop:xmlns:form:1.0" xmlns:grddl="http://www.w3.org/2003/g/data-view#" xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0" xmlns:math="http://www.w3.org/1998/Math/MathML" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:officeooo="http://openoffice.org/2009/office" xmlns:ooo="http://openoffice.org/2004/office" xmlns:oooc="http://openoffice.org/2004/calc" xmlns:ooow="http://openoffice.org/2004/writer" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:rpt="http://openoffice.org/2005/report" xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0" xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:tableooo="http://openoffice.org/2009/table" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xforms="http://www.w3.org/2002/xforms" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <office:scripts/>
+    <office:font-face-decls>
+        <style:font-face style:font-family-generic="roman" style:font-pitch="variable" style:name="Liberation Sans" svg:font-family="'Liberation Sans'"/>
+        <style:font-face style:font-family-generic="roman" style:font-pitch="variable" style:name="Liberation Serif" svg:font-family="'Liberation Serif'"/>
+        <style:font-face style:font-family-generic="swiss" style:font-pitch="variable" style:name="Noto Sans" svg:font-family="'Noto Sans'"/>
+        <style:font-face style:font-family-generic="swiss" style:font-pitch="variable" style:name="Noto Sans Bold" svg:font-family="'Noto Sans Bold'"/>
+        <style:font-face style:font-family-generic="swiss" style:font-pitch="variable" style:name="Noto Sans Regular2" svg:font-family="'Noto Sans Regular'"/>
+        <style:font-face style:font-adornments="Normal" style:font-family-generic="swiss" style:font-pitch="variable" style:name="Noto Sans Regular1" svg:font-family="'Noto Sans Regular'"/>
+        <style:font-face style:font-family-generic="system" style:font-pitch="variable" style:name="Arial Unicode MS" svg:font-family="'Arial Unicode MS'"/>
+        <style:font-face style:font-family-generic="system" style:font-pitch="variable" style:name="Noto Sans Regular" svg:font-family="'Noto Sans Regular'"/>
+        <style:font-face style:font-family-generic="system" style:font-pitch="variable" style:name="Tahoma" svg:font-family="Tahoma"/>
+    </office:font-face-decls>
+    <office:automatic-styles>
+        <style:style style:family="drawing-page" style:name="dp1">
+            <style:drawing-page-properties presentation:background-objects-visible="true" presentation:background-visible="true" presentation:display-date-time="true" presentation:display-footer="true" presentation:display-page-number="true"/>
+        </style:style>
+        <style:style style:family="drawing-page" style:name="dp2">
+            <style:drawing-page-properties presentation:display-date-time="true" presentation:display-footer="true" presentation:display-header="true" presentation:display-page-number="false"/>
+        </style:style>
+        <style:style style:family="graphic" style:name="gr1">
+            <style:graphic-properties style:protect="size"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr1" style:parent-style-name="Impress-title">
+            <style:graphic-properties fo:min-height="4.615cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr2" style:parent-style-name="Impress-subtitle">
+            <style:graphic-properties draw:fill-color="#ffffff" fo:min-height="2.729cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr3" style:parent-style-name="Impress-notes">
+            <style:graphic-properties draw:auto-grow-height="true" draw:fill-color="#ffffff" fo:min-height="13.364cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr4" style:parent-style-name="Impress1-title">
+            <style:graphic-properties fo:min-height="3.507cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr5" style:parent-style-name="Impress1-outline1">
+            <style:graphic-properties fo:min-height="5.559cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr6" style:parent-style-name="Impress1-notes">
+            <style:graphic-properties draw:fill-color="#ffffff" fo:min-height="13.364cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr7" style:parent-style-name="Impress1-subtitle">
+            <style:graphic-properties draw:fill-color="#ffffff" fo:min-height="16.26cm"/>
+        </style:style>
+        <style:style style:family="presentation" style:name="pr8" style:parent-style-name="Impress1-subtitle">
+            <style:graphic-properties draw:fill-color="#ffffff" draw:textarea-vertical-align="top" fo:min-height="12.18cm"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P1">
+            <loext:graphic-properties draw:fill-color="#ffffff"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P2">
+            <style:paragraph-properties fo:text-align="start"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P3">
+            <style:text-properties fo:font-size="54pt" style:font-size-asian="54pt" style:font-size-complex="54pt"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P4">
+            <loext:graphic-properties draw:fill-color="#ffffff"/>
+            <style:text-properties fo:font-size="54pt" style:font-size-asian="54pt" style:font-size-complex="54pt"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P5">
+            <style:text-properties fo:font-size="54pt" fo:font-weight="bold" style:font-size-asian="54pt" style:font-size-complex="54pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P6">
+            <loext:graphic-properties draw:fill-color="#ffffff"/>
+            <style:text-properties fo:font-size="54pt" fo:font-weight="bold" style:font-size-asian="54pt" style:font-size-complex="54pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P7">
+            <loext:graphic-properties draw:fill-color="#ffffff"/>
+            <style:paragraph-properties fo:text-align="start"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P8">
+            <style:paragraph-properties fo:text-align="start"/>
+            <style:text-properties fo:font-size="66pt" fo:font-weight="bold" style:font-size-asian="66pt" style:font-size-complex="66pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="paragraph" style:name="P9">
+            <loext:graphic-properties draw:fill-color="#ffffff"/>
+            <style:text-properties fo:font-size="66pt" fo:font-weight="bold" style:font-size-asian="66pt" style:font-size-complex="66pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="text" style:name="T1">
+            <style:text-properties fo:color="#8a8a8a" fo:font-size="22pt" style:font-size-asian="22pt" style:font-size-complex="22pt"/>
+        </style:style>
+        <style:style style:family="text" style:name="T2">
+            <style:text-properties fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="text" style:name="T3">
+            <style:text-properties fo:font-size="54pt" style:font-size-asian="54pt" style:font-size-complex="54pt"/>
+        </style:style>
+        <style:style style:family="text" style:name="T4">
+            <style:text-properties fo:font-size="54pt" fo:font-weight="bold" style:font-size-asian="54pt" style:font-size-complex="54pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <style:style style:family="text" style:name="T5">
+            <style:text-properties fo:font-size="66pt" fo:font-weight="bold" style:font-size-asian="66pt" style:font-size-complex="66pt" style:font-weight-asian="bold" style:font-weight-complex="bold"/>
+        </style:style>
+        <text:list-style style:name="L1">
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                <style:list-level-properties/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+        </text:list-style>
+        <text:list-style style:name="L2">
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                <style:list-level-properties text:min-label-width="0.6cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
+                <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
+            </text:list-level-style-bullet>
+        </text:list-style>
+        <text:list-style style:name="L3">
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                <style:list-level-properties text:min-label-width="0.9cm" text:space-before="0.3cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â€“" text:level="2">
+                <style:list-level-properties text:min-label-width="0.9cm" text:space-before="1.5cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="75%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                <style:list-level-properties text:min-label-width="0.8cm" text:space-before="2.8cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â€“" text:level="4">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="75%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="6.6cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="7.8cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="9cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="10.2cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+            <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                <style:list-level-properties text:min-label-width="0.6cm" text:space-before="11.4cm"/>
+                <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
+            </text:list-level-style-bullet>
+        </text:list-style>
+    </office:automatic-styles>
+    <office:body>
+        <office:presentation>
+            <draw:page draw:master-page-name="Impress" draw:name="Titel" draw:style-name="dp1" presentation:presentation-page-layout-name="AL1T0">
+                <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                <draw:frame draw:layer="layout" presentation:class="title" presentation:style-name="pr1" presentation:user-transformed="true" svg:height="4.615cm" svg:width="23.8cm" svg:x="2.2cm" svg:y="11.093cm">
+                    <draw:text-box>
+                        <text:p>{{round_name}}</text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="subtitle" presentation:placeholder="true" presentation:style-name="pr2" svg:height="2.729cm" svg:width="23.8cm" svg:x="2.2cm" svg:y="16.4cm">
+                    <draw:text-box/>
+                </draw:frame>
+                <presentation:notes draw:style-name="dp2">
+                    <draw:page-thumbnail draw:layer="layout" draw:page-number="1" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr3" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                        <draw:text-box/>
+                    </draw:frame>
+                </presentation:notes>
+            </draw:page>
+            {% for debate in debates %}
+            <draw:page draw:master-page-name="Impress1" draw:name="Raum {{loop.index}}" draw:style-name="dp1" presentation:presentation-page-layout-name="AL2T18">
+                <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                <draw:frame draw:layer="layout" presentation:class="title" presentation:style-name="pr4" presentation:user-transformed="true" svg:height="3.507cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
+                    <draw:text-box>
+                        <text:p>Raum {{debate.debate_index}} {% if debate.venue %} :{{ debate.venue.venue_name }} {% endif %}</text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <draw:frame draw:layer="layout" draw:text-style-name="P2" presentation:class="outline" presentation:style-name="Impress1-outline1" presentation:user-transformed="true" svg:height="5.809cm" svg:width="11.711cm" svg:x="2cm" svg:y="4.1cm">
+                    <draw:text-box>
+                        <text:p text:style-name="P2">
+                            <text:span text:style-name="T1">Regierung</text:span>
+                        </text:p>
+                        <text:p text:style-name="P2">
+                            <text:span text:style-name="T2">{{ debate.government.team_name }}</text:span>
+                        </text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <draw:frame draw:layer="layout" presentation:class="outline" presentation:style-name="pr5" presentation:user-transformed="true" svg:height="5.809cm" svg:width="11.711cm" svg:x="14.298cm" svg:y="4.1cm">
+                    <draw:text-box>
+                        <text:p>
+                            <text:span text:style-name="T1">Opposition</text:span>
+                        </text:p>
+                        <text:p>
+                            <text:span text:style-name="T2">{{ debate.opposition.team_name }}</text:span>
+                        </text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <draw:frame draw:layer="layout" presentation:class="outline" presentation:style-name="pr5" presentation:user-transformed="true" svg:height="5.809cm" svg:width="11.711cm" svg:x="2cm" svg:y="9.362cm">
+                    <draw:text-box>
+                        <text:p>
+                            <text:span text:style-name="T1">Freie Redner</text:span>
+                        </text:p>
+                        <text:list text:style-name="L3">
+                            {% for speaker in debate.non_aligned_speakers %}
+                            <text:list-item>
+                                <text:p>{{speaker.participant_name}}</text:p>
+                            </text:list-item>
+                            {% endfor %}
+                        </text:list>
+                    </draw:text-box>
+                </draw:frame>
+                <draw:frame draw:layer="layout" presentation:class="outline" presentation:style-name="pr5" presentation:user-transformed="true" svg:height="5.809cm" svg:width="11.711cm" svg:x="14.298cm" svg:y="9.362cm">
+                    <draw:text-box>
+                        <text:p>
+                            <text:span text:style-name="T1">Juroren</text:span>
+                        </text:p>
+                        <text:list text:style-name="L3">
+                {% if debate.president %}
+                            <text:list-item>
+                                <text:p>{{debate.president.participant_name}} (Präsident)</text:p>
+                            </text:list-item>
+                {% endif %}
+                {% for judge in debate.adjudicators %}
+                            <text:list-item>
+                                <text:p>{{judge.participant_name}} {% if loop.index == 0 %}(Chair){% endif %}</text:p>
+                            </text:list-item>
+                {% endfor %}
+                        </text:list>
+                    </draw:text-box>
+                </draw:frame>
+                <presentation:notes draw:style-name="dp2">
+                    <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                    <draw:page-thumbnail draw:layer="layout" draw:page-number="2" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr6" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                        <draw:text-box/>
+                    </draw:frame>
+                </presentation:notes>
+            </draw:page>
+            {% endfor %}
+            <draw:page draw:master-page-name="Impress1" draw:name="Freie Redner" draw:style-name="dp1" presentation:presentation-page-layout-name="AL3T32">
+                <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                <draw:frame draw:layer="layout" draw:text-style-name="P4" presentation:class="subtitle" presentation:style-name="pr7" svg:height="16.26cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
+                    <draw:text-box>
+                        <text:p text:style-name="P3">
+                            <text:span text:style-name="T3">Freie Redner bitte den Raum verlassen</text:span>
+                        </text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <presentation:notes draw:style-name="dp2">
+                    <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                    <draw:page-thumbnail draw:layer="layout" draw:page-number="3" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr6" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                        <draw:text-box/>
+                    </draw:frame>
+                </presentation:notes>
+            </draw:page>
+            <draw:page draw:master-page-name="Impress1" draw:name="Sicherheitsfolie" draw:style-name="dp1" presentation:presentation-page-layout-name="AL3T32">
+                <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                <draw:frame draw:layer="layout" draw:text-style-name="P6" presentation:class="subtitle" presentation:style-name="pr7" svg:height="16.26cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
+                    <draw:text-box>
+                        <text:p text:style-name="P5">
+                            <text:span text:style-name="T4">Das Thema lautet:</text:span>
+                        </text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <presentation:notes draw:style-name="dp2">
+                    <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                    <draw:page-thumbnail draw:layer="layout" draw:page-number="4" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr6" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                        <draw:text-box/>
+                    </draw:frame>
+                </presentation:notes>
+            </draw:page>
+
+            {% if info_slide %}
+                <draw:page draw:master-page-name="Impress1" draw:name="Factsheet" draw:style-name="dp1" presentation:presentation-page-layout-name="AL1T0">
+                    <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                    <draw:frame draw:layer="layout" presentation:class="title" presentation:style-name="pr4" presentation:user-transformed="true" svg:height="3.507cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
+                        <draw:text-box>
+                            <text:p>Info Slide</text:p>
+                        </draw:text-box>
+                    </draw:frame>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P7" presentation:class="subtitle" presentation:style-name="pr8" svg:height="12.18cm" svg:width="24cm" svg:x="2cm" svg:y="6cm">
+                        <draw:text-box>
+                            <text:p text:style-name="P2">{{info_slide}}</text:p>
+                        </draw:text-box>
+                    </draw:frame>
+                    <presentation:notes draw:style-name="dp2">
+                        <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                        <draw:page-thumbnail draw:layer="layout" draw:page-number="5" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                        <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr6" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                            <draw:text-box/>
+                        </draw:frame>
+                    </presentation:notes>
+                </draw:page>
+            {% endif %}
+
+            <draw:page draw:master-page-name="Impress1" draw:name="Thema" draw:style-name="dp1" presentation:presentation-page-layout-name="AL3T32">
+                <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                <draw:frame draw:layer="layout" draw:text-style-name="P9" presentation:class="subtitle" presentation:style-name="pr7" svg:height="16.26cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
+                    <draw:text-box>
+                        <text:p text:style-name="P8">
+                            <text:span text:style-name="T5">{{motion}}</text:span>
+                        </text:p>
+                    </draw:text-box>
+                </draw:frame>
+                <presentation:notes draw:style-name="dp2">
+                    <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
+                    <draw:page-thumbnail draw:layer="layout" draw:page-number="6" draw:style-name="gr1" presentation:class="page" svg:height="11.136cm" svg:width="14.848cm" svg:x="3.075cm" svg:y="2.257cm"/>
+                    <draw:frame draw:layer="layout" draw:text-style-name="P1" presentation:class="notes" presentation:placeholder="true" presentation:style-name="pr6" svg:height="13.364cm" svg:width="16.799cm" svg:x="2.1cm" svg:y="14.107cm">
+                        <draw:text-box/>
+                    </draw:frame>
+                </presentation:notes>
+            </draw:page>
+            <presentation:settings presentation:mouse-visible="false"/>
+        </office:presentation>
+    </office:body>
+</office:document-content>

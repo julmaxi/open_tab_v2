@@ -1,13 +1,14 @@
 use allsorts::{tag, font::MatchingPresentation};
 use itertools::Itertools;
 use open_tab_entities::derived_models::mock_draw_presentation_info;
-use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}, template::{make_open_office_ballots, TemplateContext}};
+use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}, template::{make_open_office_ballots, TemplateContext, make_open_office_presentation}};
 
 fn main() {
     let presentation_info = mock_draw_presentation_info();
-    let file = std::fs::File::create("test.odg").unwrap();
+    let file = std::fs::File::create("test.odp").unwrap();
     let context = TemplateContext::new("templates".into()).unwrap();
-    make_open_office_ballots(&context, file, presentation_info).unwrap();
+    //make_open_office_ballots(&context, file, presentation_info).unwrap();
+    make_open_office_presentation(&context, file, presentation_info).unwrap();
 }
 
 
