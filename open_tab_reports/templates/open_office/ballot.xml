@@ -207,14 +207,14 @@
                 <draw:frame draw:layer="layout" draw:style-name="gr2" draw:text-style-name="P2" svg:height="0.962cm" svg:width="4.5cm" svg:x="6.8cm" svg:y="1.1cm">
                     <draw:text-box>
                         <text:p>
-                            <text:span text:style-name="T1">R.{{loop.index}} {{ debate.venue.venue_name }}</text:span>
+                            <text:span text:style-name="T1">R.{{loop.index}} {% if debate.venue %} {{ debate.venue.venue_name }} {% endif %}</text:span>
                         </text:p>
                     </draw:text-box>
                 </draw:frame>
                 <draw:frame draw:layer="layout" draw:style-name="gr2" draw:text-style-name="P2" svg:height="0.962cm" svg:width="4.5cm" svg:x="6.8cm" svg:y="1.7cm">
                     <draw:text-box>
                         <text:p>
-                            <text:span text:style-name="T1">{{round_index}}</text:span>
+                            <text:span text:style-name="T1">{{round_index + 1}}</text:span>
                         </text:p>
                     </draw:text-box>
                 </draw:frame>
@@ -281,7 +281,7 @@
                         </text:p>
                         <text:p text:style-name="P5">
                             <text:span text:style-name="T5">Regierung:</text:span>
-                            <text:span text:style-name="T4">({{debate.government.all_institutions|map(attribute='name')|join(sep=", ")}})</text:span>
+                            <text:span text:style-name="T4">({{debate.government.all_institutions|map(attribute='institution_name')|join(sep=", ")}})</text:span>
                         </text:p>
                         <text:list text:style-name="L2">
                             {% for member in debate.government.members %}
@@ -297,7 +297,7 @@
                         </text:p>
                         <text:p text:style-name="P5">
                             <text:span text:style-name="T5">Opposition:</text:span>
-                            <text:span text:style-name="T4">({{debate.opposition.all_institutions|map(attribute='name')|join(sep=", ")}})</text:span>
+                            <text:span text:style-name="T4">({{debate.opposition.all_institutions|map(attribute='institution_name')|join(sep=", ")}})</text:span>
                         </text:p>
                         <text:list text:style-name="L2">
                             {% for member in debate.opposition.members %}
