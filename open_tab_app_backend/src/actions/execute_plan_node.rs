@@ -1,6 +1,6 @@
 use std::{error::Error, iter::zip, sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
-use itertools::{Itertools, izip};
+use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{round::DrawType, tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge}, EntityType, tab::TeamRoundRole};
 
@@ -33,6 +33,17 @@ pub enum NodeExecutionError {
 }
 
 fn round_draw_from_team_and_speaker_pairs(team_pairs: Vec<TeamPair>, speaker_pairs: Vec<Vec<Uuid>>) -> Vec<DrawBallot> {
+    let (team_pairs, speaker_pairs) = if team_pairs.len() <= speaker_pairs.len() {
+        (team_pairs, speaker_pairs)
+    }
+    else {
+        let n_speaker_pairs = speaker_pairs.len();
+        let new_speaker_pairs = speaker_pairs.into_iter().chain(
+            repeat_n(vec![], team_pairs.len() - n_speaker_pairs)
+        ).collect_vec();
+        (team_pairs, new_speaker_pairs)
+    };
+
     team_pairs.into_iter().zip(speaker_pairs.into_iter()).map(
         |(team_pair, speaker_pair)| {
             let ballot = DrawBallot {
@@ -469,6 +480,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 return Err(MakeBreakError::InvalidTeamCount.into());
             }
             let num_breaking_teams = team_ranking.len() / 3 * 2;
+            dbg!(&num_breaking_teams);
             let teams = team_ranking.into_iter().take((num_breaking_teams) as usize).collect_vec();
             let speakers = find_speakers_not_in_teams(&teams, &speaker_ranking, &speaker_info.team_members);
 
@@ -528,7 +540,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             }
 
             let tab_breaking_speakers = tab.speaker_tab.iter()
-            .sorted_by_key(|e| ordered_float::NotNan::new(e.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap())
+            .sorted_by_key(|e| -ordered_float::NotNan::new(e.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap())
             .filter(
                 |e| {
                     !best_speaker_ids.contains(&e.speaker_uuid)
@@ -541,7 +553,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             }
 
             break_.breaking_teams = break_team_ids;
-            break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).collect();
+            break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).chain(best_speaker_ids.into_iter()).collect();
         },
         open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak => {
             if team_ranking.len() < 3 || team_ranking.len() % 3 != 0 {
