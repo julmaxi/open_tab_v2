@@ -4,8 +4,8 @@
 use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError};
 
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo};
-use open_tab_reports::{TemplateContext, make_open_office_ballots};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
+use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, app};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
@@ -15,7 +15,7 @@ use open_tab_entities::prelude::*;
 use itertools::{Itertools};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::{TournamentStatusView, LoadedTournamentStatusView}};
+use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::{TournamentStatusView, LoadedTournamentStatusView}, break_relevant_tab_view::BreakRelevantTabView};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -1345,6 +1345,27 @@ async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: S
 }
 
 #[tauri::command]
+async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, node_id: Option<Uuid>, path: String) -> Result<(), ()> {
+    let tab_view = match node_id {
+        Some(node_id) => {
+            let tab_view = BreakRelevantTabView::load_from_node(db.inner(), node_id).await.map_err(handle_error)?;
+            OptionallyBreakRelevantTab::BreakRelevantTab(tab_view)
+        },
+        None => {
+            let tab_view = TabView::load_from_tournament(db.inner(), tournament_id).await.map_err(handle_error)?;
+            OptionallyBreakRelevantTab::Tab(tab_view)
+        }
+    };
+
+    let tournament = domain::tournament::Tournament::get(db.inner(), tournament_id).await.map_err(handle_error)?;
+
+    let file = File::create(path).map_err(handle_error)?;
+    make_open_office_tab(&template_context, file, tab_view, tournament.name).map_err(handle_error)?;
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn create_tournament(db: State<'_, DatabaseConnection>, config: tournament_creation::TournamentCreationConfig) -> Result<open_tab_entities::domain::tournament::Tournament, ()> {
     let mut tournament = open_tab_entities::domain::tournament::Tournament::new();
     tournament.name = config.name;
@@ -1537,7 +1558,8 @@ fn main() {
             login_to_remote,
             create_user_account_for_remote,
             save_round_files,
-            create_tournament
+            create_tournament,
+            save_tab
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))

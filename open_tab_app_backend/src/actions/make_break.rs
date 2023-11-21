@@ -98,11 +98,11 @@ impl ActionTrait for MakeBreakAction {
         ).await?;
 
         let team_ranking = tab.team_tab.iter().sorted_by_key(
-            |t: &&crate::tab_view::TeamTabEntry| ordered_float::NotNan::new(t.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap()
+            |t: &&crate::tab_view::TeamTabEntry| ordered_float::NotNan::new(t.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap()
         ).rev().map(|t| t.team_uuid).collect_vec();
 
         let speaker_ranking = tab.speaker_tab.iter().sorted_by_key(
-            |s: &&crate::tab_view::SpeakerTabEntry| ordered_float::NotNan::new(s.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap()
+            |s: &&crate::tab_view::SpeakerTabEntry| ordered_float::NotNan::new(s.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap()
         ).rev().map(|s| s.speaker_uuid).collect_vec();
 
         match break_.break_type {
@@ -184,7 +184,7 @@ impl ActionTrait for MakeBreakAction {
                 }
 
                 let tab_breaking_speakers = tab.speaker_tab.iter()
-                .sorted_by_key(|e| ordered_float::NotNan::new(e.total_points + thread_rng().gen_range(0.0..0.000001)).unwrap())
+                .sorted_by_key(|e| ordered_float::NotNan::new(e.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap())
                 .filter(
                     |e| {
                         !best_speaker_ids.contains(&e.speaker_uuid)

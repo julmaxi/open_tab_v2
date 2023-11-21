@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::{views, LoadedView};
 
+pub use open_tab_entities::tab::BreakRelevantTabView;
 
 
 pub struct LoadedBreakRelevantTabView {
@@ -42,52 +43,5 @@ impl LoadedView for LoadedBreakRelevantTabView {
 
     async fn view_string(&self) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(&self.view)?)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
-pub struct BreakRelevantTabView {
-    tab: TabView,
-    speaker_teams: HashMap<Uuid, Uuid>,
-    team_members: HashMap<Uuid, Vec<Uuid>>,
-    breaking_teams: Vec<Uuid>,
-    breaking_speakers: Vec<Uuid>
-}
-
-impl BreakRelevantTabView {
-    async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
-        let target_node = open_tab_entities::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
-        let break_background = crate::actions::execute_plan_node::BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
-        let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
-
-        let break_id = match target_node.config {
-            PlanNodeType::Break { break_id, .. } => {
-                break_id
-            },
-            _ =>  None
-        };
-
-        let (breaking_teams, breaking_speakers) = match break_id {
-            Some(break_id) => {
-                let break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
-
-                (break_.breaking_teams, break_.breaking_speakers)
-            },
-            None => (vec![], vec![])
-        };
-
-        let tab = views::tab_view::TabView::load_from_rounds(
-            db,
-            break_background.preceding_rounds.clone(),
-            &speaker_info
-        ).await?;
-
-        Ok(BreakRelevantTabView {
-            tab,
-            speaker_teams: speaker_info.speaker_teams,
-            team_members: speaker_info.team_members,
-            breaking_teams,
-            breaking_speakers: breaking_speakers
-        })
     }
 }

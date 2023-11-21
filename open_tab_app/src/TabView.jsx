@@ -2,6 +2,8 @@ import React, { Children, useContext } from 'react';
 import { TournamentContext } from './TournamentContext';
 import { useView } from './View';
 import { TabGroup, Tab } from './TabGroup';
+import { save } from '@tauri-apps/api/dialog';
+import { invoke } from '@tauri-apps/api/tauri';
 
 
 const avgPointFormat = new Intl.NumberFormat("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -30,7 +32,7 @@ function TeamTabRow({team, markedBreaks}) {
     return <tr key={team.team_uuid}>
         <td className='text-center'>{team.rank + 1}</td>
         <td>{team.team_name}{markedBreaks.length > 0 ? (<p className='text-xs'>{markedBreaks.join(", ")}</p>) : []}</td>
-        <td className='text-center'>{team.avg_points == null ? "–" : avgPointFormat.format(team.avg_points) }</td>
+        <td className='text-center'>{team.avg_score == null ? "–" : avgPointFormat.format(team.avg_score) }</td>
 
         {
             team.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <TeamScoreDetailCell details={details} /> : "–"}</td>)
@@ -63,7 +65,7 @@ function SpeakerTab({tab, numRounds, markedBreaks}) {
                         {speaker.speaker_name}
                         {speakerMarkedBreaks.length > 0 ? (<p className='text-xs'>{speakerMarkedBreaks.join(", ")}</p>) : []}    
                     </td>
-                    <td className='text-center'>{speaker.avg_points == null ? "–" : avgPointFormat.format(speaker.avg_points) }</td>
+                    <td className='text-center'>{speaker.avg_score == null ? "–" : avgPointFormat.format(speaker.avg_score) }</td>
                     {
                         speaker.detailed_scores.map((details, idx) => <td className='text-center' key={idx}>{details !== null ? <SpeakerScoreDetailCell details={details} /> : "–"}</td>)
                     }
@@ -147,27 +149,42 @@ function CurrentTabView() {
     let tournament = useContext(TournamentContext);
 
     let tabView = useView({type: "Tab", tournament_uuid: tournament.uuid}, null);
+    console.log(tabView);
     return <TabView tabView={tabView} />
 }
 
-function TabView({tabView, breakingTeams: breakingTeams = [], breakingSpeakers: breakingSpeakers = [], teamBreakingSpeakers: teamBreakingSpeakers = []}) {
+function TabView({tabView, breakingTeams: breakingTeams = [], breakingSpeakers: breakingSpeakers = [], teamBreakingSpeakers: teamBreakingSpeakers = [], breakNodeId: breakNodeId = null}) {
+    let tournamentId = useContext(TournamentContext).uuid;
     return (
-        <div className='flex w-full h-full'>
-            <div className='flex-1 h-full flex flex-col'>
-                <TabHeader>Teams</TabHeader>
-                {
-                    tabView == null ? <div>Loading...</div> : <TeamTab tab={tabView.team_tab} numRounds={tabView.num_rounds} markedBreaks={
-                        {"Break": breakingTeams}
-                    } />
-                }
+        <div className='flex flex-1 w-full h-full flex-col'>
+            <div className='flex flex-1 w-full min-h-0'>
+                <div className='flex-1 flex flex-col'>
+                    <TabHeader>Teams</TabHeader>
+                    {
+                        tabView == null ? <div>Loading...</div> : <TeamTab tab={tabView.team_tab} numRounds={tabView.num_rounds} markedBreaks={
+                            {"Break": breakingTeams}
+                        } />
+                    }
+                </div>
+                <div className='flex-1 h-full flex flex-col'>
+                    <TabHeader>Speakers</TabHeader>
+                    {
+                        tabView == null ? <div>Loading...</div> : <SpeakerTab tab={tabView.speaker_tab} numRounds={tabView.num_rounds} markedBreaks={
+                            {"Break": breakingSpeakers, "Break in Team": teamBreakingSpeakers}
+                        } />
+                    }
+                </div>
             </div>
-            <div className='flex-1 h-full flex flex-col'>
-                <TabHeader>Speakers</TabHeader>
-                {
-                    tabView == null ? <div>Loading...</div> : <SpeakerTab tab={tabView.speaker_tab} numRounds={tabView.num_rounds} markedBreaks={
-                        {"Break": breakingSpeakers, "Break in Team": teamBreakingSpeakers}
-                    } />
-                }
+            <div className="flex-none w-full h-12 bg-gray-200">
+                <button onClick={() => {
+                    save({defaultPath: "tab.odt", filters: [{name: "odt", extensions: ["odt"]}]}).then(
+                        selected => {
+                            if (selected != null) {
+                                invoke("save_tab", {path: selected, nodeId: breakNodeId, tournamentId: tournamentId});
+                            }
+                        }
+                    )
+                }} className="h-full">Export as OpenOffice Doc…</button>
             </div>
         </div>
     )
@@ -181,7 +198,7 @@ function BreakTabView({breakNodeId}) {
         teamBreakingSpeakers.push(...tabView.team_members[team]);
     }
 
-    return tabView ? <TabView tabView={tabView.tab} breakingSpeakers={tabView.breaking_speakers} teamBreakingSpeakers={teamBreakingSpeakers} breakingTeams={tabView.breaking_teams} /> : <div>Loading...</div>;
+    return tabView ? <TabView tabView={tabView.tab} breakingSpeakers={tabView.breaking_speakers} teamBreakingSpeakers={teamBreakingSpeakers} breakingTeams={tabView.breaking_teams} breakNodeId={breakNodeId} /> : <div>Loading...</div>;
 }
 
 function TabsView() {

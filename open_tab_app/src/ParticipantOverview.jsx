@@ -493,7 +493,7 @@ function CSVImportDialog(props) {
     </div>   
 }
 
-async function openImportDialog() {
+export async function openImportDialog() {
     const selected = await open({
         multiple: false,
         filters: [{

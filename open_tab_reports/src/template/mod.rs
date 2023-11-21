@@ -2,8 +2,9 @@
 
 use std::{collections::HashMap, path::Path};
 
+use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{domain::ballot::Ballot, info::TournamentParticipantsInfo, derived_models::{DisplayBallot, ResultDebate, DrawPresentationInfo}};
+use open_tab_entities::{domain::ballot::Ballot, info::TournamentParticipantsInfo, derived_models::{DisplayBallot, ResultDebate, DrawPresentationInfo}, tab::{TabView, BreakRelevantTabView}};
 
 use lazy_static::lazy_static;
 use std::io::Write;
@@ -29,9 +30,72 @@ pub struct TemplateContext {
     pub(crate) tera: Tera,
 }
 
+fn get_role_letter(val: &str) -> Result<String, anyhow::Error> {
+    match val {
+        "Government" => Ok("G".into()),
+        "Opposition" => Ok("O".into()),
+        "NonAligned" => Ok("F".into()),
+        _ => Err(anyhow::anyhow!("Invalid role {:?}", val)),
+    }
+} 
+
+
+fn role_letter<'a, 'b>(val: &'a Value, _args: &'b HashMap<String, Value>) -> tera::Result<Value> {
+    match val {
+        Value::String(s) => Ok(Value::String(get_role_letter(s).map_err(
+            |e| tera::Error::call_function("role_letter", e)
+        )?)),
+        _ => Err(tera::Error::call_function("role_letter", anyhow::Error::msg(format!("Invalid role {:?}", val)))),
+    }
+} 
+
+fn role_letters<'a, 'b>(val: &'a Value, _args: &'b HashMap<String, Value>) -> tera::Result<Value> {
+    match val {
+        Value::Array(arr) => {
+            let mut result = vec![];
+            for val in arr {
+                if let Value::Object(val) = val {
+                        let team_role = val.get("team_role").ok_or(anyhow::anyhow!("Missing team_role")).map_err(|e| tera::Error::call_filter("role_letters", e))?.as_str().ok_or(anyhow::anyhow!("team_role not string")).map_err(|e| tera::Error::call_filter("role_letters", e))?;
+                        let role_letter = get_role_letter(team_role).map_err(|e| tera::Error::call_filter("role_letters", e))?;
+                        let role_position = val.get("speech_position").ok_or(anyhow::anyhow!("Missing speech_position")).map_err(|e| tera::Error::call_filter("role_letters", e)) ?.as_u64().ok_or(anyhow::anyhow!("speech_position not number")).map_err(|e| tera::Error::call_filter("role_letters", e))?;
+                        
+                        result.push(Value::String(format!("{}{}", role_letter, role_position + 1)));
+                }
+            }
+            Ok(Value::Array(result))
+        },
+        _ => Err(tera::Error::call_function("role_letters", anyhow::Error::msg(format!("Invalid argument {:?}. Should be array.", val)))),
+    }
+}
+
+fn to_2_decimals<'a, 'b>(val: &'a Value, _args: &'b HashMap<String, Value>) -> tera::Result<Value> {
+    match val {
+        Value::Number(n) => {
+            Ok(Value::String(format!("{:.2}", n.as_f64().unwrap_or(0.0))))
+        },
+        _ => Err(tera::Error::call_function("to_2_decimals", anyhow::Error::msg(format!("Invalid argument {:?}. Should be number.", val)))),
+    }
+}
+
+fn unwrap_default<'a, 'b>(val: &'a Value, args: &'b HashMap<String, Value>) -> tera::Result<Value> {
+    match val {
+        Value::Null => {
+            match args.get("default") {
+                Some(default) => Ok(default.clone()),
+                None => Err(tera::Error::call_function("unwrap_default", anyhow::Error::msg(format!("Must set default value.")))),
+            }
+        },
+        _ => Ok(val.clone()),
+    }
+}
+
 impl TemplateContext {
     pub fn new(template_dir: String) -> Result<Self, anyhow::Error> {
         let mut tera = Tera::new(Path::new(&template_dir).join("**/*.xml").as_os_str().to_str().unwrap_or("templates/**/*.xml"))?;
+        tera.register_filter("role_letters", role_letters);
+        tera.register_filter("to_2_decimals", to_2_decimals);
+        tera.register_filter("unwrap_default", unwrap_default);
+        
         tera.autoescape_on(vec![".html", ".sql", ".xml"]);
         
         Ok(Self {
@@ -110,6 +174,54 @@ pub fn make_open_office_ballots<W>(context: &TemplateContext, writer: W, info: D
             ("Pictures/ballot_background.png".into(), image_file)
         ].into_iter().collect(),
         doc_media_type: "application/vnd.oasis.opendocument.graphics".into(),
+    }.write(&context, writer)?;
+
+    return Ok(());
+}
+
+#[derive(Debug)]
+pub enum OptionallyBreakRelevantTab {
+    Tab(TabView),
+    BreakRelevantTab(BreakRelevantTabView)
+}
+
+pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: OptionallyBreakRelevantTab, tournament_name: String) -> 
+    Result<(), anyhow::Error> where W: Write + std::io::Seek {
+    let mut break_marks = HashMap::new();
+
+    if let OptionallyBreakRelevantTab::BreakRelevantTab(tab) = &tab_view {
+        for breaking_team in tab.breaking_teams.iter() {
+            break_marks.entry(breaking_team.clone()).or_insert(vec![]).push("Break");
+
+            for member in tab.team_members.get(breaking_team).unwrap_or(&vec![]).iter() {
+                break_marks.entry(member.clone()).or_insert(vec![]).push("Break in Team");
+            }
+        }
+        
+        for breaking_speaker in tab.breaking_speakers.iter() {
+            break_marks.entry(breaking_speaker.clone()).or_insert(vec![]).push("Break");
+        }
+    }
+
+    let tab = match tab_view {
+        OptionallyBreakRelevantTab::Tab(tab) => tab,
+        OptionallyBreakRelevantTab::BreakRelevantTab(tab) => tab.tab,
+    };
+    let mut values = Context::from_serialize(&tab)?;
+    values.insert("tournament_name", &Value::String(tournament_name));
+    values.insert("break_marks", &serde_json::json!(break_marks));
+
+    let tab_xml = context.tera.render("open_office/tab.xml", &values)?;
+    let styles_xml = context.tera.render("open_office/tab_styles.xml", &Context::new())?;
+
+    OpenOfficeDocument {
+        content: tab_xml,
+        styles: styles_xml,
+        additional_files: vec![
+        ],
+        additional_files_data: vec![
+        ].into_iter().collect(),
+        doc_media_type: "application/vnd.oasis.opendocument.text".into(),
     }.write(&context, writer)?;
 
     return Ok(());

@@ -1,11 +1,14 @@
 
 use std::fmt::Display;
 use std::hash::Hash;
-use std::iter::{zip, self};
+use std::iter::{zip, self, empty};
 use std::{collections::HashMap, error::Error};
 
 use async_trait::async_trait;
+use crate::derived_models::BreakNodeBackgroundInfo;
 use crate::domain::entity::LoadEntity;
+use crate::domain::tournament_plan_node::PlanNodeType;
+use crate::info::TournamentParticipantsInfo;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
@@ -29,9 +32,12 @@ pub struct TeamTabEntry {
     pub rank: u32,
     pub team_name: String,
     pub team_uuid: Uuid,
-    pub total_points: f64,
-    pub avg_points: f64,
-    pub detailed_scores: Vec<Option<TeamTabEntryDetailedScore>>
+    pub total_score: f64,
+    pub avg_score: Option<f64>,
+    pub detailed_scores: Vec<Option<TeamTabEntryDetailedScore>>,
+    //Be careful here: member ranks start at 1, not 0 for
+    //convenience in the frontend
+    pub member_ranks: Vec<u32>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,9 +67,10 @@ pub enum TeamRoundRole {
 pub struct SpeakerTabEntry {
     pub rank: u32,
     pub speaker_name: String,
+    pub team_name: String,
     pub speaker_uuid: Uuid,
-    pub total_points: f64,
-    pub avg_points: f64,
+    pub total_score: f64,
+    pub avg_score: Option<f64>,
     pub detailed_scores: Vec<Option<SpeakerTabEntryDetailedScore>>
 }
 
@@ -236,6 +243,38 @@ impl TabView {
         }).collect_vec();
         total_speaker_scores.sort_by_key(|s| -OrderedFloat(s.1));
 
+        let mut speaker_tab = vec![];
+        let mut prev_score = None;
+        let mut rank = 0;
+        let mut team_member_ranks = HashMap::new();
+        for (idx, (speaker, total_score)) in total_speaker_scores.into_iter().enumerate() {
+            if Some(total_score) != prev_score {
+                rank = idx as u32;
+            }
+            let team_name = if let Some(team_id) = speaker_info.speaker_teams.get(&speaker) {
+                team_member_ranks.entry(team_id).or_insert_with(|| vec![]).push(rank + 1);
+                speaker_info.teams_by_id.get(&team_id).map(|t| t.name.clone()).unwrap_or("<Unknown Team>".to_string())
+            }
+            else {
+                "<No Team>".to_string()
+            };
+
+            prev_score = Some(total_score);
+            let detailed_scores = speaker_tab_entries.store.get(&speaker).unwrap().clone();
+            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
+            let speaker_tab_entry = SpeakerTabEntry {
+                rank,
+                detailed_scores,
+                speaker_name: speaker_info.participants_by_id.get(&speaker).unwrap().name.clone(),
+                speaker_uuid: speaker,
+                team_name,
+                total_score,
+                avg_score: if num_rounds > 0 { Some(total_score / num_rounds as f64) } else { None },
+            };
+
+            speaker_tab.push(speaker_tab_entry);
+        }
+
         let mut team_tab = vec![];
         let mut prev_score = None;
         let mut rank = 0;
@@ -251,33 +290,12 @@ impl TabView {
                 detailed_scores,
                 team_name: speaker_info.teams_by_id.get(&team).unwrap().name.clone(),
                 team_uuid: team,
-                total_points: total_score,
-                avg_points: total_score / num_rounds as f64,
+                total_score,
+                avg_score: if num_rounds > 0 { Some(total_score / num_rounds as f64) } else { None },
+                member_ranks: team_member_ranks.get(&team).cloned().unwrap_or(vec![])
             };
 
             team_tab.push(team_tab_entry);
-        }
-
-        let mut speaker_tab = vec![];
-        let mut prev_score = None;
-        let mut rank = 0;
-        for (idx, (speaker, total_score)) in total_speaker_scores.into_iter().enumerate() {
-            if Some(total_score) != prev_score {
-                rank = idx as u32;
-            }
-            prev_score = Some(total_score);
-            let detailed_scores = speaker_tab_entries.store.get(&speaker).unwrap().clone();
-            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
-            let speaker_tab_entry = SpeakerTabEntry {
-                rank,
-                detailed_scores,
-                speaker_name: speaker_info.participants_by_id.get(&speaker).unwrap().name.clone(),
-                speaker_uuid: speaker,
-                total_points: total_score,
-                avg_points: total_score / num_rounds as f64,
-            };
-
-            speaker_tab.push(speaker_tab_entry);
         }
 
         Ok(
@@ -316,5 +334,54 @@ impl TabView {
                 );
             }
         }
+    }
+}
+
+
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct BreakRelevantTabView {
+    pub tab: TabView,
+    pub speaker_teams: HashMap<Uuid, Uuid>,
+    pub team_members: HashMap<Uuid, Vec<Uuid>>,
+    pub breaking_teams: Vec<Uuid>,
+    pub breaking_speakers: Vec<Uuid>
+}
+
+impl BreakRelevantTabView {
+    pub async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
+        let target_node = crate::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
+        let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
+        let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
+
+        let break_id = match target_node.config {
+            PlanNodeType::Break { break_id, .. } => {
+                break_id
+            },
+            _ =>  None
+        };
+
+        let (breaking_teams, breaking_speakers) = match break_id {
+            Some(break_id) => {
+                let break_ = crate::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
+
+                (break_.breaking_teams, break_.breaking_speakers)
+            },
+            None => (vec![], vec![])
+        };
+
+        let tab = TabView::load_from_rounds(
+            db,
+            break_background.preceding_rounds.clone(),
+            &speaker_info
+        ).await?;
+
+        Ok(BreakRelevantTabView {
+            tab,
+            speaker_teams: speaker_info.speaker_teams,
+            team_members: speaker_info.team_members,
+            breaking_teams,
+            breaking_speakers: breaking_speakers
+        })
     }
 }
