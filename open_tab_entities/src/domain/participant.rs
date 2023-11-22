@@ -84,11 +84,11 @@ impl Participant {
         registration_secret[0..16].copy_from_slice(uuid.as_bytes());
         registration_secret[16..48].copy_from_slice(key);
 
-        base64::engine::general_purpose::STANDARD_NO_PAD.encode(&registration_secret)
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&registration_secret)
     }
 
     pub fn decode_registration_key(key: String) -> Result<(Uuid, Vec<u8>), anyhow::Error> {
-        let decoded = base64::engine::general_purpose::STANDARD_NO_PAD.decode(&key)?;
+        let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&key)?;
         let uuid = Uuid::from_slice(&decoded[0..16])?;
         let key = decoded[16..48].to_vec();
         Ok((uuid, key))
