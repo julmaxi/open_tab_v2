@@ -67,9 +67,14 @@ function SideNav(props) {
     <NavItem href="/tab">
       Tab
     </NavItem>
-    <NavItem href="/feedback">
-      Feedback
-    </NavItem>
+    <NavGroup header="Feedback">
+      <NavItem href="/feedback">
+        Submissions
+      </NavItem>
+      <NavItem href="/feedback-config">
+        Settings
+      </NavItem>
+    </NavGroup>
     <NavItem href="/venues">
       Venues
     </NavItem>

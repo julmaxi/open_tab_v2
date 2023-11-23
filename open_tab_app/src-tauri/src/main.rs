@@ -24,6 +24,7 @@ use std::sync::Arc;
 
 mod tournament_creation;
 
+
 fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
     let basic_questions = vec![
         FeedbackQuestion {

@@ -13,6 +13,7 @@ import { RoundsEditorRoute } from "./RoundsEditor";
 import { RoundPublicationRoute } from "./RoundPublicationView";
 import { FeedbackOverviewRoute, FeedbackDetailViewRoute } from "./FeedbackView";
 import { TabViewRoute } from "./TabView";
+import { FeedbackConfigRoute } from "./FeedbackConfig";
 import VenueViewRoute from "./Venues";
 import TournamentViewRoute from "./TournamentView";
 
@@ -51,6 +52,10 @@ const router = createMemoryRouter([
             element: <FeedbackDetailViewRoute />
           }
         ]
+      },
+      {
+        path: "feedback-config",
+        element: <FeedbackConfigRoute />,
       },
       {
         path: "tab",

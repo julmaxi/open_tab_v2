@@ -25,6 +25,7 @@ base64 = "0.21.0"
 mcmf = "2.0.0"
 anyhow = "1.0"
 async-trait = "*"
+serde_yaml = "0.9.27"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

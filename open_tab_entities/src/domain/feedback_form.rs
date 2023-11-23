@@ -48,6 +48,28 @@ pub struct FeedbackFormVisibility {
 }
 
 
+impl FeedbackFormVisibility {
+    pub fn union(&mut self, other: &FeedbackFormVisibility) {
+        self.show_chairs_for_wings |= other.show_chairs_for_wings;
+        self.show_chairs_for_presidents |= other.show_chairs_for_presidents;
+
+        self.show_wings_for_chairs |= other.show_wings_for_chairs;
+        self.show_wings_for_presidents |= other.show_wings_for_presidents;
+        self.show_wings_for_wings |= other.show_wings_for_wings;
+   
+        self.show_presidents_for_chairs |= other.show_presidents_for_chairs;
+        self.show_presidents_for_wings |= other.show_presidents_for_wings;
+
+        self.show_teams_for_chairs |= other.show_teams_for_chairs;
+        self.show_teams_for_presidents |= other.show_teams_for_presidents;
+        self.show_teams_for_wings |= other.show_teams_for_wings;
+
+        self.show_non_aligned_for_chairs |= other.show_non_aligned_for_chairs;
+        self.show_non_aligned_for_presidents |= other.show_non_aligned_for_presidents;
+        self.show_non_aligned_for_wings |= other.show_non_aligned_for_wings;
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag="type")]
 pub enum FeedbackSourceRole {

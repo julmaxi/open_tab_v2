@@ -6,3 +6,5 @@ pub mod frontend_queries;
 
 pub use actions::*;
 pub use views::*;
+
+pub mod feedback;
