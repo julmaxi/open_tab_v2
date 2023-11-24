@@ -1,6 +1,7 @@
 use base64::Engine;
 use base64::engine::general_purpose;
 use itertools::izip;
+use open_tab_entities::EntityType;
 use open_tab_entities::schema;
 
 use sea_orm::prelude::Uuid;
@@ -41,7 +42,7 @@ impl LoadedParticipantsListView {
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.participants.len() > 0 || changes.teams.len() > 0 {
+        if changes.participants.len() > 0 || changes.teams.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::Participant) || changes.deletions.iter().any(|d| d.0 == EntityType::Team) {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out: HashMap<String, Json> = HashMap::new();

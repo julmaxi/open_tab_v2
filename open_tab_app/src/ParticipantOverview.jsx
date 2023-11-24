@@ -23,7 +23,6 @@ import {
 
 function ParticipantDetailView({onClose, participant, ...props}) {
     let [modifiedParticipant, setModifiedParticipant] = useState(participant);
-
     
     let hasChanges = !_.eq(
         participant,
@@ -49,8 +48,13 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         setModifiedParticipant(participant);
     }, [participant]);
 
-    let availability = [];
+    if (!modifiedParticipant) {
+        return <div className="h-full">
+            No participant selected
+        </div>
+    }
 
+    let availability = [];
     if (modifiedParticipant.type === "Adjudicator") {
         for (let round of roundsOverview) {
             availability.push({

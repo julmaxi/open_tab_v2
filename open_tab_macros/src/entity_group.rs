@@ -266,6 +266,17 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
 
     let entity_impl = proc_macro2::TokenStream::from(derive_entity_impl(&input, &variants_with_content_type, group_ident.clone()));
 
+    let get_deletion_tournaments_fn = quote! {
+        async fn get_all_deletion_tournaments<C>(&self, db: &C) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+            let mut out : Vec<Option<Uuid>> = Vec::new();
+            for (type_, ids) in self.deletions.iter().into_group_map_by(|e| e.0) {
+                let ids = ids.into_iter().map(|e| e.1).collect_vec();
+                out.extend(EntityType::try_get_tournaments_with_type(db, type_, ids).await?)
+            }
+            Ok(out)
+        }
+    };
+
     let expanded = quote! {        
         #entity_impl
 
@@ -281,6 +292,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
             #delete_fn
             #delete_versioned_fn
             #get_all_tournaments_fn
+            #get_deletion_tournaments_fn
             #save_all_fn
             #get_entity_fn
 
@@ -359,6 +371,25 @@ pub fn derive_entity_type_enum(variants_with_content_type: &Vec<(Ident, Type)>) 
         }
     });
 
+    let try_get_tournaments_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
+        quote! {
+            EntityType::#variant => {
+                let entities : Vec<Option<#content_type>> = <#content_type as crate::domain::entity::LoadEntity>::try_get_many(db, ids).await?;  
+                let entities = entities.into_iter().filter_map(|e| e).collect_vec();
+
+                <#content_type as crate::domain::entity::TournamentEntity>::get_many_tournaments(db, &entities.iter().collect()).await?
+            }           
+        }
+    });
+
+    let get_tournament_fn: proc_macro2::TokenStream = quote! {
+        pub async fn try_get_tournaments_with_type<C>(db: &C, entity_type: Self, ids: Vec<Uuid>, ) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+            Ok(match entity_type {
+                #(#try_get_tournaments_arms),*,
+            })
+        }
+    };
+
 
     let expanded = quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -372,6 +403,8 @@ pub fn derive_entity_type_enum(variants_with_content_type: &Vec<(Ident, Type)>) 
                     #(#as_str_arms),*
                 }
             }
+            
+            #get_tournament_fn
         }
 
         impl From<String> for EntityType {
@@ -452,14 +485,6 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
             match self {
                 #(#get_uuid_arms)*
             }
-        }
-    };
-
-    
-
-    let get_tournament_fn = quote! {
-        async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-            Ok(Self::get_many_tournaments(db, &vec![self]).await?[0])
         }
     };
 

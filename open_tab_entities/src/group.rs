@@ -74,6 +74,9 @@ pub enum Entity {
     TournamentPlanEdge(TournamentPlanEdge),
 }
 
+
+
+
 #[async_trait::async_trait]
 pub trait EntityGroupTrait {
     type TypeId: Debug + Clone + Serialize + Deserialize<'static> + PartialEq + Eq + Send + Sync;

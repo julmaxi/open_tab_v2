@@ -8,6 +8,9 @@ export default function Button(props) {
     else if (props.role == "secondary") {
         bgColor = "bg-gray-500";
     }
+    else if (props.role == "danger") {
+        bgColor = "bg-red-500";
+    }
 
     if (props.disabled) {
         bgColor = "bg-gray-300";

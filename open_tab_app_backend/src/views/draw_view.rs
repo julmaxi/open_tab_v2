@@ -11,7 +11,7 @@ use open_tab_entities::domain::tournament_venue::TournamentVenue;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
-use open_tab_entities::prelude::*;
+use open_tab_entities::{prelude::*, EntityType};
 
 use open_tab_entities::schema::{self, tournament_round};
 
@@ -62,7 +62,7 @@ impl LoadedView for LoadedDrawView {
         );
 
         // TODO: Reloads could be much more efficient
-        if has_new_debate || changes.tournament_venues.len() > 0 || changes.participants.len() > 0 || changes.participant_clashs.len() > 0 {
+        if has_new_debate || changes.tournament_venues.len() > 0 || changes.participants.len() > 0 || changes.participant_clashs.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentVenue) || changes.deletions.iter().any(|d| d.0 == EntityType::Participant) || changes.deletions.iter().any(|d| d.0 == EntityType::ParticipantClash) {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
             self.view = DrawView::load_from_round(db, round).await?;

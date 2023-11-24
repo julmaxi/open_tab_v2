@@ -440,9 +440,10 @@ struct ActionResponse {
 
 async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache: &mut ViewCache) -> Result<Vec<ChangeNotification>, anyhow::Error> {
     let transaction = db.begin().await?;
-    let changes = action.execute(&transaction).await?;
+    let changes: EntityGroup = action.execute(&transaction).await?;
+    let deleted_tournaments = changes.get_all_deletion_tournaments(&transaction).await?;
     changes.save_all(&transaction).await?;
-    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().filter_map(|s| s).next().unwrap();
+    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().chain(deleted_tournaments.into_iter()).filter_map(|s| s).next().unwrap();
     changes.save_log_with_tournament_id(&transaction, tournament).await?;
 
     transaction.commit().await?;
