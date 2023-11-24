@@ -1,8 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError};
+use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError, process::id};
 
+use identity::IdentityProvider;
 use migration::{MigratorTrait};
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
@@ -10,7 +11,7 @@ use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
-use tauri::{async_runtime::block_on, State, AppHandle, Manager};
+use tauri::{async_runtime::block_on, State, AppHandle, Manager, api};
 use open_tab_entities::prelude::*;
 use itertools::{Itertools};
 use serde::{Serialize, Deserialize};
@@ -23,6 +24,7 @@ use tokio::{sync::Mutex, sync::RwLock};
 use std::sync::Arc;
 
 mod tournament_creation;
+mod identity;
 
 
 fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
@@ -474,7 +476,6 @@ async fn execute_action(app: AppHandle, action: Action, db: State<'_, DatabaseCo
             }
         },
         Err(err) => {
-            dbg!(&err);
             ActionResponse {
                 success: false,
                 message: Some(err.to_string())
@@ -523,7 +524,8 @@ enum SyncNotification {
 enum SyncError {
     ReqwestError(reqwest::Error),
     DatabaseError(sea_orm::DbErr),
-    Other(String)
+    Other(String),
+    NotAuthorized
 }
 
 impl From<reqwest::Error> for SyncError {
@@ -573,7 +575,8 @@ impl std::fmt::Display for SyncError {
         match self {
             SyncError::ReqwestError(err) => write!(f, "Reqwest error: {}", err),
             SyncError::DatabaseError(err) => write!(f, "Database error: {}", err),
-            SyncError::Other(err) => write!(f, "Other error: {}", err)
+            SyncError::Other(err) => write!(f, "Other error: {}", err),
+            SyncError::NotAuthorized => write!(f, "Not authorized")
         }
     }
 }
@@ -638,6 +641,10 @@ async fn pull_remote_changes<C>(
     }
 
     let response = client.get(remote_url).bearer_auth(api_key).send().await?;
+    
+    if response.status() == 403 {
+        return Err(SyncError::NotAuthorized);
+    }
     let remote_changes : FatLog<Entity, EntityType> = response.json().await?;
 
     if remote_changes.log.len() > 0 {
@@ -723,7 +730,6 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
         match response.outcome {
             open_tab_server::sync::APIReconciliationOutcome::Success { new_last_common_ancestor } => {
                 let transaction = db.begin().await?;
-                dbg!(&new_last_common_ancestor);
     
                 let update = schema::tournament_remote::ActiveModel {                
                     uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
@@ -739,8 +745,11 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
             }
         };    
     }
+    else if response.status() == 403 {
+        return Err(SyncError::NotAuthorized);
+    }
     else {
-        dbg!(response.text().await?);
+        return Err(SyncError::Other(format!("Unexpected response status: {}", response.status())));   
     }
 
     Ok(())
@@ -784,7 +793,14 @@ async fn get_settings(settings: State<'_, RwLock<AppSettings>>) -> Result<AppSet
 }
 
 #[tauri::command]
-async fn open_tournament(handle: AppHandle, client: State<'_, Client>, open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>, db: State<'_, DatabaseConnection>, tournament_id: Uuid) -> Result<(), ()> {
+async fn open_tournament(
+    handle: AppHandle,
+    client: State<'_, Client>,
+    open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
+    identity_provider: State<'_, Arc<IdentityProvider>>,
+    db: State<'_, DatabaseConnection>,
+    tournament_id: Uuid
+) -> Result<(), ()> {
     let tournament_window = tauri::WindowBuilder::new(
         &handle,
         &format!("tournament:{}", tournament_id.to_string()), /* the unique window label */
@@ -796,7 +812,7 @@ async fn open_tournament(handle: AppHandle, client: State<'_, Client>, open_tour
         h.close()
     );
  
-    OpenTournamentManager::open_tournament(open_tournament_manager.inner().clone(), &handle, tournament_id).await.map_err(|_| ())?;
+    OpenTournamentManager::open_tournament(open_tournament_manager.inner().clone(), &handle, tournament_id, identity_provider.inner().clone()).await.map_err(|_| ())?;
 
     /*let update_process = TournamentUpdateProcess {
         tournament_id: tournament_id,
@@ -832,12 +848,8 @@ struct OpenTournamentManager {
 struct ProcessInfo {
     join_handle: tauri::async_runtime::JoinHandle<Result<(), TournamentUpdateError>>,
     process_state: ConnectivityStatus,
-    config_msg_sender: tokio::sync::mpsc::Sender<ProcessSettingsUpdate>,
 }
 
-enum ProcessSettingsUpdate {
-    UpdateSettings { api_key: String, url: String }
-}
 
 impl OpenTournamentManager {
     fn new(update_msg_sender : tokio::sync::mpsc::Sender<ConnectivityStatusMessage>  ) -> Self {
@@ -863,7 +875,8 @@ impl OpenTournamentManager {
     async fn open_tournament(
         info: Arc<Mutex<OpenTournamentManager>>,
         app_handle: &AppHandle,
-        id: Uuid
+        id: Uuid,
+        identity_provider: Arc<IdentityProvider>,
     ) -> Result<(), TournamentUpdateError> {
         let mut info = info.lock().await;
         let curr_process = info.tournament_processes.get(
@@ -873,8 +886,6 @@ impl OpenTournamentManager {
         if curr_process.is_some() {
             return Ok(());
         }
-
-        let (config_msg_sender, config_msg_receiver) = tokio::sync::mpsc::channel::<ProcessSettingsUpdate>(1);
 
         let settings = app_handle.state::<RwLock<AppSettings>>().inner().read().await;
         let client = app_handle.state::<Client>().inner().clone();
@@ -889,13 +900,12 @@ impl OpenTournamentManager {
                 client,
                 sync_frequency: chrono::Duration::seconds(10),
                 update_msg_sender: info.update_msg_sender.clone(),
+                identity_provider
             };
     
             let join_handle = tauri::async_runtime::spawn(process.run());
-    
-            let (config_msg_sender, config_msg_receiver) = tokio::sync::mpsc::channel::<ProcessSettingsUpdate>(1);
-    
-            info.tournament_processes.insert(id, ProcessInfo { join_handle, process_state: ConnectivityStatus::Disconnect { timestamp: chrono::Utc::now().naive_utc() }, config_msg_sender});
+        
+            info.tournament_processes.insert(id, ProcessInfo { join_handle, process_state: ConnectivityStatus::Disconnect { timestamp: chrono::Utc::now().naive_utc() }});
         }
 
         Ok(())
@@ -914,6 +924,7 @@ struct TournamentUpdateProcess {
     client: Client,
     sync_frequency: chrono::Duration,
     update_msg_sender: tokio::sync::mpsc::Sender<ConnectivityStatusMessage>,
+    identity_provider: Arc<IdentityProvider>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -981,9 +992,11 @@ impl TournamentUpdateProcess {
             transaction.rollback().await.unwrap();
 
             let settings : State<'_, RwLock<AppSettings>> = self.app_handle.state();
-            let api_key = &settings.read().await.known_remotes.iter().find(|r| r.url == target_tournament_remote.url).map(|r| r.api_key.clone()).flatten();
+            let api_key = self.identity_provider.try_get_key(&target_tournament_remote.url).await;
             
-            if api_key.is_none() {
+            let api_key = if let Some(api_key) = api_key {
+                api_key
+            } else {
                 self.update_msg_sender.send(ConnectivityStatusMessage {
                     tournament_id: self.tournament_id,
                     status: ConnectivityStatus::PasswordRequired { timestamp: chrono::Utc::now().naive_utc() }
@@ -991,15 +1004,15 @@ impl TournamentUpdateProcess {
 
                 println!("No key");
 
-                break Err(TournamentUpdateError::NoApiKey);
-            }
-            let api_key: &String = api_key.as_ref().unwrap();
+                self.identity_provider.get_key_blocking(&target_tournament_remote.url).await.map_err(|e| TournamentUpdateError::Other(e.to_string()))?
+            };
 
             if target_tournament_remote.created_at.is_none() {
-                let result = self.client.post(format!("{}/api/tournaments", target_tournament_remote.url)).bearer_auth(api_key).json(
+                let tournament = schema::tournament::Entity::find_by_id(self.tournament_id).one(&*self.app_handle.state::<DatabaseConnection>()).await.map_err(|e| TournamentUpdateError::DatabaseError(e))?.ok_or(TournamentUpdateError::Other("Could not find tournament".into()))?;
+                let result = self.client.post(format!("{}/api/tournaments", target_tournament_remote.url)).bearer_auth(api_key.clone()).json(
                     &CreateTournamentRequest {
                         uuid: self.tournament_id,
-                        name: "Test Tournament".to_string(),
+                        name: tournament.name,
                     }
                 ).send().await;
 
@@ -1023,9 +1036,19 @@ impl TournamentUpdateProcess {
             }
 
             
-            let remote = pull_remote_changes(&target_tournament_remote, &self.client, db, api_key, self.app_handle.state::<Mutex<ViewCache>>().inner(), &self.app_handle).await;
+            let remote = pull_remote_changes(&target_tournament_remote, &self.client, db, &api_key, self.app_handle.state::<Mutex<ViewCache>>().inner(), &self.app_handle).await;
             if !remote.is_ok() {
                 let err = remote.err().unwrap();
+                match &err {
+                    SyncError::NotAuthorized => {
+                        self.update_msg_sender.send(ConnectivityStatusMessage {
+                            tournament_id: self.tournament_id,
+                            status: ConnectivityStatus::PasswordRequired { timestamp: chrono::Utc::now().naive_utc() }
+                        }).await.expect("Error sending connectivity update");
+                        continue;
+                    },
+                    _ => {}
+                }
                 println!("Error pulling remote changes: {}", err);
                 self.update_msg_sender.send(ConnectivityStatusMessage {
                     tournament_id: self.tournament_id,
@@ -1042,9 +1065,20 @@ impl TournamentUpdateProcess {
             let target_tournament_remote = target_tournament_remote.unwrap();
             transaction.rollback().await.unwrap();
 
-            let result = try_push_changes(&target_tournament_remote, &self.client, api_key, db).await;
+            let result = try_push_changes(&target_tournament_remote, &self.client, &api_key, db).await;
             if !result.is_ok() {
-                println!("Error pushing local changes: {}", result.err().unwrap());
+                let err = result.err().unwrap();
+                match &err {
+                    SyncError::NotAuthorized => {
+                        self.update_msg_sender.send(ConnectivityStatusMessage {
+                            tournament_id: self.tournament_id,
+                            status: ConnectivityStatus::PasswordRequired { timestamp: chrono::Utc::now().naive_utc() }
+                        }).await.expect("Error sending connectivity update");
+                        continue;
+                    },
+                    _ => {}
+                }
+                println!("Error pushing local changes: {}", err);
                 continue;
             }
             
@@ -1057,7 +1091,15 @@ impl TournamentUpdateProcess {
 }
 
 #[tauri::command]
-async fn set_remote(app: AppHandle, client: State<'_, Client>, db: State<'_, DatabaseConnection>, open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>, view_cache: State<'_, Mutex<ViewCache>>, settings_lock: State<'_, RwLock<AppSettings>>, tournament_id: Uuid, remote_url: String) -> Result<(), ()> {
+async fn set_remote(
+    app: AppHandle, client: State<'_, Client>,
+    db: State<'_, DatabaseConnection>,
+    open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
+    view_cache: State<'_, Mutex<ViewCache>>,
+    settings_lock: State<'_, RwLock<AppSettings>>,
+    identity_provider: State<'_, Arc<IdentityProvider>>,
+    tournament_id: Uuid,
+    remote_url: String) -> Result<(), ()> {
     let settings = settings_lock.read().await;
 
     let remote = settings.known_remotes.iter().find(|r| r.url == remote_url).map(|r| r.clone()).ok_or(())?;
@@ -1104,7 +1146,7 @@ async fn set_remote(app: AppHandle, client: State<'_, Client>, db: State<'_, Dat
 
     transaction.commit().await.map_err(|_| ())?;
 
-    OpenTournamentManager::open_tournament(open_tournament_manager.inner().clone(), &app, tournament_id).await.map_err(|_| ())?;
+    OpenTournamentManager::open_tournament(open_tournament_manager.inner().clone(), &app, tournament_id, identity_provider.inner().clone()).await.map_err(|_| ())?;
 
     //FIXME: LoadedTournamentStatusView contains references to remotes, which are not entities
     // and thus not automatically managed. This requries this ugly hack.
@@ -1124,6 +1166,7 @@ async fn set_remote(app: AppHandle, client: State<'_, Client>, db: State<'_, Dat
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AppSettings {
     known_remotes: Vec<RemoteSettings>,
+    known_api_keys: HashMap<String, String>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1131,7 +1174,6 @@ struct RemoteSettings {
     url: String,
     name: String,
     account_id: Option<Uuid>,
-    api_key: Option<String>
 }
 
 impl AppSettings {
@@ -1150,7 +1192,11 @@ impl AppSettings {
     }
 
     fn write(&self) -> Result<(), anyhow::Error> {
-        let settings_file = File::create(&Self::settings_path())?;
+        let path = Self::settings_path();
+        let dir = path.parent().unwrap();
+        std::fs::create_dir_all(dir)?;
+        let settings_file = File::create(&path)?;
+
         serde_json::to_writer(settings_file, &self)?;
         Ok(())
     }
@@ -1164,9 +1210,9 @@ impl Default for AppSettings {
                     url: "http://localhost:3000".to_string(),
                     name: "Local".to_string(),
                     account_id: None,
-                    api_key: None
                 }
-            ]
+            ],
+            known_api_keys: HashMap::new()
         }
     }
 }
@@ -1184,10 +1230,39 @@ async fn login_to_remote(
     db: State<'_, DatabaseConnection>,
     open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     client: State<'_, Client>,
+    settings: State<'_, RwLock<AppSettings>>,
+    identity_provider: State<'_, Arc<IdentityProvider>>,
     remote_url: String,
     user_name: String,
     password: String,
 ) -> Result<bool, LoginError> {
+
+    run_login(
+        &*db,
+        &client,
+        remote_url.clone(),
+        user_name.clone(),
+        password.clone(),
+        open_tournament_manager.clone(),
+        settings.clone(),
+        identity_provider.inner().clone()
+    ).await.map_err(|e| {
+        dbg!(&e);
+        e
+    });
+
+    /*let response = client.post(
+        format!("{}/api/tokens", remote_url)
+    ).json(
+        &GetTokenRequest {
+            tournament: None
+        }
+    ).basic_auth(format!("mail#{}", user_name), Some(password)).send().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
+
+    let response = response.json::<GetTokenResponse>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
+
+    let token = response.token;
+    identity_provider.set_key(remote_url, token).await;*/
 
     /*
     let all_remotes = open_tab_entities::schema::tournament_remote::Entity::find().filter(
@@ -1208,7 +1283,6 @@ async fn login_to_remote(
 }
 
 async fn run_login(
-    app_handle: AppHandle,
     db: &DatabaseConnection,
     client: &Client,
     remote_url: String,
@@ -1216,6 +1290,7 @@ async fn run_login(
     password: String,
     open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     settings: State<'_, RwLock<AppSettings>>,
+    identity_provider: Arc<IdentityProvider>
 ) -> Result<(), LoginError> {
     let response = client.post(
         format!("{}/api/tokens", remote_url)
@@ -1230,9 +1305,7 @@ async fn run_login(
 
     let token = response.token;
 
-    settings.write().await.known_remotes.iter_mut().find(
-        |r| r.url == remote_url
-    ).map(|r| r.api_key = Some(token.clone()));
+    settings.write().await.known_api_keys.insert(remote_url.clone(), token.clone());
 
     let r = settings.write().await.write();
     if r.is_err() {
@@ -1244,9 +1317,12 @@ async fn run_login(
         open_tab_entities::schema::tournament_remote::Column::Url.eq(remote_url.clone())
     ).all(&*db).await.unwrap();
 
-    let mut open_tournament_manager = open_tournament_manager.inner().lock().await;
-    let update_msg_sender = open_tournament_manager.update_msg_sender.clone();
+    identity_provider.set_key(remote_url, token).await;
 
+    //let mut open_tournament_manager = open_tournament_manager.inner().lock().await;
+    //let update_msg_sender = open_tournament_manager.update_msg_sender.clone();
+
+    /*
     for remote in all_remotes {
         let process_info = open_tournament_manager.tournament_processes.get(&remote.tournament_id);
         let is_finished = if let Some(process_info) = process_info {
@@ -1263,7 +1339,8 @@ async fn run_login(
                 app_handle: app_handle.clone(),
                 client: client.clone(),
                 sync_frequency: chrono::Duration::seconds(10),
-                update_msg_sender: update_msg_sender.clone()
+                update_msg_sender: update_msg_sender.clone(),
+                identity_provider: identity_provider.clone()
             };
 
             let join_handle = tauri::async_runtime::spawn(new_tournament_process.run());
@@ -1282,7 +1359,7 @@ async fn run_login(
             };
             tauri::async_runtime::spawn(new_tournament_update.run());
         }*/
-    }
+    } */
 
     Ok(())
 }
@@ -1294,6 +1371,7 @@ async fn create_user_account_for_remote(
     db: State<'_, DatabaseConnection>,
     client: State<'_, Client>,
     settings: State<'_, RwLock<AppSettings>>,
+    identity_provider: State<'_, Arc<IdentityProvider>>,
     open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     remote_url: String,
     user_name: String,
@@ -1325,12 +1403,16 @@ async fn create_user_account_for_remote(
             url: remote_url.clone(),
             name: remote_url.clone(),
             account_id: Some(response.uuid),
-            api_key: None
         });
     }
+    settings_lock.known_api_keys.insert(remote_url.clone(), password.clone());
+
+    //TODO: Log this somewhere
+    let _ = settings_lock.write().map_err(|_| ());
+
     drop(settings_lock);
 
-    run_login(app_handle, &db, &client, remote_url, user_name, password, open_tournament_manager, settings).await?;
+    run_login(&db, &client, remote_url, user_name, password, open_tournament_manager, settings, identity_provider.inner().clone()).await?;
 
     Ok(true)
 }
@@ -1546,6 +1628,8 @@ fn main() {
         send
     )));
 
+    let identity_provider = Arc::new(IdentityProvider::new_with_keys(settings.known_api_keys.clone()));
+
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -1569,6 +1653,7 @@ fn main() {
         .manage(open_tournaments_manager)
         .manage(RwLock::new(settings))
         .manage(Client::new())
+        .manage(identity_provider)
         .setup(|app: &mut tauri::App| {
             let template_path = app.path_resolver().resolve_resource("../../open_tab_reports/templates").expect("Could not resolve template path");
             let template_context = TemplateContext::new(template_path.to_string_lossy().into_owned()).expect("Could not create template context");

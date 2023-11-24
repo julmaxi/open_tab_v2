@@ -46,6 +46,7 @@ impl AuthenticatedUser {
                 (self.uuid, tournament_id)
             ).one(db).await?;
 
+            dbg!(&user_tournament);
             Ok(user_tournament.is_some())
         }
     }

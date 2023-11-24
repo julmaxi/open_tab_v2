@@ -17,6 +17,8 @@ use open_tab_entities::group::EntityType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateParticipantsAction {
     updated_participants: Vec<ParticipantEntry>,
+    #[serde(default)]
+    deleted_participants: Vec<Uuid>,
     tournament_id: Uuid
 }
 
@@ -26,6 +28,9 @@ impl ActionTrait for UpdateParticipantsAction {
         let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {
+            if self.deleted_participants.contains(&participant.uuid) {
+                continue;
+            }
             let existing_clashes = open_tab_entities::schema::participant_clash::Entity::find()
                 .filter(open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant.uuid))
                 .all(_db)
@@ -71,6 +76,10 @@ impl ActionTrait for UpdateParticipantsAction {
                     registration_key: participant.registration_key.map(|r| general_purpose::STANDARD_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?
                 }
             ));
+        }
+
+        for uuid in self.deleted_participants.into_iter() {
+            groups.delete(EntityType::Participant, uuid);
         }
 
         Ok(groups)

@@ -34,7 +34,7 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
     let tournament = open_tab_entities::domain::tournament::Tournament {
         uuid,
         annoucements_password: Some("password".into()),
-        name: "Test Tournament".into(),
+        name: request.name,
     };
     changes.add(open_tab_entities::Entity::Tournament(tournament));
 

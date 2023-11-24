@@ -455,6 +455,14 @@ pub fn derive_entity_impl(input: &DeriveInput, variants_with_content_type: &Vec<
         }
     };
 
+    
+
+    let get_tournament_fn = quote! {
+        async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+            Ok(Self::get_many_tournaments(db, &vec![self]).await?[0])
+        }
+    };
+
     let expanded = quote! {
         impl EntityGroupEntityTrait for #entity_ident {
             type EntityGroup = #group_ident;

@@ -52,7 +52,6 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     let availability = [];
 
     if (modifiedParticipant.type === "Adjudicator") {
-        console.log(modifiedParticipant);
         for (let round of roundsOverview) {
             availability.push({
                 round_uuid: round.uuid,
@@ -213,8 +212,13 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     {
         hasChanges ? <Button onClick={() => {
             executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant]})
-        }}>Save Changes</Button> : null
+        }}>Save Changes</Button> : <Button role="danger" onClick={() => {
+            executeAction("UpdateParticipants",  {tournament_id: tournamentContext.uuid, updated_participants: [], deleted_participants: [participant.uuid]})
+        }}>
+            Delete
+        </Button>
     }
+
     </div>
 }
 

@@ -59,7 +59,6 @@ function ConnectivityStatus() {
             case 'Alive': 
                 setState("ok");
                 setShowLogin(false);
-
                 break;
             case 'Error':
                 setState("error");

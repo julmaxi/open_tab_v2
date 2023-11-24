@@ -84,6 +84,7 @@ pub trait EntityGroupTrait {
     fn add_versioned(&mut self, e: Entity, version: Uuid);
     fn delete_versioned(&mut self, type_: Self::TypeId, uuid: Uuid, version: Uuid);
     fn get_entity_ids(&self) -> Vec<(Self::TypeId, Uuid)>;
+    async fn get_all_deletion_tournaments<C>(&self, db: &C) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait;
     async fn get_all_tournaments<C>(&self, db: &C) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait;
     async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait;
     async fn save_log_with_tournament_id<C>(&self, transaction: &C, tournament_id: Uuid) -> Result<Uuid, anyhow::Error> where C: ConnectionTrait;
