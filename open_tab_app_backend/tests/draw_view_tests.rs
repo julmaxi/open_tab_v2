@@ -6,7 +6,7 @@ use open_tab_entities::{prelude::*, EntityGroup, Entity, mock::{make_mock_tourna
 use sea_orm::{prelude::*, Database, Statement, TransactionTrait};
 
 
-use open_tab_app_backend::{views::LoadedView, draw_view::{LoadedDrawView}};
+use open_tab_app_backend::{views::LoadedView, draw_view::LoadedDrawView};
 
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {

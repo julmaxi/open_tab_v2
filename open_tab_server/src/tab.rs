@@ -1,13 +1,13 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity}, prelude::{TournamentRound}, tab::TabView};
+use open_tab_entities::{prelude::TournamentRound, tab::TabView};
 use sea_orm::{DatabaseConnection, prelude::*};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser}, state::AppState};
+use crate::{response::{APIError, handle_error}, auth::ExtractAuthenticatedUser, state::AppState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TabResponse {

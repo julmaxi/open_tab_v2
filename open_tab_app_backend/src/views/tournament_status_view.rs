@@ -2,12 +2,12 @@
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 use open_tab_entities::domain::entity::LoadEntity;
-use open_tab_entities::schema::{tournament_remote};
+use open_tab_entities::schema::tournament_remote;
 
 
 use sea_orm::prelude::Uuid;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};

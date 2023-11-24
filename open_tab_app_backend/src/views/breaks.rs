@@ -1,7 +1,7 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, tournament_plan_node::PlanNodeType, self}, EntityGroup};
+use open_tab_entities::{domain::{tournament_plan_node::PlanNodeType, self}, EntityGroup};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 use serde::Serialize;
 

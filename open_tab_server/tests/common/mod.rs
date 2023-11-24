@@ -4,8 +4,8 @@ use axum::{response::Response, http::{Request, request::Builder}, body::Body};
 use http_body::{combinators::UnsyncBoxBody, Body as _};
 use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserResponse, GetTokenRequest, GetTokenResponse, create_key, hash_password}, state::AppState};
-use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection, EntityTrait};
-use tower::{Service};
+use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection};
+use tower::Service;
 use base64::{engine::general_purpose, Engine as _};
 
 
@@ -107,10 +107,12 @@ impl Fixture {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn default() -> Self {
         Self::new(FixtureOptions::default()).await
     }
 
+    #[allow(dead_code)]
     pub fn with_auth(self, auth: Auth) -> Self {
         Self {
             auth: auth,
@@ -118,6 +120,7 @@ impl Fixture {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn create_user_and_token(&mut self) -> (Uuid, String) {
         let mut response = self
             .post_json("/api/users", CreateUserRequest {
@@ -167,6 +170,7 @@ impl Fixture {
         builder
     }
 
+    #[allow(dead_code)]
     pub async fn get(&mut self, path: &str) -> APIResponse {
         let request = self.get_base_request()
             .uri(path)
@@ -178,6 +182,7 @@ impl Fixture {
             .unwrap().into()
     }
 
+    #[allow(dead_code)]
     pub async fn post_json_no_body(&mut self, path: &str) -> APIResponse
     {
         let request = self.get_base_request()
@@ -192,6 +197,7 @@ impl Fixture {
             .unwrap().into()
     }
 
+    #[allow(dead_code)]
     pub async fn post_json<T>(&mut self, path: &str, body: T) -> APIResponse where T: serde::Serialize
     {
         let request = self.get_base_request()
@@ -212,6 +218,7 @@ impl Fixture {
     }
 }
 
+#[allow(dead_code)]
 pub async fn get_app_fixture(_options: FixtureOptions) -> axum::Router {
     let app: axum::Router = open_tab_server::app().await;
     app

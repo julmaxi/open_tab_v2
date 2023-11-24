@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;

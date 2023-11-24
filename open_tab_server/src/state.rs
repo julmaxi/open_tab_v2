@@ -1,5 +1,5 @@
 use axum::{
-    extract::{FromRef},
+    extract::FromRef,
 };
 use db::DatabaseConfig;
 use migration::MigratorTrait;

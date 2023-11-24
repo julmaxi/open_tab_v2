@@ -1,10 +1,10 @@
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{EntityGroup, domain::{tournament::Tournament, participant::ParticipantInstitution, participant_clash::ParticipantClash, feedback_question::FeedbackQuestion, feedback_form::{FeedbackForm, FeedbackFormVisibility}, tournament_plan_node::{TournamentPlanNode, PlanNodeType, RoundGroupConfig, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge}};
-use sea_orm::{prelude::*};
+use sea_orm::prelude::*;
 use crate::prelude::*;
-use itertools::{Itertools};
+use itertools::Itertools;
 
 
 use faker_rand::en_us::{names::FullName, company::CompanyName};

@@ -1,6 +1,6 @@
 use sea_orm::prelude::Uuid;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, QueryOrder};
 use open_tab_entities::prelude::*;
 
-use open_tab_entities::schema::{tournament_institution};
+use open_tab_entities::schema::tournament_institution;
 
 
 

@@ -1,12 +1,12 @@
 use open_tab_entities::domain::tournament_venue;
 use sea_orm::prelude::Uuid;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
-use sea_orm::{prelude::*};
+use sea_orm::prelude::*;
 use open_tab_entities::prelude::*;
 
 

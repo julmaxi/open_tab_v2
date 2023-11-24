@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::pdf::writable::ContentWriteable;
 
-use super::{LayoutContext};
+use super::LayoutContext;
 
 #[derive(Debug, Clone)]
 pub enum LayoutValue {

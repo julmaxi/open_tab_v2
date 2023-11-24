@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::{DrawPresentationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
 
 
 use std::io::Write;
@@ -40,6 +40,7 @@ fn get_role_letter(val: &str) -> Result<String, anyhow::Error> {
 } 
 
 
+#[allow(dead_code)]
 fn role_letter<'a, 'b>(val: &'a Value, _args: &'b HashMap<String, Value>) -> tera::Result<Value> {
     match val {
         Value::String(s) => Ok(Value::String(get_role_letter(s).map_err(

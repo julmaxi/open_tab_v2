@@ -11,6 +11,5 @@ export async function POST({ params, cookies }) {
 		}
     )
     const info = await res.json();
-
 	return new Response(JSON.stringify(info));
 }

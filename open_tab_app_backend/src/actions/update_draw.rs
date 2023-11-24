@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use itertools::{Itertools, izip};
 use async_trait::async_trait;
@@ -96,15 +96,15 @@ impl ActionTrait for UpdateDrawAction {
         }
 
         for debate in self.updated_debates {
-            let mut existingDebate = open_tab_entities::domain::debate::TournamentDebate::try_get(
+            let mut existing_debate = open_tab_entities::domain::debate::TournamentDebate::try_get(
                 db,
                 debate.uuid
             ).await?.ok_or(UpdateDrawError::DebateNotFound(debate.uuid))?;
 
             // We only allow the venue to be updated
-            existingDebate.venue_id = debate.venue.map(|v| v.uuid);
+            existing_debate.venue_id = debate.venue.map(|v| v.uuid);
 
-            groups.add(Entity::TournamentDebate(existingDebate));
+            groups.add(Entity::TournamentDebate(existing_debate));
         }
         Ok(groups)
     }

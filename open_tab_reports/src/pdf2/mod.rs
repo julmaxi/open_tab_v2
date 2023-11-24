@@ -20,7 +20,7 @@ use crate::layout::{XObjectLayout, FontUseRef, XObjectRef, LayoutedElements, Dyn
 
 pub(crate) mod writable;
 
-use writable::{ContentWriteable};
+use writable::ContentWriteable;
 
 use self::writable::XObjectRenderable;
 
@@ -305,7 +305,7 @@ impl FontCollection {
             .italic_angle(0.0)
             .stem_v(1000.)
             .name(Name(base_name.as_bytes()))
-            .finish();        
+            .finish(); 
         }
     }
 }

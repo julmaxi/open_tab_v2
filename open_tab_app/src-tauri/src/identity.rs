@@ -7,6 +7,7 @@ pub struct IdentityProvider {
 }
 
 impl IdentityProvider {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             known_keys: tokio::sync::RwLock::new(HashMap::new()),

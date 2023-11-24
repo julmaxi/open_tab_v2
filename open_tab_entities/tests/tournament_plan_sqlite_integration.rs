@@ -3,7 +3,7 @@
 
 use open_tab_entities::{prelude::*, domain::{entity::LoadEntity, tournament_plan_node::{TournamentPlanNode, PlanNodeType, BreakConfig, RoundGroupConfig}}, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement};
-use migration::{MigratorTrait};
+use migration::MigratorTrait;
 
 
 use open_tab_entities::domain::TournamentEntity;

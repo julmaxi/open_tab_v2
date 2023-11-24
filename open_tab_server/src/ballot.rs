@@ -1,6 +1,6 @@
 
 use std::collections::hash_map::RandomState;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use axum::{Router, Json};
 use axum::extract::{Path, State};

@@ -621,7 +621,7 @@ fn coalesce_issues(prev: DrawIssue, next: DrawIssue) -> Result<DrawIssue, (DrawI
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap};
+    use std::collections::HashMap;
 
     use itertools::Itertools;
     use sea_orm::prelude::Uuid;

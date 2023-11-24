@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use migration::MigratorTrait;
 use sea_orm::{Database, Statement};

@@ -1,9 +1,9 @@
 mod common;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use base64::Engine;
-use open_tab_entities::{EntityGroup, EntityGroupTrait, domain::{entity::LoadEntity}, Entity, prelude::{Ballot, BallotTeam, TeamScore, Speech, SpeakerScore}};
-use open_tab_server::{auth::{create_key}, ballot::{GetDebateResponse, GetBallotSubmissionResponse, SubmitBallotRequest, SubmitBallotResponse}};
+use open_tab_entities::{EntityGroup, EntityGroupTrait, domain::entity::LoadEntity, Entity, prelude::{Ballot, BallotTeam, TeamScore, Speech, SpeakerScore}};
+use open_tab_server::{auth::create_key, ballot::{GetDebateResponse, GetBallotSubmissionResponse, SubmitBallotRequest, SubmitBallotResponse}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, IntoActiveModel, ActiveModelTrait};
 use tracing_test::traced_test;
 

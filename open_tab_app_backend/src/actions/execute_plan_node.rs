@@ -232,7 +232,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                     preceding_round_gov_opp_assignments.as_mut().unwrap().clear();
                 }
                 else {
-                    preceding_round_gov_opp_assignments.insert(HashMap::new());
+                    let _ = preceding_round_gov_opp_assignments.insert(HashMap::new());
                 };
                 for pair in team_pairs.iter() {
                     let gov_opp_dict = preceding_round_gov_opp_assignments.as_mut().unwrap();
@@ -371,8 +371,6 @@ pub enum MakeBreakError {
     NotEnoughTeams,
     #[error("Invalid team count")]
     InvalidTeamCount,
-    #[error("Preceding break is missing")]
-    PrecedingBreakMissing,
     #[error("Manual breaks can not be automatically computed")]
     IsManualBreak,
 }

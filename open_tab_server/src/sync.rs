@@ -1,10 +1,10 @@
-use std::{collections::{HashMap, HashSet}};
+use std::collections::{HashMap, HashSet};
 
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId, domain::entity::LoadEntity};
+use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
 
@@ -143,11 +143,6 @@ async fn get_log(
     Ok(Json(
         fat_log
     ))
-}
-
-async fn mock<C>(db: &C) -> Result<(), anyhow::Error> where C: ConnectionTrait {
-    open_tab_entities::domain::tournament::Tournament::get(db, Uuid::from_u128(1)).await;
-    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

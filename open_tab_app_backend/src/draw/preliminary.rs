@@ -1,8 +1,6 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
-use open_tab_entities::{
-    prelude::{Ballot, BallotTeam, Speech, SpeechRole, TournamentRound},
-};
+use open_tab_entities::prelude::{Ballot, BallotTeam, Speech, SpeechRole, TournamentRound};
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use sea_orm::prelude::Uuid;
 
@@ -14,8 +12,6 @@ use crate::{
 };
 
 use itertools::Itertools;
-
-use sparse_linear_assignment::AuctionSolver;
 
 use super::{evaluation::DrawEvaluator, optimization::find_best_ballot_assignments};
 
@@ -299,7 +295,7 @@ impl PreliminaryRoundGenerator {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap};
+    use std::collections::HashMap;
 
     use itertools::Itertools;
     use open_tab_entities::prelude::TournamentRound;

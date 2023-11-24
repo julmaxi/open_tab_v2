@@ -3,7 +3,7 @@ use std::{collections::HashMap, default};
 use itertools::Itertools;
 use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
-use migration::{MigratorTrait};
+use migration::MigratorTrait;
 
 use open_tab_entities::domain::TournamentEntity;
 

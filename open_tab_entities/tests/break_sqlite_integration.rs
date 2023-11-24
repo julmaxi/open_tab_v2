@@ -1,9 +1,9 @@
 
 
 
-use open_tab_entities::{prelude::*, domain::{entity::LoadEntity}, mock::{self, MockOption}};
+use open_tab_entities::{prelude::*, domain::entity::LoadEntity, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement};
-use migration::{MigratorTrait};
+use migration::MigratorTrait;
 
 use open_tab_entities::domain::tournament_break::TournamentBreak;
 use open_tab_entities::domain::TournamentEntity;

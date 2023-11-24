@@ -8,7 +8,7 @@ use itertools::Itertools;
 use sea_orm::QueryOrder;
 use sea_orm::prelude::Uuid;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 
 use serde::{Serialize, Deserialize};

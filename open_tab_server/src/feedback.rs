@@ -8,7 +8,7 @@ use sea_orm::{DatabaseConnection, prelude::Uuid, ConnectionTrait, EntityTrait, Q
 use serde::{Serialize, Deserialize};
 
 
-use crate::{response::{APIError, handle_error}, state::AppState, auth::{ExtractAuthenticatedUser}};
+use crate::{response::{APIError, handle_error}, state::AppState, auth::ExtractAuthenticatedUser};
 
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,22 +1,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, iter::zip, path::{PathBuf, Path}, fs::{File}};
+use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, iter::zip, path::{PathBuf, Path}, fs::File};
 
 use identity::IdentityProvider;
-use migration::{MigratorTrait};
+use migration::MigratorTrait;
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}};
-//use open_tab_server::{TournamentChanges};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}};
+//use open_tab_server::TournamentChanges;
 use reqwest::Client;
-use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue, QuerySelect};
+use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue};
 use tauri::{async_runtime::block_on, State, AppHandle, Manager};
 use open_tab_entities::prelude::*;
-use itertools::{Itertools};
+use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::{LoadedTournamentStatusView}, break_relevant_tab_view::BreakRelevantTabView};
+use open_tab_app_backend::{View, draw_view::DrawBallot, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::LoadedTournamentStatusView, break_relevant_tab_view::BreakRelevantTabView};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -250,6 +250,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
     group
 }
 
+#[allow(dead_code)]
 async fn connect_db() -> Result<DatabaseConnection, DbErr> {
     connect_db_to_file(None).await
 }
@@ -337,7 +338,7 @@ enum SubscriptionResponse {
 
 #[derive(Debug)]
 enum ViewCacheError {
-    ViewLoadError
+    
 }
 
 impl Display for ViewCacheError {
@@ -512,14 +513,6 @@ fn handle_error<E>(e: E) where E: Debug {
     dbg!(&e);
 }
 
-
-enum SyncNotification {
-    SuccessPush,
-    SuccessPull,
-    FailPush,
-    FailPull,
-    Alive
-}
 
 #[derive(Debug)]
 enum SyncError {
@@ -847,6 +840,7 @@ struct OpenTournamentManager {
 
 #[derive(Debug)]
 struct ProcessInfo {
+    #[allow(dead_code)]
     join_handle: tauri::async_runtime::JoinHandle<Result<(), TournamentUpdateError>>,
     process_state: ConnectivityStatus,
 }
@@ -954,8 +948,6 @@ enum TournamentUpdateError {
     DatabaseError(#[from] sea_orm::DbErr),
     #[error("No remote")]
     NoRemote,
-    #[error("No api key")]
-    NoApiKey,
     #[error("Other error: {0}")]
     Other(String)
 }
@@ -1250,7 +1242,7 @@ async fn login_to_remote(
     ).await.map_err(|e| {
         dbg!(&e);
         e
-    });
+    })?;
 
     /*let response = client.post(
         format!("{}/api/tokens", remote_url)
@@ -1620,7 +1612,6 @@ fn main() {
     let db_path = dirs::document_dir().unwrap_or(PathBuf::from(".")).join("open_tab_db.sqlite3");
 
     let db = block_on(connect_db_to_file(Some(db_path))).unwrap();
-    let (_sync_notification_send, _sync_notification_recv) = tauri::async_runtime::channel::<SyncNotification>(100);
 
     let settings = AppSettings::try_read().unwrap_or_default();
 

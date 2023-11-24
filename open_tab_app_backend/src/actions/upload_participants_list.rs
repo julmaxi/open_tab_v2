@@ -1,14 +1,14 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 
-use itertools::{Itertools};
+use itertools::Itertools;
 use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
 
-use crate::{import::{CSVReaderConfig, ParticipantData}};
+use crate::import::{CSVReaderConfig, ParticipantData};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;

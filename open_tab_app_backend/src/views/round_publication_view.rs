@@ -1,14 +1,14 @@
 
 
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use open_tab_entities::domain::entity::LoadEntity;
 
 
 use sea_orm::prelude::*;
-use open_tab_entities::{prelude::*};
+use open_tab_entities::prelude::*;
 
 
 

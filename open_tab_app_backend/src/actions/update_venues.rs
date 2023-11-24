@@ -2,7 +2,7 @@
 
 use crate::{venue_list_view::VenueOverview, ActionTrait};
 
-use migration::async_trait::{async_trait};
+use migration::async_trait::async_trait;
 use open_tab_entities::{EntityGroup, domain::tournament_venue::TournamentVenue, Entity, EntityGroupTrait};
 use sea_orm::{ConnectionTrait, prelude::Uuid};
 use serde::{Serialize, Deserialize};

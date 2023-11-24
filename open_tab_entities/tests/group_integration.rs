@@ -2,7 +2,7 @@ use std::{collections::HashMap, default};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement};
-use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, tournament::{Tournament}, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, EntityType, Entity, schema::tournament_log, prelude::*};
+use open_tab_entities::{domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, ballot::{Ballot, BallotTeam, TeamScore, self, Speech, SpeakerScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, tournament_institution::TournamentInstitution, entity::LoadEntity}, EntityGroup, EntityType, Entity, schema::tournament_log, prelude::*};
 use sea_orm::prelude::*;
 
 

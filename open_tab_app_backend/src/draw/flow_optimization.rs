@@ -1,12 +1,12 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{self, entity::LoadEntity}, prelude::{Ballot, Participant, TournamentRound}};
+use open_tab_entities::{domain::{self}, prelude::{Ballot, Participant, TournamentRound}};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 
 use mcmf::{GraphBuilder, Capacity, Vertex, Cost};
 
-use crate::draw_view::{DrawBallot};
+use crate::draw_view::DrawBallot;
 
 use super::evaluation::DrawEvaluator;
 

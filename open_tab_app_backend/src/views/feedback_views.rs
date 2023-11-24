@@ -1,11 +1,11 @@
-use std::{collections::{HashMap, HashSet}};
+use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 use open_tab_entities::{domain::{feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup};
 use sea_orm::{prelude::*, QueryOrder, JoinType, QuerySelect, DatabaseTransaction};
 use serde::{Serialize, Deserialize};
 
-use crate::{LoadedView};
+use crate::LoadedView;
 
 
 

@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize};
 
 
 use crate::schema;
-use crate::utilities::{BatchLoad};
+use crate::utilities::BatchLoad;
 
 use super::{TournamentEntity, utils};
 use super::entity::LoadEntity;

@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, self}};
+use std::collections::{HashMap, self};
 
 use itertools::Itertools;
 use async_trait::async_trait;
@@ -29,8 +29,6 @@ pub enum EditTreeActionType {
 
 #[derive(Error, Debug)]
 pub enum EditTreeActionError {
-    #[error("the parent round does not exist")]
-    ParentRoundDoesNotExist {uuid: Uuid},
 }
 
 
@@ -66,7 +64,7 @@ pub fn reindex_rounds(
             open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
                 let num_to_label = usize::max(config.num_rounds() as usize, rounds.len());
                 for (local_idx, round_) in rounds.iter().enumerate() {
-                    let mut round = all_rounds.get(round_).expect("Guaranteed by db constraints").clone().clone();
+                    let mut round = (*all_rounds.get(round_).expect("Guaranteed by db constraints")).clone();
                     if round.index != curr_round_index {
                         round.index = curr_round_index + local_idx as u64;
                         changed_rounds.push(round);

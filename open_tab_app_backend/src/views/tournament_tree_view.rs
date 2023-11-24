@@ -6,7 +6,7 @@ use sea_orm::prelude::Uuid;
 use std::collections::HashSet;
 
 use std::vec;
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};

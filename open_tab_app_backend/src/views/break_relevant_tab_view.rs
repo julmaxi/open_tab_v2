@@ -1,10 +1,10 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 
-use open_tab_entities::{EntityGroup};
+use open_tab_entities::EntityGroup;
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 
 
-use crate::{LoadedView};
+use crate::LoadedView;
 
 pub use open_tab_entities::tab::BreakRelevantTabView;
 

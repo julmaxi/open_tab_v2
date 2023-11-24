@@ -1,14 +1,12 @@
-use std::{collections::{VecDeque}, iter::zip};
+use std::{collections::VecDeque, iter::zip};
 
 
-use rand::{thread_rng};
+use rand::thread_rng;
 
 
-use crate::{draw_view::{DrawBallot}};
+use crate::draw_view::DrawBallot;
 
 
-
-use sparse_linear_assignment::{ForwardAuctionSolver, AuctionSolver};
 
 use super::evaluation::DrawEvaluator;
 
@@ -29,6 +27,7 @@ impl Matrix {
         }
     }
 
+    #[allow(dead_code)]
     fn get(&self, option: usize, ballot: usize) -> f64 {
         self.weights[option * self.num_ballots + ballot]
     }
@@ -104,40 +103,6 @@ pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evalu
             }*/
 
             ballots[*option_idx][*ballot_idx as usize].clone()
-        }
-    ).collect())
-}
-
-
-pub(crate) fn find_best_ballot_assignments_old(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
-    let (mut solver, mut solution) = ForwardAuctionSolver::new(ballots.len().into(), ballots[0].len().into(), (ballots.len() * ballots[0].len()).into());
-
-    solver.init(ballots.len() as u32, ballots[0].len() as u32)?;
-    let _rng = thread_rng();
-    for (option_idx, ballot_options) in ballots.iter().enumerate() {
-        for (ballot_idx, ballot) in ballot_options.iter().enumerate() {
-            let issues = evaluator.find_issues_in_ballot(ballot);
-            let weight: f64 = issues.total_severity() as f64 + 0.01;// + rng.gen_range(0.0..randomization_scale);
-
-            solver.add_value(option_idx as u32, ballot_idx as u32, weight.into())?;
-        }
-    }
-    solver.solve(&mut solution, false, None)?;
-
-    Ok(solution.object_to_person.iter().enumerate().map(
-        |(option_idx, ballot_idx)| {
-            dbg!(&option_idx, &ballot_idx);
-            //TODO: Strictly speaking we never need to clone here, but the compiler doesn't know that
-            //let ballot =             ballots[option_idx][*ballot_idx as usize].clone();
-            //let issues = evaluator.find_issues_in_ballot(&ballot);
-            //let weight: f64 = issues.total_severity() as f64;// + rng.gen_range(0.0..randomization_scale);
-
-            /*if weight > 0.0 {
-                dbg!(&solver.values()[option_idx as usize * ballots.len() + *ballot_idx as usize]);
-                println!("Ballot {} has issues with total severity {}", ballot_idx, weight);
-            }*/
-
-            ballots[option_idx][*ballot_idx as usize].clone()
         }
     ).collect())
 }

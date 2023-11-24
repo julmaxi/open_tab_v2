@@ -1,11 +1,11 @@
 use std::{collections::HashMap, ops::BitOr, str::FromStr};
 
 use async_trait::async_trait;
-use itertools::{Itertools};
+use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::{utilities::{BatchLoad}, schema};
+use crate::{utilities::BatchLoad, schema};
 
 use sea_orm::{prelude::*, ConnectionTrait, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
 

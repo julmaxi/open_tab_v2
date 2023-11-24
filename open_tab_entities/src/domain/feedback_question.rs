@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 
 use async_trait::async_trait;
-use sea_orm::{prelude::*};
+use sea_orm::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]

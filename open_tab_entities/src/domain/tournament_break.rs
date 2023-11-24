@@ -5,10 +5,9 @@ use async_trait::async_trait;
 use itertools::{Itertools, izip};
 use sea_orm::{prelude::*, ActiveValue, QueryOrder};
 use serde::{Serialize, Deserialize};
-use thiserror::Error;
 
 use crate::schema;
-use crate::utilities::{BatchLoad};
+use crate::utilities::BatchLoad;
 
 use super::TournamentEntity;
 use super::entity::LoadEntity;
@@ -34,12 +33,6 @@ impl ToString for BreakType {
     fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
-}
-
-#[derive(Debug, Error)]
-enum BreakTypeError {
-    #[error("Invalid break type")]
-    InvalidBreakType,
 }
 
 

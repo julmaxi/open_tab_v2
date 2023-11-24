@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize};
 use sea_query::ValueTuple;
 
 
-use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution, adjudicator_availability_override}, utilities::{BatchLoad}};
+use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution, adjudicator_availability_override}, utilities::BatchLoad};
 
 use super::{TournamentEntity, entity::LoadEntity};
 
@@ -311,7 +311,7 @@ impl TournamentEntity for Participant {
 
                 for inst in existing_institutions.values() {
                     institution_deletes.push(
-                        (inst.clone().clone()).into_active_model()
+                        (*inst).clone().into_active_model()
                     )
                 }
             }

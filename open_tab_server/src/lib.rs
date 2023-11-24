@@ -4,7 +4,7 @@ use axum::{
 };
 
 use tower_http::{trace::TraceLayer, cors::{CorsLayer, Any}};
-use tracing::{info_span};
+use tracing::info_span;
 
 
 
@@ -29,8 +29,6 @@ pub mod sync;
 pub mod feedback;
 pub mod tab;
 pub mod presentation;
-
-use sea_orm::prelude::*;
 
 use state::AppState;
 

@@ -2,7 +2,7 @@
 
 
 
-use open_tab_entities::{prelude::*};
+use open_tab_entities::prelude::*;
 
 use sea_orm::prelude::*;
 
