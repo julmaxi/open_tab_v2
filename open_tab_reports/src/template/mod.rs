@@ -4,11 +4,11 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{domain::ballot::Ballot, info::TournamentParticipantsInfo, derived_models::{DisplayBallot, ResultDebate, DrawPresentationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{DrawPresentationInfo}, tab::{TabView, BreakRelevantTabView}};
 
-use lazy_static::lazy_static;
+
 use std::io::Write;
-use zip::write::FileOptions;
+
 
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -107,7 +107,7 @@ impl TemplateContext {
 
 impl OpenOfficeDocument {
     pub fn write<W>(&self, context: &TemplateContext, writer: W) -> Result<(), anyhow::Error> where W: Write + std::io::Seek {
-        let additional_files = serde_json::json!({
+        let _additional_files = serde_json::json!({
             "additional_files": [
                 {
                     "path": "Pictures/ballot_background.png",

@@ -1,7 +1,7 @@
-use allsorts::{tag, font::MatchingPresentation};
-use itertools::Itertools;
+
+
 use open_tab_entities::derived_models::mock_draw_presentation_info;
-use open_tab_reports::{pdf::*, layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, TextElement, Position, Instruction}, template::{make_open_office_ballots, TemplateContext, make_open_office_presentation}};
+use open_tab_reports::{template::{TemplateContext, make_open_office_presentation}};
 
 fn main() {
     let presentation_info = mock_draw_presentation_info();

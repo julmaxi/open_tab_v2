@@ -233,7 +233,7 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     };
 
     let try_get_many_with_type_arms = variants_with_content_type.iter().map(|(variant, content_type)| {
-        let variant_as_str = variant.to_string();
+        let _variant_as_str = variant.to_string();
         quote! {
             EntityType::#variant => {
                 #content_type::try_get_many(db, ids).await?.into_iter().map(|e| e.map(Entity::#variant)).collect()                

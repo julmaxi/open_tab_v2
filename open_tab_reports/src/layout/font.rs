@@ -1,6 +1,6 @@
-use std::{alloc::System, sync::Arc};
+use std::{sync::Arc};
 
-use allsorts::{tag, binary::read::ReadScope, font_data::{FontData, DynamicFontTableProvider}};
+use allsorts::{binary::read::ReadScope, font_data::{FontData, DynamicFontTableProvider}};
 use font_kit::source::SystemSource;
 
 
@@ -49,7 +49,7 @@ impl FontLoader {
         let font = self.source
         .select_by_postscript_name(&name).unwrap();
 
-        let (buf, font_index)= match font.clone() {
+        let (buf, _font_index)= match font.clone() {
             font_kit::handle::Handle::Path { path, .. } => {
                 println!("Path: {:?}", path);
                 return Err(anyhow::anyhow!("Path fonts not supported"))

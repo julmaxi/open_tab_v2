@@ -1,4 +1,4 @@
-use std::{collections::HashMap, cell::RefCell};
+use std::{collections::HashMap};
 
 use pdf_writer::Rect;
 

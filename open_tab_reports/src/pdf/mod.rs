@@ -1,6 +1,6 @@
-use std::{num::NonZeroI32, collections::{HashMap, HashSet}, slice::SliceIndex};
+use std::{collections::{HashMap, HashSet}, slice::SliceIndex};
 
-use allsorts::tables::loca;
+
 use itertools::Itertools;
 use pdf_writer::{PdfWriter, Ref, Content, Name, Str, writers::Resources, Finish, types::{FontFlags, SystemInfo}, Rect};
 
@@ -240,7 +240,7 @@ impl LayoutedDocument {
             dbg!(&table.units_per_em);
 
 
-            let scale = 1000.0 / table.units_per_em as f32;
+            let _scale = 1000.0 / table.units_per_em as f32;
             let glyph_widths = used_glyphs.iter().map(|g|
                 (
                     *g,
