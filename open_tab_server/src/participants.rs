@@ -1,13 +1,13 @@
-use std::{collections::HashMap, error::Error, hash::Hash};
+use std::{collections::HashMap};
 
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, round}, prelude::SpeechRole, schema};
+use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser, AuthenticatedUser, check_release_date}, state::AppState, tournament};
+use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser, check_release_date}, state::AppState};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,7 +178,7 @@ async fn get_participant_info(
     let role = match (&speaker_info, &adjudicator_info) {
         (None, None) => ParticipantRoleInfo::None,
         (None, Some(_)) => ParticipantRoleInfo::Adjudicator,
-        (Some((speaker_info, team_info)), None) => {
+        (Some((_speaker_info, team_info)), None) => {
             ParticipantRoleInfo::Speaker { team_name: team_info.name.clone(), team_id: team_info.uuid }
         },
         (Some(_), Some(_)) => {
@@ -389,7 +389,7 @@ async fn get_participant_info(
 
     
     let target_participant_uuids = feedback_requests_debates.iter().flat_map(
-        |(request_source_role, debate_info, round_name, round_id)| {
+        |(request_source_role, debate_info, _round_name, _round_id)| {
             let ballot = ballot_map.get(&debate_info.ballot_id).unwrap();
 
             let mut out = vec![];

@@ -1,15 +1,15 @@
 
 use std::collections::hash_map::RandomState;
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap};
 
 use axum::{Router, Json};
 use axum::extract::{Path, State};
 use axum::routing::{post, get};
 use chrono::Utc;
-use axum::http::StatusCode;
+
 use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
-use open_tab_entities::domain::round::RoundState;
+
 use open_tab_entities::prelude::*;
 use open_tab_entities::domain::{ballot::Ballot};
 use open_tab_entities::schema::{self};
@@ -21,7 +21,7 @@ use itertools::Itertools;
 use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser, check_release_date};
 use crate::response::APIError;
 use crate::state::AppState;
-use crate::tournament;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DisplayBallot {

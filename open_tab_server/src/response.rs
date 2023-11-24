@@ -1,7 +1,7 @@
-use std::{str::FromStr, error::Error};
+use std::{str::FromStr};
 
 use axum::response::{IntoResponse, Response};
-use axum::http::StatusCode;
+
 use serde::{Serialize, Deserialize};
 use tracing::error;
 

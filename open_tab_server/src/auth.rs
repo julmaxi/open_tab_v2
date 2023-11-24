@@ -1,33 +1,33 @@
-use std::{str::FromStr, error::Error};
+use std::{str::FromStr};
 
 use argon2::Argon2;
 use axum::{
-    routing::{get, post},
-    Router, extract::{MatchedPath, State, Path}, http::Request, Json, headers::authorization::Bearer,
+    routing::{post},
+    Router, extract::{State}, Json, headers::authorization::Bearer,
 };
 use base64::Engine;
-use open_tab_entities::{schema::{user_access_key, user}, prelude::Participant};
+use open_tab_entities::{schema::{user_access_key}, prelude::Participant};
 use rand::{thread_rng, Rng};
-use sea_orm::{prelude::*, DatabaseConnection, ActiveValue, IntoActiveModel, TransactionTrait, QuerySelect, Related};
+use sea_orm::{prelude::*, DatabaseConnection, IntoActiveModel, TransactionTrait, QuerySelect, Related};
 use serde::{Serialize, Deserialize};
-use tower_http::trace::TraceLayer;
-use tracing::info_span;
+
+
 use tracing_subscriber::prelude::*;
 use axum::TypedHeader;
 use axum::async_trait;
-use axum::body::Body;
+
 use axum::extract::FromRequestParts;
 use axum::headers::Authorization;
 use axum::headers::authorization::Basic;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::http::request::{Parts, self};
-use tower::Service; // for `call`
+
+use axum::http::request::{Parts};
+ // for `call`
 use tower::ServiceExt;
 
 use crate::{response::{APIError, handle_error, handle_error_dyn}, state::AppState};
 
-use password_hash::{PasswordHash, PasswordVerifier, PasswordHasher, Salt, SaltString};
+use password_hash::{PasswordHash, PasswordVerifier, PasswordHasher, SaltString};
 
 
 #[derive(Debug)]

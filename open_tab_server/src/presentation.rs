@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+
 
 use axum::{extract::{State, Path}, Json, Router, routing::{post, get}};
 use chrono::Duration;
 use axum::http::StatusCode;
-use itertools::{Itertools, izip};
-use open_tab_entities::{schema, domain::{self, entity::LoadEntity}, EntityGroup, EntityGroupTrait, derived_models::{DrawPresentationInfo, LoadDrawError}};
-use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, DatabaseConnection, ColumnTrait, TransactionTrait};
+
+use open_tab_entities::{domain::{self, entity::LoadEntity}, EntityGroup, EntityGroupTrait, derived_models::{DrawPresentationInfo, LoadDrawError}};
+use sea_orm::{prelude::Uuid, DatabaseConnection, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error, handle_error_dyn}, state::AppState, tournament};
+use crate::{response::{APIError, handle_error}, state::AppState};
 
 
 

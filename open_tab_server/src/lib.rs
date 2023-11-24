@@ -1,22 +1,22 @@
 use axum::{
     routing::get,
-    Router, extract::{MatchedPath, State, FromRef}, http::Request,
+    Router, extract::{MatchedPath, State}, http::Request,
 };
-use db::DatabaseConfig;
+
 use tower_http::{trace::TraceLayer, cors::{CorsLayer, Any}};
-use tracing::{info_span, instrument::WithSubscriber};
-use tracing_subscriber::prelude::*;
-use axum::TypedHeader;
-use axum::async_trait;
-use axum::body::Body;
-use axum::extract::FromRequestParts;
-use axum::headers::Authorization;
-use axum::headers::authorization::Basic;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use tracing::{info_span};
+
+
+
+
+
+
+
+
+
 use axum::http::Method;
-use tower::Service; // for `call`
-use tower::ServiceExt; // for `oneshot` and `ready`
+ // for `call`
+ // for `oneshot` and `ready`
 
 pub mod auth;
 pub mod tournament;
@@ -33,7 +33,7 @@ pub mod presentation;
 use sea_orm::prelude::*;
 
 use state::AppState;
-use tracing_subscriber::fmt;
+
 
 pub async fn app() -> axum::Router<()> {
     app_with_state(AppState::new().await).await
@@ -47,7 +47,7 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
     .allow_origin(Any);
 
     let app = Router::new().route(
-        "/", get(|State(db): State<AppState>| async { "Hello, World!" })
+        "/", get(|State(_db): State<AppState>| async { "Hello, World!" })
     )
     .nest("/api",
         auth::router().merge(

@@ -3,12 +3,12 @@ use std::{str::FromStr, collections::HashMap};
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}, self}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema};
+use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, prelude::Uuid, ConnectionTrait, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait};
 use serde::{Serialize, Deserialize};
-use tracing::log::kv::source;
 
-use crate::{response::{APIError, handle_error}, state::AppState, tournament, auth::{AuthenticatedUser, ExtractAuthenticatedUser}};
+
+use crate::{response::{APIError, handle_error}, state::AppState, auth::{ExtractAuthenticatedUser}};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,8 +69,8 @@ pub struct FeedbackFormSubmissionResponse {
 
 async fn get_feedback_form(
     State(db): State<DatabaseConnection>,
-    Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
-    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser
+    Path((source_role, target_role, _debate_id, _target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
+    ExtractAuthenticatedUser(_user): ExtractAuthenticatedUser
 ) -> Result<Json<FeedbackFormResponse>, APIError> {
     let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
     let target_role = FeedbackTargetRole::from_str(&target_role).map_err(handle_error)?;

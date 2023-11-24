@@ -1,13 +1,13 @@
-use std::{collections::HashMap, error::Error, hash::Hash};
+use std::{collections::HashMap};
 
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, round}, prelude::{SpeechRole, TournamentRound}, schema, tab::TabView};
-use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect};
+use open_tab_entities::{domain::{entity::LoadEntity}, prelude::{TournamentRound}, tab::TabView};
+use sea_orm::{DatabaseConnection, prelude::*};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error, handle_error_dyn}, auth::{ExtractAuthenticatedUser, AuthenticatedUser, check_release_date}, state::AppState, tournament};
+use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser}, state::AppState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TabResponse {
@@ -61,7 +61,7 @@ pub async fn get_current_tab(
     let tab_indices = visible_rounds.iter().enumerate().map(|r| (r.0, r.1.0)).collect::<HashMap<_, _>>();
     let tab = TabView::load_from_tournament_with_rounds(&db, tournament_id, visible_rounds.iter().map(|r| r.1.uuid).collect_vec()).await?;
 
-    let rounds = tournament_rounds_with_state.iter().enumerate().map(|(r_idx, (r, state))| TabRoundInfo {
+    let rounds = tournament_rounds_with_state.iter().enumerate().map(|(r_idx, (_r, state))| TabRoundInfo {
         tab_index: tab_indices.get(&r_idx).map(|i| *i),
         state: *state
     }).collect_vec();

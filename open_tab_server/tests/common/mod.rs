@@ -1,8 +1,8 @@
 use std::{borrow::BorrowMut, future::Future};
 
-use axum::{response::Response, http::{Request, request::Builder}, body::Body, Json};
+use axum::{response::Response, http::{Request, request::Builder}, body::Body};
 use http_body::{combinators::UnsyncBoxBody, Body as _};
-use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait, EntityGroup};
+use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserResponse, GetTokenRequest, GetTokenResponse, create_key, hash_password}, state::AppState};
 use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection, EntityTrait};
 use tower::{Service};
@@ -212,7 +212,7 @@ impl Fixture {
     }
 }
 
-pub async fn get_app_fixture(options: FixtureOptions) -> axum::Router {
+pub async fn get_app_fixture(_options: FixtureOptions) -> axum::Router {
     let app: axum::Router = open_tab_server::app().await;
     app
 }

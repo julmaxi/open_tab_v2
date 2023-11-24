@@ -1,17 +1,17 @@
-use std::{collections::{HashMap, HashSet}, any};
+use std::{collections::{HashMap, HashSet}};
 
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId, domain::entity::LoadEntity};
-use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, Statement, QuerySelect};
+use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot::error;
+
 use tracing::error_span;
 
 use crate::{state::AppState, response::{APIError, handle_error}, auth::ExtractAuthenticatedUser};
-use std::error::Error;
+
 
 
 
@@ -85,7 +85,7 @@ pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, s
         .into_iter()
         .into_grouping_map_by(|entry| (entry.target_type.clone().into(), entry.target_uuid)
     ).collect::<Vec<_>>();
-    let latest_entries = entity_entries.iter_mut().map(|((entity_type, entity_uuid), entries)| {
+    let latest_entries = entity_entries.iter_mut().map(|((_entity_type, _entity_uuid), entries)| {
         entries.pop().unwrap() // This can never be empty, otherwise the key would not be in the group map
     }).collect::<Vec<_>>();
     let versioned_entities = get_changed_entities_from_log(transaction, latest_entries).await?;
@@ -171,7 +171,7 @@ impl From<ReconciliationOutcome> for APIReconciliationOutcome {
     fn from(outcome: ReconciliationOutcome) -> Self {
         match outcome {
             ReconciliationOutcome::Reject => APIReconciliationOutcome::Reject,
-            ReconciliationOutcome::Success {new_last_common_ancestor, entity_group} => APIReconciliationOutcome::Success {
+            ReconciliationOutcome::Success {new_last_common_ancestor, entity_group: _} => APIReconciliationOutcome::Success {
                 new_last_common_ancestor,
             }
         }
@@ -217,7 +217,7 @@ pub async fn reconcile_changes<C>(
             open_tab_entities::schema::tournament_log::Model {
                 uuid: entry.uuid,
                 tournament_id,
-                target_type: entry.target_type.as_str().clone().into(),
+                target_type: entry.target_type.as_str().into(),
                 target_uuid: entry.target_uuid,
                 timestamp: entry.timestamp,
                 sequence_idx: head_sequence_idx + idx as i32 + 1
