@@ -274,7 +274,8 @@ async fn connect_db_to_file(path: Option<PathBuf>) -> Result<DatabaseConnection,
         let second_tournament = Tournament {
             uuid: Uuid::from_u128(2),
             annoucements_password: None,
-            name: "Empty Demonstration Tournament".into()
+            name: "Empty Demonstration Tournament".into(),
+            feedback_release_time: None
         };
         mock_data.add(Entity::Tournament(second_tournament));
 

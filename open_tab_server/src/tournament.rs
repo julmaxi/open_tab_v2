@@ -35,6 +35,7 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
         uuid,
         annoucements_password: Some("password".into()),
         name: request.name,
+        ..Default::default()
     };
     changes.add(open_tab_entities::Entity::Tournament(tournament));
 

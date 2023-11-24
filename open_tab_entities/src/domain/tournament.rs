@@ -10,7 +10,8 @@ use serde::{Serialize, Deserialize};
 pub struct Tournament {
     pub uuid: Uuid,
     pub annoucements_password: Option<String>,
-    pub name: String
+    pub name: String,
+    pub feedback_release_time: Option<DateTime>,
 }
 
 
@@ -19,7 +20,8 @@ impl Tournament {
         Tournament {
             uuid: Uuid::new_v4(),
             annoucements_password: None,
-            name: "New Tournament".into()
+            name: "New Tournament".into(),
+            feedback_release_time: None
         }
     }
 }

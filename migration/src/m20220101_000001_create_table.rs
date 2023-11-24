@@ -14,6 +14,7 @@ enum Tournament {
     Name,
     Uuid,
     AnnoucementsPassword,
+    FeedbackReleaseTime
 }
 
 #[derive(Iden)]
@@ -262,6 +263,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Tournament::AnnoucementsPassword).string())
                     .col(ColumnDef::new(Tournament::Name).string().not_null())
+                    .col(ColumnDef::new(Tournament::FeedbackReleaseTime).date_time())
                     .to_owned(),
             )
             .await?;
