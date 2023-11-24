@@ -58,15 +58,20 @@ function ConnectivityStatus() {
         switch (status.status) {
             case 'Alive': 
                 setState("ok");
+                setShowLogin(false);
+
                 break;
             case 'Error':
                 setState("error");
+                setShowLogin(false);
                 break;
             case 'Connect':
                 setState("ok");
+                setShowLogin(false);
                 break;
             case 'Disconnect':
                 setState("no_connection");
+                setShowLogin(false);
                 break;
             case 'PasswordRequired':
                 console.log(tournamentView);
@@ -124,6 +129,7 @@ function ConnectivityStatus() {
                 url={tournamentView !== null ? tournamentView.remote_url: ""}
                 onLogin={(username, password) => {
                     invoke("login_to_remote", {
+                        remoteUrl: tournamentView.remote_url,
                         userName: username,
                         password: password,
                     }).then((msg) => {
