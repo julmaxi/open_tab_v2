@@ -22,7 +22,7 @@ pub async fn set_up_db() -> Result<DatabaseConnection, DbErr> {
 fn make_changeset() -> (EntityGroup, Ballot) {
     let mut changeset = EntityGroup::new();
     changeset.add(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10), ..default::Default::default() }));
-    changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }));
+    changeset.add(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, ..Default::default() }));
     changeset.add(Entity::TournamentDebate(TournamentDebate { uuid: Uuid::from_u128(30), round_id: Uuid::from_u128(20), index: 0, ballot_id: Uuid::from_u128(100), ..Default::default() }));
     let ballot = Ballot {
         uuid: Uuid::from_u128(100),
@@ -134,7 +134,7 @@ async fn test_versioned_save_preserves_uuids() -> Result<(), anyhow::Error> {
 
     let mut changeset = EntityGroup::new();
     changeset.add_versioned(Entity::Tournament(Tournament { uuid: Uuid::from_u128(10), ..default::Default::default() }), Uuid::from_u128(10));
-    changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, draw_type: None, ..Default::default() }), Uuid::from_u128(11));
+    changeset.add_versioned(Entity::TournamentRound(TournamentRound { uuid: Uuid::from_u128(20), tournament_id: Uuid::from_u128(10), index: 0, ..Default::default() }), Uuid::from_u128(11));
 
     changeset.save_all(&db).await?;
     changeset.save_log_with_tournament_id(&db, Uuid::from_u128(10)).await?;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use open_tab_entities::{prelude::{Ballot, Team}, domain::{round::{TeamDrawMode, SpeakerDrawMode}, tournament_plan_node::{TeamFoldMethod, TeamAssignmentRule, NonAlignedFoldMethod}}, tab::TeamRoundRole};
+use open_tab_entities::{prelude::{Ballot, Team}, domain::{tournament_plan_node::{TeamFoldMethod, TeamAssignmentRule, NonAlignedFoldMethod}}, tab::TeamRoundRole};
 use rand::{thread_rng, seq::SliceRandom, Rng};
 use sea_orm::prelude::Uuid;
 

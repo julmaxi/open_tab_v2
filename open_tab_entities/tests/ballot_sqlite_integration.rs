@@ -474,7 +474,6 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), anyhow::Error> {
         uuid: Uuid::from_u128(21),
         tournament_id: tournament.uuid,
         index: 0,
-        draw_type: None,
         ..Default::default()
     };
     round.save(&db, true).await?;

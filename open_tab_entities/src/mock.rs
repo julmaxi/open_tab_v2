@@ -11,8 +11,6 @@ use faker_rand::en_us::{names::FullName, company::CompanyName};
 
 use crate::group::EntityGroupTrait;
 
-use crate::domain::round::DrawType;
-
 
 #[derive(Debug)]
 pub struct MockOption {
@@ -196,7 +194,6 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             uuid,
             tournament_id: tournament_uuid,
             index: i as u64,
-            draw_type: Some(DrawType::Preliminary),
             draw_release_time: if i == 0 {Some(chrono::Utc::now().naive_utc())} else {None},
             ..Default::default()
         }

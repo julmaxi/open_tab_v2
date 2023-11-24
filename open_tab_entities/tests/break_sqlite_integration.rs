@@ -55,10 +55,7 @@ async fn test_save_empty_break() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::TabBreak { num_debates: 4 },
             breaking_teams: vec![],
-            source_rounds: vec![],
-            child_rounds: vec![],
             breaking_speakers: vec![]
         },
         true
@@ -71,15 +68,12 @@ async fn test_save_teams() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::TabBreak { num_debates: 4 },
             breaking_teams: vec![
                 Uuid::from_u128(1004),
                 Uuid::from_u128(1002),
                 Uuid::from_u128(1000),
                 Uuid::from_u128(1001),
             ],
-            source_rounds: vec![],
-            child_rounds: vec![],
             breaking_speakers: vec![]
         },
         true
@@ -93,15 +87,12 @@ async fn test_delete_teams() -> Result<(), anyhow::Error> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
         breaking_teams: vec![
             Uuid::from_u128(1004),
             Uuid::from_u128(1002),
             Uuid::from_u128(1000),
             Uuid::from_u128(1001),
         ],
-        source_rounds: vec![],
-        child_rounds: vec![],
         breaking_speakers: vec![]
     };
     tournament_break.save(&db, true).await?;
@@ -126,15 +117,12 @@ async fn test_add_teams() -> Result<(), anyhow::Error> {
     let mut tournament_break = TournamentBreak {
         uuid: Uuid::from_u128(600),
         tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
         breaking_teams: vec![
             Uuid::from_u128(1004),
             Uuid::from_u128(1002),
             Uuid::from_u128(1000),
             Uuid::from_u128(1001),
         ],
-        source_rounds: vec![],
-        child_rounds: vec![],
         breaking_speakers: vec![]
     };
     tournament_break.save(&db, true).await?;
@@ -163,11 +151,8 @@ async fn test_save_speakers() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::TabBreak { num_debates: 4 },
             breaking_teams: vec![
             ],
-            source_rounds: vec![],
-            child_rounds: vec![],
             breaking_speakers: vec![
                 Uuid::from_u128(2002),
                 Uuid::from_u128(2000),
@@ -186,164 +171,10 @@ async fn test_save_rounds() {
         TournamentBreak {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            break_type: BreakType::TabBreak { num_debates: 4 },
             breaking_teams: vec![],
-            source_rounds: vec![
-                open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                    uuid: Uuid::from_u128(100),
-                    break_type: TournamentBreakSourceRoundType::Tab
-                },
-                open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                    uuid: Uuid::from_u128(101),
-                    break_type: TournamentBreakSourceRoundType::Tab
-                }
-            ],
-            child_rounds: vec![
-                Uuid::from_u128(102),
-            ],
             breaking_speakers: vec![]
         },
         true
     ).await.unwrap();
 }
 
-
-
-#[tokio::test]
-async fn test_add_child_round() -> Result<(), anyhow::Error> {
-    let db = set_up_db(true).await.unwrap();
-    let mut tournament_break = TournamentBreak {
-        uuid: Uuid::from_u128(600),
-        tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
-        breaking_teams: vec![],
-        source_rounds: vec![
-            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                uuid: Uuid::from_u128(100),
-                break_type: TournamentBreakSourceRoundType::Tab
-            },
-        ],
-        child_rounds: vec![
-            Uuid::from_u128(102),
-        ],
-        breaking_speakers: vec![]
-    };
-    tournament_break.save(&db, true).await?;
-
-    tournament_break.child_rounds = vec![
-        Uuid::from_u128(101),
-        Uuid::from_u128(102),
-    ];
-    
-    test_break_roundtrip(
-        tournament_break,
-        false
-    ).await.unwrap();
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_add_source_round() -> Result<(), anyhow::Error> {
-    let db = set_up_db(true).await.unwrap();
-    let mut tournament_break = TournamentBreak {
-        uuid: Uuid::from_u128(600),
-        tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
-        breaking_teams: vec![],
-        source_rounds: vec![
-            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                uuid: Uuid::from_u128(100),
-                break_type: TournamentBreakSourceRoundType::Tab
-            },
-        ],
-        child_rounds: vec![
-            Uuid::from_u128(102),
-        ],
-        breaking_speakers: vec![]
-    };
-    tournament_break.save(&db, true).await?;
-
-    tournament_break.source_rounds = vec![
-        open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-            uuid: Uuid::from_u128(100),
-            break_type: TournamentBreakSourceRoundType::Tab
-        },
-        open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-            uuid: Uuid::from_u128(101),
-            break_type: TournamentBreakSourceRoundType::Tab
-        },
-];
-    
-    test_break_roundtrip(
-        tournament_break,
-        false
-    ).await.unwrap();
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_delete_child_round() -> Result<(), anyhow::Error> {
-    let db = set_up_db(true).await.unwrap();
-    let mut tournament_break = TournamentBreak {
-        uuid: Uuid::from_u128(600),
-        tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
-        breaking_teams: vec![],
-        source_rounds: vec![
-            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                uuid: Uuid::from_u128(100),
-                break_type: TournamentBreakSourceRoundType::Tab
-            },
-        ],
-        child_rounds: vec![
-            Uuid::from_u128(102),
-        ],
-        breaking_speakers: vec![]
-    };
-    tournament_break.save(&db, true).await?;
-
-    tournament_break.child_rounds = vec![
-    ];
-    
-    test_break_roundtrip(
-        tournament_break,
-        false
-    ).await.unwrap();
-
-    Ok(())
-}
-
-
-#[tokio::test]
-async fn test_delete_source_round() -> Result<(), anyhow::Error> {
-    let db = set_up_db(true).await.unwrap();
-    let mut tournament_break = TournamentBreak {
-        uuid: Uuid::from_u128(600),
-        tournament_id: Uuid::from_u128(1),
-        break_type: BreakType::TabBreak { num_debates: 4 },
-        breaking_teams: vec![],
-        source_rounds: vec![
-            open_tab_entities::domain::tournament_break::TournamentBreakSourceRound {
-                uuid: Uuid::from_u128(100),
-                break_type: TournamentBreakSourceRoundType::Tab
-            },
-        ],
-        child_rounds: vec![
-            Uuid::from_u128(102),
-        ],
-        breaking_speakers: vec![]
-    };
-    tournament_break.save(&db, true).await?;
-
-    tournament_break.source_rounds = vec![
-    ];
-    
-    test_break_roundtrip(
-        tournament_break,
-        false
-    ).await.unwrap();
-
-    Ok(())
-}

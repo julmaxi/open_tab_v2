@@ -1,4 +1,3 @@
-use open_tab_entities::domain::round::{DrawType, TabDrawConfig};
 use open_tab_entities::domain::tournament_break::{TournamentBreak};
 use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
 use sea_orm::prelude::Uuid;
@@ -310,14 +309,6 @@ impl TournamentTreeView {
         let rounds = rounds.into_iter().map(
             |r| {
                 (r.uuid, r)
-            }
-        ).collect::<HashMap<_, _>>();
-
-        let round_breaks = breaks.iter().flat_map(
-            |b| {
-                b.child_rounds.iter().map(
-                    |r| (*r, b.uuid)
-                )
             }
         ).collect::<HashMap<_, _>>();
 

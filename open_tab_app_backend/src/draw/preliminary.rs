@@ -1,7 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
 use open_tab_entities::{
-    domain::round::DrawType,
     prelude::{Ballot, BallotTeam, Speech, SpeechRole, TournamentRound},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
@@ -421,21 +420,18 @@ mod test {
                 uuid: Uuid::from_u128(10),
                 tournament_id: Uuid::from_u128(0),
                 index: 0,
-                draw_type: None,
                 ..Default::default()
             },
             TournamentRound {
                 uuid: Uuid::from_u128(11),
                 tournament_id: Uuid::from_u128(0),
                 index: 0,
-                draw_type: None,
                 ..Default::default()
             },
             TournamentRound {
                 uuid: Uuid::from_u128(12),
                 tournament_id: Uuid::from_u128(0),
                 index: 0,
-                draw_type: None,
                 ..Default::default()
             },
         ];

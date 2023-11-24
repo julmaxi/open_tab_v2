@@ -9,7 +9,6 @@ pub struct Model {
     pub uuid: Uuid,
     pub tournament_id: Uuid,
     pub index: i32,
-    pub draw_type: Option<String>,
     pub motion: Option<String>,
     pub info_slide: Option<String>,
     pub draw_release_time: Option<DateTime>,
@@ -53,19 +52,6 @@ impl Related<super::adjudicator::Entity> for Entity {
     fn via() -> Option<RelationDef> {
         Some(
             super::adjudicator_availability_override::Relation::TournamentRound
-                .def()
-                .rev(),
-        )
-    }
-}
-
-impl Related<super::tournament_break::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::tournament_break_child_round::Relation::TournamentBreak.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(
-            super::tournament_break_child_round::Relation::TournamentRound
                 .def()
                 .rev(),
         )

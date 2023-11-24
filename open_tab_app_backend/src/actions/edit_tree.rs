@@ -2,7 +2,7 @@ use std::{error::Error, collections::{HashMap, self}};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::{DrawType, TabDrawConfig, TeamAssignmentRule, self}, tournament_break::{TournamentBreak, TournamentBreakSourceRound, TournamentBreakSourceRoundType, self}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType, group, schema::tournament_round};
+use open_tab_entities::{prelude::*, domain::{round::{self}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType, group, schema::tournament_round};
 
 use sea_orm::prelude::*;
 

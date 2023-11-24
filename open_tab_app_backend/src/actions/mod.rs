@@ -16,7 +16,6 @@ mod upload_participants_list;
 mod update_scores;
 mod edit_tree;
 pub(crate) mod execute_plan_node;
-mod make_break;
 mod update_round;
 mod create_institution;
 mod update_venues;

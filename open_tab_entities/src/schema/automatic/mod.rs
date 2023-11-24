@@ -17,8 +17,6 @@ pub mod speaker;
 pub mod team;
 pub mod tournament;
 pub mod tournament_break;
-pub mod tournament_break_child_round;
-pub mod tournament_break_source_round;
 pub mod tournament_break_speaker;
 pub mod tournament_break_team;
 pub mod tournament_debate;

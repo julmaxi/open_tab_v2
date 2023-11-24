@@ -18,12 +18,28 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
     ).await?;
 
     if with_mock_env {
-        mock::make_mock_tournament_with_options(
+        let mut group = mock::make_mock_tournament_with_options(
             MockOption {
                 deterministic_uuids: true,
                 ..Default::default()
             }
-        ).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await?;
+        );
+
+        // Standard mock has all rounds as part of a node.
+        // To test node assignment, we add a new round.
+        group.add(
+            Entity::TournamentRound(
+                TournamentRound {
+                    uuid: Uuid::from_u128(109),
+                    tournament_id: Uuid::from_u128(1),
+                    index: 0,
+                    ..Default::default()
+                }
+            )
+        );
+        
+        group.save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await?;
+
     }
     Ok(db)
 }
@@ -91,7 +107,7 @@ async fn test_save_round_node_with_rounds() {
         TournamentPlanNode {
             uuid: Uuid::from_u128(600),
             tournament_id: Uuid::from_u128(1),
-            config: PlanNodeType::Round { config: RoundGroupConfig::Preliminaries { num_roundtrips: 1 }, rounds: vec![Uuid::from_u128(100)] }}
+            config: PlanNodeType::Round { config: RoundGroupConfig::Preliminaries { num_roundtrips: 1 }, rounds: vec![Uuid::from_u128(109)] }}
         ,
         true
     ).await.unwrap();

@@ -6,42 +6,6 @@ use serde::{Serialize, Deserialize};
 
 use crate::schema;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
-pub enum TeamDrawMode {
-    PowerPaired,
-    InversePowerPaired,
-    BalancedPowerPaired,
-    Random,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
-pub enum SpeakerDrawMode {
-    PowerPaired,
-    Random,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
-pub enum TeamAssignmentRule {
-    Random,
-    Fixed,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-pub struct TabDrawConfig {
-    pub team_draw: TeamDrawMode,
-    pub team_assignment_rule: TeamAssignmentRule,
-    pub speaker_draw: SpeakerDrawMode
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-pub enum DrawType {
-    Preliminary,
-    KnockoutDraw,
-    TabDraw {
-        config: TabDrawConfig
-    }
-}
-
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum RoundState {
@@ -76,8 +40,6 @@ pub struct TournamentRound {
     pub uuid: Uuid,
     pub tournament_id: Uuid,
     pub index: u64,
-    #[serialize]
-    pub draw_type: Option<DrawType>,
     pub motion: Option<String>,
     pub info_slide: Option<String>,
     pub is_silent: bool,
@@ -95,7 +57,6 @@ impl TournamentRound {
             uuid: Uuid::new_v4(),
             tournament_id,
             index,
-            draw_type: None,
             ..Default::default()
         }
     }

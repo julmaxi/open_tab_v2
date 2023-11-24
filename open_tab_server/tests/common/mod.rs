@@ -1,8 +1,7 @@
 use std::{borrow::BorrowMut, future::Future};
 
-use axum::{response::Response};
-use http_body::combinators::UnsyncBoxBody;
-use hyper::{Request, Body, http::request::Builder};
+use axum::{response::Response, http::{Request, request::Builder}, body::Body, Json};
+use http_body::{combinators::UnsyncBoxBody, Body as _};
 use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait, EntityGroup};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserResponse, GetTokenRequest, GetTokenResponse, create_key, hash_password}, state::AppState};
 use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection, EntityTrait};
@@ -33,21 +32,27 @@ pub enum Auth {
 }
 
 pub struct APIResponse {
-    response: hyper::Response<UnsyncBoxBody<hyper::body::Bytes, axum::Error>>,
+    response: Response<UnsyncBoxBody<axum::body::Bytes, axum::Error>>,
 }
 
 impl APIResponse {
-    pub fn status(&self) -> hyper::StatusCode {
+    pub fn status(&self) -> axum::http::StatusCode {
         self.response.status()
     }
 
     pub async fn json<T: serde::de::DeserializeOwned>(&mut self) -> T {
-        let body = hyper::body::to_bytes(self.response.body_mut()).await.unwrap();
-        serde_json::from_slice(&body).unwrap()
+        let mut buf = Vec::new();
+
+        let body = self.response.body_mut();
+
+        while let Some(next) = body.data().await {
+            buf.extend_from_slice(&next.unwrap());
+        }
+        serde_json::from_slice(&buf).unwrap()
     }
 }
 
-impl From<Response<UnsyncBoxBody<hyper::body::Bytes, axum::Error>>> for APIResponse {
+impl From<Response<UnsyncBoxBody<axum::body::Bytes, axum::Error>>> for APIResponse {
     fn from(response: Response<UnsyncBoxBody<hyper::body::Bytes, axum::Error>>) -> Self {
         Self {
             response,
