@@ -14,6 +14,7 @@ import { SortableTable, EditableCell } from "./SortableTable";
 import ComboBox from "./ComboBox";
 import { useEffect } from "react";
 import _ from "lodash";
+import { confirm } from '@tauri-apps/api/dialog';
 
 import {
     BrowserRouter as Router,
@@ -217,7 +218,11 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         hasChanges ? <Button onClick={() => {
             executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant]})
         }}>Save Changes</Button> : <Button role="danger" onClick={() => {
-            executeAction("UpdateParticipants",  {tournament_id: tournamentContext.uuid, updated_participants: [], deleted_participants: [participant.uuid]})
+            confirm("Are you sure you want to delete this participant? You can not undo this.").then((result) => {
+                if (result === true) {
+                    executeAction("UpdateParticipants",  {tournament_id: tournamentContext.uuid, updated_participants: [], deleted_participants: [participant.uuid]})
+                }
+            })
         }}>
             Delete
         </Button>
