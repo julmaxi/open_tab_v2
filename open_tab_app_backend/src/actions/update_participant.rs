@@ -73,7 +73,7 @@ impl ActionTrait for UpdateParticipantsAction {
                         uuid: p.uuid,
                         clash_severity: p.clash_severity as u16
                     }).collect(),
-                    registration_key: participant.registration_key.map(|r| general_purpose::STANDARD_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?
+                    registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?
                 }
             ));
         }

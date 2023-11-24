@@ -13,6 +13,7 @@ export async function executeAction(type, params) {
     return true;
   }
   else {
+    console.error(result, type, params);
     return false;
   }
 }

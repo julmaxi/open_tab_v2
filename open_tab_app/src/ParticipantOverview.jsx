@@ -4,12 +4,10 @@ import React, { useCallback, useContext } from "react";
 import { useState } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
-import { open } from '@tauri-apps/api/dialog';
 import { TournamentContext } from "./TournamentContext";
 
 import ModalOverlay from "./Modal";
 import Button from "./Button";
-import { invoke } from "@tauri-apps/api/tauri";
 import { SortableTable, EditableCell } from "./SortableTable";
 import ComboBox from "./ComboBox";
 import { useEffect } from "react";
@@ -20,6 +18,7 @@ import {
     BrowserRouter as Router,
     unstable_useBlocker as useBlocker,
   } from "react-router-dom";
+import { openImportDialog } from "./openImportDialog";
 
 
 function ParticipantDetailView({onClose, participant, ...props}) {
@@ -216,7 +215,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 
     {
         hasChanges ? <Button onClick={() => {
-            executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant]})
+            executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant], deleted_participants: []})
         }}>Save Changes</Button> : <Button role="danger" onClick={() => {
             confirm("Are you sure you want to delete this participant? You can not undo this.").then((result) => {
                 if (result === true) {
@@ -504,27 +503,6 @@ function CSVImportDialog(props) {
             <Button onClick={() => props.onSubmit(values)} disabled={hasErrors} role="primary">Import</Button>
         </div>
     </div>   
-}
-
-export async function openImportDialog() {
-    const selected = await open({
-        multiple: false,
-        filters: [{
-            name: 'csv',
-            extensions: ['csv']
-        }]
-    });
-
-    if (selected !== null) {
-        let proposedConfig = await invoke("guess_csv_config", {path: selected});
-        return {
-            file: selected,
-            proposedConfig
-        };
-    }
-    else {
-        return null;
-    }
 }
 
 export function ParticipantOverview() {
