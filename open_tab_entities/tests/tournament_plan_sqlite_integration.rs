@@ -1,11 +1,11 @@
-use std::{error::Error};
 
 
-use open_tab_entities::{prelude::*, domain::{tournament_break::{BreakType, TournamentBreakSourceRoundType}, entity::LoadEntity, tournament_plan_node::{TournamentPlanNode, PlanNodeType, BreakConfig, RoundGroupConfig}}, mock::{self, MockOption}};
+
+use open_tab_entities::{prelude::*, domain::{entity::LoadEntity, tournament_plan_node::{TournamentPlanNode, PlanNodeType, BreakConfig, RoundGroupConfig}}, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement};
 use migration::{MigratorTrait};
 
-use open_tab_entities::domain::tournament_break::TournamentBreak;
+
 use open_tab_entities::domain::TournamentEntity;
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {

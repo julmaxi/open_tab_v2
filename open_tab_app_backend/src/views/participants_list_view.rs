@@ -1,11 +1,11 @@
-use base64::Engine;
-use base64::engine::general_purpose;
+
+
 use itertools::izip;
 use open_tab_entities::EntityType;
 use open_tab_entities::schema;
 
 use sea_orm::prelude::Uuid;
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap};
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};

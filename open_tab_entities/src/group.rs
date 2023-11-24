@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use itertools::{Itertools, izip};
 use open_tab_macros::EntityGroup;
@@ -23,7 +23,7 @@ impl<E> EntityState<E, <<E as EntityGroupEntityTrait>::EntityGroup as EntityGrou
     pub fn get_name(&self) -> String {
         match self {
             EntityState::Exists(e) => e.get_name(),
-            EntityState::Deleted{type_, ..} => panic!()//name.clone(),
+            EntityState::Deleted{ ..} => panic!()//name.clone(),
         }
     }
     pub fn get_type(&self) -> <E::EntityGroup as EntityGroupTrait>::TypeId {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap};
 
 use crate::domain::tournament_institution::TournamentInstitution;
 

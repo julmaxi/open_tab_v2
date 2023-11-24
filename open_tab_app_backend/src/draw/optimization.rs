@@ -1,4 +1,4 @@
-use std::{error::Error, collections::{VecDeque}, iter::zip};
+use std::{collections::{VecDeque}, iter::zip};
 
 
 use rand::{thread_rng};

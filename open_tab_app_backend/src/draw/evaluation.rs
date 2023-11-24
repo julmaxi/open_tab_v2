@@ -4,7 +4,7 @@ use crate::{draw_view::DrawBallot, TournamentParticipantsInfo};
 use itertools::Itertools;
 use open_tab_entities::{
     domain::ballot::BallotParseError,
-    prelude::{Ballot, Team, TournamentRound},
+    prelude::{Ballot, TournamentRound},
     schema,
 };
 use sea_orm::{prelude::Uuid, ConnectionTrait, EntityTrait};
@@ -621,7 +621,7 @@ fn coalesce_issues(prev: DrawIssue, next: DrawIssue) -> Result<DrawIssue, (DrawI
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, hash::Hash};
+    use std::{collections::HashMap};
 
     use itertools::Itertools;
     use sea_orm::prelude::Uuid;

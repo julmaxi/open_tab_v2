@@ -1,7 +1,7 @@
-use std::{error::Error};
 
 
-use open_tab_entities::{prelude::*, domain::{tournament_break::{BreakType, TournamentBreakSourceRoundType}, entity::LoadEntity}, mock::{self, MockOption}};
+
+use open_tab_entities::{prelude::*, domain::{entity::LoadEntity}, mock::{self, MockOption}};
 use sea_orm::{prelude::*, Database, Statement};
 use migration::{MigratorTrait};
 

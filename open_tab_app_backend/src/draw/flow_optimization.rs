@@ -1,12 +1,12 @@
-use std::{collections::{HashMap, HashSet}, error::Error, sync::Arc};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{self, entity::LoadEntity}, prelude::{Ballot, Participant, TournamentRound}, schema::adjudicator};
+use open_tab_entities::{domain::{self, entity::LoadEntity}, prelude::{Ballot, Participant, TournamentRound}};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 
 use mcmf::{GraphBuilder, Capacity, Vertex, Cost};
 
-use crate::draw_view::{DrawDebate, DrawBallot};
+use crate::draw_view::{DrawBallot};
 
 use super::evaluation::DrawEvaluator;
 
@@ -237,7 +237,7 @@ impl OptimizationState {
 
     pub fn update_state_by_assigning_chairs(&mut self) {
         let debates_to_assign_chair = (0..self.rounds.len()).into_iter().flat_map(
-            |i| self.rounds[i].debates.iter().enumerate().filter(|(d_idx, d)| d.chair.is_none()).map(move |(d_idx, d)| (i, d_idx, d))
+            |i| self.rounds[i].debates.iter().enumerate().filter(|(_d_idx, d)| d.chair.is_none()).map(move |(d_idx, d)| (i, d_idx, d))
         ).collect_vec();
 
         let mut graph_build = GraphBuilder::new();
@@ -300,7 +300,7 @@ impl OptimizationState {
 
         //Add sink
         debates_to_assign_chair.iter().for_each(
-            |(round_id, debate_idx, debate)| {
+            |(round_id, debate_idx, _debate)| {
                 graph_build.add_edge(
                     NodeType::Debate(*round_id, *debate_idx),
                     Vertex::Sink,
@@ -310,7 +310,7 @@ impl OptimizationState {
             }
         );
 
-        let (cost, paths) = graph_build.mcmf();
+        let (_cost, paths) = graph_build.mcmf();
         let all_assignments = paths.iter().flat_map(
             |path| path.edges()
         ).filter_map(
@@ -358,7 +358,7 @@ impl OptimizationState {
                 previous_unassigned_cnt = unassigned_adjudicators.len();
 
                 let min_debate_wing_cnt: usize = round_info.debates.iter().map(|d| d.wings.len()).min().unwrap_or(0);
-                let debates_to_assign_wings = round_info.debates.iter().enumerate().filter(|(d_idx, d)| d.wings.len() == min_debate_wing_cnt).collect_vec();
+                let debates_to_assign_wings = round_info.debates.iter().enumerate().filter(|(_d_idx, d)| d.wings.len() == min_debate_wing_cnt).collect_vec();
 
                 let mut graph_build = GraphBuilder::new();
 
@@ -388,7 +388,7 @@ impl OptimizationState {
                     }
                 );
                 debates_to_assign_wings.iter().for_each(
-                    |(debate_idx, debate)| {
+                    |(debate_idx, _debate)| {
                         graph_build.add_edge(
                             NodeType::Debate(round_id, *debate_idx),
                             Vertex::Sink,
@@ -398,7 +398,7 @@ impl OptimizationState {
                     }
                 );
 
-                let (cost, paths) = graph_build.mcmf();
+                let (_cost, paths) = graph_build.mcmf();
 
                 let assignments = paths.iter().flat_map(
                     |path| path.edges()

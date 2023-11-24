@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{tab::TabView, domain::{entity::LoadEntity, tournament_plan_node::PlanNodeType, self}, info::TournamentParticipantsInfo, EntityGroup};
+use open_tab_entities::{domain::{entity::LoadEntity, tournament_plan_node::PlanNodeType, self}, EntityGroup};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 use serde::Serialize;
 
-use crate::{views, LoadedView, tournament_tree_view::get_round_names};
+use crate::{LoadedView, tournament_tree_view::get_round_names};
 
 
 
@@ -62,7 +62,7 @@ pub struct BreakInfo {
 impl BreaksView {
     async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         //let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
-        let breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
+        let _breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
         let nodes = domain::tournament_plan_node::TournamentPlanNode::get_all_in_tournament(db, tournament_uuid).await?;
         let edges = domain::tournament_plan_edge::TournamentPlanEdge::get_all_for_sources(db, nodes.iter().map(|n| n.uuid).collect_vec()).await?;
 

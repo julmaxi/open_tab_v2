@@ -1,10 +1,10 @@
-use open_tab_entities::domain::tournament_break::{TournamentBreak};
+
 use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
 use sea_orm::prelude::Uuid;
 
 
 use std::collections::HashSet;
-use std::hash::Hash;
+
 use std::vec;
 use std::{collections::HashMap, error::Error};
 
@@ -261,7 +261,7 @@ pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<U
                     explore_queue.push((*child, prev_breaks.clone()));
                 }
             },
-            domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id: _ } => {
                 let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
                 for child in children {
                     let mut breaks = prev_breaks.clone();
@@ -279,7 +279,7 @@ pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<U
 impl TournamentTreeView {
     async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
-        let breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
+        let _breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
         let nodes = domain::tournament_plan_node::TournamentPlanNode::get_all_in_tournament(db, tournament_uuid).await?;
         let edges = domain::tournament_plan_edge::TournamentPlanEdge::get_all_for_sources(db, nodes.iter().map(|n| n.uuid).collect_vec()).await?;
 

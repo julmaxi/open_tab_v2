@@ -1,13 +1,13 @@
 
-use open_tab_entities::derived_models::{ResultDebate, BackupBallot};
-use open_tab_entities::domain::ballot::Ballot;
-use open_tab_entities::domain::entity::LoadEntity;
-use open_tab_entities::schema;
+use open_tab_entities::derived_models::{ResultDebate};
 
-use sea_orm::QueryOrder;
+
+
+
+
 use sea_orm::prelude::Uuid;
-use std::path::Display;
-use std::{collections::HashMap, error::Error};
+
+use std::{collections::HashMap};
 
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
@@ -17,10 +17,10 @@ use open_tab_entities::prelude::*;
 
 
 
-use itertools::Itertools;
+
 
 use crate::LoadedView;
-use crate::TournamentParticipantsInfo;
+
 
 pub struct LoadedRoundResultsView {
     pub view: RoundResultsView,

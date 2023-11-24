@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap};
+use std::{collections::HashMap};
 
 use async_trait::async_trait;
 use itertools::Itertools;

@@ -46,12 +46,12 @@ impl BreakNodeBackgroundInfo {
         loop {
             let node = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
             match &node.config {
-                PlanNodeType::Break { config, break_id } => {
+                PlanNodeType::Break { config: _, break_id } => {
                     if relevant_break_id.is_none() {
                         relevant_break_id = Some(break_id.clone());
                     }
                 },
-                PlanNodeType::Round { config, rounds } => {
+                PlanNodeType::Round { config: _, rounds } => {
                     preceding_rounds.extend(rounds);
                 }
             }

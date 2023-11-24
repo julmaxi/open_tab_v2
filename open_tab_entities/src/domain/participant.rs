@@ -1,4 +1,4 @@
-use std::{error::Error, collections::{HashMap, hash_map::RandomState}, vec};
+use std::{collections::{HashMap, hash_map::RandomState}, vec};
 
 use async_trait::async_trait;
 use base64::Engine;

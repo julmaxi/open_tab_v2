@@ -1,22 +1,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, time::Duration, iter::zip, borrow::BorrowMut, path::{PathBuf, Path}, fs::{File, create_dir}, sync::PoisonError, process::id};
+use std::{collections::{HashMap}, error::Error, fmt::{Display, Formatter, Debug}, iter::zip, path::{PathBuf, Path}, fs::{File}};
 
 use identity::IdentityProvider;
 use migration::{MigratorTrait};
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, get_changed_entities_from_log, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, app};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::{CreateTournamentRequest}, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}};
 //use open_tab_server::{TournamentChanges};
 use reqwest::Client;
-use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, QueryOrder, IntoActiveModel, ActiveValue, QuerySelect};
-use tauri::{async_runtime::block_on, State, AppHandle, Manager, api};
+use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue, QuerySelect};
+use tauri::{async_runtime::block_on, State, AppHandle, Manager};
 use open_tab_entities::prelude::*;
 use itertools::{Itertools};
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::{TournamentStatusView, LoadedTournamentStatusView}, break_relevant_tab_view::BreakRelevantTabView};
+use open_tab_app_backend::{View, draw_view::{DrawBallot}, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::{LoadedTournamentStatusView}, break_relevant_tab_view::BreakRelevantTabView};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -796,13 +796,13 @@ async fn get_settings(settings: State<'_, RwLock<AppSettings>>) -> Result<AppSet
 #[tauri::command]
 async fn open_tournament(
     handle: AppHandle,
-    client: State<'_, Client>,
+    _client: State<'_, Client>,
     open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     identity_provider: State<'_, Arc<IdentityProvider>>,
-    db: State<'_, DatabaseConnection>,
+    _db: State<'_, DatabaseConnection>,
     tournament_id: Uuid
 ) -> Result<(), ()> {
-    let tournament_window = tauri::WindowBuilder::new(
+    let _tournament_window = tauri::WindowBuilder::new(
         &handle,
         &format!("tournament:{}", tournament_id.to_string()), /* the unique window label */
         tauri::WindowUrl::App("index.html".into())
@@ -894,7 +894,7 @@ impl OpenTournamentManager {
         let tournament_remote = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(id)).one(&*app_handle.state::<DatabaseConnection>()).await.unwrap();
 
         if let Some(tournament_remote) = tournament_remote {
-            let remote = settings.known_remotes.iter().find(|r| r.url == tournament_remote.url).unwrap();
+            let _remote = settings.known_remotes.iter().find(|r| r.url == tournament_remote.url).unwrap();
             let process = TournamentUpdateProcess {
                 tournament_id: id,
                 app_handle: app_handle.clone(),
@@ -992,7 +992,7 @@ impl TournamentUpdateProcess {
             let target_tournament_remote = target_tournament_remote.unwrap();
             transaction.rollback().await.unwrap();
 
-            let settings : State<'_, RwLock<AppSettings>> = self.app_handle.state();
+            let _settings : State<'_, RwLock<AppSettings>> = self.app_handle.state();
             let api_key = self.identity_provider.try_get_key(&target_tournament_remote.url).await;
             
             let api_key = if let Some(api_key) = api_key {
@@ -1093,7 +1093,7 @@ impl TournamentUpdateProcess {
 
 #[tauri::command]
 async fn set_remote(
-    app: AppHandle, client: State<'_, Client>,
+    app: AppHandle, _client: State<'_, Client>,
     db: State<'_, DatabaseConnection>,
     open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     view_cache: State<'_, Mutex<ViewCache>>,
@@ -1103,7 +1103,7 @@ async fn set_remote(
     remote_url: String) -> Result<(), ()> {
     let settings = settings_lock.read().await;
 
-    let remote = settings.known_remotes.iter().find(|r| r.url == remote_url).map(|r| r.clone()).ok_or(())?;
+    let _remote = settings.known_remotes.iter().find(|r| r.url == remote_url).map(|r| r.clone()).ok_or(())?;
 
     /*let account_id = if let Some(account_id) = remote.account_id {
         todo!();
@@ -1289,7 +1289,7 @@ async fn run_login(
     remote_url: String,
     user_name: String,
     password: String,
-    open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
+    _open_tournament_manager: State<'_, Arc<Mutex<OpenTournamentManager>>>,
     settings: State<'_, RwLock<AppSettings>>,
     identity_provider: Arc<IdentityProvider>
 ) -> Result<(), LoginError> {
@@ -1314,7 +1314,7 @@ async fn run_login(
     }
 
     
-    let all_remotes = open_tab_entities::schema::tournament_remote::Entity::find().filter(
+    let _all_remotes = open_tab_entities::schema::tournament_remote::Entity::find().filter(
         open_tab_entities::schema::tournament_remote::Column::Url.eq(remote_url.clone())
     ).all(&*db).await.unwrap();
 
@@ -1368,7 +1368,7 @@ async fn run_login(
 
 #[tauri::command]
 async fn create_user_account_for_remote(
-    app_handle: AppHandle,
+    _app_handle: AppHandle,
     db: State<'_, DatabaseConnection>,
     client: State<'_, Client>,
     settings: State<'_, RwLock<AppSettings>>,

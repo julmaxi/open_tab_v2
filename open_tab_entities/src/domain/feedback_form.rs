@@ -1,13 +1,13 @@
-use std::{error::Error, collections::HashMap, ops::BitOr, str::FromStr};
+use std::{collections::HashMap, ops::BitOr, str::FromStr};
 
 use async_trait::async_trait;
-use itertools::{Itertools, izip};
+use itertools::{Itertools};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::{utilities::{load_many, BatchLoad}, schema};
+use crate::{utilities::{BatchLoad}, schema};
 
-use sea_orm::{prelude::*, LoaderTrait, ConnectionTrait, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
+use sea_orm::{prelude::*, ConnectionTrait, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
 
 use super::{entity::LoadEntity, TournamentEntity};
 

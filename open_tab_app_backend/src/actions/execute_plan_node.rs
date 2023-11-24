@@ -1,4 +1,4 @@
-use std::{error::Error, iter::zip, sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
+use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
@@ -7,7 +7,7 @@ use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use sea_orm::prelude::*;
 
-use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}, tab_draw::{pair_teams, pair_speakers, reverse_fold, pair_consequtive_speakers, TeamPair, assign_teams}, flow_optimization::{OptimizationState, OptimizationOptions}}, TournamentParticipantsInfo, draw_view::{DrawBallot, DrawTeam, DrawSpeaker, DrawAdjudicator, SetDrawAdjudicator}, views};
+use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}, tab_draw::{pair_teams, pair_speakers, TeamPair, assign_teams}, flow_optimization::{OptimizationState, OptimizationOptions}}, TournamentParticipantsInfo, draw_view::{DrawBallot, DrawTeam, DrawSpeaker, DrawAdjudicator, SetDrawAdjudicator}, views};
 use serde::{Serialize, Deserialize};
 
 use super::{ActionTrait, edit_tree::reindex_rounds};
@@ -96,7 +96,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     while let Some(curr_node_id) = curr_node_id_option {
         let node: &TournamentPlanNode = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
         match &node.config {
-            PlanNodeType::Break { config, break_id } => {
+            PlanNodeType::Break { config: _, break_id } => {
                 if relevant_break_id.is_none() {
                     relevant_break_id = Some(break_id.clone());
 
@@ -105,7 +105,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                     }
                 }
             },
-            PlanNodeType::Round { config, rounds } => {
+            PlanNodeType::Round { config: _, rounds } => {
                 if immediately_preceding_round_id.is_none() && rounds.len() > 0 {
                     immediately_preceding_round_id = Some(rounds.last().unwrap().clone());
 
@@ -199,7 +199,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     all_nodes.insert(node_id, original_node);
 
     let ballots = match config {
-        RoundGroupConfig::Preliminaries { num_roundtrips } => {
+        RoundGroupConfig::Preliminaries { num_roundtrips: _ } => {
             let generator = PreliminaryRoundGenerator {
                 draw_mode: PreliminariesDrawMode::AvoidClashes,
                 randomization_scale: 0.5
@@ -385,7 +385,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
 
     let all_nodes = break_background.all_nodes;
     let preceding_rounds = break_background.preceding_rounds;
-    let relevant_break = break_background.relevant_break_id;
+    let _relevant_break = break_background.relevant_break_id;
 
     let speaker_info = TournamentParticipantsInfo::load(db, tournament_id).await?;
 
@@ -525,7 +525,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             }
 
             let mut breaking_teams : Vec<Uuid> = speaker_info.teams_by_id.iter().filter_map(
-                |(team_id, team)| {
+                |(team_id, _team)| {
                     if !non_breaking_teams.contains(team_id) {
                         Some(*team_id)
                     }

@@ -1,8 +1,8 @@
-use std::{error::Error, collections::{HashMap, self}};
+use std::{collections::{HashMap, self}};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{round::{self}, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType, group, schema::tournament_round};
+use open_tab_entities::{prelude::*, domain::{tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType};
 
 use sea_orm::prelude::*;
 
@@ -136,7 +136,7 @@ impl ActionTrait for EditTreeAction {
 
                 let mut last_id = first_round_id;
 
-                for stage_idx in 1..num_stages {
+                for _stage_idx in 1..num_stages {
                     let break_ = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::KnockoutBreak));
                     let round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                         config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {

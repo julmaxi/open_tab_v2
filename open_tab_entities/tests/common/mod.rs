@@ -1,8 +1,8 @@
-use std::error::Error;
+
 
 use migration::MigratorTrait;
 use open_tab_entities::{mock, EntityGroupTrait};
-use sea_orm::{prelude::*, Database, Statement, ActiveValue};
+use sea_orm::{prelude::*, Database, Statement};
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;

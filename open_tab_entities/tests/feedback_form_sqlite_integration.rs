@@ -1,5 +1,5 @@
 mod common;
-use std::error::Error;
+
 
 use common::set_up_db;
 use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackFormVisibility}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType, RangeQuestionConfig}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::TournamentEntity};
@@ -292,7 +292,7 @@ async fn test_update_response() -> Result<(), anyhow::Error> {
 
     form.save(&db, true).await?;
 
-    let response = FeedbackResponse {
+    let _response = FeedbackResponse {
         uuid: Uuid::from_u128(7000),
 
         author_participant_id: Uuid::from_u128(2000),

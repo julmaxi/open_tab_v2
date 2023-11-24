@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap, default};
+use std::{collections::HashMap, default};
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement};

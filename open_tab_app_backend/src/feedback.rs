@@ -519,7 +519,7 @@ wings_for_chairs: chairs_for_wings
         ";
 
         let result = serde_yaml::from_str::<super::FormTemplate>(test_string).unwrap();
-        let (forms, questions) = result.into_forms_and_questions_for_tournament(Uuid::new_v4()).unwrap();
+        let (forms, _questions) = result.into_forms_and_questions_for_tournament(Uuid::new_v4()).unwrap();
         assert_eq!(forms.len(), 1);
         assert_eq!(forms[0].visibility, domain::feedback_form::FeedbackFormVisibility {
             show_chairs_for_wings: true,

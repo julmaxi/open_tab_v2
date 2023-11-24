@@ -1,11 +1,11 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap};
 
 use open_tab_entities::{
     prelude::{Ballot, BallotTeam, Speech, SpeechRole, TournamentRound},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use sea_orm::prelude::Uuid;
-use serde::{Deserialize, Serialize};
+
 use thiserror::Error;
 
 use crate::{
@@ -299,7 +299,7 @@ impl PreliminaryRoundGenerator {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, error::Error};
+    use std::{collections::HashMap};
 
     use itertools::Itertools;
     use open_tab_entities::prelude::TournamentRound;

@@ -2,10 +2,10 @@ use open_tab_macros::SimpleEntity;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::schema::tournament;
+
 
 use async_trait::async_trait;
-use sea_orm::{prelude::*, ConnectionTrait};
+use sea_orm::{prelude::*};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]

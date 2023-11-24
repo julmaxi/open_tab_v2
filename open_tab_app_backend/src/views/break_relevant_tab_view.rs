@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
-use open_tab_entities::{tab::TabView, domain::{entity::LoadEntity, tournament_plan_node::PlanNodeType}, info::TournamentParticipantsInfo, EntityGroup};
+use open_tab_entities::{EntityGroup};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
-use serde::Serialize;
 
-use crate::{views, LoadedView};
+
+use crate::{LoadedView};
 
 pub use open_tab_entities::tab::BreakRelevantTabView;
 

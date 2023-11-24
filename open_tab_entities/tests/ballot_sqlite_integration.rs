@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashMap, default};
+use std::{collections::HashMap, default};
 
 use itertools::Itertools;
 use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};

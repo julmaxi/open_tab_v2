@@ -1,13 +1,13 @@
-use std::{collections::HashMap, default};
+use std::{collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{prelude::{TournamentRound, Ballot, BallotTeam, Speech, SpeechRole}, domain::{ballot::BallotParseError, self, entity::LoadEntity}};
+use open_tab_entities::{prelude::{Ballot, BallotTeam, Speech, SpeechRole}, domain::{self, entity::LoadEntity}};
 use sea_orm::{prelude::Uuid, ConnectionTrait};
-use serde::{Serialize, Deserialize};
-use std::error::Error;
-use crate::{draw_view::DrawBallot, TournamentParticipantsInfo};
 
-use super::clashes::{ClashMap, ClashType, ClashMapConfig};
+
+use crate::{draw_view::DrawBallot};
+
+
 
 
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use itertools::Itertools;
 use std::iter::zip;
-use std::error::Error;
+
 use sea_orm::{prelude::Uuid, ConnectionTrait};
 
 #[async_trait]

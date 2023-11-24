@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use std::fmt::Display;
 
-use std::hash::Hash;
-use std::{collections::HashMap, error::Error};
+
+
+use std::{collections::HashMap};
 
 use async_trait::async_trait;
 use open_tab_entities::domain::entity::LoadEntity;
@@ -19,7 +19,7 @@ use itertools::izip;
 use itertools::Itertools;
 
 
-use crate::draw;
+
 use crate::draw::evaluation::{DrawEvaluator, DrawIssue};
 use crate::tab_view::TeamRoundRole;
 

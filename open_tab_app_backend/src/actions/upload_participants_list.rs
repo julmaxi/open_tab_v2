@@ -1,6 +1,6 @@
-use std::{error::Error, collections::HashMap};
+use std::{collections::HashMap};
 
-use base64::{engine::general_purpose, Engine};
+
 use itertools::{Itertools};
 use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
