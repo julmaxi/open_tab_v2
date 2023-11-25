@@ -689,7 +689,7 @@ async fn pull_remote_changes<C>(
 
                 return Ok(None);
             }
-            ReconciliationOutcome::Reject => {
+            ReconciliationOutcome::Reject | ReconciliationOutcome::InvalidTournament => {
                 transaction.rollback().await?;
                 return Err(SyncError::Other("Reconciliation failed".to_string()));
             }
@@ -742,7 +742,7 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
     
                 transaction.commit().await?;
             }
-            open_tab_server::sync::APIReconciliationOutcome::Reject => {
+            open_tab_server::sync::APIReconciliationOutcome::Reject | open_tab_server::sync::APIReconciliationOutcome::InvalidTournament => {
                 return Err(SyncError::SyncRejection);
             }
         };    
