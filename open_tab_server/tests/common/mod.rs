@@ -79,7 +79,7 @@ impl Fixture {
             });
             group.save_all_and_log_for_tournament(&state.db, group.tournaments[0].uuid).await.unwrap();
             let pwd = hash_password("test".to_string()).unwrap();
-            let new_user_uuid = Uuid::new_v4();
+            let new_user_uuid = Uuid::from_u128(900_000);
             let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
                 uuid: new_user_uuid,
                 password_hash: pwd,
@@ -90,8 +90,14 @@ impl Fixture {
 
             let raw_key = [0, 0, 0, 0];
 
-            let key = create_key(&raw_key, new_user_uuid, Some(Uuid::from_u128(1))).unwrap();
+            let key = create_key(&raw_key, new_user_uuid, None).unwrap();
             key.into_active_model().insert(&state.db).await.unwrap();
+
+            let user_tournament = open_tab_entities::schema::user_tournament::Model {
+                user_id: new_user_uuid,
+                tournament_id: group.tournaments[0].uuid,
+            };
+            user_tournament.into_active_model().insert(&state.db).await.unwrap();
 
             auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&raw_key) };
             setup_func(state.db.clone()).await;

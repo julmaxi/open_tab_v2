@@ -157,12 +157,14 @@ pub enum MergeStrategy {
 
 pub enum ReconciliationOutcome {
     Reject,
+    InvalidTournament,
     Success {new_last_common_ancestor: Uuid, entity_group: Option<EntityGroup>}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum APIReconciliationOutcome {
     Reject,
+    InvalidTournament,
     Success {new_last_common_ancestor: Uuid}
 }
 
@@ -170,12 +172,15 @@ impl From<ReconciliationOutcome> for APIReconciliationOutcome {
     fn from(outcome: ReconciliationOutcome) -> Self {
         match outcome {
             ReconciliationOutcome::Reject => APIReconciliationOutcome::Reject,
+            ReconciliationOutcome::InvalidTournament => APIReconciliationOutcome::InvalidTournament,
             ReconciliationOutcome::Success {new_last_common_ancestor, entity_group: _} => APIReconciliationOutcome::Success {
                 new_last_common_ancestor,
             }
         }
     }
 }
+
+
 
 pub async fn reconcile_changes<C>(
     db: &C,
@@ -260,8 +265,24 @@ pub async fn reconcile_changes<C>(
         }
     }
 
+    dbg!(&entities_to_save);
     let group = EntityGroup::from(entities_to_save);
+
+    let deleted_tournamet_uuids = group.get_all_deletion_tournaments(db).await?;
+    if !deleted_tournamet_uuids.into_iter().all(|t| t == Some(tournament_id)) {
+        return Ok(
+            ReconciliationOutcome::InvalidTournament
+        );
+    }
     group.save_all(db).await?;    
+
+    let added_tournament_uuids = group.get_all_tournaments(db).await?;
+    if !added_tournament_uuids.into_iter().all(|t| t == Some(tournament_id)) {
+        return Ok(
+            ReconciliationOutcome::InvalidTournament
+        );
+    }
+
     Ok(
         ReconciliationOutcome::Success {
             new_last_common_ancestor,
@@ -295,14 +316,14 @@ async fn handle_sync_push_request(
     }
 
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        return Err(APIError::new("User is not authorized for tournament administration".into()));
+        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not authorized for tournament administration")));
     }
 
     let transaction = db.begin().await.map_err(|_| {
         tracing::error!("Failed to start transaction");
         APIError::new("Failed to start transaction".into())
     })?;
-
+ 
     let outcome = reconcile_changes(
         &transaction,
         tournament_id,
@@ -312,15 +333,32 @@ async fn handle_sync_push_request(
         false
     ).await?;
 
-    transaction.commit().await.map_err(handle_error)?;
-
-    Ok(
-        Json(
-            SyncRequestResponse {
-                outcome: outcome.into()
-            }
-        )
-    )
+    match &outcome {
+        ReconciliationOutcome::Reject => {
+            transaction.rollback().await.map_err(handle_error)?;
+            return Ok(
+                Json(
+                    SyncRequestResponse {
+                        outcome: outcome.into()
+                    }
+                )
+            )
+        }
+        ReconciliationOutcome::InvalidTournament => {
+            transaction.rollback().await.map_err(handle_error)?;
+            return Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid tournament")));
+        },
+        ReconciliationOutcome::Success { .. } => {
+            transaction.commit().await.map_err(handle_error)?;
+            return Ok(
+                Json(
+                    SyncRequestResponse {
+                        outcome: outcome.into()
+                    }
+                )
+            )
+        },
+    }
 }
 
 pub fn router() -> Router<AppState> {

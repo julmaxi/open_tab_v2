@@ -12,9 +12,7 @@ export default function TournamentViewRoute(props) {
     let tournament = useContext(TournamentContext);
 
     let statusView = useView({type: "TournamentStatus", tournament_uuid: tournament.uuid}, null);
-
     let settings = useSettings();
-
     let tournamentId = useContext(TournamentContext).uuid;
 
     return <div className="h-full w-full">
@@ -28,7 +26,6 @@ export default function TournamentViewRoute(props) {
                         invoke("set_remote", {remoteUrl: url, tournamentId: tournamentId});
                         }
                     }
-                    
                 />
                 <p>
                     {statusView.annoucements_password}
