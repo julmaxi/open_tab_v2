@@ -7,7 +7,7 @@ use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution
 
 use sea_orm::prelude::*;
 
-use crate::{participants_list_view::ParticipantEntry};
+use crate::participants_list_view::ParticipantEntry;
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;

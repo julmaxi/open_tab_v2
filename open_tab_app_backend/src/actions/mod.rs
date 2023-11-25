@@ -4,9 +4,6 @@
 
 use open_tab_entities::prelude::*;
 
-use sea_orm::prelude::*;
-
-
 use serde::{Serialize, Deserialize};
 
 mod base;

@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 
 use sea_orm::prelude::*;
-use open_tab_entities::{prelude::*};
+use open_tab_entities::prelude::*;
 
 
 

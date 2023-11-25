@@ -11,7 +11,7 @@ use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
 
 use open_tab_entities::prelude::*;
-use open_tab_entities::domain::{ballot::Ballot};
+use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::schema::{self};
 use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
 use serde::{Serialize, Deserialize};
