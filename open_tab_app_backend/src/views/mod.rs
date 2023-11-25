@@ -33,7 +33,7 @@ use self::breaks::LoadedBreaksView;
 
 use self::draw_view::LoadedDrawView;
 
-use sea_orm::ConnectionTrait;
+
 use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
 

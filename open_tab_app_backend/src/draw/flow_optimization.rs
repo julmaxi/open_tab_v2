@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use itertools::Itertools;
 use open_tab_entities::{domain::{self}, prelude::{Ballot, Participant, TournamentRound}};
-use sea_orm::{prelude::Uuid, ConnectionTrait};
+use sea_orm::{prelude::Uuid};
 
 use mcmf::{GraphBuilder, Capacity, Vertex, Cost};
 

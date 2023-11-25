@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use open_tab_entities::{domain::{tournament_plan_node::PlanNodeType, self}, EntityGroup};
-use sea_orm::{prelude::Uuid, ConnectionTrait};
+use sea_orm::{prelude::Uuid};
 use serde::Serialize;
 
 use crate::{LoadedView, tournament_tree_view::get_round_names};

@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{utilities::BatchLoad, schema};
 
-use sea_orm::{prelude::*, ConnectionTrait, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
+use sea_orm::{prelude::*, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
 
 use super::{entity::LoadEntity, TournamentEntity};
 

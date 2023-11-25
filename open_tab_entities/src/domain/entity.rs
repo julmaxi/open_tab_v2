@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use std::iter::zip;
 
-use sea_orm::{prelude::Uuid, ConnectionTrait};
+use sea_orm::{prelude::Uuid};
 
 #[async_trait]
 pub trait TournamentEntity: Send + Sync {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use open_tab_entities::EntityGroup;
-use sea_orm::{prelude::Uuid, ConnectionTrait};
+use sea_orm::{prelude::Uuid};
 
 
 use crate::LoadedView;

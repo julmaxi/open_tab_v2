@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use open_tab_entities::{prelude::{Ballot, BallotTeam, Speech, SpeechRole}, domain::{self, entity::LoadEntity}};
-use sea_orm::{prelude::Uuid, ConnectionTrait};
+use sea_orm::{prelude::Uuid};
 
 
 use crate::draw_view::DrawBallot;

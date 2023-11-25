@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use sea_orm::{ConnectionTrait, EntityTrait, ColumnTrait, QueryFilter, ActiveValue, ActiveModelTrait};
+use sea_orm::{EntityTrait, ColumnTrait, QueryFilter, ActiveValue, ActiveModelTrait};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use uuid::Uuid;
-use sea_orm::{ConnectionTrait, prelude::*, QuerySelect};
+use sea_orm::{prelude::*, QuerySelect};
 
 use crate::{schema, prelude::SpeechRole, domain::ballot::JudgeRole};
 

@@ -2,7 +2,7 @@ use std::{fs::File};
 
 use open_tab_entities::{schema, EntityType};
 use open_tab_entities::{EntityGroup, EntityGroupTrait, Entity};
-use sea_orm::{prelude::*, ConnectionTrait};
+use sea_orm::{prelude::*};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 

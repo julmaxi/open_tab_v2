@@ -7,7 +7,7 @@ use open_tab_entities::{
     prelude::{Ballot, TournamentRound},
     schema,
 };
-use sea_orm::{prelude::Uuid, ConnectionTrait, EntityTrait};
+use sea_orm::{prelude::Uuid, EntityTrait};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
