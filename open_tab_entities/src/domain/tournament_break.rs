@@ -70,6 +70,10 @@ pub struct TournamentBreak {
 
     pub breaking_teams: Vec<Uuid>,
     pub breaking_speakers: Vec<Uuid>,
+    //Note that an empty list of adjudicators means
+    //that there is no adjudicator break at all.
+    //All adjudicators proceed to the next round.
+    pub breaking_adjudicators: Vec<Uuid>,
 }
 
 impl TournamentBreak {
@@ -79,6 +83,7 @@ impl TournamentBreak {
             tournament_id,
             breaking_teams: vec![],
             breaking_speakers: vec![],
+            breaking_adjudicators: vec![],
         }
     }
 
@@ -91,13 +96,15 @@ impl TournamentBreak {
 
         let teams = breaks.load_many(schema::tournament_break_team::Entity, db).await?;
         let speakers = breaks.load_many(schema::tournament_break_speaker::Entity, db).await?;
+        let adjudicators = breaks.load_many(schema::tournament_break_adjudicator::Entity, db).await?;
 
         let r : Result<Vec<_>, _> = izip!(
             breaks,
             teams,
-            speakers
-        ).into_iter().map(|(break_row, teams, speakers)| {
-            Self::from_rows(break_row, teams, speakers)
+            speakers,
+            adjudicators
+        ).into_iter().map(|(break_row, teams, speakers, adjudicators)| {
+            Self::from_rows(break_row, teams, speakers, adjudicators)
         }).collect();
         r
     }
@@ -106,15 +113,18 @@ impl TournamentBreak {
         break_row: schema::tournament_break::Model,
         teams: Vec<schema::tournament_break_team::Model>,
         speakers: Vec<schema::tournament_break_speaker::Model>,
+        adjudicators: Vec<schema::tournament_break_adjudicator::Model>,
     ) -> Result<Self, anyhow::Error> {
         let breaking_teams = teams.into_iter().sorted_by_key(|team| team.position).map(|t| t.team_id).collect();
         let breaking_speakers = speakers.into_iter().sorted_by_key(|speaker| speaker.position).map(|s| s.speaker_id).collect();
+        let breaking_adjudicators = adjudicators.into_iter().sorted_by_key(|a| a.adjudicator_id).map(|a| a.adjudicator_id).collect();
 
         Ok(Self {
             uuid: break_row.uuid,
             tournament_id: break_row.tournament_id,
             breaking_teams,
             breaking_speakers,
+            breaking_adjudicators
         })
     }
 }
@@ -130,13 +140,15 @@ impl LoadEntity for TournamentBreak {
 
         let teams = breaks.load_many(schema::tournament_break_team::Entity, db).await?;
         let speakers = breaks.load_many(schema::tournament_break_speaker::Entity, db).await?;
+        let adjudicators = breaks.load_many(schema::tournament_break_adjudicator::Entity, db).await?;
 
         let r : Result<Vec<_>, _> = izip!(
             breaks,
             teams,
-            speakers
-        ).into_iter().map(|(break_row, teams, speakers)| {
-            Self::from_rows(break_row, teams, speakers)
+            speakers,
+            adjudicators
+        ).into_iter().map(|(break_row, teams, speakers, adjudicators)| {
+            Self::from_rows(break_row, teams, speakers, adjudicators)
         }).collect();
         r.map(|r| super::utils::pad(r, &exists_mask))
     }
@@ -262,6 +274,42 @@ impl TournamentEntity for TournamentBreak {
                 }).collect_vec();
 
                 schema::tournament_break_speaker::Entity::insert_many(to_insert).exec(db).await?;
+            }
+        };
+
+        if guarantee_insert {
+            if self.breaking_adjudicators.len() > 0 {
+                schema::tournament_break_adjudicator::Entity::insert_many(self.breaking_adjudicators.iter().map(|a| {
+                    schema::tournament_break_adjudicator::ActiveModel {
+                        tournament_break_id: ActiveValue::Set(self.uuid),
+                        adjudicator_id: ActiveValue::Set(*a),
+                    }
+                }).collect_vec()).exec(db).await?;    
+            }
+        } else {
+            let prev_adjudicators = schema::tournament_break_adjudicator::Entity::find()
+                .filter(schema::tournament_break_adjudicator::Column::TournamentBreakId.eq(self.uuid))
+                .all(db)
+                .await?;
+
+            let to_delete = prev_adjudicators.iter().filter(|a| !self.breaking_adjudicators.contains(&a.adjudicator_id)).map(|a| a.adjudicator_id).collect_vec();
+            let to_add = self.breaking_adjudicators.iter().filter(|a| !prev_adjudicators.iter().any(|p| p.adjudicator_id == **a)).collect_vec();
+
+            if to_delete.len() > 0 {
+                schema::tournament_break_adjudicator::Entity::delete_many().filter(
+                    schema::tournament_break_adjudicator::Column::TournamentBreakId.eq(self.uuid)
+                        .and(schema::tournament_break_adjudicator::Column::AdjudicatorId.is_in(to_delete))
+                ).exec(db).await?;    
+            }
+
+            let to_insert = to_add.into_iter().map(|adj_id| {
+                schema::tournament_break_adjudicator::ActiveModel {
+                    tournament_break_id: ActiveValue::Set(self.uuid),
+                    adjudicator_id: ActiveValue::Set(*adj_id),
+                }
+            }).collect_vec();
+            if to_insert.len() > 0 {
+                schema::tournament_break_adjudicator::Entity::insert_many(to_insert).exec(db).await?;
             }
         };
 

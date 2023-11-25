@@ -15,15 +15,3 @@ impl RelationTrait for MissingRoundRelations {
         }
     }
 }
-
-impl Related<super::tournament_break_speaker::Entity> for super::tournament_break::Entity {
-    fn to() -> RelationDef {
-        MissingRoundRelations::TournamentBreakSpeaker.def()
-    }
-}
-
-impl Related<super::tournament_break_team::Entity> for super::tournament_break::Entity {
-    fn to() -> RelationDef {
-        MissingRoundRelations::TournamentBreakTeam.def()
-    }
-}
