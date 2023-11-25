@@ -28,7 +28,7 @@ pub struct LoadedRoundResultsView {
 }
 
 impl LoadedRoundResultsView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedRoundResultsView {
                 round_id: round_uuid,
@@ -68,7 +68,7 @@ pub struct RoundResultsView {
 
 
 impl RoundResultsView {
-    async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    async fn load<C>(db: &C, round_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
 
         Ok(RoundResultsView {
             debates: ResultDebate::load_all_from_round(db, round_uuid).await?

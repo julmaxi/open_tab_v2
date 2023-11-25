@@ -164,7 +164,7 @@ impl DrawEvaluator {
         rounds: &Vec<TournamentRound>,
     ) -> Result<Self, DrawEvaluationError>
     where
-        C: ConnectionTrait,
+        C: sea_orm::ConnectionTrait,
     {
         if !rounds.iter().all(|r| r.tournament_id == tournament_id) {
             return Err(DrawEvaluationError::RoundsTournamentMismatch);
@@ -204,7 +204,7 @@ impl DrawEvaluator {
         target_round_uuid: Uuid,
     ) -> Result<Self, DrawEvaluationError>
     where
-        C: ConnectionTrait,
+        C: sea_orm::ConnectionTrait,
     {
         let rounds = TournamentRound::get_all_in_tournament(db, tournament_id)
             .await?

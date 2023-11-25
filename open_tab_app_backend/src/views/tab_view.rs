@@ -31,7 +31,7 @@ pub struct LoadedTabView {
 }
 
 impl LoadedTabView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedTabView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedTabView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedTabView {
                 tournament_uuid,

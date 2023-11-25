@@ -21,7 +21,7 @@ pub struct LoadedInstitutionsView {
 }
 
 impl LoadedInstitutionsView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             Self {
                 tournament_id: tournament_uuid,
@@ -65,7 +65,7 @@ pub struct InstitutionOverview {
 
 
 impl InstitutionsView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<InstitutionsView, anyhow::Error> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<InstitutionsView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let rounds = tournament_institution::Entity::find().filter(
             tournament_institution::Column::TournamentId.eq(tournament_uuid)
         ).order_by_asc(tournament_institution::Column::Name).all(db).await?;

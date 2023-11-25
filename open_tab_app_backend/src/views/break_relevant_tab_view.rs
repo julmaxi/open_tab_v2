@@ -15,7 +15,7 @@ pub struct LoadedBreakRelevantTabView {
 }
 
 impl LoadedBreakRelevantTabView {
-    pub async fn load<C>(db: &C, node_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, node_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedBreakRelevantTabView {
                 node_uuid,

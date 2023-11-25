@@ -75,7 +75,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
 
 
 #[allow(dead_code)]
-async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+async fn test_clash_roundtrip_in_db<C>(db: &C, clash: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
     clash.save(db, as_insert).await?;
 
     let mut saved_participant = Participant::get_many(

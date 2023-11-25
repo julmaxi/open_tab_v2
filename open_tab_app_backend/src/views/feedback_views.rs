@@ -16,7 +16,7 @@ pub struct LoadedFeedbackOverviewView {
 
 
 impl LoadedFeedbackOverviewView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedFeedbackOverviewView {
                 tournament_id: tournament_uuid,
@@ -76,7 +76,7 @@ pub struct ParticipantEntry {
 }
 
 impl FeedbackOverviewView {
-    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let adjudicators = open_tab_entities::schema::adjudicator::Entity::find()
             .find_also_related(open_tab_entities::schema::participant::Entity)
             .filter(open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id))
@@ -196,7 +196,7 @@ pub struct LoadedFeedbackDetailView {
 }
 
 impl LoadedFeedbackDetailView {
-    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedFeedbackDetailView {
                 participant_id: participant_id,
@@ -214,7 +214,7 @@ pub struct FeedbackDetailView {
 }
 
 impl FeedbackDetailView {
-    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(db).await?;
         let participant = participant.ok_or(
             anyhow::anyhow!("Participant with id {} not found", participant_id)

@@ -35,7 +35,7 @@ impl BreakNodeBackgroundInfo {
         }
     }
 
-    pub async fn load_for_break_node<C>(db: &C, tournament_id: Uuid, node_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load_for_break_node<C>(db: &C, tournament_id: Uuid, node_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_id).await?;
         let edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect()).await?;
         let all_nodes = all_nodes.into_iter().map(|n| (n.uuid, n)).collect::<HashMap<_, _>>();

@@ -28,7 +28,7 @@ impl TournamentPlanEdge {
         }
     }
 
-    pub async fn get_all_for_sources<C>(db: &C, node_uuids: Vec<Uuid>) -> Result<Vec<Self>, DbErr> where C: ConnectionTrait {
+    pub async fn get_all_for_sources<C>(db: &C, node_uuids: Vec<Uuid>) -> Result<Vec<Self>, DbErr> where C: sea_orm::ConnectionTrait {
         let edges = schema::tournament_plan_edge::Entity::find()
             .filter(schema::tournament_plan_edge::Column::SourceId.is_in(node_uuids))
             .all(db)
@@ -37,7 +37,7 @@ impl TournamentPlanEdge {
         Ok(edges.into_iter().map(Self::from_model).collect_vec())
     }
 
-    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let node_tournaments : HashMap<Uuid, Uuid> = schema::tournament_plan_node::Entity::find()
             .select_only()
             .column(schema::tournament_plan_edge::Column::Uuid)

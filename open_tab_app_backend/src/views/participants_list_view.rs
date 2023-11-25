@@ -29,7 +29,7 @@ pub struct LoadedParticipantsListView {
 }
 
 impl LoadedParticipantsListView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedParticipantsListView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedParticipantsListView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedParticipantsListView {
                 tournament_id: tournament_uuid,
@@ -117,7 +117,7 @@ pub enum ParticipantRole {
 
 
 impl ParticipantsListView {
-    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, anyhow::Error> where C: ConnectionTrait {
+    async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<ParticipantsListView, anyhow::Error> where C: sea_orm::ConnectionTrait {
        let participants = domain::participant::Participant::get_all_in_tournament(db, tournament_uuid).await?;
 
        // This is a little hack so we can load all the institutions using the Loader trait

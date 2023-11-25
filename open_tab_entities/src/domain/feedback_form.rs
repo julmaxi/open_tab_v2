@@ -225,7 +225,7 @@ impl FeedbackFormVisibility {
 
 #[async_trait]
 impl LoadEntity for FeedbackForm {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let forms : Vec<Option<schema::feedback_form::Model>> = schema::feedback_form::Entity::batch_load::<_, Uuid>(db, uuids.clone()).await?;
         let mut questions = schema::feedback_form_question::Entity::find()
             .filter(schema::feedback_form_question::Column::FeedbackFormId.is_in(forms.iter().filter_map(|x| x.clone().map(|x : schema::feedback_form::Model| x.uuid.clone())).collect::<Vec<Uuid>>()))
@@ -247,7 +247,7 @@ impl LoadEntity for FeedbackForm {
 
 #[async_trait]
 impl TournamentEntity for FeedbackForm {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let existing_form = if guarantee_insert {
             None
         }
@@ -319,18 +319,18 @@ impl TournamentEntity for FeedbackForm {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(self.tournament_id)
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::feedback_form::Entity::delete_many().filter(schema::feedback_form::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }
 }
 
 impl FeedbackForm {
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let forms = schema::feedback_form::Entity::find()
             .filter(schema::feedback_form::Column::TournamentId.eq(tournament_id))
             .all(db).await?;

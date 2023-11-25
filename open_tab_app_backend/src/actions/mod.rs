@@ -53,7 +53,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub async fn execute<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+    pub async fn execute<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         match self {
             Action::UpdateDraw{action} => action.get_changes(db).await,
             Action::UpdateParticipants{action} => action.get_changes(db).await,

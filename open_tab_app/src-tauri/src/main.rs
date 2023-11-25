@@ -367,14 +367,14 @@ impl ViewCache {
         }
     }
 
-    pub async fn get_view_string<C>(&mut self, view: View, db: &C) -> Result<String, anyhow::Error> where C: ConnectionTrait {
+    pub async fn get_view_string<C>(&mut self, view: View, db: &C) -> Result<String, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let loaded_view = self.get_view(view, db).await?;
         let view_str = loaded_view.view_string().await?;
 
         Ok(view_str)
     }
 
-    pub async fn force_replace<C>(&mut self, view: View, new_values: Box<dyn LoadedView>, db: &C) -> Result<ChangeNotification, anyhow::Error> where C: ConnectionTrait {
+    pub async fn force_replace<C>(&mut self, view: View, new_values: Box<dyn LoadedView>, db: &C) -> Result<ChangeNotification, anyhow::Error> where C: sea_orm::ConnectionTrait {
         self.cached_views.insert(view.clone(), new_values);
         //FIXME: Hacky
         let view_string = self.get_view_string(view.clone(), db).await?;
@@ -400,7 +400,7 @@ impl ViewCache {
         Ok(out)
     }
 
-    pub async fn get_view<C>(&mut self, view: View, db: &C) -> Result<&Box<dyn LoadedView>, anyhow::Error> where C: ConnectionTrait {
+    pub async fn get_view<C>(&mut self, view: View, db: &C) -> Result<&Box<dyn LoadedView>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let is_loaded = self.cached_views.contains_key(&view);
 
         if !is_loaded {
@@ -578,7 +578,7 @@ impl std::fmt::Display for SyncError {
 
 impl std::error::Error for SyncError {}
 
-async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<EntityGroup>, SyncError> where C: ConnectionTrait {
+async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<EntityGroup>, SyncError> where C: sea_orm::ConnectionTrait {
     if changes.debate_backup_ballots.is_empty() {
         return Ok(None);
     }
@@ -628,7 +628,7 @@ async fn pull_remote_changes<C>(
     api_key: &String,
     view_cache: &Mutex<ViewCache>, 
     app_handle: &AppHandle
-) -> Result<Option<EntityGroup>, SyncError> where C: ConnectionTrait + TransactionTrait {
+) -> Result<Option<EntityGroup>, SyncError> where C: sea_orm::ConnectionTrait + TransactionTrait {
     let mut remote_url = format!("{}/api/tournament/{}/log", target_tournament_remote.url, target_tournament_remote.tournament_id);
 
     if let Some(last_common_ancestor) = target_tournament_remote.last_synced_change {
@@ -693,7 +693,7 @@ async fn pull_remote_changes<C>(
     Ok(None)
 }
 
-async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, api_key: &String, db: &C) -> Result<(), SyncError> where C: ConnectionTrait + TransactionTrait {
+async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remote::Model, client: &Client, api_key: &String, db: &C) -> Result<(), SyncError> where C: sea_orm::ConnectionTrait + TransactionTrait {
     let remote_url = format!("{}/api/tournament/{}/log", target_tournament_remote.url, target_tournament_remote.tournament_id);
 
     let transaction = db.begin().await?;

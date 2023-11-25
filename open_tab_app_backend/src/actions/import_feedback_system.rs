@@ -20,7 +20,7 @@ pub struct ImportFeedbackSystemAction {
 
 #[async_trait]
 impl ActionTrait for ImportFeedbackSystemAction {
-    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut g = EntityGroup::new();
 
         let reader = File::open(self.template_path)?;

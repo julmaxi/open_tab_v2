@@ -29,7 +29,7 @@ pub enum UpdateDrawError {
 
 #[async_trait]
 impl ActionTrait for UpdateDrawAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         let values = self.updated_ballots.iter().map(|d| d.uuid).collect_vec();

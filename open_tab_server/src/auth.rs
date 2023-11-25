@@ -35,7 +35,7 @@ pub struct AuthenticatedUser {
 }
 
 impl AuthenticatedUser {
-    pub async fn check_is_authorized_for_tournament_administration<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
+    pub async fn check_is_authorized_for_tournament_administration<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: sea_orm::ConnectionTrait {
         if let Some(authorized_only_for_tournament_id) = self.authorized_only_for_tournament {
             return Ok(authorized_only_for_tournament_id == tournament_id);
         }
@@ -49,7 +49,7 @@ impl AuthenticatedUser {
         }
     }
 
-    pub async fn check_is_authorized_as_participant<C>(&self, db: &C, participant_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
+    pub async fn check_is_authorized_as_participant<C>(&self, db: &C, participant_id: Uuid) -> Result<bool, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let user_participant_id = open_tab_entities::schema::user_participant::Entity::find().filter(
             open_tab_entities::schema::user_participant::Column::UserId.eq(self.uuid).and(
                 open_tab_entities::schema::user_participant::Column::ParticipantId.eq(participant_id)
@@ -58,7 +58,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id == Some(participant_id))
     }
 
-    pub async fn check_is_authorized_as_member_of_team<C>(&self, db: &C, team_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
+    pub async fn check_is_authorized_as_member_of_team<C>(&self, db: &C, team_id: Uuid) -> Result<bool, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let user_participant_id: Option<Uuid> = open_tab_entities::schema::speaker::Entity::find()
         .join(
             sea_orm::JoinType::InnerJoin,
@@ -75,7 +75,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id.is_some())
     }
 
-    pub async fn participant_id_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
+    pub async fn participant_id_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let user_participant_id = open_tab_entities::schema::user_participant::Entity::find()
         .inner_join(
             open_tab_entities::schema::participant::Entity
@@ -88,7 +88,7 @@ impl AuthenticatedUser {
         Ok(user_participant_id)
     }
 
-    pub async fn check_is_authorized_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: ConnectionTrait {
+    pub async fn check_is_authorized_in_tournament<C>(&self, db: &C, tournament_id: Uuid) -> Result<bool, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(self.participant_id_in_tournament(db, tournament_id).await?.is_some())
     }
 }

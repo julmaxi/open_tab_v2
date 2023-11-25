@@ -18,7 +18,7 @@ pub enum ParticipantRoundRole {
     None,
 }
 
-pub async fn query_all_participant_roles<C>(db: &C, participant_uuid: Uuid) -> Result<HashMap<Uuid, ParticipantRoundRole>, DbErr> where C: ConnectionTrait {
+pub async fn query_all_participant_roles<C>(db: &C, participant_uuid: Uuid) -> Result<HashMap<Uuid, ParticipantRoundRole>, DbErr> where C: sea_orm::ConnectionTrait {
     let all_rounds : Vec<Uuid> = schema::tournament_round::Entity::find()
         .select_only()
         .column(schema::tournament_round::Column::Uuid)

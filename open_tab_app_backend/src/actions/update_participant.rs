@@ -24,7 +24,7 @@ pub struct UpdateParticipantsAction {
 
 #[async_trait]
 impl ActionTrait for UpdateParticipantsAction {
-    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+    async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
 
         for participant in self.updated_participants.into_iter() {

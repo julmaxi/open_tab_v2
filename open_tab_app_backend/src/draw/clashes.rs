@@ -56,7 +56,7 @@ impl ClashMap {
         }
     }
 
-    pub async fn new_for_tournament<C>(config: ClashMapConfig, tournament_id: Uuid, db: &C) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn new_for_tournament<C>(config: ClashMapConfig, tournament_id: Uuid, db: &C) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut clash_map = ClashMap::new(config);
 
         let all_clashes = ParticipantClash::get_all_in_tournament(db, tournament_id).await?;

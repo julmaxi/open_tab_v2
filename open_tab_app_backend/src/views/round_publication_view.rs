@@ -24,7 +24,7 @@ pub struct LoadedRoundPublicationView {
 }
 
 impl LoadedRoundPublicationView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedRoundPublicationView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedRoundPublicationView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             LoadedRoundPublicationView {
                 round: TournamentRound::get(db, round_uuid).await?,

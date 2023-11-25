@@ -55,7 +55,7 @@ pub struct FatLog<E, T> where T: EntityTypeId {
     >
 }
 
-pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<Vec<open_tab_entities::schema::tournament_log::Model>, anyhow::Error> where C: ConnectionTrait  {
+pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<Vec<open_tab_entities::schema::tournament_log::Model>, anyhow::Error> where C: sea_orm::ConnectionTrait  {
     let log_query: Select<open_tab_entities::schema::tournament_log::Entity> = open_tab_entities::schema::tournament_log::Entity::find()
         .filter(open_tab_entities::schema::tournament_log::Column::TournamentId.eq(tournament_id))
         .order_by_asc(open_tab_entities::schema::tournament_log::Column::SequenceIdx);
@@ -76,7 +76,7 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
 
 
 pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, anyhow::Error>
-    where C: ConnectionTrait  {
+    where C: sea_orm::ConnectionTrait  {
     let log = get_log_since(transaction, tournament_id, since).await?;
     let flat_log = log.iter().map(
         LogEntry::from
@@ -180,7 +180,7 @@ pub async fn reconcile_changes<C>(
     last_common_ancestor: Option<Uuid>,
     merge_strategy: MergeStrategy,
     return_entity_group: bool
-) -> Result<ReconciliationOutcome, anyhow::Error> where C: ConnectionTrait {
+) -> Result<ReconciliationOutcome, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let local_log = get_log_since(db, tournament_id, last_common_ancestor).await?;
 
     if last_common_ancestor.is_none() && changes.log.len() == 0 {

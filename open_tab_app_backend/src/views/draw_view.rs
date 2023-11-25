@@ -36,7 +36,7 @@ pub struct LoadedDrawView {
 }
 
 impl LoadedDrawView {
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedDrawView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedDrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
 
         Ok(
@@ -471,7 +471,7 @@ impl DrawView {
         ballot
     }
 
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<DrawView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<DrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
 
         return Self::load_from_round(db, round).await;
@@ -608,7 +608,7 @@ impl DrawView {
         ).sorted_by(|e1, e2| e1.team.name.cmp(&e2.team.name)).collect()
     }
 
-    async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, anyhow::Error> where C: ConnectionTrait {
+    async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round.uuid)).all(db).await?;
 
         let ballot_uuids = debates.iter().map(|debate| debate.ballot_id).collect_vec();

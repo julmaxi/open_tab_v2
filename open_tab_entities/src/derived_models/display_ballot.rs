@@ -27,7 +27,7 @@ pub struct ResultDebate {
 }
 
 impl ResultDebate {
-    pub async fn load_all_from_round<C>(db: &C, round_uuid: Uuid) -> Result<Vec<ResultDebate>, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load_all_from_round<C>(db: &C, round_uuid: Uuid) -> Result<Vec<ResultDebate>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let round = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.eq(round_uuid)).one(db).await?.ok_or(anyhow::anyhow!("Round not found"))?;
         let info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 

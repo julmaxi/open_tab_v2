@@ -6,35 +6,35 @@ use sea_orm::{prelude::Uuid, ConnectionTrait};
 
 #[async_trait]
 pub trait TournamentEntity: Send + Sync {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         Self::save_many(db, guarantee_insert, &vec![self]).await
     }
     
-    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         for entity in entities.iter() {
             entity.save(db, guarantee_insert).await?;
         }
         Ok(())
     }
 
-    async fn delete<C>(db: &C, uuid: Uuid) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn delete<C>(db: &C, uuid: Uuid) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         Self::delete_many(db, vec![uuid]).await
     }
     
-    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait;
+    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait;
     /*
-     where C: ConnectionTrait {
+     where C: sea_orm::ConnectionTrait {
         for uuid in uuids.iter() {
             Self::delete(db, *uuid).await?;
         }
         Ok(())
     } */
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(Self::get_many_tournaments(db, &vec![self]).await?[0])
     }
 
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut out = vec![];
 
         for entity in entities {

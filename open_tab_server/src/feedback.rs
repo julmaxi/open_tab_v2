@@ -93,7 +93,7 @@ async fn get_feedback_form(
     ))
 }
 
-async fn get_relevant_questions<C>(db: &C, tournament_id: Uuid, source_role: FeedbackSourceRole, target_role: FeedbackTargetRole) -> Result<Vec<FeedbackFormQuestion>, APIError> where C: ConnectionTrait {
+async fn get_relevant_questions<C>(db: &C, tournament_id: Uuid, source_role: FeedbackSourceRole, target_role: FeedbackTargetRole) -> Result<Vec<FeedbackFormQuestion>, APIError> where C: sea_orm::ConnectionTrait {
     let relevant_forms = FeedbackForm::get_all_in_tournament(db, tournament_id).await?;
     let relevant_forms = relevant_forms.into_iter().filter(|f| {
         f.is_valid_for_direction(source_role, target_role)

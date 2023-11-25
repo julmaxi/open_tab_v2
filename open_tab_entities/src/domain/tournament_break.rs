@@ -82,7 +82,7 @@ impl TournamentBreak {
         }
     }
 
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let breaks = schema::tournament_break::Entity::find()
             .filter(
                 schema::tournament_break::Column::TournamentId.eq(tournament_id)
@@ -122,7 +122,7 @@ impl TournamentBreak {
 
 #[async_trait]
 impl LoadEntity for TournamentBreak {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Self>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let breaks = schema::tournament_break::Entity::batch_load(db, uuids).await?;
         let exists_mask = breaks.iter().map(|b| b.is_some()).collect::<Vec<_>>();
 
@@ -144,7 +144,7 @@ impl LoadEntity for TournamentBreak {
 
 #[async_trait]
 impl TournamentEntity for TournamentBreak {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let model = schema::tournament_break::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
             tournament_id: ActiveValue::Set(self.tournament_id),
@@ -268,13 +268,13 @@ impl TournamentEntity for TournamentBreak {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         return Ok(entities.iter().map(|team| {
             Some(team.tournament_id)
         }).collect());
     }
     
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

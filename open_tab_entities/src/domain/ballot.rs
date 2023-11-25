@@ -204,7 +204,7 @@ impl TeamScore {
 
 #[async_trait]
 impl LoadEntity for Ballot {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, anyhow::Error> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Ballot>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let ballots = schema::ballot::Entity::batch_load(db, uuids.clone()).await?;
         let has_value = ballots.iter().map(|b| b.is_some()).collect_vec();
         let mut retrieved_ballots_iter = Self::get_from_ballots(db, ballots.into_iter().filter(|b| b.is_some()).map(|b| b.unwrap()).collect()).await?.into_iter();
@@ -221,7 +221,7 @@ impl LoadEntity for Ballot {
 }
 
 impl Ballot {
-    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Vec<Ballot>)>, BallotParseError> where C: ConnectionTrait {
+    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Vec<Ballot>)>, BallotParseError> where C: sea_orm::ConnectionTrait {
         //TODO: With a little work, could do this in one query for the rounds.
         //Custom return values are a bit annoying though, so we leave this for later.
 
@@ -242,7 +242,7 @@ impl Ballot {
         ballots.into_iter().into_group_map().into_iter().map(|(round, ballots)| Ok((round, ballots))).collect()
     }
 
-    async fn get_from_ballots<C>(db: &C, ballots: Vec<schema::ballot::Model>) -> Result<Vec<Ballot>, BallotParseError> where C: ConnectionTrait {
+    async fn get_from_ballots<C>(db: &C, ballots: Vec<schema::ballot::Model>) -> Result<Vec<Ballot>, BallotParseError> where C: sea_orm::ConnectionTrait {
         let teams = ballots.load_many(schema::ballot_team::Entity, db).await?;
         let adjudicators = ballots.load_many(schema::ballot_adjudicator::Entity, db).await?;
 
@@ -381,7 +381,7 @@ impl Ballot {
 
     }
 
-    pub async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), DbErr> where C: ConnectionTrait {
+    pub async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), DbErr> where C: sea_orm::ConnectionTrait {
         let mut ballot_model = schema::ballot::ActiveModel {
             uuid: ActiveValue::Set(self.uuid)
         };
@@ -409,7 +409,7 @@ impl Ballot {
         Ok(())
     }
 
-    async fn save_adjudicators<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: ConnectionTrait {
+    async fn save_adjudicators<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: sea_orm::ConnectionTrait {
         let current_adjudicators : HashMap<Uuid, (i32, bool)> = if !is_insert {
              schema::ballot_adjudicator::Entity::find().filter(schema::ballot_adjudicator::Column::BallotId.eq(self.uuid)).all(db).await?.into_iter().map(|a| (a.adjudicator_id, (a.position, a.role == JudgeRole::President.to_str()))).collect()
         }
@@ -489,7 +489,7 @@ impl Ballot {
         Ok(())
     }
 
-    async fn save_teams<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: ConnectionTrait {
+    async fn save_teams<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: sea_orm::ConnectionTrait {
         let (current_teams, current_scores) = if !is_insert {
             let current_teams = schema::ballot_team::Entity::find().filter(schema::ballot_team::Column::BallotId.eq(self.uuid)).all(db).await?;
             let current_scores : Vec<HashMap<_, _>> = current_teams.load_many(schema::adjudicator_team_score::Entity, db).await?.into_iter().map(
@@ -575,7 +575,7 @@ impl Ballot {
         Ok(())
     }
 
-    async fn save_speeches<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: ConnectionTrait {
+    async fn save_speeches<C>(&self, db: &C, is_insert: bool) -> Result<(), DbErr> where C: sea_orm::ConnectionTrait {
         let (current_speeches, current_scores) = if !is_insert {
             let current_speeches = schema::ballot_speech::Entity::find().filter(schema::ballot_speech::Column::BallotId.eq(self.uuid)).all(db).await?;
             let current_scores = current_speeches.load_many(schema::adjudicator_speech_score::Entity, db).await?;
@@ -743,19 +743,19 @@ impl Ballot {
 
 #[async_trait]
 impl TournamentEntity for Ballot {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         self.save(db, guarantee_insert).await?;
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let id = schema::tournament_round::Entity::find().join(JoinType::InnerJoin, schema::tournament_round::Relation::TournamentDebate.def()).filter(
             schema::tournament_debate::Column::BallotId.eq(self.uuid)
         ).one(db).await.map(|round| round.map(|round| round.tournament_id))?;
         Ok(id)
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::ballot::Entity::delete_many().filter(schema::ballot::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

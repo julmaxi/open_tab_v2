@@ -33,7 +33,7 @@ impl TournamentParticipantsInfo {
 }
 
 impl TournamentParticipantsInfo {
-    pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let all_participants = Participant::get_all_in_tournament(db, tournament_id).await?;
         let team_members = all_participants.iter().filter_map(|speaker| {
             if let ParticipantRole::Speaker(speaker_info) = &speaker.role {

@@ -134,7 +134,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
     Ok(db)
 }
 
-async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+async fn test_participant_roundtrip_in_db<C>(db: &C, participant: Participant, as_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
     participant.save(db, as_insert).await?;
 
     let mut saved_participant = Participant::get_many(

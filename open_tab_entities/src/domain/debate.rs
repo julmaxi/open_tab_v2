@@ -25,7 +25,7 @@ pub struct TournamentDebate {
 
 
 impl TournamentDebate {
-    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let round_ids = entities.iter().map(|debate| debate.round_id).collect_vec();
         let rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::Uuid.is_in(round_ids)).all(db).await?;
 
@@ -34,7 +34,7 @@ impl TournamentDebate {
         }).collect())
     }
 
-    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<Vec<TournamentDebate>>, BatchLoadError> where C: ConnectionTrait {
+    pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<Vec<TournamentDebate>>, BatchLoadError> where C: sea_orm::ConnectionTrait {
         let mut round_debates: Vec<Vec<TournamentDebate>> = vec![];
         for round_uuid in round_uuids {
             let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round_uuid)).all(db).await?;

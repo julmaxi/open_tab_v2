@@ -80,7 +80,7 @@ fn get_gov_opp_assignments_from_ballots(ballots: &Vec<Ballot>) -> HashMap<Uuid, 
 }
 
 
-async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &RoundGroupConfig, existing_rounds: &Vec<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &RoundGroupConfig, existing_rounds: &Vec<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let mut changes = EntityGroup::new();
 
     let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_id).await?;
@@ -343,7 +343,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
 
 //pub async fn 
 
-//async fn generate_fC>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &RoundGroupConfig) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+//async fn generate_fC>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &RoundGroupConfig) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
 
 fn find_speakers_not_in_teams(
     teams: &Vec<Uuid>,
@@ -376,7 +376,7 @@ pub enum MakeBreakError {
 }
 
 
-async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let mut groups = EntityGroup::new();
 
     let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
@@ -561,7 +561,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
 
 #[async_trait]
 impl ActionTrait for ExecutePlanNodeAction {
-    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: ConnectionTrait {
+    async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
 
         let node = TournamentPlanNode::get(db, self.plan_node).await?;
 

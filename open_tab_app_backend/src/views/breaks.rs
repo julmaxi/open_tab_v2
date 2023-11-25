@@ -15,7 +15,7 @@ pub struct LoadedBreaksView {
 }
 
 impl LoadedBreaksView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(
             Self {
                 tournament_uuid,
@@ -60,7 +60,7 @@ pub struct BreakInfo {
 
 
 impl BreaksView {
-    async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
+    async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         //let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_uuid).await?;
         let _breaks = domain::tournament_break::TournamentBreak::get_all_in_tournament(db, tournament_uuid).await?;
         let nodes = domain::tournament_plan_node::TournamentPlanNode::get_all_in_tournament(db, tournament_uuid).await?;

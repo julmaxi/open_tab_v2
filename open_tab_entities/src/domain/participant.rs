@@ -58,7 +58,7 @@ pub enum ParticipantParseError {
 
 #[async_trait]
 impl LoadEntity for Participant {
-    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Participant>>, anyhow::Error> where C: ConnectionTrait {
+    async fn try_get_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<Vec<Option<Participant>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let participants = schema::participant::Entity::batch_load(db, uuids).await?;
 
         let has_value = participants.iter().map(|b| b.is_some()).collect_vec();
@@ -94,12 +94,12 @@ impl Participant {
         Ok((uuid, key))
     }
 
-    pub async fn get_all_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: sea_orm::ConnectionTrait {
         let participants = schema::participant::Entity::find().filter(schema::participant::Column::TournamentId.eq(Some(tournament_uuid))).all(db).await?;
         Self::load_participants(db, participants).await
     }
 
-    pub async fn get_all_adjudicators_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
+    pub async fn get_all_adjudicators_in_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Vec<Participant>, ParticipantParseError> where C: sea_orm::ConnectionTrait {
         let participants = schema::participant::Entity::find().filter(
             schema::participant::Column::TournamentId.eq(Some(tournament_uuid))
         ).inner_join(
@@ -108,7 +108,7 @@ impl Participant {
         Self::load_participants(db, participants).await
     }
 
-    async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: ConnectionTrait {
+    async fn load_participants<C>(db: &C, participants: Vec<schema::participant::Model>)  -> Result<Vec<Participant>, ParticipantParseError> where C: sea_orm::ConnectionTrait {
         let adjudicators = participants.load_one(schema::adjudicator::Entity, db).await?;
 
         let adjudicator_overides = adjudicator_availability_override::Entity::find().filter(
@@ -207,7 +207,7 @@ impl<A, C, E, P> ChangeSet<A, C> where A: ActiveModelTrait<Entity = E> + IntoAct
 
 #[async_trait]
 impl TournamentEntity for Participant {
-    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let (existing, adjudicator_overrides) = if guarantee_insert {
             ((vec![], vec![], vec![], vec![]), HashMap::new())
         }
@@ -395,11 +395,11 @@ impl TournamentEntity for Participant {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: ConnectionTrait {
+    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(Some(self.tournament_id))
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::participant::Entity::delete_many().filter(schema::participant::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }

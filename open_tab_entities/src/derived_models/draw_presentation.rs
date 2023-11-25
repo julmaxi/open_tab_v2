@@ -37,7 +37,7 @@ impl DrawPresentationInfo {
     pub async fn load_for_round<C>(
         db: &C,
         round_id: Uuid
-    ) -> Result<Self, LoadDrawError> where C: ConnectionTrait {
+    ) -> Result<Self, LoadDrawError> where C: sea_orm::ConnectionTrait {
         let round: Option<schema::tournament_round::Model> = schema::tournament_round::Entity::find_by_id(round_id).one(db).await?;
 
         if !round.is_some() {
