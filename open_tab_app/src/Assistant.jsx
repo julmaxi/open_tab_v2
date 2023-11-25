@@ -74,7 +74,7 @@ function WaitForBreakStep({ node_uuid }) {
 
 
 function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
-    let isDone = num_expected < num_submitted;
+    let isDone = num_submitted >= num_expected;
     return <div className='w-full'>
         <h1>Results</h1>
 

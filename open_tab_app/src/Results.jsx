@@ -299,7 +299,7 @@ function ScoreInputCell(props) {
 export function RoundResultList(props) {
     let debates = useView({type: "RoundResults", round_uuid: props.roundId}, {"debates": []});
     let [activeBallot, setActiveBallot] = useState(null);
-    return <div>
+    return <div className="w-full h-full overflow-scroll justify-center">
         <div className="p-4">
         {
             debates.debates.map((debate) => 
@@ -307,8 +307,6 @@ export function RoundResultList(props) {
             )
         }
         </div>
-
-        <div className="w-[80%]"></div>
 
         <ModalOverlay open={activeBallot !== null} closeOnOverlayClick={false} onAbort={() => setActiveBallot(null)} windowClassName={"w-[80%]"}>
             {
