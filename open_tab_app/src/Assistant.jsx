@@ -8,7 +8,7 @@ import { useSettings } from './settings';
 import { invoke } from '@tauri-apps/api/tauri';
 import { openImportDialog } from './openImportDialog';
 import { ParticipantImportDialogButton } from './ParticipantImportDialog';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { executeAction } from './Action';
 import { open, save } from '@tauri-apps/api/dialog';
 import { DateTimeSelectorButton } from './DateTimeSelectorButton';
@@ -34,6 +34,10 @@ function DoneStep({ }) {
             Congratulations, the tournament is over.
         </p>
     </div>
+}
+
+function Link({ to, children }) {
+    return <RouterLink to={to} className="text-blue-500 underline">{children}</RouterLink>
 }
 
 function WaitForBreakStep({ node_uuid }) {
@@ -111,7 +115,7 @@ function WaitForMotionRelease({ round_uuid }) {
 
         <p>Once you are done with the presentation, you can release the motion to all adjudicators and participants that are not non-aligned.</p>
         <p>
-            This will also set the debate start time that is shown to participants for 15 minutes and the release of the motion to non-aligned speakers after you click the button.
+            This will also set the debate start time to 15 minutes and the release of the motion to non-aligned speakers to 20 minutes after you click the button.
             If you want to override this behavior, you can do so in the <Link to={`/round/${round_uuid}/publish`}>publication view</Link>.
         </p>
         <p>If you use the online presentation, the times will be scheduled automatically.</p>
