@@ -181,10 +181,22 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 
     {
         modifiedParticipant.type === "Adjudicator" ?
-            <div className="flex flex-wrap">
-                <div className="w-full">
-                    <input type="number" value={modifiedParticipant.chair_skill} />
-                    <input type="number" value={modifiedParticipant.panel_skill} />
+            <div className="flex flex-col">
+                <div className="flex w-full">
+                    <div>
+                        <label>Chair Skill</label>
+                        <input type="number" value={modifiedParticipant.chair_skill} onChange={(e) => {
+                            setModifiedParticipant({...modifiedParticipant, chair_skill: parseInt(e.target.value)});
+                        }} />
+                    </div>
+                    <div>
+                        <label>Panel Skill</label>
+                        <input type="number" value={modifiedParticipant.panel_skill} onChange={
+                            (e) => {
+                                setModifiedParticipant({...modifiedParticipant, panel_skill: parseInt(e.target.value)});
+                            }
+                        } />
+                    </div>
                 </div>
 
                 <SortableTable rowId={"round_uuid"} data={

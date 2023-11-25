@@ -182,6 +182,8 @@ async fn test_adjudicator_roundtrip() -> Result<(), anyhow::Error> {
         uuid: Uuid::from_u128(440),
         name: "Test".into(),
         role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+            chair_skill: 10,
+            panel_skill: 20,
             ..Default::default()
         }),
         tournament_id: Uuid::from_u128(1),
