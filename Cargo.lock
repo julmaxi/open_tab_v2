@@ -3791,6 +3791,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tokio",
  "tower",
  "tower-http",

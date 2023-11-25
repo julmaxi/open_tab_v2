@@ -13,7 +13,6 @@ use tracing::info_span;
 
 
 
-
 use axum::http::Method;
  // for `call`
  // for `oneshot` and `ready`
@@ -21,7 +20,7 @@ use axum::http::Method;
 pub mod auth;
 pub mod tournament;
 pub mod response;
-mod db;
+pub mod db;
 pub mod state;
 pub mod ballot;
 pub mod participants;
