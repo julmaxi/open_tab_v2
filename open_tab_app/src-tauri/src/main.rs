@@ -520,7 +520,9 @@ enum SyncError {
     ReqwestError(reqwest::Error),
     DatabaseError(sea_orm::DbErr),
     Other(String),
-    NotAuthorized
+    TournamentDoesNotExist,
+    NotAuthorized,
+    SyncRejection
 }
 
 impl From<reqwest::Error> for SyncError {
@@ -571,7 +573,9 @@ impl std::fmt::Display for SyncError {
             SyncError::ReqwestError(err) => write!(f, "Reqwest error: {}", err),
             SyncError::DatabaseError(err) => write!(f, "Database error: {}", err),
             SyncError::Other(err) => write!(f, "Other error: {}", err),
-            SyncError::NotAuthorized => write!(f, "Not authorized")
+            SyncError::NotAuthorized => write!(f, "Not authorized"),
+            SyncError::TournamentDoesNotExist => write!(f, "Tournament does not exist"),
+            SyncError::SyncRejection => write!(f, "Sync rejected")
         }
     }
 }
@@ -637,8 +641,11 @@ async fn pull_remote_changes<C>(
 
     let response = client.get(remote_url).bearer_auth(api_key).send().await?;
     
-    if response.status() == 403 {
+    if response.status() == 403 || response.status() == 401 {
         return Err(SyncError::NotAuthorized);
+    }
+    if response.status() == 404 {
+        return Err(SyncError::TournamentDoesNotExist);
     }
     let remote_changes : FatLog<Entity, EntityType> = response.json().await?;
 
@@ -736,12 +743,15 @@ async fn try_push_changes<C>(target_tournament_remote: &schema::tournament_remot
                 transaction.commit().await?;
             }
             open_tab_server::sync::APIReconciliationOutcome::Reject => {
-                dbg!("Remote rejected changes");
+                return Err(SyncError::SyncRejection);
             }
         };    
     }
-    else if response.status() == 403 {
+    else if response.status() == 403 || response.status() == 401 {
         return Err(SyncError::NotAuthorized);
+    }
+    else if response.status() == 404 {
+        return Err(SyncError::TournamentDoesNotExist);
     }
     else {
         return Err(SyncError::Other(format!("Unexpected response status: {}", response.status())));   
@@ -1041,6 +1051,16 @@ impl TournamentUpdateProcess {
                         }).await.expect("Error sending connectivity update");
                         continue;
                     },
+                    SyncError::TournamentDoesNotExist => {
+                        let transaction = db.begin().await?;
+                        let update = schema::tournament_remote::ActiveModel {                
+                            uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
+                            created_at: ActiveValue::Set(None),
+                            ..Default::default()
+                        };
+                        update.update(&transaction).await?;
+                        transaction.commit().await?;        
+                    },
                     _ => {}
                 }
                 println!("Error pulling remote changes: {}", err);
@@ -1069,6 +1089,16 @@ impl TournamentUpdateProcess {
                             status: ConnectivityStatus::PasswordRequired { timestamp: chrono::Utc::now().naive_utc() }
                         }).await.expect("Error sending connectivity update");
                         continue;
+                    },
+                    SyncError::TournamentDoesNotExist => {
+                        let transaction = db.begin().await?;
+                        let update = schema::tournament_remote::ActiveModel {                
+                            uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
+                            created_at: ActiveValue::Set(None),
+                            ..Default::default()
+                        };
+                        update.update(&transaction).await?;
+                        transaction.commit().await?;        
                     },
                     _ => {}
                 }
@@ -1200,6 +1230,11 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             known_remotes: vec![
+                RemoteSettings {
+                    url: "https://api.debateresult.com".to_string(),
+                    name: "Default".to_string(),
+                    account_id: None,
+                },
                 RemoteSettings {
                     url: "http://localhost:3000".to_string(),
                     name: "Local".to_string(),

@@ -10,6 +10,11 @@ export async function make_authenticated_request(
         headers = {...headers, ...options.headers};
         options.headers = undefined;
     }
+
+    if (env.PUBLIC_API_URL === undefined) {
+        throw Error("PUBLIC_API_URL is undefined");
+    }
+
     const res = await fetch(
         `${env.PUBLIC_API_URL}/${url}`,
         {

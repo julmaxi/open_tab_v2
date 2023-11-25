@@ -119,6 +119,10 @@ async fn get_log(
     Path(tournament_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>
 ) -> Result<Json<FatLog<Entity, EntityType>>, APIError> {
+    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
+    if tournament.is_none() {
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
+    }
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
         return Err(APIError::from((StatusCode::FORBIDDEN, "User is not authorized for tournament administration")));
     }
@@ -285,6 +289,11 @@ async fn handle_sync_push_request(
     Path(tournament_id): Path<Uuid>,
     Json(request_body): Json<SyncRequest<Entity, EntityType>>
 ) -> Result<Json<SyncRequestResponse>, APIError> {
+    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
+    if tournament.is_none() {
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
+    }
+
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
         return Err(APIError::new("User is not authorized for tournament administration".into()));
     }

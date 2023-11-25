@@ -66,3 +66,12 @@ impl TournamentRound {
         Ok(rounds.into_iter().map(TournamentRound::from_model).collect())
     }
 }
+
+
+pub fn check_release_date(current_time: chrono::NaiveDateTime, check_time: Option<chrono::NaiveDateTime>) -> bool {
+    if let Some(check_time) = check_time {
+        current_time > check_time
+    } else {
+        false
+    }
+}

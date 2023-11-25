@@ -44,7 +44,6 @@ impl AuthenticatedUser {
                 (self.uuid, tournament_id)
             ).one(db).await?;
 
-            dbg!(&user_tournament);
             Ok(user_tournament.is_some())
         }
     }
@@ -111,7 +110,6 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser
             let user_name = decoded.username();
             let password = decoded.password();
 
-            dbg!(&user_name, user_name.starts_with("mail#"));
             let user = if user_name.starts_with("mail#") {
                 open_tab_entities::schema::user::Entity::find().filter(
                     open_tab_entities::schema::user::Column::UserEmail.eq(user_name.trim_start_matches("mail#"))
@@ -342,12 +340,4 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/users", post(create_user_handler))
         .route("/tokens", post(create_token_handler))
         .route("/register", post(register_user_handler))
-}
-
-pub fn check_release_date(current_time: chrono::NaiveDateTime, check_time: Option<chrono::NaiveDateTime>) -> bool {
-    if let Some(check_time) = check_time {
-        current_time > check_time
-    } else {
-        false
-    }
 }

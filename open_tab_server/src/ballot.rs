@@ -18,7 +18,10 @@ use serde::{Serialize, Deserialize};
 
 use itertools::Itertools;
 
-use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser, check_release_date};
+use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser};
+
+use open_tab_entities::domain::round::check_release_date;
+
 use crate::response::APIError;
 use crate::state::AppState;
 

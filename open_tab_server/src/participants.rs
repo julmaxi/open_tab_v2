@@ -7,7 +7,9 @@ use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackFor
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, auth::{ExtractAuthenticatedUser, check_release_date}, state::AppState};
+use crate::{response::{APIError, handle_error}, auth::ExtractAuthenticatedUser, state::AppState};
+
+use open_tab_entities::domain::round::check_release_date;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

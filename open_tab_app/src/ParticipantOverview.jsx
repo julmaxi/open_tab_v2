@@ -248,6 +248,31 @@ function ParticipantTable(props) {
 
     let tournamentContext = useContext(TournamentContext);
 
+    let statusView = useView({type: "TournamentStatus", tournament_uuid: tournamentContext.uuid}, null);
+
+    let url = statusView ? statusView.remote_url : null;
+    //FIXME: This should come from the server somehow.
+    //This way, this will not work if the remote server does not
+    //call its frontend tabs.servername
+    //For now, not worth the additional complexity to fix.
+    // Parse the url
+    if (url != null) {
+        let parsedUrl = new URL(url);
+        console.log(parsedUrl.host);
+        if (parsedUrl.host == "localhost:3000") {
+            parsedUrl.port = "5173";
+        }
+        else {
+            // Replace the first part of the host with tabs
+            parsedUrl.host = parsedUrl.host.replace(/^[^\.]+/, "tabs");
+        }
+
+        url = parsedUrl.toString().slice(0, -1);
+    }
+
+    //url = `tabs.${url.split(".", 1)[1]}`
+
+
     let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
@@ -299,29 +324,37 @@ function ParticipantTable(props) {
 
     let selectedParticipant = selectedParticipantUuid ? participantsById[selectedParticipantUuid] : null;
 
+    let columns = [
+            { "key": "role", "header": "Role", "group": true },
+            { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
+                return <EditableCell key={colIdx} value={value} onChange={
+                    (newName) => {
+                        let newParticipant = {... getPath(props.participants, rowValue.path)};
+                        newParticipant.name = newName;
+                        executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: tournamentContext.uuid})
+                    }
+                } />
+            } },
+            { "key": "institutions", "header": "Institutions" },
+            { "key": "clashes", "header": "Clashes" },
+    ];
+
+    if (url != null) {
+        columns.push({ "key": "registration_key", "header": "Secret", cellFactory: (value, rowIdx, colIdx, rowValue) => {
+            return <td><button className="underline text-blue-500" onClick={(evt) => {
+                navigator.clipboard.writeText(`${url}/register/${value}`);
+                evt.stopPropagation();
+            }}>Copy Reg. URL</button></td>
+        }});
+    }
+
     return <div className="h-full flex">
         <SortableTable
             data={flatTable}
             rowId="uuid"
             selectedRowId={selectedParticipantUuid}
             onSelectRow={(uuid) => {setSelectedParticipantUuid(uuid)}}
-            columns={
-                [
-                    { "key": "role", "header": "Role", "group": true },
-                    { "key": "name", "header": "Name",  cellFactory: (value, rowIdx, colIdx, rowValue) => {
-                        return <EditableCell key={colIdx} value={value} onChange={
-                            (newName) => {
-                                let newParticipant = {... getPath(props.participants, rowValue.path)};
-                                newParticipant.name = newName;
-                                executeAction("UpdateParticipants", {updated_participants: [newParticipant], tournament_id: tournamentContext.uuid})
-                            }
-                        } />
-                    } },
-                    { "key": "institutions", "header": "Institutions" },
-                    { "key": "clashes", "header": "Clashes" },
-                    { "key": "registration_key", "header": "Secret" },
-                ]
-            }
+            columns={columns}
         />
         {
            selectedParticipantUuid !== null ? <ParticipantDetailView participant={selectedParticipant} onClose={() => setSelectedParticipantUuid(null)} /> : []
