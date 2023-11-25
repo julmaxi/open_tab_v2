@@ -14,7 +14,6 @@ export default function TournamentViewRoute(props) {
     let statusView = useView({type: "TournamentStatus", tournament_uuid: tournament.uuid}, null);
 
     let settings = useSettings();
-    console.log(settings);
 
     let tournamentId = useContext(TournamentContext).uuid;
 

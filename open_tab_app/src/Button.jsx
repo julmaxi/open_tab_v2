@@ -1,4 +1,6 @@
-export default function Button(props) {
+import React from 'react';
+
+const Button = React.forwardRef((props, ref) => {
     let baseStyle = "ml-1 p-1 text-white rounded";
 
     let bgColor = "bg-gray-500";
@@ -16,5 +18,8 @@ export default function Button(props) {
         bgColor = "bg-gray-300";
     }
 
-    return <button className={`${baseStyle} ${bgColor}`} disabled={props.disabled} onClick={props.onClick}>{props.children}</button>
+    return <button ref={ref} className={`${baseStyle} ${bgColor}`} disabled={props.disabled} onClick={props.onClick}>{props.children}</button>
 }
+);
+
+export default Button;

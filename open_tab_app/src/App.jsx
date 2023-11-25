@@ -49,6 +49,9 @@ function SideNav(props) {
 
   // Final item is a buffer so we never have the last item blocked by the connectivity status
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
+    <NavItem href="/">
+      Assistant
+    </NavItem>
     {
       rounds.map((round) => 
         <NavGroup header={round.name} key={round.uuid}>

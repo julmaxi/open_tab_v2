@@ -19,6 +19,7 @@ import {
     unstable_useBlocker as useBlocker,
   } from "react-router-dom";
 import { openImportDialog } from "./openImportDialog";
+import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
 
 
 function ParticipantDetailView({onClose, participant, ...props}) {
@@ -559,13 +560,7 @@ export function ParticipantOverview() {
             }
         </div>
         <div className="flex-none w-full h-12 bg-gray-200">
-            <button onClick={() => {
-                openImportDialog().then((result) => {
-                    if (result !== null) {
-                        setImportDialogState(result);
-                    }
-                });
-            }} className="h-full">Import…</button>
+            <ParticipantImportDialogButton />
         </div>
     </div>
 }

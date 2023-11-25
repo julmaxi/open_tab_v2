@@ -3,7 +3,6 @@ import {useParams} from "react-router-dom";
 
 import {TournamentContext} from "./TournamentContext";
 
-import {Popover} from "./Popover";
 
 import {useView} from "./View";
 import { executeAction } from "./Action";
@@ -11,38 +10,7 @@ import ModalOverlay from "./Modal";
 import Button from "./Button";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
-
-function DateTimeSelectorButton({label, onSetDate}) {
-    let [isOpen, setIsOpen] = useState(false);
-    let trigger = <button onClick={() => {
-        setIsOpen(!isOpen);
-    }}>{label}</button>;
-
-    return <Popover trigger={trigger} isOpen={isOpen} onOpen={() => {
-        setIsOpen(true);
-    }} onClose={() => {
-        setIsOpen(false);
-    }}>
-        <div className="">
-            <div><label>In</label> <input onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    let val = parseInt(event.target.value);
-                    if (!isNaN(val)) {
-                        let date = new Date();
-                        date.setMinutes(date.getMinutes() + val);
-                        onSetDate(date);
-                    }
-                    setIsOpen(false);
-                }
-            }} type="number" className="w-8"></input> Minutes</div>
-            <button onClick={() => {
-                setIsOpen(false);
-                onSetDate(new Date());
-            }}>Now</button>
-        </div>
-    </Popover>
-}
+import { DateTimeSelectorButton } from "./DateTimeSelectorButton";
 
 function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
     let [refeshVal, setRefresh] = useState(0);

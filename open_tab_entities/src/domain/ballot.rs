@@ -1,7 +1,7 @@
 use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Error, fmt::Display, str::FromStr};
 
 use async_trait::async_trait;
-use sea_orm::JoinType;
+use sea_orm::{JoinType, FromQueryResult};
 use sea_orm::{prelude::*, ActiveValue, Condition, QuerySelect};
 use serde::{Serialize, Deserialize};
 
@@ -220,7 +220,47 @@ impl LoadEntity for Ballot {
     }
 }
 
+struct BallotWithDebateId {
+    debate_id: Uuid,
+    ballot: schema::ballot::Model
+}
+
+impl FromQueryResult for BallotWithDebateId {
+    fn from_query_result(result: &QueryResult, pre: &str) -> Result<Self, DbErr> {
+        let debate_id = result.try_get(pre, "debate_id")?;
+        let ballot = schema::ballot::Model::from_query_result(result, pre)?;
+        Ok(
+            BallotWithDebateId {
+                debate_id,
+                ballot
+            }
+        )
+    }
+}
+
 impl Ballot {
+    pub async fn get_all_in_debates<C>(db: &C, debate_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Ballot)>, BallotParseError> where C: sea_orm::ConnectionTrait {
+        let relevant_ballots = schema::ballot::Entity::find()
+        .column_as(schema::tournament_debate::Column::Uuid, "debate_id")
+        .inner_join(
+            schema::tournament_debate::Entity
+        ).filter(
+            schema::tournament_debate::Column::Uuid.is_in(debate_uuids)
+        )
+        .into_model::<BallotWithDebateId>()
+        .all(db).await.map_err(|e| BallotParseError::DbErr(e))?;
+        
+        let debate_ballot_ids = relevant_ballots.iter().map(|b| (b.debate_id, b.ballot.uuid)).collect_vec();
+        let all_ballots = Self::get_from_ballots(db, relevant_ballots.into_iter().map(|b| b.ballot).collect()).await?;
+        let all_ballots_by_id = all_ballots.into_iter().map(|b| (b.uuid, b)).collect::<HashMap<_, _>>();
+
+        debate_ballot_ids.into_iter().map(|(debate_id, ballot_id)| {
+            let ballot = all_ballots_by_id.get(&ballot_id).ok_or_else(|| BallotParseError::BallotDoesNotExist(debate_id.to_string()))?;
+            Ok((debate_id, ballot.clone()))
+        }).collect()
+    }
+
+
     pub async fn get_all_in_rounds<C>(db: &C, round_uuids: Vec<Uuid>) -> Result<Vec<(Uuid, Vec<Ballot>)>, BallotParseError> where C: sea_orm::ConnectionTrait {
         //TODO: With a little work, could do this in one query for the rounds.
         //Custom return values are a bit annoying though, so we leave this for later.
