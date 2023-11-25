@@ -67,17 +67,23 @@ impl ActionTrait for UploadParticipantsListAction {
         }
 
         let all_adjudicators_with_uuid = parse_result.data.adjudicators.into_iter()
-        .map(|adjudicator| (
-            adjudicator,
-            ParticipantRole::Adjudicator(
-                Adjudicator {
-                    chair_skill: 0,
-                    panel_skill: 0,
-                    unavailable_rounds: Vec::new(),
-                }
-            ),
-            Uuid::new_v4()
-        )).collect::<Vec<_>>();
+        .map(|adjudicator| {
+            let chair_skill = adjudicator.chair_skill;
+            let panel_skill = adjudicator.panel_skill;
+            
+            (
+                adjudicator,
+                ParticipantRole::Adjudicator(
+                    Adjudicator {
+                        chair_skill,
+                        panel_skill,
+                        unavailable_rounds: Vec::new(),
+                    }
+                ),
+                Uuid::new_v4()
+            )
+        }
+        ).collect::<Vec<_>>();
 
         let all_participants_with_uuid = all_speakers_with_uuid.iter().map(|(speaker, role, uuid)| (&speaker.participant_data, role.clone(), uuid.clone()))
         .chain(all_adjudicators_with_uuid.iter().map(|(adjudicator, role, uuid)| (&adjudicator.participant_data, role.clone(), uuid.clone()))).collect_vec();

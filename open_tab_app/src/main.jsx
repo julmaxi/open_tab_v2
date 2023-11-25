@@ -16,12 +16,17 @@ import { TabViewRoute } from "./TabView";
 import { FeedbackConfigRoute } from "./FeedbackConfig";
 import VenueViewRoute from "./Venues";
 import TournamentViewRoute from "./TournamentView";
+import { AssistantRoute } from "./Assistant";
 
 const router = createMemoryRouter([
   {
     path: "/",
     element: <App />,
     children: [
+      {
+        path: "/",
+        element: <AssistantRoute />
+      },
       {
         path: "round/:roundId/draw",
         element: <DrawEditorRoute />,

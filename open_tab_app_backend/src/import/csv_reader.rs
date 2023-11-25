@@ -237,12 +237,15 @@ impl CSVReaderConfig {
                 .to_string();
 
             if role.len() == 0 || role.starts_with("#") {
-                let (chair_skill, panel_skill) = if role.starts_with("#") && role.len() == 3 {
+                let (chair_skill, panel_skill) = if role.starts_with("#") && role.len() > 1 {
                     let chair_skill = role.chars().nth(1).unwrap().to_digit(10);
-                    let panel_skill = role.chars().nth(2).unwrap().to_digit(10);
+                    let panel_skill = role.chars().nth(2).map(|d| d.to_digit(10)).flatten();
+
+                    dbg!(&chair_skill, &panel_skill, role.chars().nth(1));
 
                     match (chair_skill, panel_skill) {
                         (Some(chair), Some(panel)) => (chair * 10, panel * 10),
+                        (Some(chair), None) => (chair * 10, chair * 10),
                         _ => (50, 50),
                     }
                 } else {
@@ -423,6 +426,37 @@ Pers.,D,,Club C,
                 .map(|a| a.participant_data.name.clone())
                 .collect_vec(),
             vec!["Pers. D"]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_valid_data_single_competency_indicator() -> Result<(), anyhow::Error> {
+        let config = CSVReaderConfig {
+            name_column: Some(CSVNameCol::FirstLast { first: 0, last: 1 }),
+            role_column: Some(2),
+            institutions_column: Some(3),
+            clashes_column: Some(4),
+            delimiter: Some(b','),
+        };
+
+        let test_file = "Vorname,Name,Team,Club,Clashes
+Pers.,A,#1,Club A;Club B,
+Pers.,B,#2,Club A,Pers. A
+Pers.,C,#3,Club A,
+Pers.,D,#4,Club C,
+";
+        let parsed = config.parse(test_file.as_bytes())?;
+
+        assert_eq!(
+            parsed
+                .data
+                .adjudicators
+                .iter()
+                .map(|a| (a.chair_skill, a.panel_skill))
+                .collect_vec(),
+            vec![(10, 10), (20, 20), (30, 30), (40, 40)]
         );
 
         Ok(())
