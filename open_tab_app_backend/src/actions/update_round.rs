@@ -82,7 +82,6 @@ impl ActionTrait for UpdateRoundAction {
         let mut groups = EntityGroup::new();
 
         let mut existing_round = open_tab_entities::domain::round::TournamentRound::get(db, self.round_id).await?;
-        dbg!(&self.update);
 
         if let PatchValue::Set(motion) = self.update.motion {
             existing_round.motion = motion;
