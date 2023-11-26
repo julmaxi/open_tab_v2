@@ -36,7 +36,8 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "../../open_tab_reports/templates"
+        "../../open_tab_reports/templates",
+        "resources/default_feedback_form.yml"
       ],
       "identifier": "com.juliussteen.open-tab",
       "targets": "all"

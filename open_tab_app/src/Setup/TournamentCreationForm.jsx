@@ -7,6 +7,7 @@ const TournamentCreationForm = ({ onAbort, onSubmit }) => {
   const [name, setName] = useState('');
   const [numberOfRounds, setNumberOfRounds] = useState(3);
   const [numberOfBreakRounds, setNumberOfBreakRounds] = useState(1);
+  const [useDefaultFeedbackSystem, setUseDefaultFeedbackSystem] = useState(true);
 
   const roundName = useMemo(() => {
     switch (numberOfBreakRounds) {
@@ -22,7 +23,7 @@ const TournamentCreationForm = ({ onAbort, onSubmit }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ name, num_preliminaries: numberOfRounds, num_break_rounds: numberOfBreakRounds });
+    onSubmit({ name, num_preliminaries: numberOfRounds, num_break_rounds: numberOfBreakRounds, use_default_feedback_system: useDefaultFeedbackSystem });
   };
 
   return (
@@ -71,6 +72,22 @@ const TournamentCreationForm = ({ onAbort, onSubmit }) => {
           {roundName && (
             <p className="mt-2 text-sm text-gray-600">{roundName}</p>
           )}
+        </div>
+
+        <div className="mt-1">
+            <div className="flex items-center">
+              <input
+                id="feedbackSystem"
+                name="feedbackSystem"
+                type="checkbox"
+                checked={useDefaultFeedbackSystem}
+                onChange={(e) => setUseDefaultFeedbackSystem(e.target.checked)}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="feedbackSystem" className="ml-3 block text-sm font-medium text-gray-700">
+                Use Default Feedback System
+              </label>
+            </div>
         </div>
 
         <div className="flex justify-end space-x-4">

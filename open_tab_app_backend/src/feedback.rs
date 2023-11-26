@@ -4,26 +4,6 @@ use itertools::Itertools;
 use open_tab_entities::domain::{self, feedback_form::FeedbackFormVisibility};
 use sea_orm::prelude::Uuid;
 use serde::{Serialize, Deserialize};
-/*
-"
-shared_questions:
-    skill:
-        short_name: skill
-        full_name: Wie würdest du insgesamt die Kompetenz dieser JurorIn bewerten?,
-        type: range
-        min: 0
-        max: 100 
-        orientation: high
-        labels: 
-            0: Sehr schlecht
-            100: Sehr gut
-
-forms:
-    chairs_for_wings:
-        questions:
-            - comments
-"
-*/
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -132,6 +112,10 @@ pub struct FormTemplate {
 }
 
 impl FormTemplate {
+    pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self, anyhow::Error> {
+        let result = serde_yaml::from_reader(reader)?;
+        Ok(result)
+    }
     pub fn into_forms_and_questions_for_tournament(self, tournament_uuid: Uuid) -> Result<(Vec<domain::feedback_form::FeedbackForm>, Vec<domain::feedback_question::FeedbackQuestion>), anyhow::Error> {
         let mut questions : Vec<domain::feedback_question::FeedbackQuestion> = vec![];
 
