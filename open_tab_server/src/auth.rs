@@ -211,7 +211,6 @@ pub async fn create_user_handler(
     let pwd = request.password;
     let new_user_uuid = Uuid::new_v4();
     let pwd = hash_password(pwd)?;
-
     let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
         uuid: new_user_uuid,
         password_hash: pwd,

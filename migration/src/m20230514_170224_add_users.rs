@@ -80,7 +80,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(UserAccessKey::KeyHash)
-                        .string_len(60)
+                        .string_len(97)
                         .not_null()
                             .primary_key(),
                     )

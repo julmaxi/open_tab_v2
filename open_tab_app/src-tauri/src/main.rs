@@ -7,7 +7,7 @@ use identity::IdentityProvider;
 use migration::MigratorTrait;
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue};
@@ -522,7 +522,8 @@ enum SyncError {
     Other(String),
     TournamentDoesNotExist,
     NotAuthorized,
-    SyncRejection
+    SyncRejection,
+    LogsOutOfSync
 }
 
 impl From<reqwest::Error> for SyncError {
@@ -575,7 +576,8 @@ impl std::fmt::Display for SyncError {
             SyncError::Other(err) => write!(f, "Other error: {}", err),
             SyncError::NotAuthorized => write!(f, "Not authorized"),
             SyncError::TournamentDoesNotExist => write!(f, "Tournament does not exist"),
-            SyncError::SyncRejection => write!(f, "Sync rejected")
+            SyncError::SyncRejection => write!(f, "Sync rejected"),
+            SyncError::LogsOutOfSync => write!(f, "Logs out of sync"),
         }
     }
 }
@@ -646,6 +648,15 @@ async fn pull_remote_changes<C>(
     }
     if response.status() == 404 {
         return Err(SyncError::TournamentDoesNotExist);
+    }
+
+    if response.status() == 500 {
+        let error_response = response.json::<APIErrorResponse>().await?;
+        //FIXME: This would be nicer with typed error codes
+        if error_response.message == "Since is not a valid log entry" {
+            return Err(SyncError::LogsOutOfSync)
+        }
+        return Err(SyncError::Other(format!("Server error: {}", error_response.message)));
     }
     let remote_changes : FatLog<Entity, EntityType> = response.json().await?;
 
@@ -1033,6 +1044,8 @@ impl TournamentUpdateProcess {
                 let update = schema::tournament_remote::ActiveModel {                
                     uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
                     created_at: ActiveValue::Set(Some(chrono::Utc::now().naive_utc())),
+                    last_known_change: ActiveValue::Set(None),
+                    last_synced_change: ActiveValue::Set(None),
                     ..Default::default()
                 };
                 update.update(&transaction).await?;
@@ -1061,6 +1074,17 @@ impl TournamentUpdateProcess {
                         update.update(&transaction).await?;
                         transaction.commit().await?;        
                     },
+                    SyncError::LogsOutOfSync => {
+                        let transaction = db.begin().await?;
+                        let update = schema::tournament_remote::ActiveModel {                
+                            uuid: ActiveValue::Unchanged(target_tournament_remote.uuid),
+                            last_synced_change: ActiveValue::Set(None),
+                            last_known_change: ActiveValue::Set(None),
+                            ..Default::default()
+                        };
+                        update.update(&transaction).await?;
+                        transaction.commit().await?;
+                    }
                     _ => {}
                 }
                 println!("Error pulling remote changes: {}", err);

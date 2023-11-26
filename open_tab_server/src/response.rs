@@ -13,8 +13,8 @@ pub struct APIError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct APIErrorResponse {
-    message: String
+pub struct APIErrorResponse {
+    pub message: String
 }
 
 impl APIError {
