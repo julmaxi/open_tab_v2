@@ -311,9 +311,9 @@ async fn get_participant_info(
             let status = if check_release_date(current_time, round.round_close_time) {
                 RoundStatus::Completed
             } else if check_release_date(current_time, round.team_motion_release_time) {
-                RoundStatus::DrawReleased
-            } else if check_release_date(current_time, round.draw_release_time) {
                 RoundStatus::InProgress
+            } else if check_release_date(current_time, round.draw_release_time) {
+                RoundStatus::DrawReleased
             } else {
                 RoundStatus::Planned
             };
