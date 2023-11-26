@@ -24,22 +24,21 @@ impl Default for Config {
     }
 }
 
-fn read_config() -> Config {
-    let local_path = std::path::Path::new("./config.yml");
+fn read_config_inner() -> Result<Config, anyhow::Error> {
+    let config_path = std::env::var("OPEN_TAB_SERVER_CONFIG")?;
+    let config = std::fs::read_to_string(config_path)?;
+    let config = serde_yaml::from_str::<Config>(&config)?;
+    Ok(config)
+}
 
-    if local_path.exists() {
-        let config = std::fs::read_to_string(local_path).unwrap();
-        let config = serde_yaml::from_str::<Config>(&config);
-        if let Err(e) = config {
-            println!("Failed to parse config file: {}", e);
+fn read_config() -> Config {
+    match read_config_inner() {
+        Ok(config) => config,
+        Err(e) => {
+            //Print to stderr, since logging is set up in the config
+            eprintln!("Warning: Failed to read config: {}", e);
             Config::default()
         }
-        else {
-            config.unwrap()
-        }
-    } else {
-        println!("No config file found, using defaults");
-        Config::default()
     }
 }
 
