@@ -5,7 +5,6 @@ use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::Subs
 #[derive(Debug, serde::Deserialize)]
 #[serde(default)]
 struct Config {
-    db_name: String,
     db_url: String,
     host: String,
     port: u16,
@@ -15,7 +14,6 @@ struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            db_name: "".to_string(),
             db_url: "sqlite://./server.sqlite3?mode=rwc".into(),
             host: "0.0.0.0".into(),
             port: 3000,
@@ -60,7 +58,6 @@ async fn main() {
     let db = open_tab_server::db::set_up_db(
         DatabaseConfig::new(
             config.db_url.clone(),
-            config.db_name.clone(),
         )
     ).await.expect("Failed to set up database");
 

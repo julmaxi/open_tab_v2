@@ -16,7 +16,6 @@ impl AppState {
         let db = db::set_up_db(
             DatabaseConfig::new(
                 "sqlite://./server.sqlite3?mode=rwc".into(),
-                "open_tab_v2".into(),
             )
         ).await.expect("Failed to set up database");
         db.execute(Statement::from_sql_and_values(
@@ -46,7 +45,6 @@ impl AppState {
         let db = db::set_up_db(
             DatabaseConfig::new(
                 "sqlite::memory:".into(),
-                "open_tab_v2".into(),
             )
         ).await.expect("Failed to set up database");
         db.execute(Statement::from_sql_and_values(
