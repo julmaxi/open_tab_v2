@@ -1221,7 +1221,7 @@ struct AppSettings {
 struct RemoteSettings {
     url: String,
     name: String,
-    account_id: Option<Uuid>,
+    account_name: Option<String>,
 }
 
 impl AppSettings {
@@ -1257,12 +1257,12 @@ impl Default for AppSettings {
                 RemoteSettings {
                     url: "https://api.debateresult.com".to_string(),
                     name: "Default".to_string(),
-                    account_id: None,
+                    account_name: None,
                 },
                 RemoteSettings {
                     url: "http://localhost:3000".to_string(),
                     name: "Local".to_string(),
-                    account_id: None,
+                    account_name: None,
                 }
             ],
             known_api_keys: HashMap::new()
@@ -1449,13 +1449,13 @@ async fn create_user_account_for_remote(
     );
 
     if let Some(remote) = remote {
-        remote.account_id = Some(response.uuid);
+        remote.account_name = Some(user_name.clone());
     }
     else {
         settings_lock.known_remotes.push(RemoteSettings {
             url: remote_url.clone(),
             name: remote_url.clone(),
-            account_id: Some(response.uuid),
+            account_name: Some(user_name.clone()),
         });
     }
     settings_lock.known_api_keys.insert(remote_url.clone(), password.clone());

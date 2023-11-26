@@ -66,7 +66,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(
                         ColumnDef::new(User::PasswordHash)
-                            .string_len(60)
+                            .string_len(97)
                             .not_null(),
                     )
                     .to_owned(),
