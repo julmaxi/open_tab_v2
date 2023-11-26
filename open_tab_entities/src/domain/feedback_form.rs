@@ -95,7 +95,7 @@ impl FromStr for FeedbackSourceRole {
             "wing" => Ok(FeedbackSourceRole::Wing),
             "president" => Ok(FeedbackSourceRole::President),
             "team" => Ok(FeedbackSourceRole::Team),
-            "non_aligned" => Ok(FeedbackSourceRole::NonAligned),
+            "nonaligned" => Ok(FeedbackSourceRole::NonAligned),
             _ => Err(RoleParseError::InvalidRole(s.into()))
         }
     }

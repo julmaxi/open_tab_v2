@@ -115,12 +115,13 @@ impl TournamentEntity for FeedbackResponse {
     }
 
     async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let form_tournament_ids = schema::tournament_round::Entity::find()
-            .left_join(schema::tournament_debate::Entity)
+        let form_tournament_ids = schema::tournament_debate::Entity::find()
+            .inner_join(schema::tournament_round::Entity)
+            .select_also(schema::tournament_round::Entity)
             .filter(schema::tournament_debate::Column::Uuid.is_in(entities.iter().map(|x| x.source_debate_id.clone()).collect::<Vec<Uuid>>()))
-            .all(db).await?.into_iter().map(|x| (x.uuid, Some(x.tournament_id))).collect::<HashMap<Uuid, Option<Uuid>>>();
+            .all(db).await?.into_iter().filter_map(|(debate, round_)| round_.map(|r| (debate.uuid, r.tournament_id))).collect::<HashMap<Uuid, Uuid>>();
         
-        entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.uuid).cloned().flatten())).collect()
+        entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.source_debate_id).cloned())).collect()
     }
 
     async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {

@@ -265,7 +265,6 @@ pub async fn reconcile_changes<C>(
         }
     }
 
-    dbg!(&entities_to_save);
     let group = EntityGroup::from(entities_to_save);
 
     let deleted_tournamet_uuids = group.get_all_deletion_tournaments(db).await?;
@@ -274,7 +273,7 @@ pub async fn reconcile_changes<C>(
             ReconciliationOutcome::InvalidTournament
         );
     }
-    group.save_all(db).await?;    
+    group.save_all(db).await?;
 
     let added_tournament_uuids = group.get_all_tournaments(db).await?;
     if !added_tournament_uuids.into_iter().all(|t| t == Some(tournament_id)) {
