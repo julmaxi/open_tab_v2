@@ -62,7 +62,16 @@ impl LoadedView for LoadedDrawView {
         );
 
         // TODO: Reloads could be much more efficient
-        if has_new_debate || changes.tournament_venues.len() > 0 || changes.participants.len() > 0 || changes.participant_clashs.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentVenue) || changes.deletions.iter().any(|d| d.0 == EntityType::Participant) || changes.deletions.iter().any(|d| d.0 == EntityType::ParticipantClash) {
+        if has_new_debate 
+            || changes.tournament_venues.len() > 0
+            || changes.participants.len() > 0
+            || changes.participant_clashs.len() > 0
+            || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentVenue)
+            || changes.deletions.iter().any(|d| d.0 == EntityType::Participant)
+            || changes.deletions.iter().any(|d| d.0 == EntityType::ParticipantClash)
+            || changes.teams.len() > 0
+            || changes.deletions.iter().any(|d| d.0 == EntityType::Team)
+        {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
             self.view = DrawView::load_from_round(db, round).await?;
