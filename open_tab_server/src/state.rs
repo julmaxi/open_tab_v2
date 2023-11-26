@@ -18,11 +18,16 @@ impl AppState {
                 "sqlite://./server.sqlite3?mode=rwc".into(),
             )
         ).await.expect("Failed to set up database");
-        db.execute(Statement::from_sql_and_values(
-            db.get_database_backend(),
-            "PRAGMA foreign_keys = ON;",
-            vec![])
-        ).await.expect("Failed to enable foreign keys");
+        match &db {
+            DatabaseConnection::SqlxSqlitePoolConnection(_) => {
+                db.execute(Statement::from_sql_and_values(
+                    db.get_database_backend(),
+                    "PRAGMA foreign_keys = ON;",
+                    vec![])
+                ).await.expect("Failed to enable foreign keys");
+            },
+            _ => {}
+        }
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
             db
@@ -30,11 +35,16 @@ impl AppState {
     }
 
     pub async fn new_with_db(db: DatabaseConnection) -> AppState {
-        db.execute(Statement::from_sql_and_values(
-            db.get_database_backend(),
-            "PRAGMA foreign_keys = ON;",
-            vec![])
-        ).await.expect("Failed to enable foreign keys");
+        match &db {
+            DatabaseConnection::SqlxSqlitePoolConnection(_) => {
+                db.execute(Statement::from_sql_and_values(
+                    db.get_database_backend(),
+                    "PRAGMA foreign_keys = ON;",
+                    vec![])
+                ).await.expect("Failed to enable foreign keys");
+            },
+            _ => {}
+        }
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
             db
