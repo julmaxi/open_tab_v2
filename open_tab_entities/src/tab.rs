@@ -136,7 +136,7 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
     }
 }
 impl TabView {
-    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let num_round_ids = round_ids.len();
         let relevant_ballots = schema::tournament_debate::Entity::find()
         .inner_join(schema::tournament_round::Entity)
@@ -303,7 +303,7 @@ impl TabView {
         )
     }
 
-    pub async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<TabView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let rounds = schema::tournament_round::Entity::find().filter(
             schema::tournament_round::Column::TournamentId.eq(tournament_uuid)
         ).all(db).await?;
@@ -311,7 +311,7 @@ impl TabView {
         Self::load_from_tournament_with_rounds(db, tournament_uuid, rounds.into_iter().map(|r| r.uuid).collect()).await
     }
 
-    pub async fn load_from_tournament_with_rounds<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>) -> Result<TabView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_tournament_with_rounds<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let speaker_info = super::info::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
         Self::load_from_rounds(db, round_ids, &speaker_info).await
     }
@@ -338,6 +338,11 @@ impl TabView {
 }
 
 
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct BreakingAdjudicatorInfo {
+    pub name: String,
+    pub uuid: Uuid,
+}
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct BreakRelevantTabView {
@@ -345,11 +350,12 @@ pub struct BreakRelevantTabView {
     pub speaker_teams: HashMap<Uuid, Uuid>,
     pub team_members: HashMap<Uuid, Vec<Uuid>>,
     pub breaking_teams: Vec<Uuid>,
-    pub breaking_speakers: Vec<Uuid>
+    pub breaking_speakers: Vec<Uuid>,
+    pub breaking_adjudicators: Vec<BreakingAdjudicatorInfo>
 }
 
 impl BreakRelevantTabView {
-    pub async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
         let target_node = crate::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
         let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
         let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
@@ -361,13 +367,21 @@ impl BreakRelevantTabView {
             _ =>  None
         };
 
-        let (breaking_teams, breaking_speakers) = match break_id {
+        let (breaking_teams, breaking_speakers, breaking_adjudicators) = match break_id {
             Some(break_id) => {
                 let break_ = crate::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
 
-                (break_.breaking_teams, break_.breaking_speakers)
+                (break_.breaking_teams, break_.breaking_speakers, break_.breaking_adjudicators.into_iter().map(
+                    |uuid| speaker_info.participants_by_id.get(&uuid).map(|p| BreakingAdjudicatorInfo {
+                        name: p.name.clone(),
+                        uuid
+                    }).unwrap_or_else(|| BreakingAdjudicatorInfo {
+                        name: "<Unknown Adjudicator>".to_string(),
+                        uuid
+                    })
+                ).collect_vec())
             },
-            None => (vec![], vec![])
+            None => (vec![], vec![], vec![])
         };
 
         let tab = TabView::load_from_rounds(
@@ -381,7 +395,8 @@ impl BreakRelevantTabView {
             speaker_teams: speaker_info.speaker_teams,
             team_members: speaker_info.team_members,
             breaking_teams,
-            breaking_speakers: breaking_speakers
+            breaking_speakers,
+            breaking_adjudicators
         })
     }
 }

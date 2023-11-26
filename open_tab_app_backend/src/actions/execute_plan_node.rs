@@ -130,7 +130,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
         }
     ).into_group_map();
 
-    let (all_teams, all_speakers) = if let Some(relevant_break_id) = relevant_break_id {
+    let (all_teams, all_speakers, all_adjudicator_ids) = if let Some(relevant_break_id) = relevant_break_id {
         if let Some(relevant_break_id) = relevant_break_id {
             let break_ = TournamentBreak::get(db, relevant_break_id).await?;
             let teams = break_.breaking_teams;
@@ -138,7 +138,8 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
             
             (
                 all_teams.into_iter().filter(|t| teams.contains(&t.uuid)).collect_vec(),
-                all_participants.into_iter().filter(|s| speakers.contains(&s.uuid)).collect_vec()
+                all_participants.into_iter().filter(|s| speakers.contains(&s.uuid)).collect_vec(),
+                break_.breaking_adjudicators
             )
         }
         else {
@@ -148,7 +149,8 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     else {
         (
             all_teams,
-            all_participants
+            all_participants,
+            vec![]
         )
     };
 
@@ -248,7 +250,13 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
 
     let mut optimization_state = OptimizationState::load_from_rounds_and_draw_ballots(db, tournament_id, rounds.iter().zip(ballots.iter()).collect(), Arc::new(OptimizationOptions::default()), Arc::new(draw_evaluator)).await?;
 
-    optimization_state.update_state_by_assigning_adjudicators();
+    let adjudicators_to_include = if all_adjudicator_ids.len() > 0 {
+        Some(&all_adjudicator_ids)
+    }
+    else {
+        None
+    };
+    optimization_state.update_state_by_assigning_adjudicators(adjudicators_to_include);
 
     let ballots = optimization_state.rounds.iter().zip(ballots).map(|(r, ballots)| {
         r.debates.iter().zip(ballots.iter()).map(

@@ -260,6 +260,16 @@
                     {% endfor %}
                 </table:table>
                 <text:p text:style-name="P3"/>
+
+                {% if breaking_adjudicators %}
+                <text:p text:style-name="P11">Jurybreak</text:p>
+                <text:p text:style-name="P11">
+                    <text:span text:style-name="T4"/>
+                </text:p>
+                <text:p text:style-name="P13">
+                    {{breaking_adjudicators | map(attribute="name") | join(sep=", ")}}
+                </text:p>
+                {% endif %}
             </text:section>
         </office:text>
     </office:body>

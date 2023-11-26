@@ -205,9 +205,13 @@ pub enum OptionallyBreakRelevantTab {
     BreakRelevantTab(BreakRelevantTabView)
 }
 
+
+
+
 pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: OptionallyBreakRelevantTab, tournament_name: String) -> 
     Result<(), anyhow::Error> where W: Write + std::io::Seek {
     let mut break_marks = HashMap::new();
+    let mut breaking_adjudicators = vec![];
 
     if let OptionallyBreakRelevantTab::BreakRelevantTab(tab) = &tab_view {
         for breaking_team in tab.breaking_teams.iter() {
@@ -221,6 +225,8 @@ pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: O
         for breaking_speaker in tab.breaking_speakers.iter() {
             break_marks.entry(breaking_speaker.clone()).or_insert(vec![]).push("Break");
         }
+
+        breaking_adjudicators = tab.breaking_adjudicators.clone();
     }
 
     let tab = match tab_view {
@@ -230,6 +236,7 @@ pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: O
     let mut values = Context::from_serialize(&tab)?;
     values.insert("tournament_name", &Value::String(tournament_name));
     values.insert("break_marks", &serde_json::json!(break_marks));
+    values.insert("breaking_adjudicators", &serde_json::json!(breaking_adjudicators));
 
     let tab_xml = context.tera.render("open_office/tab.xml", &values)?;
     let styles_xml = context.tera.render("open_office/tab_styles.xml", &Context::new())?;

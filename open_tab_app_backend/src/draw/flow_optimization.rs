@@ -235,7 +235,7 @@ impl OptimizationState {
         }
     }
 
-    pub fn update_state_by_assigning_chairs(&mut self) {
+    pub fn update_state_by_assigning_chairs(&mut self, adjudicators: Option<&Vec<Uuid>>) {
         let debates_to_assign_chair = (0..self.rounds.len()).into_iter().flat_map(
             |i| self.rounds[i].debates.iter().enumerate().filter(|(_d_idx, d)| d.chair.is_none()).map(move |(d_idx, d)| (i, d_idx, d))
         ).collect_vec();
@@ -245,6 +245,9 @@ impl OptimizationState {
         self.adjudicator_assignments.keys().for_each(
             |adj| {
                 for i in 0..self.rounds.len() {
+                    if adjudicators.is_some() && !adjudicators.unwrap().contains(adj) {
+                        continue;
+                    }
                     graph_build.add_edge(
                         Vertex::Source,
                         NodeType::AdjudicatorChairFrequency(*adj, i as i32),
@@ -335,13 +338,19 @@ impl OptimizationState {
         );
     }
 
-    pub fn update_state_by_assigning_wings(&mut self) {
+    pub fn update_state_by_assigning_wings(&mut self, adjudicators: Option<&Vec<Uuid>>) {
         for round_id in 0..self.rounds.len() {
+            // We stop iterating when we do not observe any changes in number of unassigned adjudicators
+            // To stop this from happening on the first loop, we make sure the first test
+            // always shows a decrease in unassigned adjudicators
             let mut previous_unassigned_cnt = self.adjudicator_assignments.len() + 1;
             loop {
                 let round_info = &self.rounds[round_id];
                 let mut unassigned_adjudicators : HashSet<Uuid> = self.adjudicator_assignments.iter().filter_map(
                     |(adj, assignments)| {
+                        if adjudicators.is_some() && !adjudicators.unwrap().contains(adj) {
+                            return None;
+                        }
                         if assignments[round_id] == AdjudicatorPosition::None {
                             Some(*adj)
                         }
@@ -427,8 +436,8 @@ impl OptimizationState {
         }
     }
 
-    pub fn update_state_by_assigning_adjudicators(&mut self) {
-        self.update_state_by_assigning_chairs();
-        self.update_state_by_assigning_wings();
+    pub fn update_state_by_assigning_adjudicators(&mut self, adjudicators: Option<&Vec<Uuid>>) {
+        self.update_state_by_assigning_chairs(adjudicators.clone());
+        self.update_state_by_assigning_wings(adjudicators.clone());
     }
 }

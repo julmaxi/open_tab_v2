@@ -18,6 +18,7 @@ mod create_institution;
 mod update_venues;
 mod set_manual_break;
 mod import_feedback_system;
+mod set_adjudicator_break;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -31,6 +32,8 @@ pub use self::update_round::UpdateRoundAction;
 pub use self::create_institution::CreateInstitutionAction;
 pub use self::update_venues::UpdateVenuesAction;
 pub use self::import_feedback_system::ImportFeedbackSystemAction;
+pub use self::set_adjudicator_break::SetAdjudicatorBreakAction;
+
 pub(crate) use self::edit_tree::EditTreeActionType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +50,7 @@ pub enum Action {
     UpdateVenues { action: UpdateVenuesAction },
     SetManualBreak { action: SetManualBreakAction },
     ImportFeedbackSystem { action: ImportFeedbackSystemAction },
+    SetAdjudicatorBreak { action: SetAdjudicatorBreakAction },
 }
 
 impl Action {
@@ -63,6 +67,7 @@ impl Action {
             Action::UpdateVenues { action } => action.get_changes(db).await,
             Action::SetManualBreak { action } => action.get_changes(db).await,
             Action::ImportFeedbackSystem { action } => action.get_changes(db).await,
+            Action::SetAdjudicatorBreak { action } => action.get_changes(db).await,
         }
     }
 }

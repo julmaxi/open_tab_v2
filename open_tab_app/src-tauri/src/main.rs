@@ -5,7 +5,7 @@ use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, 
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::TabView};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}};
 //use open_tab_server::TournamentChanges;
@@ -16,7 +16,7 @@ use open_tab_entities::prelude::*;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::DrawBallot, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::LoadedTournamentStatusView, break_relevant_tab_view::BreakRelevantTabView};
+use open_tab_app_backend::{View, draw_view::DrawBallot, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::LoadedTournamentStatusView};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};

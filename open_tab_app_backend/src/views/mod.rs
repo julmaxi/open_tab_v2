@@ -12,6 +12,7 @@ pub mod tournament_status_view;
 pub mod break_relevant_tab_view;
 pub mod breaks;
 pub mod progress_view;
+pub mod adjudicator_break_candidates_view;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
@@ -29,6 +30,7 @@ use self::tournament_status_view::LoadedTournamentStatusView;
 use self::break_relevant_tab_view::LoadedBreakRelevantTabView;
 use self::breaks::LoadedBreaksView;
 use self::progress_view::LoadedProgressView;
+use self::adjudicator_break_candidates_view::LoadedAdjudicatorBreakCandidatesView;
 
 
 
@@ -57,6 +59,7 @@ pub enum View {
     BreakRelevantTab{node_uuid: Uuid},
     Breaks{tournament_uuid: Uuid},
     Progress{tournament_uuid: Uuid},
+    AdjudicatorBreakCandidates{node_uuid: Uuid},
 }
 
 impl View {
@@ -111,6 +114,9 @@ impl View {
             },
             View::Progress { tournament_uuid } => {
                 Box::new(LoadedProgressView::load(db, *tournament_uuid).await?)
+            },
+            View::AdjudicatorBreakCandidates { node_uuid } => {
+                Box::new(LoadedAdjudicatorBreakCandidatesView::load(db, *node_uuid).await?)
             },
         })
     }
