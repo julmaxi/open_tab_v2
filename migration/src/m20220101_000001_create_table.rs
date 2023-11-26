@@ -598,28 +598,6 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 sea_query::Table::create()
-                    .table(TournamentRemote::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(TournamentRemote::Uuid)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(
-                        ColumnDef::new(TournamentRemote::TournamentId)
-                            .uuid()
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(TournamentRemote::Url).string().not_null())
-                    .col(ColumnDef::new(TournamentRemote::LastKnownChange).uuid())
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                sea_query::Table::create()
                     .table(Team::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Team::Uuid).uuid().not_null().primary_key())
