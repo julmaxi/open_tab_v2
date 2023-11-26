@@ -107,11 +107,30 @@ pub struct Institution {
     pub clash_severity: i16,
 }
 
+// This is used so we can use the structs in the modification action.
+// This is a little hacky, but it vastly simplifies the code.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ParticipantTeamInfo {
+    Existing {
+        team_id: Uuid
+    },
+    New {
+        new_team_name: String
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ParticipantRole {
-    Speaker{team_id: Uuid},
-    Adjudicator{chair_skill: i16, panel_skill: i16, unavailable_rounds: Vec<Uuid>,
+    Speaker {
+        #[serde(flatten)]
+        team_info: ParticipantTeamInfo
+    },
+    Adjudicator{
+        chair_skill: i16,
+        panel_skill: i16,
+        unavailable_rounds: Vec<Uuid>,
     }
 }
 
@@ -194,7 +213,7 @@ impl ParticipantsListView {
                         Some(ParticipantEntry {
                             uuid: p.uuid,
                             name: p.name,
-                            role: ParticipantRole::Speaker { team_id  },
+                            role: ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id }  },
                             institutions,
                             clashes,
                             registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k)),
@@ -215,7 +234,7 @@ impl ParticipantsListView {
         
         let teams = team_members.into_iter().map(|p| {
             match p.role {
-                ParticipantRole::Speaker { team_id } => (team_id, p),
+                ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id } } => (team_id, p),
                 _ => unreachable!()
             }
         }).into_group_map();

@@ -3,11 +3,11 @@
 
 use base64::{engine::general_purpose, Engine};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash}};
+use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash, self}};
 
 use sea_orm::prelude::*;
 
-use crate::participants_list_view::ParticipantEntry;
+use crate::participants_list_view::{ParticipantEntry, ParticipantTeamInfo};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
@@ -59,14 +59,69 @@ impl ActionTrait for UpdateParticipantsAction {
                     ));
                 }
             );
+        
+            let mut participant_role = participant.role;
+
+            let old_speaker = open_tab_entities::schema::speaker::Entity::find()
+            .filter(open_tab_entities::schema::speaker::Column::Uuid.eq(participant.uuid))
+            .one(_db)
+            .await?;
+
+            //TODO: Could be one query with some work
+            if let Some(old_speaker) = old_speaker {
+                let did_remove_from_team = match &participant_role {
+                    crate::participants_list_view::ParticipantRole::Speaker { team_info } => {
+                        match &team_info {
+                            ParticipantTeamInfo::Existing { team_id } if Some(*team_id) != old_speaker.team_id => true,
+                            ParticipantTeamInfo::New { .. } | ParticipantTeamInfo::Existing { .. } => {
+                                true
+                            },
+                            _ => false
+                        }
+                    },
+                    crate::participants_list_view::ParticipantRole::Adjudicator { .. } => true
+                };
+
+                if did_remove_from_team {
+                    let old_team_members = open_tab_entities::schema::speaker::Entity::find()
+                    .filter(open_tab_entities::schema::speaker::Column::TeamId.eq(old_speaker.team_id))
+                    .count(_db)
+                    .await?;
+
+                    if old_team_members == 1 {
+                        groups.delete(EntityType::Team, old_speaker.team_id.unwrap());
+                    }
+                }
+            }
+
+
+            if let crate::participants_list_view::ParticipantRole::Speaker { team_info } = &mut participant_role {
+                match team_info {
+                    ParticipantTeamInfo::New { new_team_name } => {
+                        let new_team = domain::team::Team {
+                            uuid: Uuid::new_v4(),
+                            name: new_team_name.clone(),
+                            tournament_id: self.tournament_id
+                        };
+                        let new_uuid = new_team.uuid;
+                        *team_info = ParticipantTeamInfo::Existing { team_id: new_team.uuid };
+                        groups.add(Entity::Team(new_team));
+                        new_uuid
+                    },
+                    ParticipantTeamInfo::Existing { team_id } => {
+                        team_id.clone()
+                    }
+                };
+            }
 
             groups.add(Entity::Participant(
                 Participant {
                     uuid: participant.uuid,
                     name: participant.name,
-                    role: match participant.role {
-                        crate::participants_list_view::ParticipantRole::Speaker { team_id } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
-                        crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill, unavailable_rounds } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill, unavailable_rounds })
+                    role: match participant_role {
+                        crate::participants_list_view::ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id } } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
+                        crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill, unavailable_rounds } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill, unavailable_rounds }),
+                        _ => unreachable!("Should not be possible to have a new team here")
                     },
                     tournament_id: self.tournament_id,
                     institutions: participant.institutions.into_iter().map(|p| ParticipantInstitution {

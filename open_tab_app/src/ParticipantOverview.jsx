@@ -1,6 +1,6 @@
 //@ts-check
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { useState } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
@@ -20,6 +20,92 @@ import {
   } from "react-router-dom";
 import { openImportDialog } from "./openImportDialog";
 import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
+import ErrorBoundary from "./ErrorBoundary";
+
+function TeamDetailView({team, onChange}) {
+    let [name, setName] = useState(team.name);
+    let tournamentContext = useContext(TournamentContext);
+
+    useEffect(() => {
+        setName(team.name);
+    }, [team.uuid]);
+
+    let hasChanges = !_.eq(
+        team.name,
+        name
+    );
+    
+    return <div className="w-full">
+        <label>Team Name</label>
+        <div>
+        <input type="text" value={name} onChange={(e) => {
+            setName(e.target.value);
+        }} />
+        </div>
+
+        {hasChanges && <Button onClick={() => {
+            executeAction("UpdateTeams", {tournament_id: tournamentContext.uuid, updates: [
+                {
+                    uuid: team.uuid,
+                    name: name
+                }
+            ]})
+        }}> Save </Button> }
+
+    </div>
+}
+
+
+function ChangeRoleView({participant, currentType, allTeams}) {
+    let teams = Object.values(allTeams);
+    let tournamentContext = useContext(TournamentContext);
+    console.log(participant);
+    return <div className="pt-3">
+        <h2 className="font-bold">Change Role</h2>
+        {
+            currentType == "Speaker" && <Button role="primary" onClick={
+                () => {
+                    let updatedPart = {...participant};
+                    updatedPart.type = "Adjudicator";
+                    updatedPart.chair_skill = 50;
+                    updatedPart.panel_skill = 50;
+                    updatedPart.unavailable_rounds = [];
+                    delete updatedPart.team_id;
+                    executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [
+                        updatedPart
+                    ], deleted_participants: []})
+                }
+            }>
+                Make Adjudicator
+            </Button>
+        }
+        <ComboBox placeholder={
+            (currentType == "Adjudicator" ? "Make Speaker and " : "") + "Move to Team…"} items={teams} onSelect={
+                (value, isCreate) => {
+                    console.log(">>", value);
+                    let updatedPart = {...participant};
+                    if (participant.type == "Adjudicator") {
+                        updatedPart.type = "Speaker";
+                        delete updatedPart.chair_skill;
+                        delete updatedPart.panel_skill;
+                        delete updatedPart.unavailable_rounds;
+                    }
+
+                    if (isCreate) {
+                        delete updatedPart.team_id;
+                        updatedPart.new_team_name = value;
+                    }
+                    else {
+                        updatedPart.team_id = value.uuid;
+                    }
+
+                    executeAction("UpdateParticipants", {tournament_id: tournamentContext.uuid, updated_participants: [
+                        updatedPart
+                    ]});
+                }
+            } allowCreate={true} />
+    </div>
+}
 
 
 function ParticipantDetailView({onClose, participant, ...props}) {
@@ -29,7 +115,6 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         participant,
         modifiedParticipant
     );
-
     useBlocker(
         hasChanges
     );
@@ -43,7 +128,6 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     let flatParticipantView = Object.values(participantView.teams).flatMap((team) => {
         return Object.values(team.members)
     }).concat(Object.values(participantView.adjudicators));
-    console.log(flatParticipantView);
 
     useEffect(() => {
         setModifiedParticipant(participant);
@@ -66,14 +150,23 @@ function ParticipantDetailView({onClose, participant, ...props}) {
         }
     }
 
-    return <div className="h-full">
+    return <div>
         <button
             onClick={onClose}
             className="absolute top-1 right-1 z-10 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
         >
       &times;
     </button>
-    
+
+    <div>
+        <label>Name</label>
+        <div>
+        <input type="text" value={modifiedParticipant.name} onChange={(e) => {
+            setModifiedParticipant({...modifiedParticipant, name: e.target.value});
+        }} />
+        </div>
+    </div>
+
     <div className="flex flex-wrap">
         <div className="w-full">
             <h2>Clashes</h2>
@@ -181,7 +274,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     </div>
 
     {
-        modifiedParticipant.type === "Adjudicator" ?
+        modifiedParticipant.type === "Adjudicator" &&
             <div className="flex flex-col">
                 <div className="flex w-full">
                     <div>
@@ -222,9 +315,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
                     ]
                 } />
             </div>
-            :
-            null
-    }
+     }
 
     {
         hasChanges ? <Button onClick={() => {
@@ -245,6 +336,7 @@ function ParticipantDetailView({onClose, participant, ...props}) {
 
 function ParticipantTable(props) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
+    let [selectedTeamUuid, setSelectedTeamUuid] = useState(null);
 
     let tournamentContext = useContext(TournamentContext);
 
@@ -322,7 +414,17 @@ function ParticipantTable(props) {
         participantsById[adjudicator_uuid] = adjudicator;
     });
 
-    let selectedParticipant = selectedParticipantUuid ? participantsById[selectedParticipantUuid] : null;
+    let selectedParticipant = useMemo(
+        () => {
+            return selectedParticipantUuid ? participantsById[selectedParticipantUuid] : null;
+        }, [selectedParticipantUuid, participantsById]
+    );
+
+    let selectedTeam = useMemo(
+        () => {
+            return selectedTeamUuid ? props.participants.teams[selectedTeamUuid] : null;
+        }, [selectedTeamUuid, props.participants.teams]
+    );
 
     let columns = [
             { "key": "role", "header": "Role", "group": true },
@@ -353,12 +455,33 @@ function ParticipantTable(props) {
             data={flatTable}
             rowId="uuid"
             selectedRowId={selectedParticipantUuid}
-            onSelectRow={(uuid) => {setSelectedParticipantUuid(uuid)}}
+            onSelectRow={(uuid) => {
+                setSelectedParticipantUuid(uuid)
+                let p = participantsById[uuid];
+                if (p.team_id) {
+                    setSelectedTeamUuid(p.team_id);
+                }
+            }
+            }
             columns={columns}
         />
+        <div className="h-full flex flex-col overflow-scroll">
         {
-           selectedParticipantUuid !== null ? <ParticipantDetailView participant={selectedParticipant} onClose={() => setSelectedParticipantUuid(null)} /> : []
+            selectedParticipantUuid !== null &&
+           <>
+            <ErrorBoundary>
+                    <ParticipantDetailView participant={selectedParticipant} onClose={() => {
+                        setSelectedParticipantUuid(null)
+                        setSelectedTeamUuid(null)
+                    }} />
+
+            <ChangeRoleView participant={selectedParticipant} currentType={selectedParticipant.type} allTeams={props.participants.teams} />
+            </ErrorBoundary>
+            </>
         }
+
+        { selectedTeam && <TeamDetailView team={selectedTeam} /> }
+        </div>
     </div>
 }
 

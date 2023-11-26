@@ -668,7 +668,7 @@ impl MigrationTrait for Migration {
                             .from_col(Speaker::TeamId)
                             .to_tbl(Team::Table)
                             .to_col(Team::Uuid)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::SetNull)
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
