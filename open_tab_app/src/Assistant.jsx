@@ -12,7 +12,8 @@ import { Link as RouterLink } from 'react-router-dom';
 import { executeAction } from './Action';
 import { open, save } from '@tauri-apps/api/dialog';
 import { DateTimeSelectorButton } from './DateTimeSelectorButton';
-
+import { AdjudicatorBreakSelector } from './AdjudicatorBreakSelector';
+import ModalOverlay from './Modal';
 
 const StepTypeRenderers = {
     "LoadParticipants": LoadParticipantsStep,
@@ -52,22 +53,8 @@ function WaitForBreakStep({ node_uuid }) {
             Click on the node in the overview and push the button in the side panel.
         </p>
 
-        <Button onClick={
-            () => {
-                save({defaultPath: "tab.odt", filters: [{name: "odt", extensions: ["odt"]}]}).then(
-                    selected => {
-                        if (selected != null) {
-                            invoke("save_tab", {path: selected, nodeId: node_uuid, tournamentId: tournamentContext.uuid});
-                        }
-                    }
-                )
-            }
-        }>
-            Save Break Tab…
-        </Button>
-
         <Button onClick={() => {
-            executeAction("ExecutePlanNode", {plan_node: node_uuid, tournament_id: tournamentContext.uuid});
+            executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid });
         }} role="primary">Break</Button>
     </div>
 }
@@ -94,13 +81,15 @@ function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
 
         <DateTimeSelectorButton
             buttonFactory={Button}
-            buttonProps={{role: (isDone ? "primary" : "secondary")}}
+            buttonProps={{ role: (isDone ? "primary" : "secondary") }}
             label="Set Round End Time"
             onSetDate={(date) => {
                 if (date !== null) {
-                    executeAction("UpdateRound", {round_id: round_uuid, update: {
-                        "round_close_time": date.toISOString().slice(0, -1),
-                    }});
+                    executeAction("UpdateRound", {
+                        round_id: round_uuid, update: {
+                            "round_close_time": date.toISOString().slice(0, -1),
+                        }
+                    });
                 }
             }}
         >
@@ -123,18 +112,20 @@ function WaitForMotionRelease({ round_uuid }) {
 
         <DateTimeSelectorButton
             buttonFactory={Button}
-            buttonProps={{role: "primary"}}
+            buttonProps={{ role: "primary" }}
             label="Set Release Time"
             onSetDate={(date) => {
                 if (date !== null) {
-                    let debateStartTime = new Date(date.getTime() + 15*60000);
-                    let fullMotionReleaseTime = new Date(date.getTime() + 20*60000);
+                    let debateStartTime = new Date(date.getTime() + 15 * 60000);
+                    let fullMotionReleaseTime = new Date(date.getTime() + 20 * 60000);
 
-                    executeAction("UpdateRound", {round_id: round_uuid, update: {
-                        "debate_start_time": debateStartTime.toISOString().slice(0, -1),
-                        "team_motion_release_time": date.toISOString().slice(0, -1),
-                        "full_motion_release_time": fullMotionReleaseTime.toISOString().slice(0, -1),
-                    }});
+                    executeAction("UpdateRound", {
+                        round_id: round_uuid, update: {
+                            "debate_start_time": debateStartTime.toISOString().slice(0, -1),
+                            "team_motion_release_time": date.toISOString().slice(0, -1),
+                            "full_motion_release_time": fullMotionReleaseTime.toISOString().slice(0, -1),
+                        }
+                    });
                 }
             }}
         >
@@ -160,21 +151,21 @@ function WaitForPublishRoundStep({ round_uuid }) {
             by clicking the button below.
         </p>
         <Button role="secondary" onClick={
-                () => {
-                    open({directory: true}).then((result) => {
-                        invoke("save_round_files", {roundId: roundId, dirPath: result}).then((result) => {
-                            console.log(result);
-                        });
+            () => {
+                open({ directory: true }).then((result) => {
+                    invoke("save_round_files", { roundId: roundId, dirPath: result }).then((result) => {
+                        console.log(result);
                     });
-                }
-            }>Export Ballots/Presentation</Button>
+                });
+            }
+        }>Export Ballots/Presentation</Button>
 
         <DateTimeSelectorButton
             buttonFactory={Button}
-            buttonProps={{role: "primary"}}
+            buttonProps={{ role: "primary" }}
             label="Set Release"
             onSetDate={(date) => {
-                executeAction("UpdateRound", {round_id: round_uuid, update: {"draw_release_time": date === null ? null : date.toISOString().slice(0, -1)}});
+                executeAction("UpdateRound", { round_id: round_uuid, update: { "draw_release_time": date === null ? null : date.toISOString().slice(0, -1) } });
             }}
         >
             Release Draw…
@@ -182,27 +173,27 @@ function WaitForPublishRoundStep({ round_uuid }) {
     </div>
 }
 
-function WelcomeStep({}) {
+function WelcomeStep({ }) {
     return <div className='w-full'>
         <h1>Welcome</h1>
 
         <p>
             Welcome to the Tab-Assistant. It will do the best
-        to guide you through this tournament. However, it
-        will only work for tournaments that follow a certain standard formula.
-        As long as you only follow the instructions here, it should work fine.
-        If you have specicial requirements, all functionalities here (and more) are availble in the
-        side bar and you can ignore this pane entirely.
+            to guide you through this tournament. However, it
+            will only work for tournaments that follow a certain standard formula.
+            As long as you only follow the instructions here, it should work fine.
+            If you have specicial requirements, all functionalities here (and more) are availble in the
+            side bar and you can ignore this pane entirely.
         </p>
     </div>
 }
 
 function LoadParticipantsStep({ }) {
     let tournamentContext = useContext(TournamentContext);
-    let statusView = useView({type: "TournamentStatus", tournament_uuid: tournamentContext.uuid}, null);
+    let statusView = useView({ type: "TournamentStatus", tournament_uuid: tournamentContext.uuid }, null);
     let settings = useSettings();
 
-    
+
     return <div className='w-full'>
         <h1>Load Participants</h1>
 
@@ -223,45 +214,109 @@ function LoadParticipantsStep({ }) {
         </p>
 
         <div className='p-4'>
-        {
-        settings && statusView &&
-        <RemoteSelector
+            {
+                settings && statusView &&
+                <RemoteSelector
                     knownRemotes={settings.known_remotes || []}
                     currentRemoteUrl={statusView.remote_url}
                     onSetRemote={(url) => {
-                        invoke("set_remote", {remoteUrl: url, tournamentId: tournamentContext.uuid});
-                        }
+                        invoke("set_remote", { remoteUrl: url, tournamentId: tournamentContext.uuid });
+                    }
                     }
                 />
-        }
+            }
         </div>
 
-        <ParticipantImportDialogButton buttonFactory={Button} buttonProps={{role: "primary"}} />
+        <ParticipantImportDialogButton buttonFactory={Button} buttonProps={{ role: "primary" }} />
     </div>
 }
 
-function WaitForDrawStep({ node_uuid, is_first_in_tournament }) {
+function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_node }) {
     let tournamentContext = useContext(TournamentContext);
+    let [isEditingAdjudicatorBreak, setIsEditingAdjudicatorBreak] = useState(false);
+
     return <div className='w-full'>
         <h1>Draw</h1>
-        {
-            is_first_in_tournament && <><p>
-                Before you continue, you should make sure, all clashes
-                and intitution memberships are correct and fix them if necessary.
-                You can do this in the <Link to="/participants">participants overview</Link>.
-            </p>
+
+        {is_first_in_tournament && <><p>
+            Before you continue, you should make sure, all clashes
+            and intitution memberships are correct and fix them if necessary.
+            You can do this in the <Link to="/participants">participants overview</Link>.
+        </p>
             <p>
                 You should also make sure, that the plan for your tournaments conforms to your
                 expectations. You can do this in the <Link to="/rounds">rounds overview</Link>.
             </p>
-            </>
+        </>}
+
+        {previous_break_node && <p>
+            Since this round happens after a break, you might want to add an adjudicator draw
+            before you continue. This way, only breaking adjudicators will be assigned in the next step.
+            This will also show adjudicators on the tab when you export it.
+            If you want to keep all adjudicators, you can ignore this step.
+        </p>}
+
+        {
+            previous_break_node && <p>
+                Finally, if you want a printed tab, you can save it from here.
+            </p>
         }
 
-        Once you are ready, you can generate the draw for the next batch of rounds:
 
-        <Button onClick={() => {
-            executeAction("ExecutePlanNode", {plan_node: node_uuid, tournament_id: tournamentContext.uuid});
-        }} role="primary">Generate Draw</Button>
+
+        Once you are ready, you can generate the draw for the next batch of rounds.
+
+        <div>
+            {previous_break_node && <>
+                <Button onClick={
+                    () => {
+                        save({ defaultPath: "tab.odt", filters: [{ name: "odt", extensions: ["odt"] }] }).then(
+                            selected => {
+                                if (selected != null) {
+                                    invoke("save_tab", { path: selected, nodeId: node_uuid, tournamentId: tournamentContext.uuid });
+                                }
+                            }
+                        )
+                    }
+                }>
+                    Save Break Tab…
+                </Button>
+
+
+                <Button onClick={
+                    () => {
+                        setIsEditingAdjudicatorBreak(true);
+                    }
+                } role="secondary">Set Adjudicator Break…</Button>
+
+                <ModalOverlay open={isEditingAdjudicatorBreak} windowClassName="flex h-screen">
+                    {isEditingAdjudicatorBreak ? <AdjudicatorBreakSelector nodeId={previous_break_node} onAbort={
+                        () => {
+                            setIsEditingAdjudicatorBreak(false);
+                        }
+                    } onSuccess={
+                        (breakingAdjudicators) => {
+                            executeAction(
+                                "SetAdjudicatorBreak",
+                                {
+                                    node_id: previous_break_node,
+                                    breaking_adjudicators: breakingAdjudicators,
+                                }
+                            )
+
+                            setIsEditingAdjudicatorBreak(false);
+                        }
+
+                    } /> : []}
+                </ModalOverlay>
+
+
+            </>}
+
+            <Button onClick={() => {
+                executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid });
+            }} role="primary">Generate Draw</Button>
+        </div>
     </div>
 }
 
@@ -307,10 +362,10 @@ function AssistantLadder({ steps }) {
         <div className="w-full h-full flex flex-col">
             {
                 transitions((style, step, idx) => {
-                        let StepRenderer = StepTypeRenderers[step.step_type];
+                    let StepRenderer = StepTypeRenderers[step.step_type];
                     return <animated.div key={step.key} style={style}><div ref={(ref) => ref && refMap.set(step, ref)}><AssistantStepPane isActive={!step.is_done} key={idx}>
-                    <StepRenderer {...step} />
-                </AssistantStepPane></div></animated.div>
+                        <StepRenderer {...step} />
+                    </AssistantStepPane></div></animated.div>
                 })
             }
         </div>
@@ -319,9 +374,9 @@ function AssistantLadder({ steps }) {
 
 function Assistant({ }) {
     let tournamentContext = useContext(TournamentContext);
-    let state = useView({type: "Progress", tournament_uuid: tournamentContext.uuid}, null);
-    
-    let steps = state ? ([{"step_type": "Welcome", is_done: state.steps.length > 0}, ...state.steps]) : [];
+    let state = useView({ type: "Progress", tournament_uuid: tournamentContext.uuid }, null);
+
+    let steps = state ? ([{ "step_type": "Welcome", is_done: state.steps.length > 0 }, ...state.steps]) : [];
 
     steps = steps.map((s) => {
         let node_uuid = s.node_uuid;

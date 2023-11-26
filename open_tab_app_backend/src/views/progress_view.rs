@@ -80,20 +80,25 @@ impl ProgressView {
 
             let all_nodes_by_id = all_nodes.iter().map(|n| (n.uuid, n)).collect::<HashMap<_, _>>();
     
-            let mut explore_queue = VecDeque::from(roots);
+            let mut explore_queue : VecDeque<(Uuid, Option<Uuid>)> = VecDeque::from_iter(roots.into_iter().map(|r| (r, None)));
             let mut has_seen_round_node = false;
 
             let mut all_nodes_complete = true;
 
             
-            while let Some(next) = explore_queue.pop_front() {
+            while let Some((next, prev_break)) = explore_queue.pop_front() {
                 let node = all_nodes_by_id.get(&next).expect("Db constraint failed");
                 let empty = vec![];
                 let children = children.get(&next).unwrap_or(&empty);
 
                 match &node.config {
                     open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
-                        steps.push(Step::WaitForDraw { node_uuid: node.uuid, is_done: rounds.len() > 0, is_first_in_tournament: !has_seen_round_node });
+                        steps.push(Step::WaitForDraw {
+                            node_uuid: node.uuid,
+                            is_done: rounds.len() == config.num_rounds() as usize,
+                            is_first_in_tournament: !has_seen_round_node,
+                            previous_break_node: prev_break.clone(),
+                        });
                         has_seen_round_node = true;
                         let mut node_is_done = false;
                         if rounds.len() == config.num_rounds() as usize {
@@ -128,14 +133,18 @@ impl ProgressView {
                         }
 
                         if node_is_done {
-                            explore_queue.extend(children);
+                            explore_queue.extend(children.into_iter().map(
+                                |u| (*u, prev_break)
+                            ));
                         }
                     },
                     open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
                         steps.push(Step::WaitForBreak { node_uuid: node.uuid, is_done: break_id.is_some() });
 
                         if break_id.is_some() {
-                            explore_queue.extend(children);
+                            explore_queue.extend(children.into_iter().map(
+                                |u| (*u, Some(node.uuid.clone()))
+                            ));
                         }
                         else {
                             all_nodes_complete = false;
@@ -160,7 +169,7 @@ impl ProgressView {
 #[serde(tag = "step_type")]
 enum Step {
     LoadParticipants { is_done: bool },
-    WaitForDraw { node_uuid: Uuid, is_done: bool, is_first_in_tournament: bool },
+    WaitForDraw { node_uuid: Uuid, is_done: bool, is_first_in_tournament: bool, previous_break_node: Option<Uuid> },
     WaitForPublishRound { round_uuid: Uuid, is_done: bool },
     WaitForMotionRelease { round_uuid: Uuid, is_done: bool },
     WaitForResults { round_uuid: Uuid, num_submitted: usize, num_expected: usize, is_silent: bool, is_done: bool },
