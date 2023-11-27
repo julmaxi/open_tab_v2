@@ -7,8 +7,8 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "open_tab_app",
-    "version": "0.0.0"
+    "productName": "Open Tab",
+    "version": "0.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -25,6 +25,14 @@
       "fs": {
         "scope": ["$RESOURCE/*"]
       }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://releases.debateresult.com/{{target}}_{{arch}}"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFNEZERkY5NUFGNjBCREMKUldUY0MvWmErZDlQYnJlMGVBNW1pU3pEMitwenNuVHNLOTRRa2F0OG5Mc2FDSVlCS05EWEREZ3IK"
     },
     "bundle": {
       "active": true,
@@ -44,9 +52,6 @@
     },
     "security": {
       "csp": null
-    },
-    "updater": {
-      "active": false
     },
     "windows": [
       {
