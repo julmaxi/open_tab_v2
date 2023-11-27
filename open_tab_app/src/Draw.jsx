@@ -254,7 +254,7 @@ function VenueSelector(props) {
     <button type="button" {...getToggleButtonProps()}>
       {selectedItem ? selectedItem.name : "<No Venue>"}
     </button>
-    <ul {...getMenuProps()} className="absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-scroll p-0 z-10">
+    <ul {...getMenuProps()} className="absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-auto p-0 z-10">
       {isOpen &&
 
         venues.venues.map((item, index) => (
@@ -535,7 +535,7 @@ function teamPositionToStr(position) {
 }
 
 function AdjudicatorTable({adjudicator_index, ...props}) {
-  return <div className="h-full overflow-scroll">
+  return <div className="h-full overflow-auto">
     <table className="w-full text-sm">
       <thead className="sticky top-0 bg-white">
         <tr>
@@ -562,7 +562,7 @@ function AdjudicatorTable({adjudicator_index, ...props}) {
 }
 
 function TeamTable({team_index, ...props}) {
-  return <div className="h-full overflow-scroll">
+  return <div className="h-full overflow-auto">
     <table className="w-full text-sm">
       <thead className="sticky top-0 bg-white">
         <tr>

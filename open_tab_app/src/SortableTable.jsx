@@ -50,7 +50,7 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, al
         };
     }
 
-    return <div className="h-full overflow-scroll">
+    return <div className="h-full overflow-auto">
         <table className="w-full">
             <thead className="bg-white sticky top-0">
                 <tr className="text-left">

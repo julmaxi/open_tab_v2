@@ -299,7 +299,7 @@ function ScoreInputCell(props) {
 export function RoundResultList(props) {
     let debates = useView({type: "RoundResults", round_uuid: props.roundId}, {"debates": []});
     let [activeBallot, setActiveBallot] = useState(null);
-    return <div className="w-full h-full overflow-scroll justify-center">
+    return <div className="w-full h-full overflow-auto justify-center">
         <div className="p-4">
         {
             debates.debates.map((debate) => 

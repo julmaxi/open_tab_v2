@@ -465,7 +465,7 @@ function ParticipantTable(props) {
             }
             columns={columns}
         />
-        <div className="h-full flex flex-col overflow-scroll">
+        <div className="h-full flex flex-col overflow-auto">
         {
             selectedParticipantUuid !== null &&
            <>

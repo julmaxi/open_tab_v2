@@ -10,7 +10,7 @@ const avgPointFormat = new Intl.NumberFormat("en-US", {minimumFractionDigits: 2,
 
 
 function ScoreTable({descriptionName, numRounds, children}) {
-    return <div className='overflow-scroll w-full'>
+    return <div className='overflow-auto w-full'>
         <table className='w-full'>
             <thead className='bg-white sticky top-0'>
                 <tr>

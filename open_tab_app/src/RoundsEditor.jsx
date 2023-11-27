@@ -222,7 +222,7 @@ function AddButton(props) {
 }
 
 function RoundsOverview({ tournamentTree, onSelectNode, selectedNodeId }) {
-    return <div className="flex flex-row justify-center w-full h-full overflow-scroll">
+    return <div className="flex flex-row justify-center w-full h-full overflow-auto">
         {tournamentTree != null ? <TournamentSubtree tree={tournamentTree.tree} onSelectNode={onSelectNode} selectedNodeId={selectedNodeId} /> : <div>Loading...</div>}
     </div>
 }

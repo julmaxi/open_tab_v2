@@ -358,7 +358,7 @@ function AssistantLadder({ steps }) {
         },
     }))
 
-    return <div className="w-full h-full flex flex-col overflow-scroll">
+    return <div className="w-full h-full flex flex-col overflow-auto">
         <div className="w-full h-full flex flex-col">
             {
                 transitions((style, step, idx) => {

@@ -15,7 +15,7 @@ export function TabGroup({...props}) {
 }
 
 export function Tab({...props}) {
-  return <div className={`min-h-0 flex-1 ${props.autoScroll !== false ? "overflow-scroll" : ""}`}>
+  return <div className={`min-h-0 flex-1 ${props.autoScroll !== false ? "overflow-auto" : ""}`}>
     {props.children}
   </div>;
 }

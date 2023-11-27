@@ -91,7 +91,7 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
                 </div>
             </div>
             <ul
-                className={`w-72 bg-white mt-1 shadow-md max-h-80 overflow-scroll p-0 z-10 ${!(isReallyOpen) && 'hidden'
+                className={`w-72 bg-white mt-1 shadow-md max-h-80 overflow-auto p-0 z-10 ${!(isReallyOpen) && 'hidden'
                     }`}
                 {...getMenuProps()}
             >

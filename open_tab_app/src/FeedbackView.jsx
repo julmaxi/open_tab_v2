@@ -27,7 +27,7 @@ export function FeedbackOverviewTable() {
     }
 
     return <div className="grid grid-cols-2">
-        <div className="w-full h-screen overflow-scroll">
+        <div className="w-full h-screen overflow-auto">
         <table>
             <thead>
                 <tr>
@@ -102,7 +102,7 @@ export function FeedbackDetailViewRoute(props) {
 
     console.log(responses);
 
-    return <div className="w-full h-screen overflow-scroll">
+    return <div className="w-full h-screen overflow-auto">
         {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
     </div>
 
