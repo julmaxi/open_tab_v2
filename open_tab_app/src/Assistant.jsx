@@ -143,22 +143,23 @@ function WaitForPublishRoundStep({ round_uuid }) {
         <p>
             You are now ready to publish the draw of the round.
             Before you continue, you should <Link to={`/round/${round_uuid}/draw`}>check the draw</Link> and make sure, that it is correct.
-            You can do this by clicking the button below.
+            You can initiate the release clicking the button below.
             All releases follow a time-based system, so you can
             preschedule the draw release for a specific time.
 
             You can save the draw presentation, along with the print-out ballots
             by clicking the button below.
+            Note that ig you do not have the online functionality enabled, you should still set release times to proceed. They will have no other effect.
         </p>
         <Button role="secondary" onClick={
             () => {
                 open({ directory: true }).then((result) => {
-                    invoke("save_round_files", { roundId: roundId, dirPath: result }).then((result) => {
+                    invoke("save_round_files", { roundId: round_uuid, dirPath: result }).then((result) => {
                         console.log(result);
                     });
                 });
             }
-        }>Export Ballots/Presentation</Button>
+        }>Export Ballots/Presentation…</Button>
 
         <DateTimeSelectorButton
             buttonFactory={Button}
@@ -240,7 +241,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
 
         {is_first_in_tournament && <><p>
             Before you continue, you should make sure, all clashes
-            and intitution memberships are correct and fix them if necessary.
+            and institution memberships are correct and fix them if necessary.
             You can do this in the <Link to="/participants">participants overview</Link>.
         </p>
             <p>
