@@ -5,7 +5,39 @@
     let midPoint = (config.min + config.max) / 2;
 
     let value = midPoint;
+
+    let relativeScore = 0.0;
+
+    $: switch (config.orientation) {
+        case "MeanIsGood":
+            relativeScore = 1.0 - Math.abs(value - midPoint) / (config.max - midPoint);
+            break;
+        case "HighIsGood":
+            relativeScore = (value - config.min) / (config.max - config.min);
+            break;
+        case "LowIsGood":
+            relativeScore = (config.max - value) / (config.max - config.min);
+            break;
+    }
+
+    $: hue = relativeScore * 120;
 </script>
+
+
+<style>
+    input[type=range] {
+        width: 100%;
+        margin: 13.8px 0;
+    }
+
+    input[type=number] {
+        text-align: center;
+        padding: 0.25rem;
+        border-radius: 0.25rem;
+
+        font-weight: 800;
+    }
+</style>
 
 <div class="p-4 md:p0">
     <input type="range" min={config.min} max={config.max} step={config.step} class="w-full" bind:value />
@@ -14,6 +46,6 @@
         <span class="flex-1 text-right">{config.labels[1][1]}</span>
     </div>
     <div class="flex justify-center items-center">
-        <input type="number" name={name} min={config.min} max={config.max} step={config.step} bind:value />
+        <input style={`color: hsl(${hue} 60% 45%)`} type="number" name={name} min={config.min} max={config.max} step={config.step} bind:value />
     </div>
 </div>

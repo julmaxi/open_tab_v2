@@ -44,7 +44,7 @@
 </style>
 
 
-<div class="container mx-auto my-8">
+<div class="container mx-auto">
     <div class="flex">
         <button 
             class="px-4 py-2 border rounded-l focus:outline-none {activeTab === 'teamTab' ? 'bg-blue-500 text-white' : ''}" 

@@ -6,7 +6,6 @@ import BoxButton from "./BoxButton.svelte";
     export let data;
 
     let currentRounds = data.rounds.filter(round => round.status === 'DrawReleased' || round.status === 'InProgress');
-    console.dir(currentRounds, {depth: null});
     let futureRounds = data.rounds.filter(round => round.status === 'Planned');
     let pastRounds = data.rounds.filter(round => round.status === 'Completed')
 
@@ -32,9 +31,7 @@ import BoxButton from "./BoxButton.svelte";
     }
 
     .wrapper {
-        background-color: rgb(251, 250, 254);
         width: 100%;
-        min-height: 100vh;
         overflow: auto;
         padding: 1rem;
     }
@@ -93,6 +90,22 @@ import BoxButton from "./BoxButton.svelte";
     Private Page for {data.name}
 </h1>
 
+
+{#if overdueFeedback.length > 0}
+<div class="box error-box">
+    <div class="box-content">
+        <h2>
+            Overdue Feedback
+        </h2>
+    </div>
+
+    {#each overdueFeedback as feedback}
+        <BoxButton href={
+            `/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`
+        } label={`${feedback.target_name} (${feedback.target_role.type}) in ${feedback.round_name}`} />
+    {/each}
+</div>
+{/if}
 
 {#each currentRounds as round}
     <div class="box">
@@ -168,23 +181,6 @@ import BoxButton from "./BoxButton.svelte";
         </div>
     </div>
 {/each}
-
-
-{#if overdueFeedback.length > 0}
-<div class="box error-box">
-    <div class="box-content">
-        <h2>
-            Overdue Feedback
-        </h2>
-    </div>
-
-    {#each overdueFeedback as feedback}
-        <BoxButton href={
-            `/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`
-        } label={`${feedback.target_name} (${feedback.target_role.type}) in ${feedback.round_name}`} />
-    {/each}
-</div>
-{/if}
 
 <h2>
     Submitted Feedback

@@ -1,9 +1,9 @@
-use std::{str::FromStr, collections::HashMap};
+use std::{str::FromStr, collections::HashMap, f32::consts::E};
 
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait};
+use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema};
 use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
@@ -13,7 +13,9 @@ use crate::{response::{APIError, handle_error}, state::AppState, auth::ExtractAu
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FeedbackFormResponse {
-    pub questions: Vec<FeedbackFormQuestion>
+    pub questions: Vec<FeedbackFormQuestion>,
+    pub target_name: String,
+    pub target_round_index: i32
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,7 +71,7 @@ pub struct FeedbackFormSubmissionResponse {
 
 async fn get_feedback_form(
     State(db): State<DatabaseConnection>,
-    Path((source_role, target_role, _debate_id, _target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
+    Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
     ExtractAuthenticatedUser(_user): ExtractAuthenticatedUser
 ) -> Result<Json<FeedbackFormResponse>, APIError> {
     let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
@@ -84,11 +86,30 @@ async fn get_feedback_form(
         }
     };
 
+    let target_participant = schema::participant::Entity::find_by_id(target_id).one(&db).await.map_err(handle_error)?;
+    if target_participant.is_none() {
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Invalid participant")))
+    }
+    let target_participant = target_participant.unwrap();
+    
+    let target_round = schema::tournament_round::Entity::find().inner_join(
+        schema::tournament_debate::Entity
+    ).filter(
+        schema::tournament_debate::Column::Uuid.eq(debate_id)
+    ).one(&db).await.map_err(handle_error)?;
+
+    if target_round.is_none() {
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Invalid debate")))
+    }
+    let target_round = target_round.unwrap();
+
     let questions = get_relevant_questions(&db, tournament_id, source_role, target_role).await?;
 
     return Ok(Json(
         FeedbackFormResponse {
-            questions
+            questions,
+            target_name: target_participant.name,
+            target_round_index: target_round.index
         }
     ))
 }
