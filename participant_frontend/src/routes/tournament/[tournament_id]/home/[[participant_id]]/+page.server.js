@@ -25,5 +25,6 @@ export async function load({ params, fetch, cookies }) {
         rounds: participant_info.rounds,
         feedback_submissions: participant_info.feedback_submissions,
         tournamentId: params.tournament_id,
+        role: participant_info.role,
     };
 }

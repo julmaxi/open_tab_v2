@@ -16,7 +16,7 @@ pub struct LoadedFeedbackOverviewView {
 
 
 impl LoadedFeedbackOverviewView {
-    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load<C>(db: &C, tournament_uuid: Uuid) -> Result<LoadedFeedbackOverviewView, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedFeedbackOverviewView {
                 tournament_id: tournament_uuid,
@@ -75,8 +75,24 @@ pub struct ParticipantEntry {
     pub score_summaries: HashMap<Uuid, SummaryValue>
 }
 
+fn safe_avg<I>(iter: I) -> Option<f32> where I: Iterator<Item=f32> {
+    let mut sum = 0.0;
+    let mut count = 0;
+    for i in iter {
+        sum += i;
+        count += 1;
+    }
+
+    if count > 0 {
+        Some(sum / count as f32)
+    }
+    else {
+        None
+    }
+}
+
 impl FeedbackOverviewView {
-    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let adjudicators = open_tab_entities::schema::adjudicator::Entity::find()
             .find_also_related(open_tab_entities::schema::participant::Entity)
             .filter(open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id))
@@ -145,12 +161,12 @@ impl FeedbackOverviewView {
                         let n_vals_f32 = n_vals as f32;
                         let question = questions_by_id.get(&question_id).unwrap(); // Guaranteed by db constraints
                         let summary_val = match &question.question_config {
-                            open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion { .. } => Some(SummaryValue::Average{avg: vals.into_iter().filter_map(
+                            open_tab_entities::domain::feedback_question::QuestionType::RangeQuestion { .. } => Some(SummaryValue::Average{avg: safe_avg(vals.into_iter().filter_map(
                                 |v| match v {
                                     open_tab_entities::domain::feedback_response::FeedbackResponseValue::Int { val } => Some(val as f32),
                                     _ => None
                                 }
-                            ).sum()}),
+                            )).unwrap_or(0.0)}),
                             open_tab_entities::domain::feedback_question::QuestionType::TextQuestion => None,
                             open_tab_entities::domain::feedback_question::QuestionType::YesNoQuestion => {
                                 let n_yes = vals.into_iter().filter_map(
@@ -196,7 +212,7 @@ pub struct LoadedFeedbackDetailView {
 }
 
 impl LoadedFeedbackDetailView {
-    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         Ok(
             LoadedFeedbackDetailView {
                 participant_id: participant_id,
@@ -214,7 +230,7 @@ pub struct FeedbackDetailView {
 }
 
 impl FeedbackDetailView {
-    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_participant<C>(db: &C, participant_id: Uuid) -> Result<Self, anyhow::Error> where C: ConnectionTrait {
         let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(db).await?;
         let participant = participant.ok_or(
             anyhow::anyhow!("Participant with id {} not found", participant_id)

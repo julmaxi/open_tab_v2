@@ -149,10 +149,10 @@ pub enum ParticipantRoundRoleInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag="team_score_status")]
+#[serde(tag="score_status")]
 pub enum TeamScoreInfo {
     Hidden,
-    Shown{total_score: f32, adjudicator_team_scores: Vec<i16>}
+    Shown{total_score: f32, adjudicator_scores: Vec<i16>}
 }
 
 impl TeamScoreInfo {
@@ -178,12 +178,12 @@ impl TeamScoreInfo {
                 RoundTeamRole::Opposition => &ballot.opposition
             }.scores.get(a).map(|s| s.total())
         }).collect_vec();
-        Self::Shown{total_score: team_score + speaker_score, adjudicator_team_scores}
+        Self::Shown{total_score: team_score + speaker_score, adjudicator_scores: adjudicator_team_scores}
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag="speaker_score_status")]
+#[serde(tag="score_status")]
 pub enum SpeakerScoreInfo {
     Hidden,
     DidNotParticipate,

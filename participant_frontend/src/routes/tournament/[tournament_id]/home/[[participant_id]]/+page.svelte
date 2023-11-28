@@ -1,5 +1,7 @@
 <script>
-    import BoxButton from "./BoxButton.svelte";
+    import ScoreDetailDisplay from "../../tab/ScoreDetailDisplay.svelte";
+import BoxButton from "./BoxButton.svelte";
+    import ScoreDisplay from "./ScoreDisplay.svelte";
 
     export let data;
 
@@ -217,27 +219,58 @@
     Past Rounds
 </h2>
 
-<ul>
-{#each pastRounds as round}
-    <li>
-        <a href="/tournament/[[data.id]]/round/[[round.id]]">
-            {round.name}
-        </a>
-    </li>
-{/each}
-</ul>
+{#if data.role.type == "Speaker" }
+<table>
+    <thead>
+        <tr>
+            <th>Round</th>
+            <th>Score</th>
+            <th>Team Score</th>
+            <th>Motion</th>
+        </tr>
+    </thead>
+    <tbody>
+        {#each pastRounds as round}
+            <tr>
+                <td>{round.name}</td>
+                <td><ScoreDisplay info={round?.participant_role?.speaker_score} /></td>
+                <td>
+                    <ScoreDisplay info={round?.participant_role?.team_score} />
+                </td>
+                <td>{round.motion.motion}</td>
+            </tr>
+        {/each}
+    </tbody> 
+</table>
+{/if}
 
-<h2>
-    Future Rounds
-</h2>
 
-<ul>
-{#each futureRounds as round}
-    <li>
-        <a href="/tournament/[[data.id]]/round/[[round.id]]">
-            {round.name}
-        </a>
-    </li>
-{/each}
-</ul>
+{#if data.role.type == "Adjudicator" }
+<table>
+    <thead>
+        <tr>
+            <th>Round</th>
+            <th>Motion</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {#each pastRounds as round}
+            <tr>
+                <td>{round.name}</td>
+                <td>{round.motion.motion}</td>
+                <td>
+                    {#if round.participant_role.position == 0 }
+                    <a class="action" href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}>
+                        View/Edit Ballot
+                    </a>
+                    {:else}
+                    -
+                    {/if}
+                </td>
+            </tr>
+        {/each}
+    </tbody> 
+</table>
+{/if}
 </div>
