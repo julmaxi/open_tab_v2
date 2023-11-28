@@ -791,7 +791,6 @@ impl TournamentEntity for Ballot {
 
     async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let ballot_ids = entities.iter().map(|e| e.uuid).collect_vec();
-        dbg!(&ballot_ids);
 
         let ballot_ids2 = ballot_ids.clone();
         

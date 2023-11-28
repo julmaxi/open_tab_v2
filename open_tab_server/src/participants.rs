@@ -92,7 +92,8 @@ pub enum Motion {
 #[serde(tag="status")]
 pub enum RoundStatus {
     Planned,
-    DrawReleased { debate_start_time: Option<DateTime> },
+    DrawReleased,
+    WaitingToStart { debate_start_time: Option<DateTime> },
     InProgress,
     Completed
 }
@@ -444,12 +445,13 @@ async fn get_participant_info(
 
             let status = if check_release_date(current_time, round.round_close_time) {
                 RoundStatus::Completed
-            } else if check_release_date(current_time, round.team_motion_release_time) {
+            } else if check_release_date(current_time, round.debate_start_time) {
                 RoundStatus::InProgress
+            }
+            else if check_release_date(current_time, round.team_motion_release_time) {
+                RoundStatus::WaitingToStart { debate_start_time: round.debate_start_time }
             } else if check_release_date(current_time, round.draw_release_time) {
-                RoundStatus::DrawReleased {
-                    debate_start_time: round.debate_start_time
-                }
+                RoundStatus::DrawReleased {}
             } else {
                 RoundStatus::Planned
             };
@@ -473,7 +475,8 @@ async fn get_participant_info(
     let feedback_requests_debates = rounds.iter().filter_map(|round_info| {
         let show_feedback = match round_info.status {
             RoundStatus::Planned => false,
-            RoundStatus::DrawReleased {..} => true,
+            RoundStatus::DrawReleased {..} => false,
+            RoundStatus::WaitingToStart {..} => false,
             RoundStatus::InProgress => true,
             RoundStatus::Completed => true,
         };

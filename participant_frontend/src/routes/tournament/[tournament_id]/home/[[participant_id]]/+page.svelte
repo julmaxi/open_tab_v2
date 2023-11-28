@@ -5,7 +5,7 @@ import BoxButton from "./BoxButton.svelte";
 
     export let data;
 
-    let currentRounds = data.rounds.filter(round => round.status === 'DrawReleased' || round.status === 'InProgress');
+    let currentRounds = data.rounds.filter(round => round.status === 'DrawReleased' || round.status == "WaitingToStart" || round.status === 'InProgress');
     let futureRounds = data.rounds.filter(round => round.status === 'Planned');
     let pastRounds = data.rounds.filter(round => round.status === 'Completed')
 
@@ -20,6 +20,13 @@ import BoxButton from "./BoxButton.svelte";
     let currentDebateIds = currentRounds.map(round => round?.participant_role?.debate?.uuid);
 
     overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.debate_id));
+
+    function formatDate(date) {
+        let hours = date.getHours().toString();
+        let minutes = date.getMinutes().toString();
+
+        return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    }
 </script>
 
 <style>
@@ -161,7 +168,7 @@ import BoxButton from "./BoxButton.svelte";
 
             {#if round.debate_start_time != null}
                 <div>
-                    Debate starts at {round.debate_start_time}
+                    Debate starts at {formatDate(new Date(round.debate_start_time + "+00:00"))}
                 </div>
             {/if}
 
