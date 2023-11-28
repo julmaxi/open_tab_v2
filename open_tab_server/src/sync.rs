@@ -269,6 +269,7 @@ pub async fn reconcile_changes<C>(
 
     let deleted_tournamet_uuids = group.get_all_deletion_tournaments(db).await?;
     if !deleted_tournamet_uuids.into_iter().all(|t| t == Some(tournament_id)) {
+        println!("Rejecting push trying to delete in other tournaments");
         return Ok(
             ReconciliationOutcome::InvalidTournament
         );
@@ -277,6 +278,8 @@ pub async fn reconcile_changes<C>(
 
     let added_tournament_uuids = group.get_all_tournaments(db).await?;
     if !added_tournament_uuids.into_iter().all(|t| t == Some(tournament_id)) {
+        dbg!("Rejecting push trying to modify in other tournaments");
+
         return Ok(
             ReconciliationOutcome::InvalidTournament
         );

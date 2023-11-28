@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema};
+use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, ballot::SpeechRole}, schema};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
@@ -97,7 +97,7 @@ pub enum RoundStatus {
     Completed
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticipantRoundInfo {
     pub uuid: Uuid,
     pub name: String,
@@ -116,17 +116,86 @@ pub enum RoundTeamRole {
     Opposition
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+impl Into<SpeechRole> for RoundTeamRole {
+    fn into(self) -> SpeechRole {
+        match self {
+            RoundTeamRole::Government => SpeechRole::Government,
+            RoundTeamRole::Opposition => SpeechRole::Opposition
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag="role")]
 pub enum ParticipantRoundRoleInfo {
     NotDrawn,
     TeamSpeaker{
         debate: ParticipantDebateInfo,
-        team_role: RoundTeamRole
+        team_role: RoundTeamRole,
+        speaker_score: SpeakerScoreInfo,
+        team_score: TeamScoreInfo
     },
-    NonAlignedSpeaker{debate: ParticipantDebateInfo, position: i32},
-    Adjudicator{debate: ParticipantDebateInfo, position: i32},
+    NonAlignedSpeaker{
+        debate: ParticipantDebateInfo,
+        position: i32,
+        speaker_score: SpeakerScoreInfo
+    },
+    Adjudicator{
+        debate: ParticipantDebateInfo,
+        position: i32
+    },
     Multiple
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag="team_score_status")]
+pub enum TeamScoreInfo {
+    Hidden,
+    Shown{total_score: f32, adjudicator_team_scores: Vec<i16>}
+}
+
+impl TeamScoreInfo {
+    pub fn from_ballot_and_team_role(ballot: &open_tab_entities::domain::ballot::Ballot, team_role: RoundTeamRole) -> Self {
+        let team_score = match team_role {
+            RoundTeamRole::Government => ballot.government.team_score(),
+            RoundTeamRole::Opposition => ballot.opposition.team_score()
+        }.unwrap_or(0.0) as f32;
+        let speaker_score = ballot.speeches.iter().filter_map(
+            |speech| {
+                if speech.role == team_role.clone().into() {
+                    speech.speaker_score()
+                }
+                else {
+                    None
+                }
+            }
+        ).sum::<f64>() as f32;
+
+        let adjudicator_team_scores = ballot.adjudicators.iter().filter_map(|a| {
+            match team_role {
+                RoundTeamRole::Government => &ballot.government,
+                RoundTeamRole::Opposition => &ballot.opposition
+            }.scores.get(a).map(|s| s.total())
+        }).collect_vec();
+        Self::Shown{total_score: team_score + speaker_score, adjudicator_team_scores}
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag="speaker_score_status")]
+pub enum SpeakerScoreInfo {
+    Hidden,
+    DidNotParticipate,
+    Shown{total_score: f32, adjudicator_scores: Vec<i16>}
+}
+
+impl SpeakerScoreInfo {
+    fn from_speech(speech: &open_tab_entities::domain::ballot::Speech) -> Self {
+        let total_score = speech.speaker_score().unwrap_or(0.0) as f32;
+        let adjudicator_scores = speech.scores.iter().map(|(_, score)| score.total()).collect_vec();
+        Self::Shown{ total_score, adjudicator_scores }
+    }
 }
 
 async fn get_participant_info(
@@ -168,6 +237,7 @@ async fn get_participant_info(
         transaction.rollback().await.map_err(handle_error)?;
         return Err(APIError::from((StatusCode::FORBIDDEN, "You do not have access to this participant")));
     }
+    let current_time = chrono::Utc::now().naive_utc();
 
     let speaker_info = open_tab_entities::schema::speaker::Entity::find()
     .find_also_related(open_tab_entities::schema::team::Entity)
@@ -262,6 +332,13 @@ async fn get_participant_info(
     let ballot_map = open_tab_entities::domain::ballot::Ballot::get_many(&transaction, all_ballot_ids).await?.into_iter().map(
         |b| (b.uuid, b)
     ).collect::<HashMap<_, _>>();
+    
+    let show_results_map : HashMap<Uuid, bool> = all_rounds.iter().map(
+        |round| {
+            let show_results = !round.is_silent && check_release_date(current_time, round.round_close_time);
+            (round.uuid, show_results)
+        }
+    ).collect();
 
     let participant_adjudicator_debates = participant_adjudicator_debates.into_iter().map(
         |(d, v)| {
@@ -278,25 +355,71 @@ async fn get_participant_info(
     let participant_non_aligned_speaker_debates = participant_non_aligned_speaker_debates.into_iter().map(
         |(d, v)| {
             let ballot = ballot_map.get(&d.ballot_id).unwrap();
-            let position = ballot.speeches.iter().filter(|s| s.speaker == Some(participant_id)).next().unwrap().position as i32;
+            let speech = ballot.speeches.iter().find(|s| s.speaker == Some(participant_id)).unwrap();
+            let show_results = show_results_map.get(&d.round_id).unwrap();
             (d.round_id, ParticipantRoundRoleInfo::NonAlignedSpeaker {
                 debate: ParticipantDebateInfo::new_from(d, v),
-                position
+                position: speech.position as i32,
+                speaker_score: if *show_results {
+                    SpeakerScoreInfo::from_speech(&speech)
+                } else {
+                    SpeakerScoreInfo::Hidden
+                },
             })
         }
     );
     let participant_gov_debates = participant_gov_debates.into_iter().map(
         |(d, v)| {
-            (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{debate: ParticipantDebateInfo::new_from(d, v), team_role: RoundTeamRole::Government })
+            let speech = ballot_map.get(&d.ballot_id).unwrap().speeches.iter().find(|s| s.speaker == Some(participant_id));
+            let show_scores = show_results_map.get(&d.round_id).unwrap();
+            let speech_score_info = if *show_scores {
+                if let Some(speech) = speech {
+                    SpeakerScoreInfo::from_speech(&speech)
+                }
+                else {
+                    SpeakerScoreInfo::DidNotParticipate
+                }
+            }
+            else {
+                SpeakerScoreInfo::Hidden
+            };
+            let team_score = TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Government);
+            (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{
+                debate: ParticipantDebateInfo::new_from(d, v),
+                team_role: RoundTeamRole::Government,
+                speaker_score: speech_score_info,
+                team_score
+            })
         }
     );
     let participant_opp_debates = participant_opp_debates.into_iter().map(
-        |(d, v)| (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{debate: ParticipantDebateInfo::new_from(d, v), team_role: RoundTeamRole::Opposition })
+        |(d, v)| {
+            let speech = ballot_map.get(&d.ballot_id).unwrap().speeches.iter().find(|s| s.speaker == Some(participant_id));
+            let show_scores = show_results_map.get(&d.round_id).unwrap();
+            let speech_score_info = if *show_scores {
+                if let Some(speech) = speech {
+                    SpeakerScoreInfo::from_speech(&speech)
+                }
+                else {
+                    SpeakerScoreInfo::DidNotParticipate
+                }
+            }
+            else {
+                SpeakerScoreInfo::Hidden
+            };
+            let team_score = TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Government);
+
+            (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{
+                debate: ParticipantDebateInfo::new_from(d, v),
+                team_role: RoundTeamRole::Opposition,
+                speaker_score: speech_score_info,
+                team_score
+            })
+        }
     );
 
     let round_roles : HashMap<Uuid, Vec<ParticipantRoundRoleInfo>> = participant_adjudicator_debates.chain(participant_non_aligned_speaker_debates).chain(participant_gov_debates).chain(participant_opp_debates).into_grouping_map().collect();
 
-    let current_time = chrono::Utc::now().naive_utc();
 
     let rounds = all_rounds.into_iter().map(
         |round| {

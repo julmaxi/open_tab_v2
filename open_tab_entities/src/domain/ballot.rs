@@ -3,6 +3,7 @@ use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Erro
 use async_trait::async_trait;
 use sea_orm::{JoinType, FromQueryResult};
 use sea_orm::{prelude::*, ActiveValue, Condition, QuerySelect};
+use sea_query::IntoCondition;
 use serde::{Serialize, Deserialize};
 
 use crate::schema::{self};
@@ -788,11 +789,53 @@ impl TournamentEntity for Ballot {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let id = schema::tournament_round::Entity::find().join(JoinType::InnerJoin, schema::tournament_round::Relation::TournamentDebate.def()).filter(
-            schema::tournament_debate::Column::BallotId.eq(self.uuid)
-        ).one(db).await.map(|round| round.map(|round| round.tournament_id))?;
-        Ok(id)
+    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+        let ballot_ids = entities.iter().map(|e| e.uuid).collect_vec();
+        dbg!(&ballot_ids);
+
+        let ballot_ids2 = ballot_ids.clone();
+        
+        let ids : Vec<(Uuid, Uuid, Option<Uuid>)> = schema::tournament_round::Entity::find()
+        .select_only()
+        .column(schema::tournament_round::Column::TournamentId)
+        .column(schema::tournament_debate::Column::BallotId)
+        .column(schema::debate_backup_ballot::Column::BallotId)
+        .join(
+            JoinType::InnerJoin,
+            schema::tournament_round::Relation::TournamentDebate.def()
+        )
+        .join(
+            JoinType::LeftJoin,
+            schema::tournament_debate::Relation::DebateBackupBallot.def()
+        )
+        .filter(
+            schema::tournament_debate::Column::BallotId.is_in(ballot_ids.clone()).or(
+                schema::debate_backup_ballot::Column::BallotId.is_in(ballot_ids2.clone())
+            )
+        ).into_tuple().all(db).await?;
+        
+        let mut ballot_tournament_map = HashMap::new();
+
+        for (tournament_id, ballot_id, backup_ballot_id) in ids.into_iter() {
+            let ballot_ids = vec![Some(ballot_id), backup_ballot_id].into_iter().filter_map(|x| x).collect_vec();
+            for ballot_id in ballot_ids.into_iter() {
+                let prev_tournament_id = ballot_tournament_map.get(&ballot_id);
+
+                match prev_tournament_id {
+                    Some(Some(prev_id)) if *prev_id == tournament_id => {},
+                    Some(Some(_)) => {
+                        eprintln!("Ballot {} is in multiple tournaments", ballot_id);
+                        ballot_tournament_map.insert(ballot_id, None);
+                    },
+                    Some(None) => {},
+                    None => {
+                        ballot_tournament_map.insert(ballot_id, Some(tournament_id));
+                    }
+                }
+            }
+        }
+
+        Ok(entities.iter().map(|e| ballot_tournament_map.get(&e.uuid).map(|x| *x).flatten()).collect())
     }
 
     async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {

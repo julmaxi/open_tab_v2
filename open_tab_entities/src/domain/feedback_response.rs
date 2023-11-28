@@ -120,8 +120,10 @@ impl TournamentEntity for FeedbackResponse {
             .select_also(schema::tournament_round::Entity)
             .filter(schema::tournament_debate::Column::Uuid.is_in(entities.iter().map(|x| x.source_debate_id.clone()).collect::<Vec<Uuid>>()))
             .all(db).await?.into_iter().filter_map(|(debate, round_)| round_.map(|r| (debate.uuid, r.tournament_id))).collect::<HashMap<Uuid, Uuid>>();
+
         
-        entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.source_debate_id).cloned())).collect()
+        let out = entities.into_iter().map(|x| Ok(form_tournament_ids.get(&x.source_debate_id).cloned())).collect();
+        out
     }
 
     async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {

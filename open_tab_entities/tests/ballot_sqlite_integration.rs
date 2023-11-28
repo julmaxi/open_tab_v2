@@ -1,7 +1,7 @@
 use std::{collections::HashMap, default};
 
 use itertools::Itertools;
-use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}};
+use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}, debate_backup_ballot::DebateBackupBallot};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
 use migration::MigratorTrait;
 
@@ -497,6 +497,63 @@ async fn test_get_tournament_from_debate_ballot() -> Result<(), anyhow::Error> {
     debate.save(&db, true).await?;
 
     assert_eq!(ballot.get_tournament(&db).await?, Some(Uuid::from_u128(10)));
+
+    Ok(())
+}
+
+
+
+#[tokio::test]
+async fn test_get_tournament_from_backup_ballot() -> Result<(), anyhow::Error> {
+    let db = set_up_db(true).await?;
+    let tournament = Tournament {
+        uuid: Uuid::from_u128(10),
+        ..default::Default::default()
+    };
+    tournament.save(&db, true).await?;
+
+    let round = TournamentRound {
+        uuid: Uuid::from_u128(21),
+        tournament_id: tournament.uuid,
+        index: 0,
+        ..Default::default()
+    };
+    round.save(&db, true).await?;
+
+    let ballot1 = Ballot {
+        uuid: Uuid::from_u128(100),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    };
+    ballot1.save(&db, true).await?;
+
+    let debate = TournamentDebate {
+        uuid: Uuid::from_u128(30),
+        round_id: round.uuid,
+        index: 0,
+        ballot_id: ballot1.uuid,
+        ..Default::default()
+    };
+    debate.save(&db, true).await?;
+
+    let ballot2 = Ballot {
+        uuid: Uuid::from_u128(101),
+        adjudicators: vec![],
+        speeches: vec![],
+        ..Default::default()
+    };
+    ballot2.save(&db, true).await?;
+
+    let backup_ballot = DebateBackupBallot {
+        uuid: Uuid::from_u128(40),
+        debate_id: debate.uuid,
+        ballot_id: ballot2.uuid,
+        timestamp: chrono::Utc::now().naive_utc(),
+    };
+    backup_ballot.save(&db, true).await?;
+
+    assert_eq!(ballot2.get_tournament(&db).await?, Some(Uuid::from_u128(10)));
 
     Ok(())
 }

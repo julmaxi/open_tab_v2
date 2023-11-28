@@ -700,9 +700,13 @@ async fn pull_remote_changes<C>(
 
                 return Ok(None);
             }
-            ReconciliationOutcome::Reject | ReconciliationOutcome::InvalidTournament => {
+            ReconciliationOutcome::Reject => {
                 transaction.rollback().await?;
                 return Err(SyncError::Other("Reconciliation failed".to_string()));
+            }
+            ReconciliationOutcome::InvalidTournament => {
+                transaction.rollback().await?;
+                return Err(SyncError::Other("Reconciliation failed: Invalid tournament".to_string()));
             }
         }
 
