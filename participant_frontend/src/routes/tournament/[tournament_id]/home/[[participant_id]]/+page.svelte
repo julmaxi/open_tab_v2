@@ -14,11 +14,11 @@
     let overdueFeedback = []
 
     for (let round of currentRounds) {
-        unsubmittedFeedbackForCurrentRounds[round.uuid] = unsubmittedFeedback.filter(feedback => feedback.round_id === round?.participant_role?.debate?.uuid);
+        unsubmittedFeedbackForCurrentRounds[round.uuid] = unsubmittedFeedback.filter(feedback => feedback.debate_id === round?.participant_role?.debate?.uuid);
     }
     let currentDebateIds = currentRounds.map(round => round?.participant_role?.debate?.uuid);
 
-    overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.round_id));
+    overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.debate_id));
 
 
 </script>
@@ -105,7 +105,7 @@
             {:else if round.participant_role.role === "TeamSpeaker" }
             <span>You are {round.participant_role.team_role} </span>
             {:else if round.participant_role.role === "NonAlignedSpeaker" }
-            <span>You are Non Aligned Speaker #{round.participant_role.position}</span>
+            <span>You are Non Aligned Speaker #{round.participant_role.position + 1}</span>
             {:else if round.participant_role.role === "Adjudicator" }
             <span>You are {round.participant_role.position == 0 ? "Chair" : "Wing"}</span>
             {:else if round.participant_role.role === "Multiple" }

@@ -134,6 +134,10 @@ async fn get_participant_info(
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantInfoResponse>, APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
     let transaction = db.begin().await.map_err(handle_error)?;
 
     let participant_query_result = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
@@ -274,7 +278,7 @@ async fn get_participant_info(
     let participant_non_aligned_speaker_debates = participant_non_aligned_speaker_debates.into_iter().map(
         |(d, v)| {
             let ballot = ballot_map.get(&d.ballot_id).unwrap();
-            let position = ballot.speeches.iter().position(|s| s.speaker == Some(participant_id)).unwrap() as i32;
+            let position = ballot.speeches.iter().filter(|s| s.speaker == Some(participant_id)).next().unwrap().position as i32;
             (d.round_id, ParticipantRoundRoleInfo::NonAlignedSpeaker {
                 debate: ParticipantDebateInfo::new_from(d, v),
                 position
