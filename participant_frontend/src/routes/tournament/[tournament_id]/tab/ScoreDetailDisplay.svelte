@@ -1,56 +1,90 @@
 <script>
     import Number from "$lib/Number.svelte";
 
-
     export let detailedScores;
 
-    export let roundInfo;
-
-    let scores = roundInfo.map(
-        (round, idx) => {
-            if (!detailedScores[round.tab_index]) {
+    let scores = detailedScores.map((score, idx) => {
+        if (score != undefined) {
+            if (
+                score.team_score !== null ||
+                score.score !== null ||
+                score.speaker_score !== null
+            ) {
+                return (
+                    (score.team_score || 0) +
+                    (score.speaker_score || 0) +
+                    (score.score || 0)
+                );
+            } else {
                 return null;
             }
-            if (detailedScores[round.tab_index] !== undefined) {
-                if (detailedScores[round.tab_index].team_score !== null || detailedScores[round.tab_index].score !== null || detailedScores[round.tab_index].speaker_score  !== null) {
-                    return (
-                        (detailedScores[round.tab_index].team_score || 0)
-                        +
-                        (detailedScores[round.tab_index].speaker_score || 0)
-                        +
-                        (detailedScores[round.tab_index].score || 0)
-                    );
-                }
-                else {
-                    return null;
-                }
-            }
-            else {
-                return null;
-            }
+        } else {
+            return null;
         }
-    )
+    });
 
+    let roleClasses = detailedScores.map((score, idx) => {
+        if (score != undefined) {
+            switch (score.role || score.team_role) {
+                case "Government":
+                    return "gov";
+                case "Opposition":
+                    return "opp"
+                case "NonAligned":
+                    return "non-aligned";
+            }
+        } else {
+            return "";
+        }
+    });
     //FIXME: Team scores do not have a total (because it is a derived attribute), so we need to handle it
     //specially here. Unelegant.
 </script>
 
-<div class="flex flex-row flex-wrap">
-    {#each roundInfo as round, ridx }
-        <div class="text-xs rounded-sm bg-blue-50">
-            {#if round.state === "Public"}
-                {#if scores[ridx] !== null}
-                    <Number number={
-                        scores[ridx]
-                    } />
-                {/if}
-            {:else if round.state === "Silent"}
-                <span>🤫</span>
-            {/if}
-        </div>
-
-        {#if ridx < roundInfo.length - 1 && scores[ridx + 1] !== null}
-            <span class="text-xs">+</span>
+<div class="container">
+    {#each detailedScores as score, ridx}
+        {#if scores[ridx] !== null}
+            <div class="score-box">
+                <div class={roleClasses[ridx]}>
+                    <Number number={scores[ridx]} />
+                </div>
+            </div>
         {/if}
     {/each}
 </div>
+
+<style>
+    .container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .score-box:not(:last-child)::after {
+        content: "+";
+        display: inline;
+        padding-right: 0.1rem;
+    }
+
+    .score-box {
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+
+    .score-box > div {
+        border-radius: 0.125rem;
+        display: inline-block;
+    }
+
+    .gov {
+        background-color: rgb(220 252 231)
+    }
+
+    .opp {
+        background-color: rgb(243 232 255)
+    }
+
+    .non-aligned {
+        background-color: rgb(254 249 195);
+    }
+</style>

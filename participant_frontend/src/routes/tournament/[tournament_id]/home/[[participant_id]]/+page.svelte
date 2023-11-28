@@ -21,8 +21,6 @@ import BoxButton from "./BoxButton.svelte";
     let currentDebateIds = currentRounds.map(round => round?.participant_role?.debate?.uuid);
 
     overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.debate_id));
-
-
 </script>
 
 <style>

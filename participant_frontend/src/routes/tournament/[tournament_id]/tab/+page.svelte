@@ -10,6 +10,40 @@
 </script>
 
 
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #ccc;
+    }
+
+    td {
+        border: 1px solid #ccc;
+
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    th {
+        padding: 0.25rem;
+        border: 1px solid #ccc;
+        background-color: #eee;
+    }
+
+    .rank {
+        text-align: right;
+        width: 3rem;
+    }
+
+    .score {
+        text-align: right;
+        width: 3rem;
+    }
+</style>
+
+
 <div class="container mx-auto my-8">
     <div class="flex">
         <button 
@@ -21,45 +55,47 @@
     </div>
 
     {#if activeTab === 'teamTab'}
-        <table class="min-w-full mt-4 border-collapse">
+        <table>
             <thead>
                 <tr>
-                    <th class="w-12 px-4 py-2 border">#</th>
-                    <th class="px-4 py-2 border">Team Name</th>
-                    <th class="px-4 py-2 border">Total Points</th>
+                    <th>#</th>
+                    <th>Team Name</th>
+                    <th>Total Points</th>
                 </tr>
             </thead>
             <tbody>
                 {#each teamTab as team}
                     <tr>
-                        <td class="w-12 px-4 py-2 border">{team.rank + 1}</td>
-                        <td class="px-4 py-2 border">
+                        <td class="rank">{team.rank + 1}</td>
+                        <td>
                             {team.team_name}
-                            <ScoreDetailDisplay detailedScores={team.detailed_scores} roundInfo={data.rounds} />
+                            <ScoreDetailDisplay detailedScores={team.detailed_scores} />
                         </td>
-                        <td class="w-12 px-4 py-2 border text-right"><Number number={team.total_points} /></td>
+                        <td class="score"><Number number={team.total_score} /></td>
                     </tr>
                 {/each}
             </tbody>
         </table>
     {:else}
-        <table class="min-w-full mt-4 border-collapse">
+        <table>
             <thead>
                 <tr>
-                    <th class="w-12 px-4 py-2 border">#</th>
-                    <th class="px-4 py-2 border">Speaker Name</th>
-                    <th class="w-12 px-4 py-2 border">Total Points</th>
+                    <th>#</th>
+                    <th>Speaker Name</th>
+                    <th>Total Points</th>
                 </tr>
             </thead>
             <tbody>
                 {#each speakerTab as speaker}
                     <tr>
-                        <td class="w-12 px-4 py-2 border">
+                        <td class="rank">
                             {speaker.rank + 1}
-                            <ScoreDetailDisplay detailedScores={speaker.detailed_scores} roundInfo={data.rounds} />
                         </td>
-                        <td class="px-4 py-2 border">{speaker.speaker_name}</td>
-                        <td class="w-12 px-4 py-2 border text-right"><Number number={speaker.total_points} /></td>
+                        <td>
+                            {speaker.speaker_name}
+                            <ScoreDetailDisplay detailedScores={speaker.detailed_scores} />
+                        </td>
+                        <td class="score"><Number number={speaker.total_score} /></td>
                     </tr>
                 {/each}
             </tbody>
