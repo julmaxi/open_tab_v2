@@ -2,11 +2,11 @@
 	export let number;
     export let locale = "de";
 
-	$: formattedNumber = number.toLocaleString(locale, {
+	$: formattedNumber = isFinite(number) ? number.toLocaleString(locale, {
 		notation: "standard",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-	});
+	}) : "-";
 </script>
 
 <style>
