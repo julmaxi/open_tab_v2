@@ -36,12 +36,11 @@ impl ActionTrait for ImportFeedbackSystemAction {
             g.delete(EntityType::FeedbackQuestion, question.uuid);
         }
 
-        let result : FormTemplate = serde_yaml::from_reader(reader)?;
+        let result : FormTemplate = FormTemplate::from_reader(reader)?;
 
         let (forms, questions) = result.into_forms_and_questions_for_tournament(
             self.tournament_uuid
         )?;
-        dbg!(&forms);
 
         for form in forms {
             g.add(

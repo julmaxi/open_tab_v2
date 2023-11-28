@@ -4,7 +4,7 @@ use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema};
-use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect};
+use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
 use crate::{response::{APIError, handle_error}, auth::ExtractAuthenticatedUser, state::AppState};
@@ -65,7 +65,8 @@ pub struct ParticipantDebateInfo {
     uuid: Uuid,
     ballot_id: Uuid,
     is_motion_released_to_non_aligned: bool,
-    venue: Option<VenueInfo>
+    venue: Option<VenueInfo>,
+    debate_index: i32
 }
 
 impl ParticipantDebateInfo {
@@ -74,7 +75,8 @@ impl ParticipantDebateInfo {
             uuid: debate.uuid,
             ballot_id: debate.ballot_id,
             is_motion_released_to_non_aligned: debate.is_motion_released_to_non_aligned,
-            venue: venue.map(|v| VenueInfo{uuid: v.uuid, name: v.name})
+            venue: venue.map(|v| VenueInfo{uuid: v.uuid, name: v.name}),
+            debate_index: debate.index
         }
     }
 }
@@ -87,9 +89,10 @@ pub enum Motion {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag="status")]
 pub enum RoundStatus {
     Planned,
-    DrawReleased,
+    DrawReleased { debate_start_time: Option<DateTime> },
     InProgress,
     Completed
 }
@@ -102,6 +105,7 @@ pub struct ParticipantRoundInfo {
     pub participant_role: Option<ParticipantRoundRoleInfo>,
     pub motion: Motion,
 
+    #[serde(flatten)]
     pub status: RoundStatus,
     pub is_silent: bool
 }
@@ -193,7 +197,9 @@ async fn get_participant_info(
     .join(sea_orm::JoinType::LeftJoin, open_tab_entities::schema::participant::Relation::Tournament.def().rev())
     .filter(
         open_tab_entities::schema::participant::Column::Uuid.eq(participant_id)
-    ).all(&transaction).await.map_err(handle_error)?;
+    )
+    .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
+    .all(&transaction).await.map_err(handle_error)?;
 
     let participant_adjudicator_debates = open_tab_entities::schema::tournament_debate::Entity::find()
     .inner_join(open_tab_entities::schema::ballot::Entity)
@@ -290,6 +296,7 @@ async fn get_participant_info(
 
     let rounds = all_rounds.into_iter().map(
         |round| {
+            dbg!(&round.uuid);
             let role = match round_roles.get(&round.uuid) {
                 Some(roles) => {
                     if roles.len() == 1 {
@@ -313,7 +320,9 @@ async fn get_participant_info(
             } else if check_release_date(current_time, round.team_motion_release_time) {
                 RoundStatus::InProgress
             } else if check_release_date(current_time, round.draw_release_time) {
-                RoundStatus::DrawReleased
+                RoundStatus::DrawReleased {
+                    debate_start_time: round.debate_start_time
+                }
             } else {
                 RoundStatus::Planned
             };
@@ -337,7 +346,7 @@ async fn get_participant_info(
     let feedback_requests_debates = rounds.iter().filter_map(|round_info| {
         let show_feedback = match round_info.status {
             RoundStatus::Planned => false,
-            RoundStatus::DrawReleased => true,
+            RoundStatus::DrawReleased {..} => true,
             RoundStatus::InProgress => true,
             RoundStatus::Completed => true,
         };
@@ -347,17 +356,17 @@ async fn get_participant_info(
         match &round_info.participant_role {
             Some(ParticipantRoundRoleInfo::Adjudicator { debate, position }) => {
                 if *position == 0 {
-                    Some((FeedbackSourceRole::Chair, debate.clone(), &round_info.name, &round_info.uuid))
+                    Some((FeedbackSourceRole::Chair, debate.clone(), &round_info.name, &debate.uuid))
                 }
                 else {
-                    Some((FeedbackSourceRole::Wing, debate.clone(), &round_info.name, &round_info.uuid))
+                    Some((FeedbackSourceRole::Wing, debate.clone(), &round_info.name, &debate.uuid))
                 }
             },
             Some(ParticipantRoundRoleInfo::NonAlignedSpeaker { debate, .. }) if !round_info.is_silent  => {
-                Some((FeedbackSourceRole::NonAligned, debate.clone(), &round_info.name, &round_info.uuid))
+                Some((FeedbackSourceRole::NonAligned, debate.clone(), &round_info.name, &debate.uuid))
             },
             Some(ParticipantRoundRoleInfo::TeamSpeaker { debate, .. }) if !round_info.is_silent => {
-                Some((FeedbackSourceRole::Team, debate.clone(), &round_info.name, &round_info.uuid))
+                Some((FeedbackSourceRole::Team, debate.clone(), &round_info.name, &debate.uuid))
             },
             _ => None,
         }

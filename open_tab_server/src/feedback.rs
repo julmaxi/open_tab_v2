@@ -4,7 +4,7 @@ use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait};
-use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait};
+use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
 
@@ -118,6 +118,8 @@ async fn submit_feedback_form(
 ) -> Result<Json<FeedbackFormSubmissionResponse>, APIError> {
     let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
     let target_role = FeedbackTargetRole::from_str(&target_role).map_err(handle_error)?;
+
+    let db = db.begin().await.map_err(handle_error)?;
     
     let tournament_id = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
@@ -133,7 +135,7 @@ async fn submit_feedback_form(
 
     let mut response_values = HashMap::new();
     for (key, val) in submission.answers {
-        let question = question_map.get(&key).ok_or(APIError::from((StatusCode::BAD_REQUEST, "Invalid question")))?;
+        let question = question_map.get(&key).ok_or_else(|| APIError::from((StatusCode::BAD_REQUEST, format!("Invalid question {}", key))))?;
 
         let response_val = match (&question.question_type, &val) {
             (QuestionType::RangeQuestion { config }, Value::Int { val }) => {
@@ -192,7 +194,6 @@ async fn submit_feedback_form(
         }
     };
 
-
     let participant = open_tab_entities::schema::user_participant::Entity::find()
     .join(JoinType::InnerJoin, open_tab_entities::schema::user_participant::Relation::Participant.def())
     .filter(
@@ -217,6 +218,8 @@ async fn submit_feedback_form(
 
     let group = EntityGroup::from(vec![Entity::FeedbackResponse(submission)]);
     group.save_all_and_log_for_tournament(&db, tournament_id).await?;
+
+    db.commit().await.map_err(handle_error)?;
 
     return Ok(Json(
         FeedbackFormSubmissionResponse {

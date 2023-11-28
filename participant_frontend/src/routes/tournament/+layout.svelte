@@ -9,6 +9,6 @@ export let data;
   <slot name="header" />
 </nav>
 
-<div class="pl-0 pr-0 md:pl-24 md:pr-24">
+<div class="">
   <slot />
 </div>
