@@ -241,8 +241,6 @@ impl CSVReaderConfig {
                     let chair_skill = role.chars().nth(1).unwrap().to_digit(10);
                     let panel_skill = role.chars().nth(2).map(|d| d.to_digit(10)).flatten();
 
-                    dbg!(&chair_skill, &panel_skill, role.chars().nth(1));
-
                     match (chair_skill, panel_skill) {
                         (Some(chair), Some(panel)) => (chair * 10, panel * 10),
                         (Some(chair), None) => (chair * 10, chair * 10),

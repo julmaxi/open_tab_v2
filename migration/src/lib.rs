@@ -6,6 +6,7 @@ mod m20230514_170224_add_users;
 mod m20230618_115644_add_feedback;
 mod m20231125_213519_add_adj_break;
 mod m20231128_191922_add_ballot_backup_index;
+mod m20231129_174220_add_feedback_release;
 
 pub struct Migrator;
 
@@ -18,6 +19,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20230618_115644_add_feedback::Migration),
             Box::new(m20231125_213519_add_adj_break::Migration),
             Box::new(m20231128_191922_add_ballot_backup_index::Migration),
+            Box::new(m20231129_174220_add_feedback_release::Migration),
         ]
     }
 }

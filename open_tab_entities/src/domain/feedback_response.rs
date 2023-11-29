@@ -33,6 +33,21 @@ pub enum FeedbackResponseValue {
     String {val: String},
 }
 
+impl TryFrom<schema::feedback_response_value::Model> for FeedbackResponseValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: schema::feedback_response_value::Model) -> Result<Self, Self::Error> {
+        Ok(
+            match (value.bool_value, value.int_value, value.string_value) {
+                (Some(val), None, None) => FeedbackResponseValue::Bool {val},
+                (None, Some(val), None) => FeedbackResponseValue::Int {val},
+                (None, None, Some(val)) => FeedbackResponseValue::String {val},
+                _ => return Err(LoadFeedbackError::MultipleValues(value.response_id, value.question_id).into())
+            }
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 enum LoadFeedbackError {
     #[error("Feedback response {0} has no values")]
@@ -162,18 +177,11 @@ impl LoadEntity for FeedbackResponse {
 
 impl FeedbackResponse {
     fn from_rows(response: schema::feedback_response::Model, values: Vec<schema::feedback_response_value::Model>) -> Result<Self, anyhow::Error> {
-        let values : Result<HashMap<_, _>, _> = values.into_iter().map(
+        let values : Result<HashMap<_, _>, anyhow::Error> = values.into_iter().map(
             |v| {
-                Ok((v.question_id, match (
-                        v.bool_value, v.int_value, v.string_value
-                    ) {
-                        (Some(val), None, None) => FeedbackResponseValue::Bool {val},
-                        (None, Some(val), None) => FeedbackResponseValue::Int {val},
-                        (None, None, Some(val)) => FeedbackResponseValue::String {val},
-                        (None, None, None) => return Err(Box::new(LoadFeedbackError::NoValues(v.response_id))),
-                        _ => return Err(Box::new(LoadFeedbackError::MultipleValues(v.response_id, v.question_id))),
-                    }
-                ))
+                Ok(
+                    (v.question_id, FeedbackResponseValue::try_from(v)?)
+                )
             }
         ).collect();
 

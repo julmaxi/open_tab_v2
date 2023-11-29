@@ -71,8 +71,8 @@ function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
 
 
 
-function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime, onSetReleaseTime}) {
-    [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime] = [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime].map((s) => s === null ? s : new Date(s + "+00:00"));
+function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime, feedbackReleaseTime, onSetReleaseTime}) {
+    [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime, feedbackReleaseTime] = [drawReleaseTime, teamMotionReleaseTime, debateStartTime, fullMotionReleaseTime, roundCloseTime, feedbackReleaseTime].map((s) => s === null ? s : new Date(s + "+00:00"));
     let states = [
         {
             "key": "drawReleaseTime",
@@ -98,6 +98,11 @@ function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, debateStartTime
             "key": "roundCloseTime",
             "name": "Round Close",
             "releaseTime": roundCloseTime,
+        },
+        {
+            "key": "feedbackReleaseTime",
+            "name": "Feedback Release",
+            "releaseTime": feedbackReleaseTime,
         }
     ];
 
@@ -183,6 +188,7 @@ export function RoundPublicationView({roundId}) {
                 debateStartTime={publicationInfo.debate_start_time}
                 fullMotionReleaseTime={publicationInfo.full_motion_release_time}
                 roundCloseTime={publicationInfo.round_close_time}
+                feedbackReleaseTime={publicationInfo.feedback_release_time}
                 onSetReleaseTime={(key, date) => {
                     let update = {};
                     key = key.replace(/([A-Z])/g, "_$1").toLowerCase();

@@ -68,6 +68,8 @@ pub struct RoundUpdate {
     pub full_motion_release_time: PatchValue<Option<chrono::NaiveDateTime>>,
     #[serde(default)]
     pub round_close_time: PatchValue<Option<chrono::NaiveDateTime>>,
+    #[serde(default)]
+    pub feedback_release_time: PatchValue<Option<chrono::NaiveDateTime>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +77,7 @@ pub struct UpdateRoundAction {
     update: RoundUpdate,
     round_id: Uuid
 }
+
 
 #[async_trait]
 impl ActionTrait for UpdateRoundAction {
@@ -106,6 +109,9 @@ impl ActionTrait for UpdateRoundAction {
         }
         if let PatchValue::Set(round_close_time) = self.update.round_close_time {
             existing_round.round_close_time = round_close_time;
+        }
+        if let PatchValue::Set(feedback_release_time) = self.update.feedback_release_time {
+            existing_round.feedback_release_time = feedback_release_time;
         }
 
         groups.add(Entity::TournamentRound(existing_round));

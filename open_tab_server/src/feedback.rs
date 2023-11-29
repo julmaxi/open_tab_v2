@@ -3,8 +3,8 @@ use std::{str::FromStr, collections::HashMap, f32::consts::E};
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema};
-use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait};
+use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema, derived_models::{SummaryValue, compute_question_summary_values}};
+use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait, QueryOrder, DbBackend, QueryTrait};
 use serde::{Serialize, Deserialize};
 
 
@@ -249,10 +249,104 @@ async fn submit_feedback_form(
     ))
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ParticipantFeedbackSummary {
+    summary_values: Vec<ParticipantFeedbackSummaryValue>,
+    individual_values: Vec<ParticipantFeedbackIndividualValueList>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ParticipantFeedbackSummaryValue {
+    question_name: String,
+    question_uuid: Uuid,
+    #[serde(flatten)]
+    value: SummaryValue
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ParticipantFeedbackIndividualValueList {
+    question_name: String,
+    question_uuid: Uuid,
+    values: Vec<FeedbackResponseValue>
+}
+
+
+async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, Path(participant_id): Path<Uuid>, ExtractAuthenticatedUser(user): ExtractAuthenticatedUser) -> Result<Json<ParticipantFeedbackSummary>, APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to view feedback for this participant")))
+    }
+    let now = chrono::Utc::now().naive_utc();
+
+    let db = db.begin().await.map_err(handle_error)?;
+    let relevant_answer_values = schema::feedback_response_value::Entity::find().inner_join(
+        schema::feedback_response::Entity
+    )
+    .join(JoinType::InnerJoin, schema::feedback_response::Relation::TournamentDebate.def())
+    .join(JoinType::InnerJoin, schema::tournament_debate::Relation::TournamentRound.def())
+    .filter(
+        schema::tournament_round::Column::FeedbackReleaseTime.lte(now).and(
+            schema::feedback_response::Column::TargetParticipantId.eq(participant_id)
+        )
+    )
+    .all(&db).await.map_err(handle_error)?;
+
+    let question_ids = relevant_answer_values.iter().map(|v| v.question_id).collect_vec();
+
+    let relevant_questions = schema::feedback_question::Entity::find().filter(
+        schema::feedback_question::Column::Uuid.is_in(question_ids)
+    ).order_by_asc(schema::feedback_question::Column::FullName).all(&db).await.map_err(handle_error)?.into_iter().map(FeedbackQuestion::from_model).collect_vec();
+    db.rollback().await.map_err(handle_error)?;
+
+    let answers_by_question_id : Result<Vec<(Uuid, FeedbackResponseValue)>, anyhow::Error> = relevant_answer_values.into_iter().map(|a| Ok((a.question_id, FeedbackResponseValue::try_from(a)?))).collect();
+    let answers_by_question_id = answers_by_question_id?.into_iter().into_group_map();
+
+    let questions_by_id = relevant_questions.iter().map(|q| (q.uuid, q.clone())).collect::<HashMap<_, _>>();
+    let summary_values = compute_question_summary_values(&answers_by_question_id, &questions_by_id);
+
+    let summary_values = relevant_questions.iter().filter_map(
+        |q| {
+            let summary_value = summary_values.get(&q.uuid).unwrap_or(&SummaryValue::Unavailable);
+            match summary_value {
+                SummaryValue::Unavailable => None,
+                v => Some(ParticipantFeedbackSummaryValue {
+                    question_name: q.short_name.clone(),
+                    question_uuid: q.uuid,
+                    value: v.clone()
+            })
+        }
+    }
+    ).collect();
+
+    let individual_values = relevant_questions.iter().filter_map(
+        |q| {
+            match q.question_config {
+                QuestionType::TextQuestion => {
+                    let values = answers_by_question_id.get(&q.uuid).unwrap_or(&vec![]).clone();
+                    Some(ParticipantFeedbackIndividualValueList {
+                        question_name: q.short_name.clone(),
+                        question_uuid: q.uuid,
+                        values
+                    })
+                },
+                _ => None
+            }
+        }
+    ).collect();
+
+    Ok(
+        Json(
+            ParticipantFeedbackSummary {
+                summary_values,
+                individual_values
+            }
+        )
+    )
+}
 
 
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/feedback/:source_role/:target_role/debate/:debate_id/for/:target_id/from/:source_id", get(get_feedback_form))
     .route("/feedback/:source_role/:target_role/debate/:debate_id/for/:target_id/from/:source_id", post(submit_feedback_form))
+    .route("/participant/:participant_id/feedback", get(get_participant_feedback_summary))
 }
