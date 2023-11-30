@@ -261,13 +261,9 @@ import BoxButton from "./BoxButton.svelte";
                 <td>{round.name}</td>
                 <td>{round.motion.motion}</td>
                 <td>
-                    {#if round.participant_role.position == 0 }
                     <a class="action" href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}>
                         View/Edit Ballot
                     </a>
-                    {:else}
-                    -
-                    {/if}
                 </td>
             </tr>
         {/each}
