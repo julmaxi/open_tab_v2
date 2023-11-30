@@ -29,6 +29,12 @@
         padding-right: 0.25rem;
         position: relative;
         top: -0.1rem;
+        color: #aaa;
+        font-weight: normal;
+    }
+
+    span.per {
+        font-size: 0.75rem;
     }
 
     .section {
@@ -66,7 +72,7 @@
             {#if value.type == "Average"}
                 <div class="val"><span>ø</span>{numberFormat.format(value.avg)}</div>
             {:else if value.type == "Percentage"}
-                <div class="val"><span>%</span>{numberFormat.format(value.percentage * 100)}</div>
+                <div class="val"><span class="per">%</span>{numberFormat.format(value.percentage * 100)}</div>
             {/if}
         </div>
     {/each}
