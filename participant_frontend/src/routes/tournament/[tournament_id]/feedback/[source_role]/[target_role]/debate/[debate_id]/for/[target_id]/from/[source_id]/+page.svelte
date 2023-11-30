@@ -46,6 +46,18 @@
     .container {
         padding: 0.5rem;
     }
+
+    .radio {
+        display: flex;
+        flex-direction: column;;
+        align-items: center;
+    }
+
+    .radio > div {
+        display: flex;
+        flex-direction: column;;
+        align-items: left;
+    }
 </style>
 
 <div class="container">
@@ -71,9 +83,19 @@
             <input type="hidden" name={`${question.uuid}_type`} value="string" />
             <textarea name={question.uuid} placeholder="Type comments here" />
         {:else if question.question_type.type == "YesNoQuestion"}
-            <input type="hidden" name={`${question.uuid}_type`} value="bool" />
-            <input type="radio" name={question.uuid} value="yes" />
-            <input type="radio" name={question.uuid} value="no" />
+            <div class="radio">
+                <div>
+                <input type="hidden" name={`${question.uuid}_type`} value="bool" />
+                <div>
+                <input type="radio" name={question.uuid} value="yes" />
+                <label for={question.uuid}>Yes</label>
+                </div>
+                <div>
+                <input type="radio" name={question.uuid} value="no" />
+                <label for={question.uuid}>No</label>
+                </div>
+                </div>
+            </div>
         {/if}
     {/each}
     </div>

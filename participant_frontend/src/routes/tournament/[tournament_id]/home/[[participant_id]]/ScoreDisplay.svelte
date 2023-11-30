@@ -7,8 +7,6 @@
         maximumFractionDigits: 2,
     });
 
-    console.log(info);
-
     let joinedInvididualScores = info?.adjudicator_scores != undefined ? info.adjudicator_scores.join(" + ") : "";
 </script>
 

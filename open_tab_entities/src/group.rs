@@ -116,18 +116,19 @@ pub trait EntityGroupTrait {
 
 
 pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<crate::schema::tournament_log::Model>) -> Result<Vec<VersionedEntity<Entity, EntityType>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-    let mut to_query : HashMap<String, Vec<(Uuid, Uuid)>> = HashMap::new();
-    let mut original_indices: HashMap<(String, Uuid), usize> = HashMap::new();
+    let mut to_query : HashMap<EntityType, Vec<(Uuid, Uuid)>> = HashMap::new();
+    let mut original_indices: HashMap<(EntityType, Uuid), usize> = HashMap::new();
     log_entries.into_iter().enumerate().for_each(|(idx, e)| {
-        match to_query.get_mut(&e.target_type) {
+        let type_ = EntityType::from(e.target_type);
+        match to_query.get_mut(&type_) {
             Some(v) => {
                 v.push((e.target_uuid, e.uuid));
             },
             None => {
-                to_query.insert(e.target_type.clone(), vec![(e.target_uuid, e.uuid)]);
+                to_query.insert(type_.clone(), vec![(e.target_uuid, e.uuid)]);
             }
         }
-        original_indices.insert((e.target_type, e.target_uuid), idx);
+        original_indices.insert((type_.clone(), e.target_uuid), idx);
     });
 
     let mut all_new_entities = Vec::new();
@@ -143,5 +144,5 @@ pub async fn get_changed_entities_from_log<C>(transaction: &C, log_entries: Vec<
             }
         ));
     };
-    Ok(all_new_entities.into_iter().sorted_by_key(|e| original_indices.get(&(e.entity.get_name(), e.entity.get_uuid()))).collect())
+    Ok(all_new_entities.into_iter().sorted_by_key(|e| original_indices.get(&(e.entity.get_type(), e.entity.get_uuid()))).collect())
 }

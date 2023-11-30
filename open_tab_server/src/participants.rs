@@ -240,32 +240,7 @@ async fn get_participant_info(
     }
     let current_time = chrono::Utc::now().naive_utc();
 
-    let speaker_info = open_tab_entities::schema::speaker::Entity::find()
-    .find_also_related(open_tab_entities::schema::team::Entity)
-    .filter(
-        open_tab_entities::schema::speaker::Column::Uuid.eq(participant_id)
-    ).one(&transaction).await.map_err(handle_error)?;
-    let speaker_info = speaker_info.map(
-        |(model, team)| {
-            let team = team.unwrap(); // Guaranteed by consistency constraints
-            (model, team)
-        }
-    );
-    let adjudicator_info = open_tab_entities::schema::adjudicator::Entity::find()
-    .filter(
-        open_tab_entities::schema::adjudicator::Column::Uuid.eq(participant_id)
-    ).one(&transaction).await.map_err(handle_error)?;
-
-    let role = match (&speaker_info, &adjudicator_info) {
-        (None, None) => ParticipantRoleInfo::None,
-        (None, Some(_)) => ParticipantRoleInfo::Adjudicator,
-        (Some((_speaker_info, team_info)), None) => {
-            ParticipantRoleInfo::Speaker { team_name: team_info.name.clone(), team_id: team_info.uuid }
-        },
-        (Some(_), Some(_)) => {
-            ParticipantRoleInfo::Multiple
-        }
-    };
+    let role = get_participant_role(participant_id, &transaction).await?;
 
     let all_rounds = open_tab_entities::schema::tournament_round::Entity::find()
     .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::tournament_round::Relation::Tournament.def())
@@ -654,8 +629,72 @@ async fn get_participant_info(
     }))
 }
 
+async fn get_participant_role(participant_id: Uuid, transaction: &sea_orm::DatabaseTransaction) -> Result<ParticipantRoleInfo, APIError> {
+    let speaker_info = open_tab_entities::schema::speaker::Entity::find()
+    .find_also_related(open_tab_entities::schema::team::Entity)
+    .filter(
+        open_tab_entities::schema::speaker::Column::Uuid.eq(participant_id)
+    ).one(transaction).await.map_err(handle_error)?;
+    let speaker_info = speaker_info.map(
+        |(model, team)| {
+            let team = team.unwrap(); // Guaranteed by consistency constraints
+            (model, team)
+        }
+    );
+    let adjudicator_info = open_tab_entities::schema::adjudicator::Entity::find()
+    .filter(
+        open_tab_entities::schema::adjudicator::Column::Uuid.eq(participant_id)
+    ).one(transaction).await.map_err(handle_error)?;
+    let role = match (&speaker_info, &adjudicator_info) {
+        (None, None) => ParticipantRoleInfo::None,
+        (None, Some(_)) => ParticipantRoleInfo::Adjudicator,
+        (Some((_speaker_info, team_info)), None) => {
+            ParticipantRoleInfo::Speaker { team_name: team_info.name.clone(), team_id: team_info.uuid }
+        },
+        (Some(_), Some(_)) => {
+            ParticipantRoleInfo::Multiple
+        }
+    };
+    Ok(role)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ParticipantShortInfoResponse {
+    name: String,
+    role: ParticipantRoleInfo,
+}
+
+async fn get_participant_short_info(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Path(participant_id): Path<Uuid>,
+) -> Result<Json<ParticipantShortInfoResponse>, APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
+
+    let transaction = db.begin().await.map_err(handle_error)?;
+    let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
+    .one(&transaction).await.map_err(handle_error)?;
+
+    if participant.is_none() {
+        transaction.rollback().await.map_err(handle_error)?;
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
+    }
+    let participant = participant.unwrap();
+
+    let role = get_participant_role(participant_id, &transaction).await?;
+
+    transaction.rollback().await.map_err(handle_error)?;
+    Ok(Json(ParticipantShortInfoResponse {
+        name: participant.name,
+        role
+    }))
+}
 
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/participant/:participant_id", get(get_participant_info))
+    .route("/participant/:participant_id/info", get(get_participant_short_info))
 }

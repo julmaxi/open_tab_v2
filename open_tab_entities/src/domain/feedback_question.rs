@@ -50,6 +50,8 @@ pub struct FeedbackQuestion {
     pub question_config: QuestionType,
 
     pub tournament_id: Option<Uuid>,
+
+    pub is_confidential: bool,
 }
 
 impl FeedbackQuestion {

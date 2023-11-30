@@ -50,6 +50,7 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> 
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -63,6 +64,7 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> 
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
 
     q1.save(&db, true).await?;
@@ -107,6 +109,7 @@ async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -120,6 +123,7 @@ async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
 
     q1.save(&db, true).await?;
@@ -174,6 +178,7 @@ async fn test_save_response() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -187,6 +192,7 @@ async fn test_save_response() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
 
     q1.save(&db, true).await?;
@@ -256,6 +262,7 @@ async fn test_update_response() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -269,6 +276,7 @@ async fn test_update_response() -> Result<(), anyhow::Error> {
             ..Default::default()
         }},
         tournament_id: Some(Uuid::from_u128(1)),
+        is_confidential: false,
     };
 
     q1.save(&db, true).await?;

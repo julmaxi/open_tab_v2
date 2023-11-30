@@ -12,6 +12,7 @@ pub struct Model {
     pub full_name: String,
     pub description: String,
     pub question_config: String,
+    pub is_confidential: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -37,7 +37,11 @@ pub fn compute_question_summary_values(question_values: &HashMap<Uuid, Vec<Feedb
             //since we count both old and new value
             let n_vals = vals.len();
             let n_vals_f32 = n_vals as f32;
-            let question = questions_by_id.get(&question_id).unwrap(); // Guaranteed by db constraints
+            let question = questions_by_id.get(&question_id);
+            if question.is_none() {
+                return None;
+            }
+            let question = question.unwrap();
             let summary_val = match &question.question_config {
                 crate::domain::feedback_question::QuestionType::RangeQuestion { .. } => Some(SummaryValue::Average{avg: safe_avg(vals.into_iter().filter_map(
                     |v| match v {

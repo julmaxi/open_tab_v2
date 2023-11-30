@@ -44,6 +44,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                 ] }
             },
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -62,6 +63,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                     (21, ">10 zu hoch".into()),
                 ] }},
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -81,6 +83,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                 ] }
             },
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -99,6 +102,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                     (100, "Voll und ganz".into()),
                 ] }},
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
         FeedbackQuestion {
             uuid: Uuid::new_v4(),
@@ -114,6 +118,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                     (100, "Sehr gut".into()),
                 ] }},
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -132,6 +137,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                     (100, "Sehr gut".into()),
                 ] }},
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -150,6 +156,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
                     (100, "Sehr gut".into()),
                 ] }},
             tournament_id: Some(tournament_id),
+            is_confidential: false,
         },
     ];
 
@@ -160,6 +167,7 @@ fn make_default_feedback_form(tournament_id: Uuid) -> EntityGroup {
         description: "Diese Kommentare werden später für die Juror/In einsehbar sein.".into(),
         question_config: open_tab_entities::domain::feedback_question::QuestionType::TextQuestion,
         tournament_id: Some(tournament_id),
+        is_confidential: false,
     }];
 
     let chair_form = FeedbackForm {

@@ -7,6 +7,7 @@ mod m20230618_115644_add_feedback;
 mod m20231125_213519_add_adj_break;
 mod m20231128_191922_add_ballot_backup_index;
 mod m20231129_174220_add_feedback_release;
+mod m20231129_233804_add_confidential_feedback_questions;
 
 pub struct Migrator;
 
@@ -20,6 +21,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20231125_213519_add_adj_break::Migration),
             Box::new(m20231128_191922_add_ballot_backup_index::Migration),
             Box::new(m20231129_174220_add_feedback_release::Migration),
+            Box::new(m20231129_233804_add_confidential_feedback_questions::Migration),
         ]
     }
 }

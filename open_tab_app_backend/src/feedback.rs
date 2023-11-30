@@ -13,7 +13,9 @@ struct QuestionInfo {
     #[serde(flatten)]
     config: QuestionType,
     #[serde(default)]
-    description: Option<String>
+    description: Option<String>,
+    #[serde(default)]
+    is_confidential: bool
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -132,6 +134,7 @@ impl FormTemplate {
                     description: question.description.clone().unwrap_or("".into()),
                     question_config: question.config.clone().into(),
                     tournament_id: Some(tournament_uuid),
+                    is_confidential: question.is_confidential,
                 }
             );
             question_names_to_ids.insert(key.clone(), uuid);
@@ -162,6 +165,7 @@ impl FormTemplate {
                                                 description: question.description.clone().unwrap_or("".into()),
                                                 question_config: question.config.clone().into(),
                                                 tournament_id: Some(tournament_uuid),
+                                                is_confidential: false,
                                             }
                                         );
                                         uuid
@@ -410,19 +414,22 @@ questions:
                         labels: vec![(0, "Sehr schlecht".into()), (100, "Sehr gut".into())].into_iter().collect()
                     }
                 },
-                description: None
+                description: None,
+                is_confidential: false
             }),
             super::QuestionKeyOrInline::Inline(super::QuestionInfo {
                 short_name: "comments".into(),
                 full_name: "Kommentare".into(),
                 config: super::QuestionType::TextQuestion,
-                description: None
+                description: None,
+                is_confidential: false 
             }),
             super::QuestionKeyOrInline::Inline(super::QuestionInfo {
                 short_name: "chair".into(),
                 full_name: "War diese Person Chair?".into(),
                 config: super::QuestionType::YesNoQuestion,
-                description: None
+                description: None,
+                is_confidential: false
             }),
         ]);
     }

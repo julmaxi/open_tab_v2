@@ -36,6 +36,9 @@ export let data;
 <nav>
 	<a href="/tournament/{data.tournamentId}/home">Overview</a>
 	<a href="/tournament/{data.tournamentId}/tab">Tab</a>
+  {#each data.additionalLinks as link}
+    <a href="{link.url}">{link.name}</a>
+  {/each}
   <slot name="header" />
 </nav>
 

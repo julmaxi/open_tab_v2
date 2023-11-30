@@ -84,22 +84,34 @@ shared_questions:
 
     comments:
         short_name: comments
-        full_name: Comments
+        full_name: Kommentare
         type: text
         description: Diese Kommentare werden später für die Juror/In einsehbar sein.
 
+    ca_comments:
+        short_name: ca_comments
+        full_name: Tabraum Kommentare
+        type: text
+        description: Diese Kommentare können nur vom Tabraum gesehen werden
+        is_confidential: true
 
 chairs_for_wings:
     questions:
         - skill
         - participation
+        - should_chair
         - comments
+        - ca_comments
+
 wings_for_chairs:
     questions:
         - skill
         - moderation
         - feedback_overall
+        - should_chair
         - comments
+        - ca_comments
+
 teams_for_chairs:
     questions:
         - skill
@@ -107,7 +119,9 @@ teams_for_chairs:
         - feedback_level
         - team_level
         - speech_level
+        - should_chair
         - comments
+        - ca_comments
 
 non_aligned_for_chairs:
     questions:
@@ -115,5 +129,7 @@ non_aligned_for_chairs:
         - feedback_overall
         - feedback_level
         - speech_level
+        - should_chair
         - comments
+        - ca_comments
 

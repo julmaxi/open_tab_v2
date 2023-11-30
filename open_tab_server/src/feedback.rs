@@ -4,6 +4,7 @@ use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema, derived_models::{SummaryValue, compute_question_summary_values}};
+use rand::{thread_rng, seq::SliceRandom};
 use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait, QueryOrder, DbBackend, QueryTrait};
 use serde::{Serialize, Deserialize};
 
@@ -293,7 +294,9 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
     let question_ids = relevant_answer_values.iter().map(|v| v.question_id).collect_vec();
 
     let relevant_questions = schema::feedback_question::Entity::find().filter(
-        schema::feedback_question::Column::Uuid.is_in(question_ids)
+        schema::feedback_question::Column::Uuid.is_in(question_ids).and(
+            schema::feedback_question::Column::IsConfidential.eq(false)
+        )
     ).order_by_asc(schema::feedback_question::Column::FullName).all(&db).await.map_err(handle_error)?.into_iter().map(FeedbackQuestion::from_model).collect_vec();
     db.rollback().await.map_err(handle_error)?;
 
@@ -309,7 +312,7 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
             match summary_value {
                 SummaryValue::Unavailable => None,
                 v => Some(ParticipantFeedbackSummaryValue {
-                    question_name: q.short_name.clone(),
+                    question_name: q.full_name.clone(),
                     question_uuid: q.uuid,
                     value: v.clone()
             })
@@ -321,9 +324,10 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
         |q| {
             match q.question_config {
                 QuestionType::TextQuestion => {
-                    let values = answers_by_question_id.get(&q.uuid).unwrap_or(&vec![]).clone();
+                    let mut values = answers_by_question_id.get(&q.uuid).unwrap_or(&vec![]).clone();
+                    values.shuffle(&mut thread_rng());
                     Some(ParticipantFeedbackIndividualValueList {
-                        question_name: q.short_name.clone(),
+                        question_name: q.full_name.clone(),
                         question_uuid: q.uuid,
                         values
                     })
