@@ -1564,7 +1564,7 @@ async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, co
 }
 
 fn main() {
-    let db_path = dirs::document_dir().unwrap_or(PathBuf::from(".")).join("open_tab_db.sqlite3");
+    let db_path: PathBuf = dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or(PathBuf::from("."))).join("open_tab_db.sqlite3");
 
     let db = block_on(connect_db_to_file(Some(db_path))).unwrap();
 

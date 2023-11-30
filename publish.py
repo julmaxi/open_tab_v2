@@ -10,7 +10,7 @@ import subprocess
 def rename_arch(arch):
     if arch == "arm":
         return "aarch64"
-    elif "amd64" in arch:
+    elif "amd64" in arch or "x86_64" in arch:
         return "x86_64"
     else:
         return arch
@@ -20,26 +20,45 @@ def get_release_path(platform_name):
         return "target/release/bundle/macos"
     elif platform_name == "windows":
         return "target/release/bundle/msi"
+    elif platform_name == "linux":
+        return "target/release/bundle/appimage"
 
 
-def get_signature_name(platform_name):
+def get_signature_name(platform_name, version):
     if platform_name == "darwin":
         return "Open Tab.app.tar.gz.sig"
     elif platform_name == "windows":
-        return "Open Tab_0.0.1_x64_en-US.msi.zip.sig"
+        return f"Open Tab_{version}_x64_en-US.msi.zip.sig"
+    elif platform_name == "linux":
+        return f"open-tab_{version}_amd64.AppImage.tar.gz.sig"
 
-def get_bundle_name(platform_name):
+def get_bundle_name(platform_name, version):
     if platform_name == "darwin":
         return "Open Tab.app.tar.gz"
     elif platform_name == "windows":
-        return "Open Tab_0.0.1_x64_en-US.msi.zip"
-
+        return f"Open Tab_{version}_x64_en-US.msi.zip"
+    elif platform == "linux":
+        return f"open-tab_{version}_amd64.AppImage.tar.gz"
 
 def get_bundle_target_name(platform_name, arch):
     if platform_name == "darwin":
         return f"app-{platform_name}-{arch}.app.tar.gz"
     elif platform_name == "windows":
         return f"app-{platform_name}-{arch}.msi.zip"
+    elif platform == "linux":
+        return f"app-{platform_name}-{arch}_amd64.AppImage.tar.gz"
+
+def get_full_bundle_name(platform_name, arch, version):
+    if platform_name == "linux":
+        return f"open-tab_{version}_amd64.AppImage"
+
+
+def get_non_versioned_bundle_path(platform_name, arch):
+    return "download/" + platform_name + "_" + arch
+
+def get_non_versioned_bundle_name(platform_name):
+    if platform_name == "linux":
+        return f"Open_Tab.AppImage"
 
 
 if __name__ == "__main__":
@@ -58,7 +77,7 @@ if __name__ == "__main__":
 
     release_path = get_release_path(platform_name)
 
-    with open(release_path + "/" + get_signature_name(platform_name)) as f:
+    with open(release_path + "/" + get_signature_name(platform_name, version)) as f:
         signature = f.read()
     
     target_name = get_bundle_target_name(platform_name, arch)
@@ -84,15 +103,28 @@ if __name__ == "__main__":
 
         process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''mkdir -p ./releases.debateresult.com/autoupdate/v{version}''"])
         process.wait()
+        process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''mkdir -p ./releases.debateresult.com/release/v{version}''"])
+        process.wait()
+        process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''mkdir -p ./releases.debateresult.com/{get_non_versioned_bundle_path(platform_name, arch)}''"])
+        process.wait()
+
         process = subprocess.Popen(['scp', "-P", "7822", f"{temp_dir}/info.json", f"debatere@nl1-ss6.a2hosting.com:releases.debateresult.com/{platform_name}_{arch}"],
                      stdout=subprocess.PIPE, 
                      stderr=subprocess.PIPE)
         process.wait()
-        print(process.communicate())
 
-        process = subprocess.Popen(['scp', "-P", "7822", f"{release_path}/{get_bundle_name(platform_name)}", f"debatere@nl1-ss6.a2hosting.com:releases.debateresult.com/autoupdate/v{version}/{target_name}"],
+        process = subprocess.Popen(['scp', "-P", "7822", f"{release_path}/{get_bundle_name(platform_name, version)}", f"debatere@nl1-ss6.a2hosting.com:releases.debateresult.com/autoupdate/v{version}/{target_name}"],
                      stdout=subprocess.PIPE, 
                      stderr=subprocess.PIPE)
+        process.wait()
+
+        full_bundle_name = get_full_bundle_name(platform_name, arch, version)
+        process = subprocess.Popen(['scp', "-P", "7822", f"{release_path}/{full_bundle_name}", f"debatere@nl1-ss6.a2hosting.com:releases.debateresult.com/release/v{version}"],
+                     stdout=subprocess.PIPE, 
+                     stderr=subprocess.PIPE)
+        process.wait()
+
+        process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''ln -f -s 'release/v{version}/{full_bundle_name}' './releases.debateresult.com/{get_non_versioned_bundle_path(platform_name, arch)}/{get_non_versioned_bundle_name(platform_name)}'''"])
         process.wait()
 
 
