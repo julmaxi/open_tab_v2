@@ -9,6 +9,8 @@
     export let scores;
     /** @type number */
     export let totalScore;
+    /** @type {Array<number | null>} */
+    export let adjudicators;
     /** @type string */
     export let color;
     /** @type string */
@@ -26,6 +28,13 @@
 
     $: grid_cols = `grid-cols-${num_scores}`;
 </script>
+
+<style>
+    input:placeholder-shown {
+      text-overflow: ellipsis;
+    }
+</style>
+    
 
 <div class="flex flex-wrap">
     <div class="{color} p-1 truncate grow {compact ? "w-64" : "w-full"} md:w-64">
@@ -60,7 +69,7 @@
         <div class="grid {grid_cols} grid-flow-row flex-grow md:grid-flow-col-dense auto-cols-fr">
             {#each scores as score, scoreIdx}
                 <div class="h-12 border-r border-b">
-                    <input name="{inputPrefix}scores.{scoreIdx}" class="outline-none focus:ring-2 ring-inset w-full h-full text-right pr-2" type=number min=0 max={maxValue} bind:value={score} />
+                    <input placeholder={adjudicators[scoreIdx].name} name="{inputPrefix}scores.{scoreIdx}" class="outline-none focus:ring-2 ring-inset w-full h-full text-right pr-2" type=number min=0 max={maxValue} bind:value={score} />
                 </div>
             {/each}
         </div>

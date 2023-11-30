@@ -107,6 +107,7 @@
         }
     );
 </script>
+
 <input type="hidden" name="president" value={rawBallot.president?.uuid || null} />
 {#each adjudicators as adjudicator, adjIdx}
     <input type="hidden" name="adjudicators.{adjIdx}" value={adjudicator.uuid} />
@@ -121,6 +122,7 @@
         totalScore={$speechTotalScores[speechIdx]}
         color={roleToColor(speech.role)}
         inputPrefix={`speeches.${speechIdx}.`}
+        adjudicators={adjudicators}
         on:changeLabel={(event) => {
             let newSpeaker = teamMembers[speech.role].find(
                 (member) => member.uuid == event.detail.label
@@ -167,6 +169,7 @@
     inputPrefix={`${teamRole}.`}
     compact={compact}
     maxValue={200}
+    adjudicators={adjudicators}
 />
 {/each}
 <div class="grid grid-cols-2 text-lg text-center">
