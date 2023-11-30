@@ -257,6 +257,10 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
             If you want to keep all adjudicators, you can ignore this step.
         </p>}
 
+        {previous_break_node && <p>
+            You might also want to release feedback for the rounds in the break.
+        </p>}
+
         {
             previous_break_node && <p>
                 Finally, if you want a printed tab, you can save it from here.
@@ -269,6 +273,22 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
 
         <div>
             {previous_break_node && <>
+                <DateTimeSelectorButton
+                    buttonFactory={Button}
+                    buttonProps={{ role: "secondary" }}
+                    label="Release Feedback"
+                    onSetDate={(date) => {
+                        if (date !== null) {
+                            executeAction("SetBreakRelease", {
+                                node_uuid: previous_break_node,
+                                time: date.toISOString().slice(0, -1),
+                            });
+                        }
+                    }}
+                >
+                Release Draw…
+            </DateTimeSelectorButton>
+ 
                 <Button onClick={
                     () => {
                         save({ defaultPath: "tab.odt", filters: [{ name: "odt", extensions: ["odt"] }] }).then(
