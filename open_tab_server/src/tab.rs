@@ -42,7 +42,7 @@ pub async fn get_current_tab(
         }
     }).sorted_by_key(|r| r.index).collect_vec();
 
-    let tab = TabView::load_from_tournament_with_rounds(&db, tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec()).await?;
+    let tab = TabView::load_from_tournament_with_rounds_with_anonymity(&db, tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true).await?;
 
     return Ok(
         Json(

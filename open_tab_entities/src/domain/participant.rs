@@ -20,6 +20,7 @@ pub struct Participant {
     pub tournament_id: Uuid,
     pub institutions: Vec<ParticipantInstitution>,
     pub registration_key: Option<Vec<u8>>,
+    pub is_anonymous: bool
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -159,7 +160,8 @@ impl Participant {
             registration_key: participant.registration_key,
             role: role,
             tournament_id: participant.tournament_id,
-            institutions: institutions
+            institutions: institutions,
+            is_anonymous: participant.is_anonymous
         })
     }
 }
@@ -247,7 +249,8 @@ impl TournamentEntity for Participant {
                 uuid: ActiveValue::Unchanged(ent.uuid),
                 tournament_id: ActiveValue::Set(ent.tournament_id),
                 name: ActiveValue::Set(ent.name.clone()),
-                registration_key: ActiveValue::Set(ent.registration_key.clone())
+                registration_key: ActiveValue::Set(ent.registration_key.clone()),
+                is_anonymous: ActiveValue::Set(ent.is_anonymous)
             };
 
             if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
@@ -413,7 +416,8 @@ fn test_get_speaker() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
-            registration_key: None
+            registration_key: None,
+            is_anonymous: false
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),
@@ -443,7 +447,8 @@ fn test_get_adjudicator() -> Result<(), ParticipantParseError> {
             uuid: Uuid::from_u128(400),
             tournament_id: Uuid::from_u128(100),
             name: "Test".into(),
-            registration_key: None
+            registration_key: None,
+            is_anonymous: false
         },
         None,
         Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
@@ -473,7 +478,8 @@ mod test {
                 uuid: Uuid::from_u128(400),
                 tournament_id: Uuid::from_u128(100),
                 name: "Test".into(),
-                registration_key: None
+                registration_key: None,
+                is_anonymous: false
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),
@@ -496,7 +502,8 @@ mod test {
                 uuid: Uuid::from_u128(400),
                 tournament_id: Uuid::from_u128(100),
                 name: "Test".into(),
-                registration_key: None
+                registration_key: None,
+                is_anonymous: false
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),

@@ -5,7 +5,7 @@ use std::iter::{zip, self};
 use std::collections::HashMap;
 
 
-use crate::derived_models::BreakNodeBackgroundInfo;
+use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};
 use crate::domain::entity::LoadEntity;
 use crate::domain::tournament_plan_node::PlanNodeType;
 use crate::info::TournamentParticipantsInfo;
@@ -137,6 +137,10 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
 }
 impl TabView {
     pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+        Self::load_from_rounds_with_anonymity(db, round_ids, speaker_info, false).await
+    }
+
+    pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let num_round_ids = round_ids.len();
         let relevant_ballots = schema::tournament_debate::Entity::find()
         .inner_join(schema::tournament_round::Entity)
@@ -262,10 +266,11 @@ impl TabView {
             prev_score = Some(total_score);
             let detailed_scores = speaker_tab_entries.store.get(&speaker).unwrap().clone();
             let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
+            let part = speaker_info.participants_by_id.get(&speaker).unwrap();
             let speaker_tab_entry = SpeakerTabEntry {
                 rank,
                 detailed_scores,
-                speaker_name: speaker_info.participants_by_id.get(&speaker).unwrap().name.clone(),
+                speaker_name: if respect_anonymity {get_participant_public_name(&part)} else {part.name.clone()},
                 speaker_uuid: speaker,
                 team_name,
                 total_score,
@@ -304,16 +309,24 @@ impl TabView {
     }
 
     pub async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+        Self::load_from_tournament_with_anonymity(db, tournament_uuid, false).await
+    }
+    pub async fn load_from_tournament_with_anonymity<C>(db: &C, tournament_uuid: Uuid, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let rounds = schema::tournament_round::Entity::find().filter(
             schema::tournament_round::Column::TournamentId.eq(tournament_uuid)
         ).all(db).await?;
 
-        Self::load_from_tournament_with_rounds(db, tournament_uuid, rounds.into_iter().map(|r| r.uuid).collect()).await
+        Self::load_from_tournament_with_rounds_with_anonymity(db, tournament_uuid, rounds.into_iter().map(|r| r.uuid).collect(), respect_anonymity).await
     }
 
     pub async fn load_from_tournament_with_rounds<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let speaker_info = super::info::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
         Self::load_from_rounds(db, round_ids, &speaker_info).await
+    }
+
+    pub async fn load_from_tournament_with_rounds_with_anonymity<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+        let speaker_info = super::info::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
+        Self::load_from_rounds_with_anonymity(db, round_ids, &speaker_info, respect_anonymity).await
     }
 
     fn add_scores_for_team(team_tab_entries: &mut VecMap<Uuid, TeamTabEntryDetailedScore>, round: &schema::tournament_round::Model, ballot: &Ballot, ballot_team: &BallotTeam, team_role: TeamRoundRole) {
@@ -356,6 +369,10 @@ pub struct BreakRelevantTabView {
 
 impl BreakRelevantTabView {
     pub async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
+        Self::load_from_node_with_anonymity(db, node_uuid, false).await
+    }
+    
+    pub async fn load_from_node_with_anonymity<C>(db: &C, node_uuid: Uuid, respect_anonymity: bool) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
         let target_node = crate::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
         let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
         let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
@@ -373,7 +390,7 @@ impl BreakRelevantTabView {
 
                 (break_.breaking_teams, break_.breaking_speakers, break_.breaking_adjudicators.into_iter().map(
                     |uuid| speaker_info.participants_by_id.get(&uuid).map(|p| BreakingAdjudicatorInfo {
-                        name: p.name.clone(),
+                        name: if respect_anonymity {get_participant_public_name(p)} else {p.name.clone()},
                         uuid
                     }).unwrap_or_else(|| BreakingAdjudicatorInfo {
                         name: "<Unknown Adjudicator>".to_string(),
@@ -384,10 +401,11 @@ impl BreakRelevantTabView {
             None => (vec![], vec![], vec![])
         };
 
-        let tab = TabView::load_from_rounds(
+        let tab = TabView::load_from_rounds_with_anonymity(
             db,
             break_background.preceding_rounds.clone(),
-            &speaker_info
+            &speaker_info,
+            respect_anonymity
         ).await?;
 
         Ok(BreakRelevantTabView {

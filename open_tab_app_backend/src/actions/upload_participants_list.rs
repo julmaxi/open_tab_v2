@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::panicking};
 
 
 use itertools::Itertools;
@@ -157,7 +157,8 @@ impl UploadParticipantsListAction {
                 role,
                 institutions,
                 tournament_id: self.tournament_id,
-                registration_key: Some(registration_key.to_vec())
+                registration_key: Some(registration_key.to_vec()),
+                is_anonymous: participant.is_anonymous.unwrap_or(false),
             };
 
             out_entities.push(Entity::Participant(out_participant_entity));

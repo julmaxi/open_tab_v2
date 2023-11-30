@@ -33,7 +33,8 @@ async fn test_add_participant() {
         ),
         tournament_id: default_tournament_uuid,
         institutions: vec![],
-        registration_key: None
+        registration_key: None,
+        is_anonymous: false
     };
     
     let fake_version = Uuid::from_u128(200_000);
@@ -129,7 +130,8 @@ async fn test_can_add_participant_to_empty_tournament() {
         ),
         tournament_id: tournament_2_uuid,
         institutions: vec![],
-        registration_key: None
+        registration_key: None,
+        is_anonymous: false
     };
     
     let fake_version = Uuid::from_u128(200_000);
@@ -197,7 +199,8 @@ async fn test_can_not_add_participant_to_other_tournament() {
         ),
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
-        registration_key: None
+        registration_key: None,
+        is_anonymous: false
     };
     
     let fake_version = Uuid::from_u128(200_000);

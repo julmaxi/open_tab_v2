@@ -62,6 +62,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
                 ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
             ],
             registration_key: None,
+            is_anonymous: false,
         }
     ));
     changeset.add(Entity::Team(
@@ -79,6 +80,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             role: ParticipantRole::Speaker(Speaker { team_id: Some(Uuid::from_u128(200)), ..Default::default() }),
             institutions: vec![],
             registration_key: None,
+            is_anonymous: false,
         }
     ));
 

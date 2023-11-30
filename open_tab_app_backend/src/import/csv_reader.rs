@@ -15,6 +15,7 @@ pub struct CSVReaderConfig {
     role_column: Option<usize>,
     institutions_column: Option<usize>,
     clashes_column: Option<usize>,
+    anonymity_column: Option<usize>,
     delimiter: Option<u8>,
 }
 
@@ -50,6 +51,7 @@ enum CSVField {
     Role,
     Institutions,
     Conflicts,
+    IsAnonymous
 }
 
 pub struct ParseResult {
@@ -61,6 +63,15 @@ pub enum ParseWarning {
     TeamHasWrongSize { name: String, num_members: u32 },
     SkippedRowPartialEntry { index: usize },
 }
+
+
+fn parse_bool_cell(val: &str) -> bool {
+    match val.trim().to_lowercase().as_str() {
+        "true" | "yes" | "ja" | "y" | "j" | "1" => true,
+        _ => false,
+    }
+}
+
 
 impl CSVReaderConfig {
     pub fn default_from_file<R>(mut reader: R) -> Result<CSVReaderConfig, CSVParserErr>
@@ -113,6 +124,8 @@ impl CSVReaderConfig {
                 let role_patterns: Vec<&str> = vec!["team(name)?", "rolle"];
                 let conflicts_patterns: Vec<&str> =
                     vec!["konflikt", "clash(es)?", "nicht.*jurieren"];
+                let anonymity_pattern: Vec<&str> =
+                    vec!["anonym", "initialien", "nicht.*namentlich"];
 
                 let mut m = HashMap::new();
                 m.insert(CSVField::FullName, full_name_patterns);
@@ -121,6 +134,7 @@ impl CSVReaderConfig {
                 m.insert(CSVField::Institutions, institutions_patterns);
                 m.insert(CSVField::Role, role_patterns);
                 m.insert(CSVField::Conflicts, conflicts_patterns);
+                m.insert(CSVField::IsAnonymous, anonymity_pattern);
 
                 m.into_iter()
                     .map(|(key, patterns)| {
@@ -163,6 +177,7 @@ impl CSVReaderConfig {
             role_column: proposed_column_assignment.remove(&CSVField::Role),
             institutions_column: proposed_column_assignment.remove(&CSVField::Institutions),
             clashes_column: proposed_column_assignment.remove(&CSVField::Conflicts),
+            anonymity_column: proposed_column_assignment.remove(&CSVField::IsAnonymous),
             delimiter: None,
         }
     }
@@ -225,10 +240,18 @@ impl CSVReaderConfig {
                 None => vec![],
             };
 
+            let is_anonymous = match self.anonymity_column.map(
+                |index| row.get(index).map(|i| parse_bool_cell(i)).unwrap_or(false)
+            ) {
+                Some(is_anonymous) => Some(is_anonymous),
+                None => None,
+            };
+
             let participant_data = ParticipantData {
                 name,
                 institutions,
                 clashes,
+                is_anonymous
             };
 
             let role = row
@@ -355,6 +378,7 @@ mod test {
             institutions_column: Some(2),
             clashes_column: Some(3),
             delimiter: Some(b','),
+            anonymity_column: None,
         };
 
         let test_file = "Name,Team,Club,Clashes
@@ -396,6 +420,7 @@ Pers. D,,Club C,
             institutions_column: Some(3),
             clashes_column: Some(4),
             delimiter: Some(b','),
+            anonymity_column: None,
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes
@@ -437,6 +462,7 @@ Pers.,D,,Club C,
             institutions_column: Some(3),
             clashes_column: Some(4),
             delimiter: Some(b','),
+            anonymity_column: None,
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes
@@ -455,6 +481,43 @@ Pers.,D,#4,Club C,
                 .map(|a| (a.chair_skill, a.panel_skill))
                 .collect_vec(),
             vec![(10, 10), (20, 20), (30, 30), (40, 40)]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_valid_data_with_anonymity_cell() -> Result<(), anyhow::Error> {
+        let config = CSVReaderConfig {
+            name_column: Some(CSVNameCol::FirstLast { first: 0, last: 1 }),
+            role_column: Some(2),
+            institutions_column: Some(3),
+            clashes_column: Some(4),
+            delimiter: Some(b','),
+            anonymity_column: Some(5),
+        };
+
+        let test_file = "Vorname,Name,Team,Club,Clashes,Anonymity
+Pers.,A,#1,Club A;Club B,t
+Pers.,B,#2,Club A,Pers. A,f
+Pers.,C,#3,Club A,1
+Pers.,D,#4,Club C,0
+";
+        let parsed = config.parse(test_file.as_bytes())?;
+        let mut all_participants = parsed.data
+            .teams.into_iter().flat_map(
+                |t| t.members.into_iter().map(|m| (m.participant_data.name, m.participant_data.is_anonymous.unwrap()))
+            ).chain(parsed.data.adjudicators.into_iter().map(|adj| (adj.participant_data.name, adj.participant_data.is_anonymous.unwrap()))).collect_vec();
+        all_participants.sort();
+
+        assert_eq!(
+            all_participants,
+            vec![
+                ("Pers. A".into(), true),
+                ("Pers. B".into(), false),
+                ("Pers. C".into(), true),
+                ("Pers. D".into(), false),
+            ]
         );
 
         Ok(())

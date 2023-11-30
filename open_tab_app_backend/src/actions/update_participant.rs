@@ -114,21 +114,24 @@ impl ActionTrait for UpdateParticipantsAction {
                 };
             }
 
+            let role = match participant_role {
+                crate::participants_list_view::ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id } } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
+                crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill, unavailable_rounds } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill, unavailable_rounds }),
+                _ => unreachable!("Should not be possible to have a new team here")
+            };
+
             groups.add(Entity::Participant(
                 Participant {
                     uuid: participant.uuid,
                     name: participant.name,
-                    role: match participant_role {
-                        crate::participants_list_view::ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id } } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
-                        crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill, unavailable_rounds } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill, unavailable_rounds }),
-                        _ => unreachable!("Should not be possible to have a new team here")
-                    },
+                    role,
                     tournament_id: self.tournament_id,
                     institutions: participant.institutions.into_iter().map(|p| ParticipantInstitution {
                         uuid: p.uuid,
                         clash_severity: p.clash_severity as u16
                     }).collect(),
-                    registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?
+                    registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?,
+                    is_anonymous: participant.is_anonymous
                 }
             ));
         }

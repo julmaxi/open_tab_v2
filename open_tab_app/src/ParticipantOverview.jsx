@@ -161,10 +161,17 @@ function ParticipantDetailView({onClose, participant, ...props}) {
     <div>
         <label>Name</label>
         <div>
-        <input type="text" value={modifiedParticipant.name} onChange={(e) => {
-            setModifiedParticipant({...modifiedParticipant, name: e.target.value});
-        }} />
+            <input type="text" value={modifiedParticipant.name} onChange={(e) => {
+                setModifiedParticipant({...modifiedParticipant, name: e.target.value});
+            }} />
         </div>
+    </div>
+
+    <div>
+        <input type="checkbox" checked={modifiedParticipant.is_anonymous} onChange={(e) => {
+            setModifiedParticipant({...modifiedParticipant, is_anonymous: e.target.checked});
+        } } />
+        <label>Only show initials on tab</label>
     </div>
 
     <div className="flex flex-wrap">
@@ -350,7 +357,6 @@ function ParticipantTable(props) {
     // Parse the url
     if (url != null) {
         let parsedUrl = new URL(url);
-        console.log(parsedUrl.host);
         if (parsedUrl.host == "localhost:3000") {
             parsedUrl.port = "5173";
         }

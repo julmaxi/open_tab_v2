@@ -1498,11 +1498,11 @@ async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: S
 async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, node_id: Option<Uuid>, path: String) -> Result<(), ()> {
     let tab_view = match node_id {
         Some(node_id) => {
-            let tab_view = BreakRelevantTabView::load_from_node(db.inner(), node_id).await.map_err(handle_error)?;
+            let tab_view = BreakRelevantTabView::load_from_node_with_anonymity(db.inner(), node_id, true).await.map_err(handle_error)?;
             OptionallyBreakRelevantTab::BreakRelevantTab(tab_view)
         },
         None => {
-            let tab_view = TabView::load_from_tournament(db.inner(), tournament_id).await.map_err(handle_error)?;
+            let tab_view = TabView::load_from_tournament_with_anonymity(db.inner(), tournament_id, true).await.map_err(handle_error)?;
             OptionallyBreakRelevantTab::Tab(tab_view)
         }
     };

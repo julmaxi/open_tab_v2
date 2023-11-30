@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials}, tab::{TabView, BreakRelevantTabView}};
 
 
 use std::io::Write;
@@ -90,12 +90,29 @@ fn unwrap_default<'a, 'b>(val: &'a Value, args: &'b HashMap<String, Value>) -> t
     }
 }
 
+
+fn get_public_name<'a, 'b>(val: &'a Value, _args: &'b HashMap<String, Value>) -> tera::Result<Value> {
+    match val {
+        Value::Object(participant) => {
+            let is_anonymous = participant.get("is_anonymous").ok_or(anyhow::anyhow!("Missing is_anonymous")).map_err(|e| tera::Error::call_filter("public_name", e))?.as_bool().ok_or(anyhow::anyhow!("is_anonymous not bool")).map_err(|e| tera::Error::call_filter("public_name", e))?;
+            let name = participant.get("speaker_name").ok_or(anyhow::anyhow!("Missing name")).map_err(|e| tera::Error::call_filter("public_name", e))?.as_str().ok_or(anyhow::anyhow!("name not string")).map_err(|e| tera::Error::call_filter("public_name", e))?;
+            if is_anonymous {
+                Ok(Value::String(name_to_initials(name)))
+            } else {
+                Ok(Value::String(name.into()))
+            }
+        },
+        _ => Ok(val.clone()),
+    }
+}
+
 impl TemplateContext {
     pub fn new(template_dir: String) -> Result<Self, anyhow::Error> {
         let mut tera = Tera::new(Path::new(&template_dir).join("**/*.xml").as_os_str().to_str().unwrap_or("templates/**/*.xml"))?;
         tera.register_filter("role_letters", role_letters);
         tera.register_filter("to_2_decimals", to_2_decimals);
         tera.register_filter("unwrap_default", unwrap_default);
+        tera.register_filter("public_name", get_public_name);
         
         tera.autoescape_on(vec![".html", ".sql", ".xml"]);
         
@@ -204,9 +221,6 @@ pub enum OptionallyBreakRelevantTab {
     Tab(TabView),
     BreakRelevantTab(BreakRelevantTabView)
 }
-
-
-
 
 pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: OptionallyBreakRelevantTab, tournament_name: String) -> 
     Result<(), anyhow::Error> where W: Write + std::io::Seek {

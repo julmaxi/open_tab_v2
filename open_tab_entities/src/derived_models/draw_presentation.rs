@@ -175,7 +175,6 @@ impl ParticipantPresentationInfo {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct TeamPresentationInfo {
     pub team_id: Uuid,
@@ -184,6 +183,7 @@ pub struct TeamPresentationInfo {
     pub members: Vec<ParticipantPresentationInfo>,
     pub all_institutions: Vec<InstitutionPresentationInfo>
 }
+
 impl TeamPresentationInfo {
     fn from_team(team: crate::prelude::Team, participants_by_team_id: &HashMap<Uuid, Vec<ParticipantPresentationInfo>>) -> TeamPresentationInfo {
         let members = participants_by_team_id.get(&team.uuid).cloned().unwrap_or_default();

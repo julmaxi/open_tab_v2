@@ -16,7 +16,8 @@ pub struct TeamData {
 pub struct ParticipantData {
     pub name: String,
     pub institutions: Vec<String>,
-    pub clashes: Vec<String>
+    pub clashes: Vec<String>,
+    pub is_anonymous: Option<bool>,
 }
 
 pub struct SpeakerData {

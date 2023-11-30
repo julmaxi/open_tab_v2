@@ -82,6 +82,7 @@ pub struct ParticipantEntry {
     pub clashes: Vec<Clash>,
     pub institutions: Vec<Institution>,
     pub registration_key: Option<String>,
+    pub is_anonymous: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,6 +146,7 @@ impl ParticipantsListView {
             tournament_id: Uuid::nil(),
             name: "".into(),
             registration_key: None,
+            is_anonymous: p.is_anonymous,
         }).collect_vec().load_many(schema::participant_tournament_institution::Entity, db).await?;
 
         let all_clashes = schema::participant_clash::Entity::find()
@@ -205,6 +207,7 @@ impl ParticipantsListView {
                     registration_key: p.registration_key.map(|k| {
                         Participant::encode_registration_key(p.uuid, &k)
                     }),
+                    is_anonymous: p.is_anonymous
                 }),
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
@@ -217,6 +220,7 @@ impl ParticipantsListView {
                             institutions,
                             clashes,
                             registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k)),
+                            is_anonymous: p.is_anonymous
                         })    
                     }
                     else {

@@ -171,6 +171,7 @@ async fn test_speaker_roundtrip() -> Result<(), anyhow::Error> {
             }
         ],
         registration_key: None,
+        is_anonymous: false
     }, true).await?;
 
     Ok(())
@@ -189,6 +190,7 @@ async fn test_adjudicator_roundtrip() -> Result<(), anyhow::Error> {
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     }, true).await?;
 
     Ok(())
@@ -207,6 +209,7 @@ async fn test_save_adjudicator_round_availability_override() -> Result<(), anyho
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     };
     test_participant_roundtrip(participant, true).await?;
 
@@ -226,6 +229,7 @@ async fn test_remove_adjudicator_round_availability_override() -> Result<(), any
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     };
     let db = set_up_db(true).await?;
     let t = db.begin().await?;
@@ -263,6 +267,7 @@ async fn test_make_speaker_into_adjudicator() -> Result<(), anyhow::Error> {
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     };
 
     participant.save(&db, true).await?;
@@ -284,6 +289,7 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), anyhow::Error> {
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     };
 
     participant.save(&db, true).await?;
@@ -307,6 +313,7 @@ async fn test_change_participant_name() -> Result<(), anyhow::Error> {
         tournament_id: Uuid::from_u128(1),
         institutions: vec![],
         registration_key: None,
+        is_anonymous: false
     };
 
     participant.save(&db, true).await?;

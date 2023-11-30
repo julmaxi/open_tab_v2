@@ -9,7 +9,8 @@ pub struct Model {
     pub uuid: Uuid,
     pub tournament_id: Uuid,
     pub name: String,
-    pub registration_key: Option<Vec<u8>>
+    pub registration_key: Option<Vec<u8>>,
+    pub is_anonymous: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

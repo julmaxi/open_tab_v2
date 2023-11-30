@@ -75,6 +75,7 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, al
                         {props.columns.filter(col => !col.group || groups.get(col)[rowIdx].start == rowIdx).map(
                             (column, idx) => {
                                 let val = row[column.key];
+                                val = (column.transform || ((val) => val))(val);
                                 let rowSpan = groups.get(column)?.[rowIdx]?.size ?? 1;
 
                                 return column.cellFactory !== undefined ? column.cellFactory(val, rowIdx, idx, row) : <td rowSpan={rowSpan} key={idx} className="">{val}</td>;
