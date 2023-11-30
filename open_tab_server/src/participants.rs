@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use axum::{extract::{Path, State}, Json, Router, routing::get};
+use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, ballot::SpeechRole}, schema};
+use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, ballot::SpeechRole, self}, schema, EntityGroup, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
@@ -693,8 +693,65 @@ async fn get_participant_short_info(
     }))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParticipantSettings {
+    pub is_anonymous: bool
+}
+
+pub async fn get_participant_settings(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Path(participant_id): Path<Uuid>,
+) -> Result<Json<ParticipantSettings>, APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
+
+    let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(&db).await.map_err(handle_error)?;
+    if let Some(participant) = participant {
+        Ok(Json(ParticipantSettings {
+            is_anonymous: participant.is_anonymous
+        }))
+    }
+    else {
+        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+    }
+}
+
+pub async fn update_participant_settings(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Path(participant_id): Path<Uuid>,
+    Json(new_settings): Json<ParticipantSettings>
+) -> Result<(), APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
+
+    let participant = domain::participant::Participant::try_get(&db, participant_id).await?;
+    if let Some(mut participant) = participant {
+        let tournament_id = participant.tournament_id;
+        let mut entity_group = EntityGroup::new();
+        participant.is_anonymous = new_settings.is_anonymous;
+        dbg!(&participant.is_anonymous);
+        entity_group.add(
+            open_tab_entities::Entity::Participant(participant)
+        );
+        entity_group.save_all_and_log_for_tournament(&db, tournament_id).await?;
+        Ok(())
+    }
+    else {
+        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+    }
+}
+
+
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/participant/:participant_id", get(get_participant_info))
     .route("/participant/:participant_id/info", get(get_participant_short_info))
+    .route("/participant/:participant_id/settings", get(get_participant_settings))
+    .route("/participant/:participant_id/settings", post(update_participant_settings))
 }

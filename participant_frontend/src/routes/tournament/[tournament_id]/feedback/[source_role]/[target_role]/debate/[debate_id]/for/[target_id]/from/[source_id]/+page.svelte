@@ -52,12 +52,6 @@
         flex-direction: column;;
         align-items: center;
     }
-
-    .radio > div {
-        display: flex;
-        flex-direction: column;;
-        align-items: left;
-    }
 </style>
 
 <div class="container">
