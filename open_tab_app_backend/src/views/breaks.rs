@@ -78,7 +78,7 @@ impl BreaksView {
             }
         ).into_group_map();
 
-        let round_names = get_round_names(nodes.clone(), &node_children, &nodes.iter().filter_map(
+        let round_names = get_round_names(&nodes, &node_children, &nodes.iter().filter_map(
             |n| {
                 if nodes_to_parents.contains_key(&n.uuid) {
                     None
@@ -99,7 +99,7 @@ impl BreaksView {
                     
                     let break_name = match break_node_children.len() {
                         0 => "Break to Nowhere".to_string(),
-                        1 => format!("Break to {}", round_names.get(&(break_node_children[0], 0)).unwrap_or(&"Unknown round".to_string()).clone()),
+                        1 => format!("Break to {}", round_names.by_break_nodes.get(&(break_node_children[0], 0)).unwrap_or(&"Unknown round".to_string()).clone()),
                         _ => "Break to Multiple Rounds".to_string() // This should never happen in normal use, but it could with special configuration
                     };
 

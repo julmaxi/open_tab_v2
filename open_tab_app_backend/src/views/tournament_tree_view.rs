@@ -78,7 +78,7 @@ struct RoundInfo {
     uuid: Option<Uuid>,
     name: String,
     #[serde(flatten)]
-    plan_state: RoundInfoState
+    plan_state: RoundInfoState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,7 +214,13 @@ fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32
     num_remaining
 }
 
-pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<HashMap<(Uuid, usize), String>, anyhow::Error> {
+pub struct RoundNames {
+    pub by_break_nodes: HashMap<(Uuid, usize), String>,
+    pub by_round_ids: HashMap<Uuid, String>,
+}
+
+
+pub fn get_round_names(nodes: &Vec<TournamentPlanNode>, node_children: &HashMap<Uuid, Vec<Uuid>>, roots: &Vec<Uuid>) -> Result<RoundNames, anyhow::Error> {
     let mut explore_queue = roots.clone().into_iter().map(|r| (r, vec![])).collect_vec();
 
     if explore_queue.len() == 0 && nodes.len() > 0 {
@@ -222,6 +228,7 @@ pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<U
     }
 
     let mut names = HashMap::new();
+    let mut names_by_round_ids = HashMap::new();
     let mut visited = HashSet::new();
 
     let mut curr_idx = 0;
@@ -249,12 +256,18 @@ pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<U
                 };
 
                 for idx in 0..num_rounds_to_consider {
-                    if let Some(special_name) = &special_name {
-                        names.insert((next_node_id, idx), special_name.clone());
+                    let name = if let Some(special_name) = &special_name {
+                        special_name.clone()
                     }
                     else {
                         let round_number = curr_idx + idx + 1;
-                        names.insert((next_node_id, idx), format!("Round {}", round_number));
+                        format!("Round {}", round_number)
+                    };
+
+                    names.insert((next_node_id, idx), name.clone());
+
+                    if idx < rounds.len() {
+                        names_by_round_ids.insert(rounds[idx], name);
                     }
                 }
                 curr_idx += rounds.len();
@@ -275,7 +288,7 @@ pub fn get_round_names(nodes: Vec<TournamentPlanNode>, node_children: &HashMap<U
 
     }
 
-    Ok(names)
+    Ok(RoundNames { by_break_nodes: names, by_round_ids: names_by_round_ids })
 }
 
 impl TournamentTreeView {
@@ -297,7 +310,7 @@ impl TournamentTreeView {
             }
         ).into_group_map();
 
-        let names = get_round_names(nodes.clone(), &node_children, &nodes.iter().filter_map(
+        let names = get_round_names(&nodes, &node_children, &nodes.iter().filter_map(
             |n| {
                 if nodes_to_parents.contains_key(&n.uuid) {
                     None
@@ -333,7 +346,7 @@ impl TournamentTreeView {
 
         let tree_nodes = root_nodes.into_iter().map(
             |node| {
-                Box::new(Self::subtree_from_node(node.uuid, &nodes, &rounds,  &node_children, &names))
+                Box::new(Self::subtree_from_node(node.uuid, &nodes, &rounds,  &node_children, &names.by_break_nodes))
             }
         ).collect::<Vec<_>>();
 
@@ -377,7 +390,7 @@ impl TournamentTreeView {
                                 RoundInfo {
                                     uuid: Some(round.uuid),
                                     name,
-                                    plan_state
+                                    plan_state,
                                 }
                             }
                         )
@@ -400,7 +413,7 @@ impl TournamentTreeView {
                             RoundInfo {
                                 uuid: None,
                                 name,
-                                plan_state
+                                plan_state,
                             }
                         );
                     }
