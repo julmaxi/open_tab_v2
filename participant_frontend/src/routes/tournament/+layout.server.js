@@ -16,7 +16,7 @@ export async function load({ params, fetch, cookies }) {
     if (participantInfo.role.type == "Adjudicator") {
         additionalLinks.push({
             name: "Feedback",
-            url: `/tournament/${params.tournament_id}/home/${params.participant_id}/feedback`,
+            url: `/tournament/${params.tournament_id}/home/${participantId}/feedback`,
         });
     }
 

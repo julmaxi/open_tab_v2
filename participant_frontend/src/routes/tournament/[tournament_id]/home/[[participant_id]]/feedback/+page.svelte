@@ -59,7 +59,7 @@
     }
 </style>
 <div class="wrapper">
-    {#if data.summaryValues.length == 0 && data.individualValues.length > 0}
+    {#if data.summaryValues.length == 0 && data.individualValues.length == 0}
         <div class="section">
             <em>No feedback available</em>
         </div>

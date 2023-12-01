@@ -10,7 +10,6 @@ export async function load({ params, fetch, cookies }) {
         {}
     )
     const feedbackSummary = await res.json();
-    console.log(feedbackSummary);
 
     return {
         individualValues: feedbackSummary.individual_values,
