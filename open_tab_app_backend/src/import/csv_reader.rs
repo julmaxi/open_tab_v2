@@ -67,7 +67,7 @@ pub enum ParseWarning {
 
 fn parse_bool_cell(val: &str) -> bool {
     match val.trim().to_lowercase().as_str() {
-        "true" | "yes" | "ja" | "y" | "j" | "1" => true,
+        "true" | "yes" | "ja" | "y" | "j" | "1" | "t" => true,
         _ => false,
     }
 }
@@ -498,10 +498,10 @@ Pers.,D,#4,Club C,
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes,Anonymity
-Pers.,A,#1,Club A;Club B,t
+Pers.,A,#1,Club A;Club B,,t
 Pers.,B,#2,Club A,Pers. A,f
-Pers.,C,#3,Club A,1
-Pers.,D,#4,Club C,0
+Pers.,C,#3,Club A,,1
+Pers.,D,#4,Club C,,0
 ";
         let parsed = config.parse(test_file.as_bytes())?;
         let mut all_participants = parsed.data

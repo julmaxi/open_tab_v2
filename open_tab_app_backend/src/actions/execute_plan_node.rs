@@ -507,7 +507,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             if team_ranking.len() < 3 || team_ranking.len() % 3 != 0 {
                 return Err(MakeBreakError::InvalidTeamCount.into());
             }
-            let num_breaking_teams = team_ranking.len() / 3 * 2;
+            let num_breaking_teams = team_ranking.len() / 3;
             let breaking_teams = team_ranking.iter().take((num_breaking_teams) as usize).cloned().collect_vec();
 
             let relevant_round = preceding_rounds.first().ok_or(MakeBreakError::KOBreakConditionNotMet)?;
@@ -541,7 +541,9 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 }
             ).collect_vec();
 
+            dbg!(&breaking_teams.len(), &breaking_teams, &non_breaking_teams);
             let speakers = find_speakers_not_in_teams(&breaking_teams, &speaker_ranking, &speaker_info.team_members);
+            dbg!(&speakers);
             let team_positions = team_ranking.iter().enumerate().map(|(i, t)| (*t, i)).collect::<HashMap<_, _>>();
             breaking_teams.sort_by_key(|t| team_positions.get(t).unwrap_or(&0));
             break_.breaking_teams = breaking_teams;

@@ -39,7 +39,7 @@ impl TournamentCreationConfig {
                     PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
                         round_configs: vec![
                             FoldDrawConfig {
-                                team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::PowerPaired,
+                                team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::Random,
                                 team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
                                 non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
                             }
@@ -58,7 +58,7 @@ impl TournamentCreationConfig {
                     PlanNodeType::Round { config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
                         round_configs: vec![
                             FoldDrawConfig {
-                                team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::InversePowerPaired,
+                                team_fold_method: open_tab_entities::domain::tournament_plan_node::TeamFoldMethod::HalfRandom,
                                 team_assignment_rule: open_tab_entities::domain::tournament_plan_node::TeamAssignmentRule::Random,
                                 non_aligned_fold_method: open_tab_entities::domain::tournament_plan_node::NonAlignedFoldMethod::Random
                             }

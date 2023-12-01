@@ -26,7 +26,8 @@ pub enum TeamFoldMethod {
     PowerPaired,
     InversePowerPaired,
     BalancedPowerPaired,
-    Random
+    Random,
+    HalfRandom // For silly Regelkommission variant
 }
 
 
