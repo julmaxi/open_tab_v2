@@ -273,66 +273,6 @@ async fn connect_db_to_file(path: Option<PathBuf>) -> Result<DatabaseConnection,
         vec![])
     ).await?;
 
-    let has_tournament = schema::tournament::Entity::find().one(&db).await?.is_some();
-
-    if !has_tournament {
-        let mut mock_data = make_mock_tournament_with_options(MockOption { deterministic_uuids: true, use_random_names: true, use_feedback: false, ..Default::default() });
-        let tournament_uuid = mock_data.tournaments[0].uuid.clone();
-
-        let second_tournament = Tournament {
-            uuid: Uuid::from_u128(2),
-            annoucements_password: None,
-            name: "Empty Demonstration Tournament".into(),
-            feedback_release_time: None
-        };
-        mock_data.add(Entity::Tournament(second_tournament));
-
-        mock_data.save_all_with_options(&db, true).await.unwrap();
-        mock_data.save_log_with_tournament_id(&db, tournament_uuid).await.unwrap();
-
-        let g = make_default_feedback_form(tournament_uuid.clone());
-        g.save_all_and_log_for_tournament(&db, tournament_uuid).await.unwrap();
-    }
-/*
-    let mut user_id = None;
-
-    
-    match reqwest::Client::new().post("http://localhost:3000/api/users").json(
-        &CreateUserRequest {
-            password: "testpassword".to_string(),
-        }
-    ).send().await {
-        Ok(r) => {
-            let r : CreateUserResponse = r.json().await.unwrap();
-            user_id = Some(r);
-            dbg!("User created", &user_id);
-        }
-        _ => {
-            dbg!("Err with user");
-        }
-    };
-
-    match reqwest::Client::new().post("http://localhost:3000/api/tournaments").basic_auth(user_id.map(|u| u.uuid.to_string()).unwrap_or("".into()), "testpassword".into()).json(
-        &CreateTournamentRequest {
-            uuid: Uuid::from_u128(1),
-            name: "Test Tournament".to_string(),
-        }
-    ).send().await {
-        Ok(_) => {
-            schema::tournament_remote::ActiveModel {
-                uuid: sea_orm::ActiveValue::Set(Uuid::new_v4()),
-                tournament_id: sea_orm::ActiveValue::Set(Uuid::from_u128(1)),
-                url: sea_orm::ActiveValue::Set("localhost:3000".to_string()),
-                last_known_change: sea_orm::ActiveValue::Set(None),
-                last_synced_change: sea_orm::ActiveValue::Set(None)
-            }.insert(&db).await.unwrap();
-        }
-        _ => {
-            dbg!("Err");
-        }
-    }
-     */
-
     Ok(db)
 }
 
