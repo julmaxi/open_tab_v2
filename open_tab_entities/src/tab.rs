@@ -387,16 +387,16 @@ impl BreakRelevantTabView {
         let (breaking_teams, breaking_speakers, breaking_adjudicators) = match break_id {
             Some(break_id) => {
                 let break_ = crate::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
-
-                (break_.breaking_teams, break_.breaking_speakers, break_.breaking_adjudicators.into_iter().map(
+                let breaking_adjs = break_.breaking_adjudicators.into_iter().map(
                     |uuid| speaker_info.participants_by_id.get(&uuid).map(|p| BreakingAdjudicatorInfo {
                         name: if respect_anonymity {get_participant_public_name(p)} else {p.name.clone()},
                         uuid
                     }).unwrap_or_else(|| BreakingAdjudicatorInfo {
                         name: "<Unknown Adjudicator>".to_string(),
                         uuid
-                    })
-                ).collect_vec())
+                    })).collect_vec();
+
+                (break_.breaking_teams, break_.breaking_speakers, breaking_adjs)
             },
             None => (vec![], vec![], vec![])
         };

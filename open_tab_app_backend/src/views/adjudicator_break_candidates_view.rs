@@ -92,8 +92,14 @@ impl AdjudicatorBreakCandidatesView {
             let break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, prev_break).await?;
 
             let breaking_adjs = break_.breaking_adjudicators;
+            if breaking_adjs.len() == 0 {
+                adjudicators.iter().map(|adjudicator| adjudicator.uuid).collect::<Vec<_>>()
+            }
+            else {
+                breaking_adjs
+            }
 
-            breaking_adjs
+            
         }
         else {
             adjudicators.iter().map(|adjudicator| adjudicator.uuid).collect::<Vec<_>>()
