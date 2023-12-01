@@ -97,9 +97,7 @@ impl AdjudicatorBreakCandidatesView {
             }
             else {
                 breaking_adjs
-            }
-
-            
+            }            
         }
         else {
             adjudicators.iter().map(|adjudicator| adjudicator.uuid).collect::<Vec<_>>()

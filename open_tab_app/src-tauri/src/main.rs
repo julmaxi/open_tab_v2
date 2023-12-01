@@ -7,7 +7,7 @@ use identity::IdentityProvider;
 use migration::MigratorTrait;
 use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest}, response::APIErrorResponse};
+use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue};
@@ -659,7 +659,7 @@ async fn pull_remote_changes<C>(
     }
 
     if response.status() == 500 {
-        let error_response = response.json::<APIErrorResponse>().await?;
+        let error_response = response.json::<APIErrorResponse<String>>().await?;
         //FIXME: This would be nicer with typed error codes
         if error_response.message == "Since is not a valid log entry" {
             return Err(SyncError::LogsOutOfSync)
@@ -927,7 +927,7 @@ impl OpenTournamentManager {
                 tournament_id: id,
                 app_handle: app_handle.clone(),
                 client,
-                sync_frequency: chrono::Duration::seconds(10),
+                sync_frequency: chrono::Duration::seconds(5),
                 update_msg_sender: info.update_msg_sender.clone(),
                 identity_provider
             };
@@ -1049,7 +1049,8 @@ impl TournamentUpdateProcess {
                         tournament_id: self.tournament_id,
                         status: ConnectivityStatus::Error { message: result.to_string() }
                     }).await.expect("Error sending connectivity update");
-                    break Err(TournamentUpdateError::ReqwestError(result));
+                    continue;
+                    //break Err(TournamentUpdateError::ReqwestError(result));
                 }
 
                 let transaction = db.begin().await?;
@@ -1283,11 +1284,16 @@ impl Default for AppSettings {
 }
 
 #[derive(Debug, Error, Serialize, Deserialize)]
+#[serde(tag = "error")]
 enum LoginError {
     #[error("Incorrect password")]
     IncorrectPassword,
     #[error("Network error: {0}")]
     NetworkError(String),
+    #[error("User Exists")]
+    UserExists,
+    #[error("Password too short")]
+    PasswordTooShort,
 }
 
 #[tauri::command]
@@ -1312,37 +1318,8 @@ async fn login_to_remote(
         settings.clone(),
         identity_provider.inner().clone()
     ).await.map_err(|e| {
-        dbg!(&e);
         e
     })?;
-
-    /*let response = client.post(
-        format!("{}/api/tokens", remote_url)
-    ).json(
-        &GetTokenRequest {
-            tournament: None
-        }
-    ).basic_auth(format!("mail#{}", user_name), Some(password)).send().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
-
-    let response = response.json::<GetTokenResponse>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
-
-    let token = response.token;
-    identity_provider.set_key(remote_url, token).await;*/
-
-    /*
-    let all_remotes = open_tab_entities::schema::tournament_remote::Entity::find().filter(
-        open_tab_entities::schema::tournament_remote::Column::Url.eq(remote_url.clone())
-    ).all(&*db).await.unwrap();
-
-    let open_tournament_manager = open_tournament_manager.inner().lock().await;
-
-    for remote in all_remotes {
-        let handle = open_tournament_manager.tournament_handles.get(&remote.tournament_id);
-        if let Some(handle) = handle {
-            if handle.
-        }
-    }
-     */
 
     Ok(true)
 }
@@ -1365,6 +1342,10 @@ async fn run_login(
         }
     ).basic_auth(format!("mail#{}", user_name), Some(password)).send().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
 
+    if response.status() == 401 {
+        return Err(LoginError::IncorrectPassword);
+    }
+
     //GetTokenRequest
     let response = response.json::<GetTokenResponse>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
 
@@ -1377,7 +1358,6 @@ async fn run_login(
         dbg!(r.unwrap_err());
     }
 
-    
     let _all_remotes = open_tab_entities::schema::tournament_remote::Entity::find().filter(
         open_tab_entities::schema::tournament_remote::Column::Url.eq(remote_url.clone())
     ).all(&*db).await.unwrap();
@@ -1453,33 +1433,44 @@ async fn create_user_account_for_remote(
         }
     ).send().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
 
-    let response = response.json::<CreateUserResponse>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
+    if response.status() == 200 {
+        let _response = response.json::<CreateUserResponse>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
 
-    let mut settings_lock = settings.write().await;
-    let remote = settings_lock.known_remotes.iter_mut().find(
-        |r| r.url == remote_url
-    );
-
-    if let Some(remote) = remote {
-        remote.account_name = Some(user_name.clone());
+        let mut settings_lock = settings.write().await;
+        let remote = settings_lock.known_remotes.iter_mut().find(
+            |r| r.url == remote_url
+        );
+    
+        if let Some(remote) = remote {
+            remote.account_name = Some(user_name.clone());
+        }
+        else {
+            settings_lock.known_remotes.push(RemoteSettings {
+                url: remote_url.clone(),
+                name: remote_url.clone(),
+                account_name: Some(user_name.clone()),
+            });
+        }
+        settings_lock.known_api_keys.insert(remote_url.clone(), password.clone());
+    
+        //TODO: Log this somewhere
+        let _ = settings_lock.write().map_err(|_| ());
+    
+        drop(settings_lock);
+    
+        run_login(&db, &client, remote_url, user_name, password, open_tournament_manager, settings, identity_provider.inner().clone()).await?;
+    
+        Ok(true)    
     }
     else {
-        settings_lock.known_remotes.push(RemoteSettings {
-            url: remote_url.clone(),
-            name: remote_url.clone(),
-            account_name: Some(user_name.clone()),
-        });
+        let response = response.json::<APIErrorResponse<CreateUserRequestError>>().await.map_err(|e| LoginError::NetworkError(e.to_string()))?;
+
+        match response.message {
+            CreateUserRequestError::UserExists => Err(LoginError::UserExists),
+            CreateUserRequestError::PasswordTooShort => Err(LoginError::PasswordTooShort),
+            CreateUserRequestError::Other(s) => Err(LoginError::NetworkError(s.into()))
+        }
     }
-    settings_lock.known_api_keys.insert(remote_url.clone(), password.clone());
-
-    //TODO: Log this somewhere
-    let _ = settings_lock.write().map_err(|_| ());
-
-    drop(settings_lock);
-
-    run_login(&db, &client, remote_url, user_name, password, open_tournament_manager, settings, identity_provider.inner().clone()).await?;
-
-    Ok(true)
 }
 
 #[tauri::command]

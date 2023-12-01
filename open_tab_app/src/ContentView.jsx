@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const ContentView = ({ children, forceOpen }) => {
+const ContentView = ({ children, forceOpen, defaultDrawerWidth: defaultDrawerWidth = 256 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleDrawer = () => {
@@ -18,7 +18,7 @@ const ContentView = ({ children, forceOpen }) => {
         {subcomponents.Content || ""}
       </div>
       <button 
-        className="absolute top-2 right-2 text-black rounded-md"
+        className="absolute top-2 right-2 text-black rounded-md bg-white"
         onClick={toggleDrawer}
       >
             {
@@ -27,7 +27,7 @@ const ContentView = ({ children, forceOpen }) => {
             </svg>
             }
       </button>
-      {(isDrawerOpen || forceOpen) && <div className="w-64 bg-gray-100 border-l">{
+      {(isDrawerOpen || forceOpen) && <div style={{width: defaultDrawerWidth.toString() + "px"}} className="bg-gray-100 border-l">{
         subcomponents.Drawer || ""
       }</div>}
     </div>

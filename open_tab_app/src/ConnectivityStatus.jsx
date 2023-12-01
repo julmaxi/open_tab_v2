@@ -20,8 +20,6 @@ function ConnectivityStatusDrawer({ state, lastUpdate, message }) {
         }
     };
 
-    
-
     return (
         <div className="rounded-tr-lg bg-white p-2 shadow-lg h-8 w-44 transition-all flex justify-end relative right-36 hover:right-0">
                 <p className='text-xs pr-2'>Last update {lastUpdate}</p>
@@ -51,6 +49,7 @@ function ConnectivityStatus() {
     let [msg, setMsg] = useState("No connection.");
     let [showLogin, setShowLogin] = useState(false);
     let [defaultUserId, setDefaultUserId] = useState("");
+    let [loginError, setLoginError] = useState(null);
     //let [lastUpdate, setLastUpdate] = useState(null);
 
     function updateWithStatus(status) {
@@ -76,7 +75,6 @@ function ConnectivityStatus() {
                 console.log(tournamentView);
                 if (state != "require_password" && tournamentView != null) {
                     invoke("get_settings").then((msg) => {
-                        console.log(msg.known_remotes)
                         let remote = msg.known_remotes.find(
                             (remote) => remote.url == tournamentView.remote_url
                         );
@@ -132,26 +130,27 @@ function ConnectivityStatus() {
                         userName: username,
                         password: password,
                     }).then((msg) => {
-                        if (msg.success) {
-                            setShowLogin(false);
+                        setShowLogin(false);
+                    }).catch(
+                        (err) => {
+                            setLoginError(err);
                         }
-                        else {
-                            console.log(msg);
-                        }
-                    });
+                    );
                 }}
                 onAbort={() => {
                     setShowLogin(false);
                 }}
+                loginError={loginError}
                 onAccountCreation={(username, password) => {
                     invoke("create_user_account_for_remote", {
                         userName: username,
                         password: password,
                         remoteUrl: tournamentView.remote_url,
+                    }).then((msg) => {
+                        setShowLogin(false);
                     }).catch((err) => {
-                        console.log(err);
-                    }
-                    );
+                        setLoginError(err);
+                    });
                 }}
             />
         </ModalOverlay>

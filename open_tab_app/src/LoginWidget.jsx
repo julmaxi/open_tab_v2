@@ -2,15 +2,37 @@
 
 import React, { useState } from 'react';
 
-function LoginWidget({ onLogin, onAbort, onAccountCreation, url, defaultUserName = "" }) {
+function getMessageForError(error) {
+    if (error.error === "IncorrectPassword") {
+        return "Username or password incorrect.";
+    }
+    else if (error.error === "UserExists") {
+        return "Username already taken.";
+    }
+    else if (error.error === "PasswordTooShort") {
+        return "Password must be at least 8 characters long.";
+    }
+    else {
+        return "Unknown error: " + error.error;
+    }
+}
+
+function LoginWidget({ onLogin, onAbort, onAccountCreation, url, loginError, defaultUserName = "" }) {
     const [username, setUsername] = useState(defaultUserName);
     const [password, setPassword] = useState("");
     const [repeatPassword, setRepeatPassword] = useState("");
     const [mode, setMode] = useState("login"); // Either 'login' or 'createAccount'
 
+    let errMsg = loginError && getMessageForError(loginError);
+    console.log(errMsg);
+
     return (
         <div className="bg-gray-100 p-6 rounded shadow-md w-96">
             <h2 className="text-2xl font-semibold mb-4">{mode === 'login' ? `Login to ${url}` : 'Create Account'}</h2>
+
+            
+            {loginError && <p className='text-red-500 font-bold'>{errMsg}</p>}
+            
 
             <div className="mb-4">
                 <label className="block text-sm font-medium mb-2" htmlFor="username">

@@ -1,8 +1,23 @@
 import React from "react";
 import { useState, useMemo } from "react";
 
-export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, alternateRowColors: alternateRowColors = true, ...props }) {
+export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowId, rowStyler, alternateRowColors: alternateRowColors = true, allowMultiSelect: allowMultiSelect = false, ...props }) {
     let [sortOrder, setSortOrder] = useState(null);
+
+    let realSelectedRowIds;
+    if (allowMultiSelect) {
+        realSelectedRowIds = useMemo(() => {
+            return new Set(selectedRowIds);
+        }, [selectedRowIds]);
+    }
+    else {
+        realSelectedRowIds = useMemo(() => {
+            let realSelectedRowIds = new Set();
+            realSelectedRowIds.add(selectedRowId);
+            return realSelectedRowIds;
+        }, [selectedRowId]);
+    }
+
 
     let rowStylerFn = rowStyler ?? (() => "");
 
@@ -51,7 +66,7 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, al
     }
 
     return <div className="h-full overflow-auto">
-        <table className="w-full">
+        <table className="w-full select-none">
             <thead className="bg-white sticky top-0">
                 <tr className="text-left">
                     {props.columns.map((column, idx) => {
@@ -62,16 +77,40 @@ export function SortableTable({ selectedRowId, onSelectRow, rowId, rowStyler, al
             <tbody>
                 {orderedRows.map((row, rowIdx) => {
                     let className = [];
-                    if (selectedRowId === row[rowId]) {
+                    if (realSelectedRowIds.has(row[rowId])) {
                         className.push("bg-blue-300 ");
                     }
                     
-                    if (alternateRowColors && selectedRowId !== row[rowId]) {
+                    if (alternateRowColors && !realSelectedRowIds.has(row[rowId])) {
                         className.push(rowIdx % 2 == 0 ? "bg-gray-100" : "bg-white");
                     }
 
                     className.push(rowStylerFn(rowIdx, row));
-                    return <tr key={row[rowId]} className={className.join(" ")} onClick={() => onSelectRow && onSelectRow(row[rowId])}>
+                    return <tr key={row[rowId]} className={className.join(" ")} onClick={(e) => {
+                        if (onSelectRow) {
+                            if (!allowMultiSelect) {
+                                onSelectRow(row[rowId]);
+                            }
+                            else {
+                                console.log(e.shiftKey)
+                                if (e.shiftKey) {
+                                    let newSelection = new Set(realSelectedRowIds);
+                                    if (realSelectedRowIds.has(row[rowId])) {
+                                        newSelection.delete(row[rowId]);
+                                    }
+                                    else {
+                                        newSelection.add(row[rowId]);
+                                    }
+                                    console.log(newSelection);
+                                    onSelectRow(newSelection);
+                                }
+                                else {
+                                    onSelectRow(new Set([row[rowId]]));
+                                }
+                            }
+                        }
+                        e.stopPropagation();
+                    }}>
                         {props.columns.filter(col => !col.group || groups.get(col)[rowIdx].start == rowIdx).map(
                             (column, idx) => {
                                 let val = row[column.key];

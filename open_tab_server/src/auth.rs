@@ -21,6 +21,7 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 // for `call`
 
+use crate::response::{TypedAPIError, handle_typed_error};
 use crate::{
     response::{handle_error, handle_error_dyn, APIError},
     state::AppState,
@@ -281,11 +282,49 @@ pub fn hash_password(pwd: String) -> Result<String, anyhow::Error> {
     Ok(pwd?.to_string())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum CreateUserRequestError {
+    UserExists,
+    PasswordTooShort,
+    Other(String)
+}
+
+impl From<String> for CreateUserRequestError {
+    fn from(s: String) -> Self {
+        CreateUserRequestError::Other(s)
+    }
+}
+
 pub async fn create_user_handler(
     State(db): State<DatabaseConnection>,
     Json(request): Json<CreateUserRequest>,
-) -> Result<Json<CreateUserResponse>, APIError> {
+) -> Result<Json<CreateUserResponse>, TypedAPIError<CreateUserRequestError>> {
     let pwd = request.password;
+
+    if pwd.len() < 8 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            CreateUserRequestError::PasswordTooShort,
+        )
+            .into());
+    }
+
+    if let Some(user_email) = &request.user_email {
+        let existing_user = open_tab_entities::schema::user::Entity::find()
+            .filter(open_tab_entities::schema::user::Column::UserEmail.eq(user_email))
+            .one(&db)
+            .await
+            .map_err(handle_typed_error)?;
+
+        if existing_user.is_some() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                CreateUserRequestError::UserExists,
+            )
+                .into());
+        }
+    }
+
     let new_user_uuid = Uuid::new_v4();
     let pwd = hash_password(pwd)?;
     let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
@@ -298,7 +337,7 @@ pub async fn create_user_handler(
         .into_active_model()
         .insert(&db)
         .await
-        .map_err(handle_error)?;
+        .map_err(handle_typed_error)?;
 
     return Ok(CreateUserResponse {
         uuid: new_user_uuid,

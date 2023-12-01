@@ -1,7 +1,9 @@
 import { Outlet, useNavigate, useParams } from "react-router"
 import { TournamentContext } from "./TournamentContext";
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useView } from "./View";
+import ContentView from "./ContentView";
+import { SortableTable } from "./SortableTable";
 
 function get_cell_value(value) {
     switch (value.type) {
@@ -20,43 +22,52 @@ export function FeedbackOverviewTable() {
     const navigate = useNavigate()
 
 
-    let [selectedParticipant, setSelectedParticipant] = useState(null);
+    let [selectedParticipantIds, setSelectedParticipantIds] = useState([]);
+    let flatData = useMemo(() => {
+        return feedback_overview && feedback_overview.participant_entries.map((participant) => {
+            let result = {
+                participant_name: participant.participant_name,
+                participant_id: participant.participant_id,
+            };
+            for (let column of feedback_overview.summary_columns) {
+                result[column.question_id] = get_cell_value(participant.score_summaries[column.question_id]);
+            }
+            return result;
+        })
+    }, [feedback_overview]);
 
     if (feedback_overview == null) {
         return <div>Loading...</div>
     }
 
-    return <div className="grid grid-cols-2">
-        <div className="w-full h-screen overflow-auto">
-        <table>
-            <thead>
-                <tr>
-                    <th>Participant</th>
-                    {feedback_overview.summary_columns.map((column, idx) => <th key={idx}>{column.title}</th>)}
-                </tr>
-            </thead>
-            <tbody>
-                {feedback_overview.participant_entries.map((participant, idx) => <tr key={idx} className={
-                    selectedParticipant == participant.participant_id ? "bg-blue-200" : ""
-                } onClick={() => {
-                    navigate("/feedback/" + participant.participant_id)
-                    setSelectedParticipant(participant.participant_id);
-
-                }}>
-                    <td className="text-right">{participant.participant_name}</td>
-                    {feedback_overview.summary_columns.map((column, idx) => <td key={idx} className="text-center">{
-                        get_cell_value(participant.score_summaries[column.question_id])
-                    }</td>)}
-                </tr>)}
-            </tbody>
-        </table>
-        </div>
-        <Outlet />
+    return <div className="w-full h-full bla">
+        <ContentView defaultDrawerWidth={400}  forceOpen={selectedParticipantIds.length > 0}>
+        <ContentView.Content>
+            <SortableTable columns={[{
+                header: "Participant",
+                key: "participant_name",
+            }, ...feedback_overview.summary_columns.map((column) => ({
+                header: column.title,
+                key: column.question_id,
+            }) )]} data={flatData} rowId={"participant_id"} allowMultiSelect={true} selectedRowIds={selectedParticipantIds} onSelectRow={(newIds => {
+                setSelectedParticipantIds(newIds);
+            })} />
+        </ContentView.Content>
+        <ContentView.Drawer>
+            <div className="w-full h-full overflow-auto flex flex-col">
+                {
+                    [...selectedParticipantIds].map((participantId) => {
+                        return <div className="flex-1"><FeedbackDetailView participantId={participantId} /></div>
+                    })
+                }
+            </div>
+        </ContentView.Drawer>
+        </ContentView>
     </div>
 }
 
 export function FeedbackOverviewRoute(props) {
-    return <div><FeedbackOverviewTable /></div>
+    return <FeedbackOverviewTable />
 }
 
 function FeedbackResponseDetails(props) {
@@ -91,6 +102,20 @@ function FeedbackResponseDetails(props) {
     </div>
 }
 
+export function FeedbackDetailView({participantId}) {
+    console.log(participantId)
+    let responses = useView({type: "FeedbackDetail", participant_id: participantId}, null);
+
+    if (responses == null) {
+        return <div>Loading...</div>
+    }
+
+    return <div className="w-full overflow-auto">
+        <h1>{responses.participant_name}</h1>
+        {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
+    </div>
+
+}
 
 export function FeedbackDetailViewRoute(props) {
     let { participantId } = useParams();
@@ -100,9 +125,8 @@ export function FeedbackDetailViewRoute(props) {
         return <div>Loading...</div>
     }
 
-    console.log(responses);
-
     return <div className="w-full h-screen overflow-auto">
+        <h1>{responses.participant_name}</h1>
         {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
     </div>
 
