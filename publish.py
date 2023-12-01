@@ -124,7 +124,7 @@ if __name__ == "__main__":
                      stderr=subprocess.PIPE)
         process.wait()
 
-        process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''ln -f -s 'release/v{version}/{full_bundle_name}' './releases.debateresult.com/{get_non_versioned_bundle_path(platform_name, arch)}/{get_non_versioned_bundle_name(platform_name)}'''"])
+        process = subprocess.Popen(["ssh", "-p", "7822", "debatere@nl1-ss6.a2hosting.com", f"''ln -f -s '/home/debatere/releases.debateresult.com/release/v{version}/{full_bundle_name}' './releases.debateresult.com/{get_non_versioned_bundle_path(platform_name, arch)}/{get_non_versioned_bundle_name(platform_name)}'''"])
         process.wait()
 
 
