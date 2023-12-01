@@ -191,7 +191,7 @@ impl FeedbackDetailView {
             .filter(open_tab_entities::schema::tournament_debate::Column::Uuid.is_in(responses.iter().map(|r| r.source_debate_id)))
             .find_also_related(open_tab_entities::schema::tournament_round::Entity)
             .all(db).await?
-            .into_iter().map(|(debate, round)| (debate.uuid, (round.as_ref().unwrap().uuid, format!("Round {}", round.unwrap().index)))).collect::<HashMap<_, _>>();
+            .into_iter().map(|(debate, round)| (debate.uuid, (round.as_ref().unwrap().uuid, format!("Round {}", round.unwrap().index + 1)))).collect::<HashMap<_, _>>();
 
         let question_ids = responses.iter().flat_map(|r| r.values.keys().cloned()).collect::<HashSet<_>>();
 

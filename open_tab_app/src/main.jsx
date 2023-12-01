@@ -11,7 +11,7 @@ import { ParticipantOverview } from "./ParticipantOverview";
 import { RoundResultRoute } from "./Results";
 import { RoundsEditorRoute } from "./RoundsEditor";
 import { RoundPublicationRoute } from "./RoundPublicationView";
-import { FeedbackOverviewRoute, FeedbackDetailViewRoute } from "./FeedbackView";
+import { FeedbackOverviewRoute } from "./FeedbackView";
 import { TabViewRoute } from "./TabView";
 import { FeedbackConfigRoute } from "./FeedbackConfig";
 import VenueViewRoute from "./Venues";
@@ -51,12 +51,6 @@ const router = createMemoryRouter([
       {
         path: "feedback",
         element: <FeedbackOverviewRoute />,
-        children: [
-          {
-            path: ":participantId",
-            element: <FeedbackDetailViewRoute />
-          }
-        ]
       },
       {
         path: "feedback-config",

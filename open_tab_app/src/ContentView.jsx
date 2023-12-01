@@ -40,7 +40,7 @@ let Content = ({ children }) => {
 
 const Drawer = ({ children, size = 'w-64', isOpen = true }) => {
     return (
-        isOpen && <div className={`${size} bg-gray-100 border-l`}>{children}</div>
+        isOpen && <div className={`${size} bg-gray-100 border-l w-full h-full`}>{children}</div>
     );
 };
 

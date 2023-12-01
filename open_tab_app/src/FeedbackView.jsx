@@ -19,8 +19,6 @@ function get_cell_value(value) {
 export function FeedbackOverviewTable() {
     let context = useContext(TournamentContext);
     let feedback_overview = useView({type: "FeedbackOverview", tournament_uuid: context.uuid}, null);
-    const navigate = useNavigate()
-
 
     let [selectedParticipantIds, setSelectedParticipantIds] = useState([]);
     let flatData = useMemo(() => {
@@ -41,7 +39,7 @@ export function FeedbackOverviewTable() {
     }
 
     return <div className="w-full h-full bla">
-        <ContentView defaultDrawerWidth={400}  forceOpen={selectedParticipantIds.length > 0}>
+        <ContentView defaultDrawerWidth={400}  forceOpen={selectedParticipantIds.size > 0}>
         <ContentView.Content>
             <SortableTable columns={[{
                 header: "Participant",
@@ -70,24 +68,38 @@ export function FeedbackOverviewRoute(props) {
     return <FeedbackOverviewTable />
 }
 
+function ValCell({value}) {
+    if (value === null || value === undefined) return <td></td>;
+    switch (value.type) {
+        case "Int":
+            return <td className="border text-center">{value.val}</td>
+        case "Bool":
+            return <td className="border text-center">{value.val ? "✔️": "❌"}</td>
+        default:
+            console.log(value);
+    }
+}
+
 function FeedbackResponseDetails(props) {
     let { response } = props;
     let table_values = response.values.filter((value) => value.value.type != "String");
+    table_values.sort((a, b) => a.question_short_name.localeCompare(b.question_short_name));
     let string_values = response.values.filter((value) => value.value.type == "String");
 
-    return <div className="w-full border-b border-gray-200">
-        <table>
+    return <div className="p-1 pb-2 w-full border-b-4 border-gray-400 flex justify-center flex-col">
+        <h1 className="font-bold">{response.author_name} in {response.round_name}</h1>
+        <table className="border bg-white">
             <thead>
                 <tr>
                     {table_values.map(
-                        (value, idx) => <th key={idx}>{value.question_short_name}</th>
+                        (value, idx) => <th className="border" key={idx}>{value.question_short_name}</th>
                     )}
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     {table_values.map(
-                        (value, idx) => <td key={idx}>{value.value.val}</td>
+                        (value, idx) => <ValCell key={idx} value={value.value} />
                     )}
                 </tr>
             </tbody>
@@ -95,7 +107,7 @@ function FeedbackResponseDetails(props) {
         
         {
             string_values.map((value, idx) => <div key={idx}>
-                <h2>{value.question_short_name}</h2>
+                <h2 className="font-bold border-t">{value.question_short_name}</h2>
                 <p>{value.value.val}</p>
             </div>)
         }
@@ -103,7 +115,6 @@ function FeedbackResponseDetails(props) {
 }
 
 export function FeedbackDetailView({participantId}) {
-    console.log(participantId)
     let responses = useView({type: "FeedbackDetail", participant_id: participantId}, null);
 
     if (responses == null) {
@@ -111,22 +122,7 @@ export function FeedbackDetailView({participantId}) {
     }
 
     return <div className="w-full overflow-auto">
-        <h1>{responses.participant_name}</h1>
-        {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
-    </div>
-
-}
-
-export function FeedbackDetailViewRoute(props) {
-    let { participantId } = useParams();
-    let responses = useView({type: "FeedbackDetail", participant_id: participantId}, null);
-
-    if (responses == null) {
-        return <div>Loading...</div>
-    }
-
-    return <div className="w-full h-screen overflow-auto">
-        <h1>{responses.participant_name}</h1>
+        <h1 className="font-bold">{responses.participant_name}</h1>
         {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
     </div>
 
