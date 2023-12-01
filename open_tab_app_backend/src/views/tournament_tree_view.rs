@@ -1,4 +1,5 @@
 
+use open_tab_entities::domain::tournament_plan_node::RoundGroupConfig;
 use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
 use sea_orm::prelude::Uuid;
 
@@ -98,6 +99,7 @@ struct BreakInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RoundGroupInfo {
     rounds: Vec<RoundInfo>,
+    config: RoundGroupConfig
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -404,7 +406,8 @@ impl TournamentTreeView {
                     }
                 }
                 (TournamentTreeNodeContent::RoundGroup(RoundGroupInfo {
-                    rounds: actual_rounds
+                    rounds: actual_rounds,
+                    config: config.clone()
                 }),  Self::get_standard_node_actions(node_uuid))
             },
             domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {

@@ -135,10 +135,15 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
             let break_ = TournamentBreak::get(db, relevant_break_id).await?;
             let teams = break_.breaking_teams;
             let speakers = break_.breaking_speakers;
+
+            let teams_by_id = all_teams.into_iter().map(|t| (t.uuid, t)).collect::<HashMap<_, _>>();
+            let speakers_by_id = all_participants.into_iter().map(
+                |p| (p.uuid, p)
+            ).collect::<HashMap<_, _>>();
             
             (
-                all_teams.into_iter().filter(|t| teams.contains(&t.uuid)).collect_vec(),
-                all_participants.into_iter().filter(|s| speakers.contains(&s.uuid)).collect_vec(),
+                teams.into_iter().map(|t| teams_by_id.get(&t).cloned().expect("Guaranteed by db constraint")).collect_vec(),
+                speakers.into_iter().map(|s| speakers_by_id.get(&s).cloned().expect("Guaranteed by db constraint")).collect_vec(),
                 break_.breaking_adjudicators
             )
         }
@@ -222,9 +227,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                 None
             };
 
-            let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
-            let mut speakers = all_speakers.into_iter().map(|s| s.uuid).collect_vec();
-            speakers.shuffle(&mut rng);
+            let speakers = all_speakers.into_iter().map(|s| s.uuid).collect_vec();
 
             let team_and_speaker_pairs = izip!(team_pairs.into_iter(), round_configs.iter()).map(|(team_pairs, config)| {
                 let team_pairs = assign_teams(team_pairs, config, preceding_round_gov_opp_assignments.as_ref());
@@ -428,7 +431,6 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 return Err(MakeBreakError::InvalidTeamCount.into());
             }
             let num_breaking_teams = team_ranking.len() / 3 * 2;
-            dbg!(&num_breaking_teams);
             let teams = team_ranking.into_iter().take((num_breaking_teams) as usize).collect_vec();
             let speakers = find_speakers_not_in_teams(&teams, &speaker_ranking, &speaker_info.team_members);
 
@@ -541,9 +543,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 }
             ).collect_vec();
 
-            dbg!(&breaking_teams.len(), &breaking_teams, &non_breaking_teams);
             let speakers = find_speakers_not_in_teams(&breaking_teams, &speaker_ranking, &speaker_info.team_members);
-            dbg!(&speakers);
             let team_positions = team_ranking.iter().enumerate().map(|(i, t)| (*t, i)).collect::<HashMap<_, _>>();
             breaking_teams.sort_by_key(|t| team_positions.get(t).unwrap_or(&0));
             break_.breaking_teams = breaking_teams;
