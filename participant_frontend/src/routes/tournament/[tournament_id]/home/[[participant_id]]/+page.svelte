@@ -177,7 +177,7 @@ import BoxButton from "./BoxButton.svelte";
         </div>
         </div>
         <div>
-            {#if round.participant_role.role === "Adjudicator" }
+            {#if round.participant_role.role === "Adjudicator" || round.participant_role.role === "President" }
             <BoxButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}
                 label="Submit ballot" />
