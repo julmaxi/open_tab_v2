@@ -146,6 +146,9 @@ pub enum ParticipantRoundRoleInfo {
         debate: ParticipantDebateInfo,
         position: i32
     },
+    President {
+        debate: ParticipantDebateInfo,
+    },
     Multiple
 }
 
@@ -319,14 +322,19 @@ async fn get_participant_info(
     let participant_adjudicator_debates = participant_adjudicator_debates.into_iter().map(
         |(d, v)| {
             let ballot = ballot_map.get(&d.ballot_id).unwrap();
-            (
-                d.round_id,
-                ParticipantRoundRoleInfo::Adjudicator{
+            if let Some(position) = ballot.adjudicators.iter().position(|a| *a == participant_id) {
+                (d.round_id, ParticipantRoundRoleInfo::Adjudicator{
                     debate: ParticipantDebateInfo::new_from(d, v),
-                    position: ballot.adjudicators.iter().position(|a| *a == participant_id).unwrap() as i32
-                }
-            )
-        }
+                    position: position as i32
+                })
+            }
+            else if (ballot.president == Some(participant_id)) {
+                (d.round_id, ParticipantRoundRoleInfo::President { debate: ParticipantDebateInfo::new_from(d, v) })
+            }
+            else {
+                panic!("Adjudicator {} not found in ballot", participant_id);
+            }
+         }
     );
     let participant_non_aligned_speaker_debates = participant_non_aligned_speaker_debates.into_iter().map(
         |(d, v)| {
@@ -412,10 +420,10 @@ async fn get_participant_info(
             };
 
             let show_motion = check_release_date(current_time, round.full_motion_release_time) || match &role {
-                ParticipantRoundRoleInfo::Adjudicator{..} | ParticipantRoundRoleInfo::TeamSpeaker{..} => 
+                ParticipantRoundRoleInfo::Adjudicator{..} | ParticipantRoundRoleInfo::TeamSpeaker{..} | ParticipantRoundRoleInfo::President {..} => 
                 check_release_date(current_time, round.team_motion_release_time),
                 ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => check_release_date(current_time, round.team_motion_release_time) && debate.is_motion_released_to_non_aligned,
-                _ => false
+                ParticipantRoundRoleInfo::NotDrawn | ParticipantRoundRoleInfo::Multiple => false
             };
 
             let status = if check_release_date(current_time, round.round_close_time) {
@@ -735,7 +743,6 @@ pub async fn update_participant_settings(
         let tournament_id = participant.tournament_id;
         let mut entity_group = EntityGroup::new();
         participant.is_anonymous = new_settings.is_anonymous;
-        dbg!(&participant.is_anonymous);
         entity_group.add(
             open_tab_entities::Entity::Participant(participant)
         );

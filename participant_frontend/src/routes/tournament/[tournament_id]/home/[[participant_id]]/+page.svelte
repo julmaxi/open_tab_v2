@@ -128,6 +128,8 @@ import BoxButton from "./BoxButton.svelte";
             <span>You are Non Aligned Speaker #{round.participant_role.position + 1}</span>
             {:else if round.participant_role.role === "Adjudicator" }
             <span>You are {round.participant_role.position == 0 ? "Chair" : "Wing"}</span>
+            {:else if round.participant_role.role === "President" }
+            <span>You are President</span>
             {:else if round.participant_role.role === "Multiple" }
             <span>There seems to be a mistake in the draw. You have been allocated multiple debates.</span>
             {/if}
