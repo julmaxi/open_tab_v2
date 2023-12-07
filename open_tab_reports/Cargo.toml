@@ -28,3 +28,6 @@ anyhow = "*"
 open_tab_entities = { path = "../open_tab_entities" }
 lazy_static = "1.4.0"
 zip = "0.6.6"
+unicode-linebreak = "0.1.5"
+unicode-segmentation = "1.10.1"
+qrcode-generator = "4.1.9"

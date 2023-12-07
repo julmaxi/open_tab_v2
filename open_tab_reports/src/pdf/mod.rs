@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use itertools::Itertools;
 use pdf_writer::{PdfWriter, Ref, Content, Name, Str, writers::Resources, Finish, types::{FontFlags, SystemInfo}, Rect};
 
-use crate::layout::{LayoutedDocument, TextElement, FontRef, Instruction, Position, LayoutedPage, LayoutedElement, GraphicsRef};
+use crate::layout::{LayoutedDocument, TextElement, FontRef, Instruction, Position, LayoutedPage, LayoutedElement, GraphicsRef, QRCodeElement};
 
 struct Context {
     next_val: i32,
@@ -99,6 +99,33 @@ impl TextElement {
     }
 }
 
+impl QRCodeElement {
+    fn get_resources(&self) -> RequiredResources {
+        RequiredResources::new()
+    }
+
+    fn write_to_content(&self, content: &mut Content, _context: &Context, _local_context: &LocalContext) {
+        content.save_state();
+        content.set_fill_color(vec![0.0, 0.0, 0.0]);
+
+        let cell_size = self.size / self.data.len() as f32;
+        for (row_idx, row) in self.data.iter().enumerate() {
+            for (col_idx, col) in row.iter().enumerate() {
+                if *col {
+                    content.rect(
+                        self.pos.x + col_idx as f32 * cell_size,
+                        self.pos.y + row_idx as f32 * cell_size,
+                        cell_size,
+                        cell_size
+                    );
+                }
+            }
+        }
+        content.fill_even_odd();
+        content.restore_state();
+    }
+}
+
 #[derive(Debug)]
 struct RequiredResources {
     fonts: HashMap<FontRef, HashSet<u16>>,
@@ -154,6 +181,7 @@ impl LayoutedElement {
     fn write_to_content(&self, content: &mut Content, context: &Context, local_context: &LocalContext) {
         match self {
             LayoutedElement::Text(e) => e.write_to_content(content, context, local_context),
+            LayoutedElement::QRCode(e) => e.write_to_content(content, context, local_context),
             LayoutedElement::Image(_) => todo!(),
             LayoutedElement::Group(_) => todo!(),
         }
@@ -162,6 +190,7 @@ impl LayoutedElement {
     fn get_resources(&self) -> RequiredResources {
         match self {
             LayoutedElement::Text(e) => e.get_resources(),
+            LayoutedElement::QRCode(e) => e.get_resources(),
             LayoutedElement::Image(_) => todo!(),
             LayoutedElement::Group(_) => todo!(),
         }
@@ -210,7 +239,6 @@ impl LayoutedDocument {
             let content_id = context.next_ref();
 
             let required_resources = page.get_resources();
-            dbg!(&required_resources);
             global_required_resources.merge(&required_resources);
             let local_context = required_resources.into_local_context();
 
@@ -237,15 +265,12 @@ impl LayoutedDocument {
             let mut allsorts_font = font.as_allsorts();
 
             let table = allsorts_font.head_table().unwrap().unwrap();
-            dbg!(&table.units_per_em);
 
-
-            let _scale = 1000.0 / table.units_per_em as f32;
             let glyph_widths = used_glyphs.iter().map(|g|
                 (
                     *g,
                     //loaded_font.glyph_metrics(&[]).advance_width(*g) * scale
-                    allsorts_font.horizontal_advance(*g).unwrap() as f32 / 2.0
+                    allsorts_font.horizontal_advance(*g).unwrap() as f32 / table.units_per_em as f32 * 1000.0
                     //1.0
                 )
             ).collect::<HashMap<_, _>>();
