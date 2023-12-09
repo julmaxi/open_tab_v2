@@ -5,8 +5,8 @@ use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, 
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
-use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::DrawPresentationInfo, tab::{TabView, BreakRelevantTabView}};
-use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation}};
+use open_tab_entities::{EntityGroup, domain::{tournament::Tournament, ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility}, feedback_question::FeedbackQuestion, tournament_plan_node::{TournamentPlanNode, PlanNodeType, FoldDrawConfig}, tournament_plan_edge::TournamentPlanEdge, self}, schema::{self}, mock::{make_mock_tournament_with_options, MockOption}, utilities::BatchLoadError, EntityType, derived_models::{DrawPresentationInfo, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
@@ -1425,6 +1425,18 @@ async fn save_round_files(db: State<'_, DatabaseConnection>, template_context: S
     Ok(())
 }
 
+
+#[tauri::command]
+async fn save_participant_qr_codes(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, out_path: String) -> Result<(), ()> {
+    let registration_info = RegistrationInfo::load_from_tournament(db.inner(), tournament_id).await.map_err(handle_error)?;
+
+    let file = File::create(out_path).map_err(handle_error)?;
+    make_pdf_registration_items(&template_context.inner(), file, registration_info).map_err(handle_error)?;
+
+    Ok(())
+}
+
+
 #[tauri::command]
 async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, node_id: Option<Uuid>, path: String) -> Result<(), ()> {
     let tab_view = match node_id {
@@ -1524,7 +1536,8 @@ fn main() {
             create_user_account_for_remote,
             save_round_files,
             create_tournament,
-            save_tab
+            save_tab,
+            save_participant_qr_codes
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))

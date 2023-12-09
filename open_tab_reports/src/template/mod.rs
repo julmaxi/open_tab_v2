@@ -4,10 +4,12 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials, ParticipantRegistrationInfo, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
 
 
 use std::io::Write;
+
+use crate::layout::design::{RowInfo, CellInfo, CellWidth, QRCodeLayouter, TextLayouter, DocumentLayouter, TabularLayouter};
 
 
 
@@ -264,6 +266,53 @@ pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: O
         ].into_iter().collect(),
         doc_media_type: "application/vnd.oasis.opendocument.text".into(),
     }.write(&context, writer)?;
+
+    return Ok(());
+}
+
+pub fn make_pdf_registration_items<W>(
+    context: &TemplateContext,
+    mut writer: W,
+    registration_info: RegistrationInfo,
+) -> Result<(), anyhow::Error> where W: Write + std::io::Seek {
+    let table_rows = registration_info.participant_info.into_iter().map(
+        |p| {
+            RowInfo {
+                cells: vec![
+                    CellInfo {
+                        width: CellWidth::Fixed(45.0),
+                        content: Box::new(
+                            QRCodeLayouter {
+                                content: p.registration_url.unwrap_or("".into()),
+                                size: 35.0,
+                            }
+                        )
+                    },
+                    CellInfo {
+                        width: CellWidth::Dynamic,
+                        content: Box::new(
+                            TextLayouter {
+                                text: format!("{}\n{}", p.name, p.role),
+                                font_size: 12.0,
+                                font: "Helvetica".into(),
+                            }
+                        )
+                    },
+                ]
+            }
+        }
+    ).collect();
+
+    let mut doc = DocumentLayouter::new();
+    doc.add_element(Box::new(
+        TabularLayouter {
+            rows: table_rows,
+            row_margin: 10.0,
+        }
+    ));
+
+    let layouted_doc = doc.layout()?;
+    writer.write(&layouted_doc.write_as_pdf()?)?;
 
     return Ok(());
 }

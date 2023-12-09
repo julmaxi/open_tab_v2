@@ -1,224 +1,260 @@
+use allsorts::{tag::LATN, font::MatchingPresentation};
+use itertools::Itertools;
+use open_tab_reports::layout::{LayoutedDocument, font::FontLoader, LayoutedPage, PageDimensions, Instruction, design::{DocumentLayouter, TextLayouter, QRCodeLayouter, TabularLayouter, CellInfo, RowInfo}};
 
 
-use open_tab_entities::derived_models::mock_draw_presentation_info;
-use open_tab_reports::{template::{TemplateContext, make_open_office_presentation}};
 
 fn main() {
-    let presentation_info = mock_draw_presentation_info();
-    let file = std::fs::File::create("test.odp").unwrap();
-    let context = TemplateContext::new("templates".into()).unwrap();
-    //make_open_office_ballots(&context, file, presentation_info).unwrap();
-    make_open_office_presentation(&context, file, &presentation_info).unwrap();
-}
+    let loader = FontLoader::new();
+    let menlo = loader.load_from_postscript_name("Menlo".to_string()).unwrap();
+    
 
-
-/*
-fn main() {
     let mut doc = LayoutedDocument::new();
+    let mut allsorts_font = menlo.as_allsorts();
 
-    let source = FontLoader::new();
-    let font = source.load_from_postscript_name("Apple Chancery".into()).unwrap();
+    let glyphs = allsorts_font.map_glyphs("Shaping in a jiffy.", LATN, MatchingPresentation::NotRequired);
+    let glyphs = glyphs.into_iter().map(|g| g.glyph_index).collect::<Vec<_>>();
 
-    let mut allsorts_font = font.as_allsorts();
-    let font2= source.load_from_postscript_name("Apple Chancery".into()).unwrap();
+    drop(allsorts_font);
 
-    let font_ref = doc.add_font(font2);
+    let font_ref = doc.add_font(menlo);
+    let n_glyphs = glyphs.len();
 
-    let mut page = LayoutedPage::new(
-        PageDimensions::a4()
-    );
-
-    let glyphs = allsorts_font.map_glyphs("Shaping in a jiffy.", tag::LATN, MatchingPresentation::NotRequired);
-
-    let glyphs = glyphs.iter().map(|g| g.glyph_index).collect_vec();
-    let glyph_len = glyphs.len();    
-
-    let text = TextElement {
+    let mut page: LayoutedPage = LayoutedPage::new(PageDimensions::a4());
+    page.add_element(open_tab_reports::layout::LayoutedElement::Text(open_tab_reports::layout::TextElement {
+        font: font_ref,
+        font_size: 12.0,
         glyph_ids: glyphs,
         instructions: vec![
-            Instruction::MoveTo { x: 100.0, y: 100.0 },
-            Instruction::Run { start: 0, stop: glyph_len }
+            Instruction::MoveTo { x: 0.0, y: 10.0 },
+            Instruction::Run { start: 0, stop: n_glyphs },
         ],
-        font_size: 66.0,
-        font: font_ref,
-    };
-
-    page.add_text(text);
-
+    }));
     doc.add_page(page);
 
-    let buf = doc.write_as_pdf().unwrap();
+    let data = doc.write_as_pdf().unwrap();
+    //Write to test.pdf
+    std::fs::write("test-new.pdf", data).unwrap();
 
-    std::fs::write("test_x.pdf", buf).unwrap();
+
+    let mut content = DocumentLayouter::new();
+    let text = TextLayouter {
+        //text: "ABCD EFGH IJKL MNOP QRST UVWX YZ".chars().into_iter().cycle().take(5000).join("").to_string(),
+        text: "Zu Dionys dem Tyrannen, schlich 
+        Damon den Dolch im Gewande, 
+        Ihn schlugen die Häscher in Bande. 
+        „Was wolltest du mit dem Dolche, sprich!“
+        Entgegnet ihm finster der Wüterich. 
+        „Die Stadt vom Tyrannen befreien!“ 
+        Das sollst du am Kreuze bereuen.“
+        
+        „Ich bin“, spricht jener, „zu sterben bereit, 
+        Und bitte nicht um mein Leben; 
+        Doch willst du Gnade mir geben, 
+        Ich flehe dich um drei Tage Zeit, 
+        Bis ich die Schwester dem Gatten gefreit:
+        Ich lasse den Freund dir als Bürgen –
+        Ihn magst du, entrinn ich, erwürgen.“
+        
+        Da lächelt der König mit arger List 
+        Und spricht nach kurzem Bedenken: 
+        „Drei Tage will ich dir schenken. 
+        Doch wisse: wenn sie verstrichen, die Frist, 
+        Eh du zurück mir gegeben bist, 
+        So muß er statt deiner erblassen, 
+        Doch dir ist die Strafe erlassen.“
+        
+        Und er kommt zum Freunde: „Der König gebeut, 
+        Daß ich am Kreuz mit dem Leben 
+        Bezahle das frevelnde Streben 
+        Doch will er mir gönnen drei Tage Zeit, 
+        Bis ich die Schwester dem Gatten gefreit, 
+        So bleib du dem König zum Pfande, 
+        Bis ich komme, zu lösen die Bande.“
+        
+        Und schweigend umarmt ihn der treue Freund, 
+        Und liefert sich aus dem Tyrannen, 
+        Der andere ziehet von dannen. 
+        Und ehe das dritte Morgenrot scheint, 
+        Hat er schnell mit dem Gatten die Schwester vereint, 
+        Eilt heim mit sorgender Seele, 
+        Damit er die Frist nicht verfehle.
+        
+        Da gießt unendlicher Regen herab, 
+        Von den Bergen stürzen die Quellen, 
+        Und die Bäche, die Ströme schwellen. 
+        Und er kommt ans Ufer mit wanderndem Stab – 
+        Da reißet die Brücke der Strudel hinab, 
+        Und donnernd sprengen die Wogen 
+        Des Gewölbes krachenden Bogen.
+        
+        Und trostlos irrt er an Ufers Rand, 
+        Wie weit er auch spähet und blicket, 
+        Und die Stimme, die rufende, schicket – 
+        Da stößet kein Nachen vom sichern Strand, 
+        Der ihn setze an das gewünschte Land, 
+        Kein Schiffer lenket die Fähre, 
+        Und der wilde Strom wird zum Meere.
+        
+        Da sinkt er ans Ufer und weint und fleht, 
+        Die Hände zum Zeus erhoben: 
+        „O hemme des Stromes Toben! 
+        Es eilen die Stunden, im Mittag steht 
+        Die Sonne und wenn sie niedergeht, 
+        Und ich kann die Stadt nicht erreichen, 
+        So muß der Freund mir erbleichen.“
+        
+        Doch wachsend erneut sich des Stromes Wut, 
+        Und Welle auf Welle zerrinnet, 
+        Und Stunde an Stunde entrinnet, 
+        Da treibt ihn die Angst, da faßt er sich Mut 
+        Und wirft sich hinein in die brausende Flut, 
+        Und teilt mit gewaltigen Armen 
+        Den Strom, und ein Gott hat Erbarmen.
+        
+        Und gewinnt das Ufer und eilet fort, 
+        Und danket dem rettenden Gotte; 
+        Da stürzet die raubende Rotte 
+        Hervor aus des Waldes nächtlichem Ort, 
+        Den Pfad ihm sperrend, und schnaubet Mord 
+        Und hemmet des Wanderers Eile 
+        Mit drohend geschwungener Keule.
+        
+        „Was wollt ihr?“ ruft er vor Schrecken bleich 
+        „Ich habe nichts als mein Leben, 
+        Das muß ich dem Könige geben!“
+        Und entreißt die Keule dem nächsten gleich: 
+        „Um des Freundes willen erbarmet euch!“
+        Und drei, mit gewaltigen Streichen, 
+        Erlegt er, die andern entweichen.
+        
+        Und die Sonne versendet glühenden Brand 
+        Und von der unendlichen Mühe 
+        Ermattet sinken die Kniee: 
+        „O hast du mich gnädig aus Räubershand, 
+        Aus dem Strom mich gerettet ans heilige Land, 
+        Und soll hier verschmachtend verderben, 
+        Und der Freund mir, der liebende, sterben!“
+        
+        Und horch! da sprudelt es silberhell 
+        Ganz nahe, wie rieselndes Rauschen, 
+        Und stille hält er, zu lauschen;
+        Und sieh, aus dem Felsen, geschwätzig, schnell, 
+        Springt murmelnd hervor ein lebendiger Quell, 
+        Und freudig bückt er sich nieder, 
+        Und erfrischet die brennenden Glieder.
+        
+        Und die Sonne blickt durch der Zweige Grün 
+        Und malt auf den glänzenden Matten 
+        Der Bäume gigantische Schatten; 
+        Und zwei Wanderer sieht er die Straße ziehn, 
+        Will eilenden Laufes vorüber fliehn, 
+        Da hört er die Worte sie sagen: 
+        „Jetzt wird er ans Kreuz geschlagen.“
+        
+        Und die Angst beflügelt den eilenden Fuß, 
+        Ihn jagen der Sorge Qualen; 
+        Da schimmern in Abendrots Strahlen 
+        Von ferne die Zinnen von Syrakus, 
+        Und entgegen kommt ihm Philostratus, 
+        Des Hauses redlicher Hüter, 
+        Der erkennet entsetzt den Gebieter:
+        
+        „Zurück! du rettest den Freund nicht mehr, 
+        So rette das eigene Leben! 
+        Den Tod erleidet er eben. 
+        Von Stunde zu Stunde gewartet' er 
+        Mit hoffender Seele der Wiederkehr, 
+        Ihm konnte den mutigen Glauben 
+        Der Hohn des Tyrannen nicht rauben.“
+        
+        „Und ist es zu spät, und kann ich ihm nicht
+        Ein Retter willkommen erscheinen, 
+        So soll mich der Tod ihm vereinen. 
+        Des rühme der blutge Tyrann sich nicht, 
+        Daß der Freund dem Freunde gebrochen die Pflicht –
+        Er schlachte der Opfer zweie 
+        Und glaube an Liebe und Treue.“
+        
+        Und die Sonne geht unter, da steht er am Tor 
+        Und sieht das Kreuz schon erhöhet, 
+        Das die Menge gaffend umstehet; 
+        An dem Seile schon zieht man den Freund empor, 
+        Da zertrennt er gewaltig den dichten Chor: 
+        „Mich, Henker!“ ruft er, „erwürget!
+        Da bin ich, für den er gebürget!“
+        
+        Und Erstaunen ergreifet das Volk umher, 
+        In den Armen liegen sich beide, 
+        Und weinen für Schmerzen und Freude. 
+        Da sieht man kein Auge tränenleer, 
+        Und zum Könige bringt man die Wundermär, 
+        Der fühlt ein menschliches Rühren, 
+        Läßt schnell vor den Thron sie führen.
+        
+        Und blicket sie lange verwundert an, 
+        Drauf spricht er: „Es ist euch gelungen, 
+        Ihr habt das Herz mir bezwungen, 
+        Und die Treue, sie ist doch kein leerer Wahn – 
+        So nehmet auch mich zum Genossen an, 
+        Ich sei, gewährt mir die Bitte, 
+        In eurem Bunde der Dritte.“
+        
+        Und die Freunde umarmen den König gleich,
+        Und sie nennen sich Brüder und schwören
+        Auf ewig sich Treue und Ehren.
+        Und der König läßt ihm sein Leben zugleich,
+        Und er feieret mit ihnen das Frühlingsfest,
+        Und kein Auge bleibt trübe,
+        Und die Freude bekämpfet die Liebe.
+        ".split_ascii_whitespace().cycle().take(40000).join(" ").into(),
+        //text: "Availablitytestability! Yes".into(),
+        //text: "This is a little test case".into(),
+        font: "Helvetica Neue".to_string(),
+        font_size: 12.0,
+    };
+
+    /*content.add_element(Box::new(
+        QRCodeLayouter {
+            content: "https://www.google.com".to_string(),
+            size: 100.0,
+        }
+    ));*/
+    //content.add_element(Box::new(text));
+
+    let rows = (0..200).map(|_| {
+        RowInfo {
+            cells: vec![
+                CellInfo {
+                    content: Box::new(
+                        QRCodeLayouter {
+                            content: "https://www.google.com".to_string(),
+                            size: 35.0,
+                        }
+                    ),
+                    width: open_tab_reports::layout::design::CellWidth::Fixed(40.0)
+                },
+                CellInfo { content: Box::new(
+                    TextLayouter {
+                        text: "Julius Steen\nSchönrederei\nRederei".into(),
+                        font: "Helvetica Neue".to_string(),
+                        font_size: 12.0,
+                    }
+                ), width: open_tab_reports::layout::design::CellWidth::Dynamic },
+            ]
+        }
+    }).collect_vec();
+
+    content.add_element(
+        Box::new(
+            TabularLayouter {
+                rows,
+                row_margin: 10.0
+            }
+        )
+    );
+    let doc = content.layout().unwrap();
+    let data = doc.write_as_pdf().unwrap();
+    std::fs::write("test-new-2.pdf", data).unwrap();
+
 }
-*/
-/* 
-use std::{sync::Arc, borrow::BorrowMut, collections::HashMap, hash::Hash, fmt::Debug};
-
-use ab_glyph::Font;
-use allsorts::{tables::Fixed, layout};
-use encoding_rs::WINDOWS_1252;
-use font_kit::{source::SystemSource, font};
-use itertools::{izip, Itertools};
-use open_tab_reports::{layout::{FontCollection, DynamicTextBox, LayoutDirection, LayoutContext, XObjectLayout, XObjectRef, LayoutedElements, Image, GraphicsCollection, LayoutedDocument, XObjectForm, FixedImage, ImageName, FormName, SinglePageTemplate, LayoutValue, DocumentTemplate}, pdf::PDFWritingContext};
-use pdf_writer::{Ref, Rect, Name, Finish, Content, Str, TextStr, Filter, PdfWriter, types::{SystemInfo, FontFlags}, writers::Resources};
-use subsetter::{Profile, subset};
-use svg2pdf::Options;
-use swash::{FontRef, shape::{ShapeContext, Shaper, Direction}, text::{Script, analyze, cluster::{Parser, CharInfo, Token, CharCluster}}, CacheKey};
-use tera::Tera;
-use usvg::{TreeParsing, TreeTextToPath};
-
-use image::{ColorType, GenericImageView, ImageFormat, DynamicImage, EncodableLayout};
-use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
-
-use std::collections::HashSet;
-
-
-
-fn main() -> std::io::Result<()> {
-    let motion = "Lorem ipsum dolor sit amet?";  
-
-    let font_size = 11.0;  
-
-    let mut swash_context: ShapeContext = ShapeContext::new();
-    let mut font_collection = FontCollection::new();
-    let mut graphic: GraphicsCollection = GraphicsCollection::new();
-    let mut layout_context = LayoutContext::new(&mut swash_context, &mut font_collection, &mut graphic);
-
-    let template_value_dicts = LayoutValue::Vec(vec![
-        LayoutValue::Dict(HashMap::from_iter(
-            vec![
-                ("gov.members.0".into(), LayoutValue::String("John Smith".into())),
-                ("gov.members.1".into(), LayoutValue::String("Jane Doe".into())),
-                ("gov.members.2".into(), LayoutValue::String("Robert Johnson".into())),
-                ("gov.name".into(), LayoutValue::String("Government".into())),
-                ("opp.members.0".into(), LayoutValue::String("Alice Johnson".into())),
-                ("opp.members.1".into(), LayoutValue::String("Michael Brownington the first of his weirdly long name".into())),
-                ("opp.members.2".into(), LayoutValue::String("Sophia Lee".into())),
-                ("opp.name".into(), LayoutValue::String("Opposition".into())),
-                ("non_aligned.members.0".into(), LayoutValue::String("Emily Davis".into())),
-                ("non_aligned.members.1".into(), LayoutValue::String("Daniel Wilson".into())),
-                ("non_aligned.members.2".into(), LayoutValue::String("Olivia White".into())),
-                ("adj.0".into(), LayoutValue::String("Alice Johnson".into())),
-                ("adj.1".into(), LayoutValue::String("Michael Brown".into())),
-                ("adj.2".into(), LayoutValue::String("Sophia Lee".into())),
-                ("adj.3".into(), LayoutValue::String("Daniel Wilson".into())),
-                ("adj.4".into(), LayoutValue::String("Olivia White".into()))
-            ]
-        )),
-        LayoutValue::Dict(HashMap::from_iter(
-            vec![
-                ("gov.members.0".into(), LayoutValue::String("John Smith".into())),
-                ("gov.members.1".into(), LayoutValue::String("Jane Doe".into())),
-                ("gov.members.2".into(), LayoutValue::String("Robert Johnson".into())),
-                ("gov.name".into(), LayoutValue::String("Government".into())),
-                ("opp.members.0".into(), LayoutValue::String("Alice Johnson".into())),
-                ("opp.members.1".into(), LayoutValue::String("Michael Brownington the first of his weirdly long name".into())),
-                ("opp.members.2".into(), LayoutValue::String("Sophia Lee".into())),
-                ("opp.name".into(), LayoutValue::String("Opposition".into())),
-                ("non_aligned.members.0".into(), LayoutValue::String("XXX Davis".into())),
-                ("non_aligned.members.1".into(), LayoutValue::String("Daniel Wilson".into())),
-                ("non_aligned.members.2".into(), LayoutValue::String("Olivia White".into())),
-                ("adj.0".into(), LayoutValue::String("Alice Johnson".into())),
-                ("adj.1".into(), LayoutValue::String("Michael Brown".into())),
-                ("adj.2".into(), LayoutValue::String("Sophia Lee".into())),
-                ("adj.3".into(), LayoutValue::String("Daniel Wilson".into())),
-                ("adj.4".into(), LayoutValue::String("Olivia White".into()))
-            ]
-        )),
-
-    ]);
-
-    let values = LayoutValue::Dict(
-        HashMap::from_iter(
-            vec![(
-                "background".into(), 
-                LayoutValue::Dict(
-                    HashMap::from_iter(
-                        vec![
-                            ("motion".into(), LayoutValue::String(motion.into()))
-                        ]
-                    )
-                )
-            )]
-        )
-    );
-
-    let doc_values = LayoutValue::Dict(
-        HashMap::from_iter(
-            vec![
-                ("forms".into(), values),
-                ("pages".into(), LayoutValue::Vec(vec![template_value_dicts]))
-            ]
-        )
-    );
-
-    let mut context = PDFWritingContext::new();
-    let mut writer = PdfWriter::new();
-
-    let document_template = serde_json::from_str::<DocumentTemplate>(std::fs::read_to_string("template.json")?.as_str())?;
-
-    let doc = document_template.layout(&mut layout_context, &doc_values);
-    
-    doc.write_to_pdf(&mut writer, &mut context);
-
-    let mut fonts = doc.get_fonts_and_glyphs();
-
-    graphic.get_fonts_and_glyphs().into_iter().for_each(|(f, g)| {
-        fonts.entry(f).or_insert_with(|| HashSet::new()).extend(g);
-    });
-
-    graphic.write_to_pdf(&mut writer, &mut context);
-    font_collection.write_fonts_to_pdf(&mut writer, &mut context, fonts.into_iter().collect_vec());
-
-    std::fs::write("image.pdf", writer.finish());
-
-
-    let template_value_dicts = LayoutValue::Dict(HashMap::from_iter(
-            vec![
-                (
-                    "team_tab".into(), LayoutValue::Vec(
-                        (0..120).map(|i| 
-                            LayoutValue::Dict(
-                                HashMap::from_iter(vec![("name".into(), LayoutValue::String(format!("Entry {}", i).into()))].into_iter())
-                            )).collect_vec()
-                    )
-                )
-            ]
-        ));
-    
-
-    let doc_values = LayoutValue::Dict(
-        HashMap::from_iter(
-            vec![
-                ("pages".into(), LayoutValue::Vec(vec![template_value_dicts]))
-            ]
-        )
-    );
-
-    let mut context = PDFWritingContext::new();
-    let mut writer = PdfWriter::new();
-    let mut graphic: GraphicsCollection = GraphicsCollection::new();
-    let mut layout_context = LayoutContext::new(&mut swash_context, &mut font_collection, &mut graphic);
-
-    let document_template = serde_json::from_str::<DocumentTemplate>(std::fs::read_to_string("template2.json")?.as_str())?;
-
-    let doc = document_template.layout(&mut layout_context, &doc_values);
-    
-    doc.write_to_pdf(&mut writer, &mut context);
-
-    let mut fonts = doc.get_fonts_and_glyphs();
-
-    graphic.get_fonts_and_glyphs().into_iter().for_each(|(f, g)| {
-        fonts.entry(f).or_insert_with(|| HashSet::new()).extend(g);
-    });
-
-    graphic.write_to_pdf(&mut writer, &mut context);
-    font_collection.write_fonts_to_pdf(&mut writer, &mut context, fonts.into_iter().collect_vec());
-
-
-    std::fs::write("image2.pdf", writer.finish());
-
-    Ok(())
-}
-*/

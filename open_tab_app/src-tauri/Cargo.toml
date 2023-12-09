@@ -31,6 +31,7 @@ dirs = "*"
 thiserror = "*"
 anyhow = "*"
 open_tab_reports = { path = "../../open_tab_reports" }
+url = "2.5.0"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["full"] }

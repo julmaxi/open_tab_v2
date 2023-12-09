@@ -47,6 +47,7 @@ impl Into<Rect> for PageDimensions {
     }
 }
 
+#[derive(Debug)]
 pub struct LayoutedPage {
     pub(crate) dimensions: PageDimensions,
     pub(crate) elements: Vec<LayoutedElement>
@@ -69,10 +70,12 @@ impl LayoutedPage {
     }
 }
 
+#[derive(Debug)]
 pub enum LayoutedElement {
     Text(TextElement),
     Image(GraphicElement),
-    Group(GroupElement)
+    Group(GroupElement),
+    QRCode(QRCodeElement)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -94,6 +97,7 @@ pub enum Instruction {
 }
 
 
+#[derive(Debug)]
 pub struct TextElement {
     pub glyph_ids: Vec<u16>,
     pub instructions: Vec<Instruction>,
@@ -101,11 +105,20 @@ pub struct TextElement {
     pub font: FontRef
 }
 
+#[derive(Debug)]
 pub struct GraphicElement {
     pub(crate) pos: Position,
     pub(crate) image: GraphicsRef
 }
 
+#[derive(Debug)]
+pub struct QRCodeElement {
+    pub(crate) pos: Position,
+    pub(crate) data: Vec<Vec<bool>>,
+    pub(crate) size: f32
+}
+
+#[derive(Debug)]
 pub struct GroupElement {
     pub(crate) children: Vec<Box<LayoutedElement>>
 }

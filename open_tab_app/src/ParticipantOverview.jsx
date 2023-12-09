@@ -11,8 +11,7 @@ import Button from "./Button";
 import { SortableTable, EditableCell } from "./SortableTable";
 import ComboBox from "./ComboBox";
 import { useEffect } from "react";
-import _ from "lodash";
-import { confirm } from '@tauri-apps/api/dialog';
+import { confirm, save } from '@tauri-apps/api/dialog';
 
 import {
     BrowserRouter as Router,
@@ -21,6 +20,7 @@ import {
 import { openImportDialog } from "./openImportDialog";
 import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
 import ErrorBoundary from "./ErrorBoundary";
+import { invoke } from "@tauri-apps/api/tauri";
 
 function TeamDetailView({team, onChange}) {
     let [name, setName] = useState(team.name);
@@ -723,6 +723,34 @@ export function ParticipantOverview() {
         </div>
         <div className="flex-none w-full h-12 bg-gray-200">
             <ParticipantImportDialogButton />
+
+            <button onClick={
+                () => {
+                    save(
+                        {
+                            defaultPath: "qrcodes.pdf",
+                            filters: [
+                                {
+                                    name: "PDF",
+                                    extensions: ["pdf"]
+                                }
+                            ]
+                        }
+                    ).then((result) => {
+                        if (result !== null) {
+                            invoke(
+                                "save_participant_qr_codes",
+                                {
+                                    tournamentId: tournamentContext.uuid,
+                                    outPath: result
+                                }
+                            )
+                        }
+                    })
+                }
+            }>
+                Export QR Codes
+            </button>
         </div>
     </div>
 }
