@@ -1,6 +1,6 @@
 //@ts-check
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { useState, useMemo } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
@@ -83,6 +83,14 @@ function DebateResultCard(props) {
 function BallotEditor(props) {
     let [ballot, setBallot] = useState(props.initialBallot);
     let [disableRepetitionConstraints, setDisableRepetitionConstraints] = useState(false);
+
+    useEffect(
+        () => {
+            setDisableRepetitionConstraints(props.initialBallot.speeches.some(s => s.is_opt_out));
+        },
+        [props.initialBallot]
+    )
+
     return <div className="">
         <div><BallotEditTable ballot={ballot} onBallotChanged={(ballot) => setBallot(ballot)} disableRepetitionConstraints={disableRepetitionConstraints} />
         </div>
