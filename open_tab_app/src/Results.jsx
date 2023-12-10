@@ -106,6 +106,7 @@ function BallotEditTable(props) {
                 )}
                 <th>⌀</th>
                 <th>Total</th>
+                {props.disableRepetitionConstraints ? <th>OptOut?</th> : []}
             </tr>
         </thead>
         <tbody>
@@ -120,7 +121,13 @@ function BallotEditTable(props) {
                         else if (speech.role == "opposition") {
                             speakerChoices = props.ballot.opposition.members;
                         }
-                        return <BallotSpeechRow key={idx} speech={speech} adjudicators={props.ballot.adjudicators} speakerChoices={speakerChoices} onSpeechChanged={
+                        return <BallotSpeechRow
+                            key={idx}
+                            speech={speech}
+                            adjudicators={props.ballot.adjudicators}
+                            speakerChoices={speakerChoices}
+                            disableRepetitionConstraints={props.disableRepetitionConstraints}
+                            onSpeechChanged={
                             (newSpeech) => {
                                 let newBallot = {...props.ballot, speeches: [...props.ballot.speeches]};
                                 newBallot.speeches[idx] = newSpeech;
@@ -276,6 +283,14 @@ function BallotSpeechRow(props) {
         }
         <td className="border p-1 text-center min-w-[3em]">{formatScore(props.speech.total_score)}</td>
         <td className="border p-1 text-center min-w-[3em]"></td>
+        {
+            props.disableRepetitionConstraints && <td><input type="checkbox" checked={props.speech.is_opt_out} onChange={
+                (evt) => {
+                    let newSpeech = {...props.speech, is_opt_out: evt.target.checked};
+                    props.onSpeechChanged(newSpeech);
+                }
+            } /> </td>
+        }
     </tr>
 }
 

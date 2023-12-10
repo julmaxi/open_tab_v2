@@ -2,7 +2,7 @@
 
 
 use migration::MigratorTrait;
-use open_tab_entities::{prelude::*, Entity, mock::{make_mock_tournament_with_options, MockOption}};
+use open_tab_entities::{prelude::*, Entity, mock::{make_mock_tournament_with_options, MockOption}, domain::entity::LoadEntity};
 use sea_orm::{prelude::*, Database, Statement};
 
 
@@ -47,6 +47,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                 Speech {
                     speaker: Some(Uuid::from_u128(2000)),
                     role: SpeechRole::Government,
+                    is_opt_out: false,
                     position: 0,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 53 }),
@@ -57,6 +58,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                 Speech {
                     speaker: Some(Uuid::from_u128(2010)),
                     role: SpeechRole::Opposition,
+                    is_opt_out: false,
                     position: 0,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
@@ -68,6 +70,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2001)),
                     role: SpeechRole::Government,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 20 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 21 }),
@@ -78,6 +81,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2011)),
                     role: SpeechRole::Opposition,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -88,6 +92,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2050)),
                     role: SpeechRole::NonAligned,
                     position: 0,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 80 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 70 }),
@@ -98,6 +103,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2050)),
                     role: SpeechRole::NonAligned,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 80 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 70 }),
@@ -108,6 +114,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2051)),
                     role: SpeechRole::NonAligned,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 51 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -118,6 +125,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2012)),
                     role: SpeechRole::Opposition,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -128,6 +136,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2002)),
                     role: SpeechRole::Government,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -162,6 +171,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2030)),
                     role: SpeechRole::Government,
                     position: 0,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -171,6 +181,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2000)),
                     role: SpeechRole::Opposition,
                     position: 0,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -180,6 +191,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2031)),
                     role: SpeechRole::Government,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -189,6 +201,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2001)),
                     role: SpeechRole::Opposition,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -198,6 +211,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2050)),
                     role: SpeechRole::NonAligned,
                     position: 0,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -207,6 +221,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2051)),
                     role: SpeechRole::NonAligned,
                     position: 1,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -216,6 +231,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2052)),
                     role: SpeechRole::NonAligned,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -225,6 +241,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2002)),
                     role: SpeechRole::Opposition,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -234,6 +251,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     speaker: Some(Uuid::from_u128(2032)),
                     role: SpeechRole::Government,
                     position: 2,
+                    is_opt_out: false,
                     scores: vec![
                         (Uuid::from_u128(3000), SpeakerScore::Aggregate { total: 50 }),
                         (Uuid::from_u128(3001), SpeakerScore::Aggregate { total: 50 }),
@@ -307,7 +325,6 @@ async fn test_total_team_score_is_correct_for_faction_team() -> Result<(), anyho
 
     let target_team_entry = view.team_tab.iter().find(|e| e.team_uuid == Uuid::from_u128(1000)).expect("Expected to find team");
 
-    dbg!(&target_team_entry);
     assert!((target_team_entry.total_score - 481.8333333333333).abs() < TAB_TOLERANCE, "Incorrect score: {}", target_team_entry.total_score);
     Ok(())
 }
@@ -326,9 +343,77 @@ async fn test_total_team_score_is_correct_for_non_aligned_team() -> Result<(), a
     Ok(())
 }
 
-/*#[tokio::test]
-async fn test_tab_has_correct_sequence() -> Result<(), anyhow::Error> {
+
+#[tokio::test]
+async fn test_opt_out_replacement_speaker_receives_only_one_score() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
+
+    let mut ballot = Ballot::get(&db, Uuid::from_u128(400)).await?;
+    ballot.speeches[2].is_opt_out = true;
+    ballot.speeches[2].speaker = Some(Uuid::from_u128(2000));
+    ballot.save(&db, false).await.unwrap();
+
+    let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
+
+    let view = loaded_view.view;
+
+    let replacement_speaker = view.speaker_tab.iter().find(|e| e.speaker_uuid == Uuid::from_u128(2000)).expect("Expected to find speaker");
+    assert_eq!(replacement_speaker.avg_score, Some(55.5));
+
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn test_double_opt_out_replacement_speaker_receives_only_one_score() -> Result<(), anyhow::Error> {
+    let db = set_up_db(true).await?;
+
+    let mut ballot = Ballot::get(&db, Uuid::from_u128(400)).await?;
+    ballot.speeches[2].is_opt_out = true;
+    ballot.speeches[2].speaker = Some(Uuid::from_u128(2000));
+    ballot.speeches[8].is_opt_out = true;
+    ballot.speeches[8].speaker = Some(Uuid::from_u128(2000));
+    ballot.save(&db, false).await.unwrap();
+
+    let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
+
+    let view = loaded_view.view;
+
+    let replacement_speaker = view.speaker_tab.iter().find(|e| e.speaker_uuid == Uuid::from_u128(2000)).expect("Expected to find speaker");
+    dbg!(replacement_speaker);
+    assert_eq!(replacement_speaker.avg_score, Some(55.5));
+
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn test_opt_out_preserves_team_score() -> Result<(), anyhow::Error> {
+    let db = set_up_db(true).await?;
+
+    let mut ballot = Ballot::get(&db, Uuid::from_u128(400)).await?;
+    ballot.speeches[2].is_opt_out = true;
+    ballot.speeches[2].speaker = Some(Uuid::from_u128(2000));
+    ballot.save(&db, false).await.unwrap();
+
+    let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
+
+    let view = loaded_view.view;
+
+    let target_team_entry = view.team_tab.iter().find(|e| e.team_uuid == Uuid::from_u128(1000)).expect("Expected to find team");
+    assert!((target_team_entry.total_score - 481.8333333333333).abs() < TAB_TOLERANCE, "Incorrect score: {}", target_team_entry.total_score);
+
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn test_opt_out_adds_smallest_score_for_non_aligned() -> Result<(), anyhow::Error> {
+    let db = set_up_db(true).await?;
+
+    let mut ballot = Ballot::get(&db, Uuid::from_u128(400)).await?;
+    ballot.speeches[4].is_opt_out = true;
+    ballot.save(&db, false).await.unwrap();
 
     let loaded_view = LoadedTabView::load(&db, Uuid::from_u128(1)).await?;
 
@@ -336,7 +421,7 @@ async fn test_tab_has_correct_sequence() -> Result<(), anyhow::Error> {
 
     let target_team_entry = view.team_tab.iter().find(|e| e.team_uuid == Uuid::from_u128(1005)).expect("Expected to find team");
 
-    assert!((target_team_entry.total_points - 347.333333333).abs() < TAB_TOLERANCE, "Incorrect score: {}", target_team_entry.total_points);
+    assert!((target_team_entry.total_score - 324.33333).abs() < TAB_TOLERANCE, "Incorrect score: {}", target_team_entry.total_score);
+
     Ok(())
 }
- */

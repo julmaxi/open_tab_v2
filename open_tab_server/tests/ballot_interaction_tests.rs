@@ -60,24 +60,28 @@ fn make_demo_ballot() -> Ballot {
                 speaker: Some(Uuid::from_u128(2000)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 0,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Government
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2010)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 0,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Opposition
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2001)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 1,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Opposition
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2011)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 1,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Government
             },
 
@@ -85,18 +89,21 @@ fn make_demo_ballot() -> Ballot {
                 speaker: Some(Uuid::from_u128(2020)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 0,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::NonAligned
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2021)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 1,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::NonAligned
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2022)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 2,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::NonAligned
             },
 
@@ -104,12 +111,14 @@ fn make_demo_ballot() -> Ballot {
                 speaker: Some(Uuid::from_u128(2002)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 2,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Opposition
             },
             Speech {
                 speaker: Some(Uuid::from_u128(2012)),
                 scores: make_speaker_score_map(vec![(3000, 50), (3001, 100), (3002, 75)]),
                 position: 2,
+                is_opt_out: false,
                 role: open_tab_entities::prelude::SpeechRole::Government
             },
 

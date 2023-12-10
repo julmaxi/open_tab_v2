@@ -240,7 +240,7 @@ async fn test_speeches_roundtrip() -> Result<(), anyhow::Error> {
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
         speeches: vec![
-            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
+            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, is_opt_out: false, scores: HashMap::from_iter(
                 vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 54 }), (Uuid::from_u128(402), SpeakerScore::Aggregate { total: 32 })].into_iter(),
             )
         }],
@@ -257,7 +257,7 @@ async fn test_judge_not_in_adjudicators_can_not_score_speech() -> Result<(), any
         uuid: Uuid::from_u128(100),
         adjudicators: (401..=404).map(|u| Uuid::from_u128(u as u128)).collect(),
         speeches: vec![
-            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
+            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, is_opt_out: false, scores: HashMap::from_iter(
                 vec![(Uuid::from_u128(405), SpeakerScore::Aggregate { total: 54 })].into_iter(),
             )
         }],
@@ -368,7 +368,7 @@ async fn test_reorder_annotators_keeps_scores_with_judges() -> Result<(), anyhow
             scores: HashMap::from_iter(vec![(Uuid::from_u128(402), TeamScore::Aggregate { total: 53 })])
         },
         speeches: vec![
-            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]) }
+            Speech { speaker: None, role: ballot::SpeechRole::Government, position: 0, is_opt_out: false, scores: HashMap::from_iter(vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]) }
         ],
         ..Default::default()
     };
@@ -398,6 +398,7 @@ async fn test_remove_adjudicators_deletes_team_scores() -> Result<(), anyhow::Er
                 speaker: None,
                 role: ballot::SpeechRole::Government,
                 position: 0,
+                is_opt_out: false,
                 scores: HashMap::from_iter(
                     vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]
                 )
@@ -428,6 +429,7 @@ async fn test_remove_adjudicators_deletes_speech_scores() -> Result<(), anyhow::
                 speaker: None,
                 role: ballot::SpeechRole::Government,
                 position: 0,
+                is_opt_out: false,
                 scores: HashMap::from_iter(
                     vec![(Uuid::from_u128(402), SpeakerScore::Aggregate { total: 43 }), (Uuid::from_u128(401), SpeakerScore::Aggregate { total: 43 })]
                 )

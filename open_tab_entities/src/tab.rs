@@ -2,7 +2,7 @@
 
 use std::hash::Hash;
 use std::iter::{zip, self};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 
 use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};
@@ -14,7 +14,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use crate::{prelude::*, domain};
 
-use crate::schema::{self};
+use crate::schema::{self, speaker};
 
 use itertools::Itertools;
 
@@ -174,9 +174,15 @@ impl TabView {
             speaker_tab_entries.reserve(speaker, num_rounds);
         }
 
+        // For opt-out
+        let mut per_round_non_aligned_teams_opt_out_count = HashMap::new();
+        let mut per_round_non_aligned_teams_individual_scores = HashMap::new();
         for (round, ballot) in rounds_and_debates {
             Self::add_scores_for_team(&mut team_tab_entries, &round, &ballot, &ballot.government, TeamRoundRole::Government);
             Self::add_scores_for_team(&mut team_tab_entries, &round, &ballot, &ballot.opposition, TeamRoundRole::Opposition);
+
+            let non_aligned_teams_opt_out_count = per_round_non_aligned_teams_opt_out_count.entry(round.index).or_insert_with(|| HashMap::new());
+            let non_aligned_teams_individual_scores = per_round_non_aligned_teams_individual_scores.entry(round.index).or_insert_with(|| HashMap::new());
 
             for speech in ballot.speeches {
                 if let Some(speaker) = speech.speaker {
@@ -186,23 +192,32 @@ impl TabView {
                     match speech.role {
                         SpeechRole::Government | SpeechRole::Opposition => assert!(team_entry.is_some(), "Team entry should exist"),
                         SpeechRole::NonAligned => {
-                            match team_entry {
-                                Some(team_entry) => {
-                                    team_entry.speaker_score += speech.speaker_score().unwrap_or(0.0);
-                                },
-                                None => {
-                                    if let Some(speaker_score) = speech.speaker_score() {
-                                        team_tab_entries.insert(
-                                            speaker_team,
-                                            round.index as usize,
-                                            TeamTabEntryDetailedScore {
-                                                team_score: None,
-                                                speaker_score,
-                                                role: TeamRoundRole::NonAligned
-                                            }
-                                        );
+                            if speech.is_opt_out {
+                                *non_aligned_teams_opt_out_count.entry(speaker_team).or_insert(0) += 1;
+                            }
+                            else {
+                                match team_entry {
+                                    Some(team_entry) => {
+                                        team_entry.speaker_score += speech.speaker_score().unwrap_or(0.0);
+                                        if let Some(speaker_score) = speech.speaker_score() {
+                                            non_aligned_teams_individual_scores.entry(speaker_team).or_insert_with(|| vec![]).push(speaker_score);
+                                        }
+                                    },
+                                    None => {
+                                        if let Some(speaker_score) = speech.speaker_score() {
+                                            non_aligned_teams_individual_scores.entry(speaker_team).or_insert_with(|| vec![]).push(speaker_score);
+                                            team_tab_entries.insert(
+                                                speaker_team,
+                                                round.index as usize,
+                                                TeamTabEntryDetailedScore {
+                                                    team_score: None,
+                                                    speaker_score,
+                                                    role: TeamRoundRole::NonAligned
+                                                }
+                                            );
+                                        }
                                     }
-                                }
+                                }    
                             }
                         }
                     }
@@ -212,10 +227,17 @@ impl TabView {
                             &speaker,
                             round.index as usize
                         ) {
-                            // Handle the super clevery thought out opt-out rule
+                            // Check does not apply in usual OPD rules,
+                            // but it is nice to have a clearly defined handling
+                            // for multiple non-opt-out speeches
                             if prev_score.score > score {
                                 continue;
                             }
+                        }
+
+                        // Handle the super clevery thought out opt-out rule
+                        if speech.is_opt_out {
+                            continue;
                         }
                         speaker_tab_entries.insert(
                             &speaker,
@@ -233,6 +255,18 @@ impl TabView {
                     }
                 }
             }
+        }
+
+        for (round_index, non_aligned_invididual_scores) in per_round_non_aligned_teams_individual_scores.into_iter() {
+            let opt_out_counts = per_round_non_aligned_teams_opt_out_count.remove(&round_index).unwrap_or(HashMap::new());
+
+            for (team_uuid, team_opt_out_count) in opt_out_counts.iter() {
+                let mut team_tab_entry = team_tab_entries.store.get_mut(*team_uuid).unwrap();                
+                team_tab_entry[round_index as usize].as_mut().map(|entry| {
+                    entry.speaker_score += (*team_opt_out_count as f64) * non_aligned_invididual_scores.values().flatten().min_by_key(|s| OrderedFloat(**s)).map(|s| *s).unwrap_or(0.0);
+                });
+            }
+
         }
 
         let mut total_team_scores = team_tab_entries.store.iter().map(|(team, scores)| {

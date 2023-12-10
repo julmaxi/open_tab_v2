@@ -63,6 +63,7 @@ impl ActionTrait for UpdateDrawAction {
                         role: open_tab_entities::domain::ballot::SpeechRole::NonAligned,
                         position: i as u8,
                         scores: HashMap::new(),
+                        is_opt_out: false,
                     });
                 }
             }

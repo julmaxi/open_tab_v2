@@ -184,6 +184,7 @@ async fn test_update_ballot_saves_non_aligned() -> Result<(), anyhow::Error> {
         Speech {
             speaker: Some(Uuid::from_u128(id)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
+            is_opt_out: false,
             position: idx as u8,
             scores: HashMap::new(),
         }}).collect_vec()
@@ -206,6 +207,7 @@ async fn test_changing_adjudicator_order_does_not_delete_scores() -> Result<(), 
         Speech {
             speaker: None,
             role: open_tab_entities::prelude::SpeechRole::Government,
+            is_opt_out: false,
             position: 0,
             scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate { total: 61 })].into_iter()),
         }
@@ -250,6 +252,7 @@ async fn test_delete_adjudicator_with_scores_deletes_both() -> Result<(), anyhow
             speaker: None,
             role: open_tab_entities::prelude::SpeechRole::Government,
             position: 0,
+            is_opt_out: false,
             scores: HashMap::from_iter(vec![(Uuid::from_u128(3003), SpeakerScore::Aggregate { total: 61 })].into_iter()),
         }
     ];
@@ -292,12 +295,14 @@ async fn test_change_non_aligned_with_additional() -> Result<(), anyhow::Error> 
             speaker: Some(Uuid::from_u128(2002)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
             position: 0,
+            is_opt_out: false,
             scores: HashMap::new(),
         },
         Speech {
             speaker: Some(Uuid::from_u128(2051)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
             position: 1,
+            is_opt_out: false,
             scores: HashMap::new(),
         }
     ];
@@ -347,18 +352,21 @@ async fn test_change_non_aligned_with_fewer() -> Result<(), anyhow::Error> {
             speaker: Some(Uuid::from_u128(2002)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
             position: 0,
+            is_opt_out: false,
             scores: HashMap::new(),
         },
         Speech {
             speaker: Some(Uuid::from_u128(2051)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
             position: 1,
+            is_opt_out: false,
             scores: HashMap::new(),
         },
         Speech {
             speaker: Some(Uuid::from_u128(2070)),
             role: open_tab_entities::prelude::SpeechRole::NonAligned,
             position: 2,
+            is_opt_out: false,
             scores: HashMap::new(),
         }
     ];

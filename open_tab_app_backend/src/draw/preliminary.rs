@@ -174,6 +174,7 @@ impl PreliminaryRoundGenerator {
                                 .map(|(idx, s)| Speech {
                                     speaker: Some(s.uuid),
                                     role: SpeechRole::NonAligned,
+                                    is_opt_out: false,
                                     position: idx as u8,
                                     scores: HashMap::new(),
                                 })

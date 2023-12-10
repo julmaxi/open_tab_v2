@@ -43,7 +43,7 @@ async fn test_find_team_roles() -> Result<(), anyhow::Error> {
             ..Default::default()
         },
         speeches: vec![
-            Speech { speaker:Some(Uuid::from_u128(2000)), role: SpeechRole::Government, position: 0, scores: Default::default() },
+            Speech { speaker:Some(Uuid::from_u128(2000)), role: SpeechRole::Government, position: 0, is_opt_out: false, scores: Default::default() },
         ],
         ..Default::default()
     };
@@ -98,6 +98,7 @@ async fn test_find_non_aligned_roles() -> Result<(), anyhow::Error> {
         speeches: vec![
             domain::ballot::Speech {
                 position: 0,
+                is_opt_out: false,
                 speaker: Some(Uuid::from_u128(2000)),
                 role: open_tab_entities::prelude::SpeechRole::NonAligned,
                 scores: HashMap::new(),
@@ -117,6 +118,7 @@ async fn test_find_non_aligned_roles() -> Result<(), anyhow::Error> {
         speeches: vec![
             domain::ballot::Speech {
                 position: 1,
+                is_opt_out: false,
                 speaker: Some(Uuid::from_u128(2000)),
                 role: open_tab_entities::prelude::SpeechRole::NonAligned,
                 scores: HashMap::new(),
@@ -255,6 +257,7 @@ async fn test_multiple_roles() -> Result<(), anyhow::Error> {
         speeches: vec![
             domain::ballot::Speech {
                 position: 0,
+                is_opt_out: false,
                 speaker: Some(Uuid::from_u128(2000)),
                 role: open_tab_entities::prelude::SpeechRole::NonAligned,
                 scores: HashMap::new(),

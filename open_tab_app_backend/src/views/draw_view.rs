@@ -233,6 +233,7 @@ impl Into<Ballot> for DrawBallot {
                         role,
                         position,
                         scores: HashMap::new(),
+                        is_opt_out: false,
                     }
                 )
             }
@@ -243,7 +244,8 @@ impl Into<Ballot> for DrawBallot {
                     speaker: Some(u.uuid),
                     role: SpeechRole::NonAligned,
                     position: idx as u8,
-                    scores: HashMap::new()
+                    scores: HashMap::new(),
+                    is_opt_out: false,
                 }
             )
         );

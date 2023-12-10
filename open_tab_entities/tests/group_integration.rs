@@ -35,7 +35,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             ..Default::default()
         },
         speeches: vec![
-            Speech { speaker: Some(Uuid::from_u128(402)), role: ballot::SpeechRole::Government, position: 0, scores: HashMap::from_iter(
+            Speech { speaker: Some(Uuid::from_u128(402)), role: ballot::SpeechRole::Government, position: 0, is_opt_out: false, scores: HashMap::from_iter(
                 vec![(Uuid::from_u128(401), SpeakerScore::Aggregate { total: 54 })]
             )
         }],

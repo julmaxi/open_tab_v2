@@ -128,6 +128,7 @@ pub struct DisplayBallotSpeech {
     pub position: u8,
     pub role: SpeechRole,
     pub total_score: Option<f64>,
+    pub is_opt_out: bool,
 }
 
 impl DisplayBallot {
@@ -182,7 +183,8 @@ impl DisplayBallot {
             }),
             position: speech.position,
             role: speech.role,
-            total_score: speech.speaker_score()
+            total_score: speech.speaker_score(),
+            is_opt_out: speech.is_opt_out
         }).collect_vec();
 
         DisplayBallot {
@@ -212,7 +214,8 @@ impl Into<Ballot> for DisplayBallot {
             speaker: speech.speaker.map(|speaker| speaker.uuid),
             position: speech.position,
             role: speech.role,
-            scores: speech.scores.into_iter().map(|(adj, score)| (adj, SpeakerScore::Aggregate { total: score })).collect()
+            scores: speech.scores.into_iter().map(|(adj, score)| (adj, SpeakerScore::Aggregate { total: score })).collect(),
+            is_opt_out: speech.is_opt_out
         }).collect_vec();
 
         Ballot {

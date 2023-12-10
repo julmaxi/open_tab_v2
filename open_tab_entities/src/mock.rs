@@ -293,6 +293,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                                         role,
                                         position,
                                         scores: HashMap::new(),
+                                        is_opt_out: false,
                                     }
                                 )
                             }
@@ -305,6 +306,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                                     role: crate::domain::ballot::SpeechRole::NonAligned,
                                     position: speaker_idx as u8,
                                     scores: HashMap::new(),
+                                    is_opt_out: false,
                                 }
                             }))
                         }

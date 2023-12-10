@@ -134,6 +134,7 @@ pub struct Speech {
     pub role: SpeechRole,
     pub position: u8,
     pub scores: HashMap<Uuid, SpeakerScore>,
+    pub is_opt_out: bool
 }
 
 impl Speech {
@@ -374,7 +375,8 @@ impl Ballot {
                     speaker,
                     role,
                     position: s.position as u8,
-                    scores
+                    scores,
+                    is_opt_out: s.is_opt_out
                 })
             }
         ).collect();
@@ -659,13 +661,15 @@ impl Ballot {
         for speech in self.speeches.iter() {
             let prev_speech = current_speeches.get(&(speech.role.to_str(), speech.position as i32));
 
+
             if let Some((prev_speech, prev_scores)) = prev_speech {
-                if prev_speech.speaker_id != speech.speaker {
+                if prev_speech.speaker_id != speech.speaker || prev_speech.is_opt_out != speech.is_opt_out {
                     schema::ballot_speech::ActiveModel {
                         ballot_id: ActiveValue::Unchanged(self.uuid),
                         position: ActiveValue::Unchanged(prev_speech.position),
                         role: ActiveValue::Unchanged(prev_speech.role.clone()),
-                        speaker_id: ActiveValue::Set(speech.speaker)
+                        speaker_id: ActiveValue::Set(speech.speaker),
+                        is_opt_out: ActiveValue::Set(speech.is_opt_out),
                     }.update(db).await?;
                 }
 
@@ -697,7 +701,8 @@ impl Ballot {
                     ballot_id: ActiveValue::Set(self.uuid),
                     position: ActiveValue::Set(speech.position as i32),
                     role: ActiveValue::Set(speech.role.to_str()),
-                    speaker_id: ActiveValue::Set(speech.speaker)
+                    speaker_id: ActiveValue::Set(speech.speaker),
+                    is_opt_out: ActiveValue::Set(speech.is_opt_out),
                 }.insert(db).await?;
 
                 for (adj, score) in speech.scores.iter() {
@@ -1081,54 +1086,63 @@ mod test {
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 0,
+                    is_opt_out: false,
                     role: "g".into(),
                     speaker_id: Some(Uuid::from_u128(410))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 2,
+                    is_opt_out: false,
                     role: "o".into(),
                     speaker_id: Some(Uuid::from_u128(422))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 1,
+                    is_opt_out: false,
                     role: "g".into(),
                     speaker_id: Some(Uuid::from_u128(411))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 1,
+                    is_opt_out: false,
                     role: "o".into(),
                     speaker_id: Some(Uuid::from_u128(421))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 0,
+                    is_opt_out: false,
                     role: "n".into(),
                     speaker_id: Some(Uuid::from_u128(430))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 0,
+                    is_opt_out: false,
                     role: "o".into(),
                     speaker_id: Some(Uuid::from_u128(420))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 1,
+                    is_opt_out: false,
                     role: "n".into(),
                     speaker_id: Some(Uuid::from_u128(431))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 2,
+                    is_opt_out: false,
                     role: "g".into(),
                     speaker_id: Some(Uuid::from_u128(412))
                 },
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 2,
+                    is_opt_out: false,
                     role: "n".into(),
                     speaker_id: Some(Uuid::from_u128(432))
                 },
@@ -1169,6 +1183,7 @@ mod test {
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 2,
+                    is_opt_out: false,
                     role: "g".into(),
                     speaker_id: Some(Uuid::from_u128(410))
                 },
@@ -1200,6 +1215,7 @@ mod test {
                 schema::ballot_speech::Model {
                     ballot_id: Uuid::from_u128(100),
                     position: 0,
+                    is_opt_out: false,
                     role: "g".into(),
                     speaker_id: Some(Uuid::from_u128(410))
                 },

@@ -12,6 +12,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub role: String,
     pub speaker_id: Option<Uuid>,
+    pub is_opt_out: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

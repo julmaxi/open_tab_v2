@@ -63,7 +63,8 @@ impl Into<Ballot> for DebateInfo {
                         speaker: None,
                         role,
                         position,
-                        scores: HashMap::new()
+                        scores: HashMap::new(),
+                        is_opt_out: false,
                     }
                 )
             }
@@ -74,7 +75,8 @@ impl Into<Ballot> for DebateInfo {
                     speaker: Some(u),
                     role: SpeechRole::NonAligned,
                     position: idx as u8,
-                    scores: HashMap::new()
+                    scores: HashMap::new(),
+                    is_opt_out: false,
                 }
             )
         );
