@@ -325,8 +325,12 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
 
         for (mut debate, ballot) in izip!(debates.into_iter(), round_new_ballots.into_iter()) {
             let mut real_ballot : Ballot = ballot.into();
-            real_ballot.uuid = Uuid::new_v4();
-            debate.ballot_id = real_ballot.uuid;
+            if debate.ballot_id.is_nil() {
+                debate.ballot_id = Uuid::new_v4();
+            }
+            real_ballot.uuid = debate.ballot_id;
+            //real_ballot.uuid = Uuid::new_v4();
+            //debate.ballot_id = real_ballot.uuid;
 
             if debate.venue_id.is_none() {
                 selected_venues.next().map(|v| debate.venue_id = *v);

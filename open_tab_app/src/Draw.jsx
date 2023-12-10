@@ -74,8 +74,16 @@ function DragBox(props) {
     swapIssueColor = SWAP_ISSUE_GRADIENTS[swapHighlightSeverity]
   }
 
+  const [animationProps, api] = useSpring(
+    () => ({
+      from: { opacity: 0 },
+      to: { opacity: props.highlightedIssues?.length > 0 ? 1 : 0 },
+    }),
+    [props.highlightedIssues?.length]
+  )
+
   return <div
-    className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded ${props.highlightedIssues?.length > 100 ? issueColor + " border-4 " : "border-gray-100 border"}`}
+    className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded`}
     style={{
       background: swapIssueColor
     }}
@@ -86,12 +94,12 @@ function DragBox(props) {
     <div className="flex items-center mr-1">
         <ClashIndicator issues={props.issues} onHover={props.onHighlightIssues} />
     </div>
-    {props.highlightedIssues?.length > 0 ? <div className={`absolute w-full h-full top-0 left-0 rounded border-4 text-white ${issueColor}`}>
+    {props.highlightedIssues?.length > 0 ? <animated.div style={animationProps} className={`absolute w-full h-full top-0 left-0 border-4 rounded text-white ${issueColor}`}>
       <div className={`absolute top-0 right-0 text-xs p-0.5 rounded-bl ${ISSUE_COLORS_BG[severityBucket]}`}>
         <p>{props.highlightedIssues[0].type}</p>
         {props.highlightedIssues.length > 1 ? `+${props.highlightedIssues.length - 1} more`: []}
       </div>
-    </div>: []}
+    </animated.div>: []}
   </div>
 }
 

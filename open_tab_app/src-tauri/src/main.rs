@@ -569,6 +569,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
                 ballot_id: new_ballot.uuid,
                 ..old_debate.clone()
             }));
+            new_changes.delete(EntityType::Ballot, old_ballot.uuid);
         }
     };
 
@@ -624,26 +625,26 @@ async fn pull_remote_changes<C>(
                 update.update(&transaction).await?;
                 transaction.commit().await?;
 
-                let entity_group = entity_group.unwrap();
-
-                let transaction = db.begin().await?;
-                let mut view_cache = view_cache.lock().await;
-                let notifications = view_cache.update_and_get_changes(&transaction, &entity_group).await?;
-                app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
-                transaction.rollback().await?;
-
-                let transaction = db.begin().await?;
-                let new_changes = auto_accept_ballots(&entity_group, &transaction).await?;
-                if let Some(new_changes) = new_changes {
-                    new_changes.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;
-                    transaction.commit().await?;
+                if let Some(entity_group) = entity_group {
                     let transaction = db.begin().await?;
-                    let notifications = view_cache.update_and_get_changes(&transaction, &new_changes).await?;
-                    transaction.rollback().await?;
+                    let mut view_cache = view_cache.lock().await;
+                    let notifications = view_cache.update_and_get_changes(&transaction, &entity_group).await?;
                     app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
-                }
-                else {
                     transaction.rollback().await?;
+
+                    let transaction = db.begin().await?;
+                    let new_changes = auto_accept_ballots(&entity_group, &transaction).await?;
+                    if let Some(new_changes) = new_changes {
+                        new_changes.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;
+                        transaction.commit().await?;
+                        let transaction = db.begin().await?;
+                        let notifications = view_cache.update_and_get_changes(&transaction, &new_changes).await?;
+                        transaction.rollback().await?;
+                        app_handle.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
+                    }
+                    else {
+                        transaction.rollback().await?;
+                    }
                 }
 
                 return Ok(None);
@@ -1104,37 +1105,15 @@ async fn set_remote(
     let settings = settings_lock.read().await;
 
     let _remote = settings.known_remotes.iter().find(|r| r.url == remote_url).map(|r| r.clone()).ok_or(())?;
+    dbg!(&_remote);
 
-    /*let account_id = if let Some(account_id) = remote.account_id {
-        todo!();
-    }
-    else {
-        todo!();
-    };
-
-    let account_id = account_id?;
     let transaction = db.begin().await.map_err(|_| ())?;
-    let current_remote = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(tournament_id)).one(&transaction).await.unwrap();
 
-    if let Some(current_remote) = current_remote {
-        current_remote.delete(&transaction).await.map_err(|_| ())?;
+    // We might have accidentally set multiple remotes for the same tournament
+    let prev_remotes = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(tournament_id)).all(&transaction).await.map_err(|_| ())?;
+    if prev_remotes.len() > 0 {
+        schema::tournament_remote::Entity::delete_many().filter(schema::tournament_remote::Column::TournamentId.eq(tournament_id)).exec(&transaction).await.map_err(|_| ())?;
     }
-
-    match client.post(format!("{}/api/tournaments", remote_url)).basic_auth(account_id.to_string(), "testpassword".into()).json(
-        &CreateTournamentRequest {
-            uuid: tournament_id,
-            name: "Test Tournament".to_string(),
-        }
-    ).send().await {
-        Ok(r) => {
-            let r : CreateTournamentResponse = r.json().await.unwrap();
-            dbg!(&r);
-        }
-        Err(e) => {
-            dbg!("Err", e);
-        }
-    };*/
-    let transaction = db.begin().await.map_err(|_| ())?;
 
     schema::tournament_remote::ActiveModel {
         uuid: sea_orm::ActiveValue::Set(Uuid::new_v4()),
@@ -1559,48 +1538,6 @@ fn main() {
                     app.handle().clone()
                 )
             );
-
-            /*
-            let synchronization_function = async move {
-                let target_uuid = Uuid::from_u128(1);
-                let client = reqwest::Client::new();
-
-                loop {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    let db = &*app_handle.state::<DatabaseConnection>();
-
-                    let transaction = db.begin().await.unwrap();
-                    let target_tournament_remote = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(target_uuid)).one(&transaction).await.unwrap();
-                    if target_tournament_remote.is_none() {
-                        println!("No remote");
-                        continue;
-                    }
-                    let target_tournament_remote = target_tournament_remote.unwrap();
-                    transaction.rollback().await.unwrap();
-                    
-                    let remote = pull_remote_changes(&target_tournament_remote, &client, db, app_handle.state::<Mutex<ViewCache>>().inner(), &app_handle).await;
-                    if !remote.is_ok() {
-                        println!("Error pulling remote changes: {}", remote.err().unwrap());
-                    }
-                    else {
-                    }
-                    let transaction = db.begin().await.unwrap();
-                    let target_tournament_remote = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(target_uuid)).one(&transaction).await.unwrap();
-                    if target_tournament_remote.is_none() {
-                        println!("No remote");
-                        continue;
-                    }
-                    let target_tournament_remote = target_tournament_remote.unwrap();
-                    transaction.rollback().await.unwrap();
-
-                    let result = try_push_changes(&target_tournament_remote, &client, db).await;
-                    if !result.is_ok() {
-                        println!("Error pushing local changes: {}", result.err().unwrap());
-                    }
-                    tokio::time::sleep(Duration::from_secs(2)).await;
-                }
-            };
-             */
 
             Ok(())  
         })

@@ -214,9 +214,11 @@ pub async fn reconcile_changes<C>(
         .limit(1)
         .one(db).await?.map(|m| m.sequence_idx).unwrap_or(0)
     };
-    let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone().into(), entry.target_uuid)).collect::<HashSet<_>>();
+    let locally_changed_entities = local_log.iter().map(|entry| (entry.target_type.clone().into(), entry.target_uuid, entry.uuid)).collect::<HashSet<_>>();
 
-    let mut remote_log_models = changes.log.iter().enumerate().map(
+    let existing_entries = local_log.iter().map(|entry| entry.uuid).collect::<HashSet<_>>();
+
+    let mut remote_log_models = changes.log.iter().filter(|entry| !existing_entries.contains(&entry.uuid) ).enumerate().map(
         |(idx, entry)| {
             open_tab_entities::schema::tournament_log::Model {
                 uuid: entry.uuid,
@@ -229,17 +231,21 @@ pub async fn reconcile_changes<C>(
         }
     ).collect_vec();
 
+    if remote_log_models.len() == 0 {
+        return Ok(ReconciliationOutcome::Success { new_last_common_ancestor: changes.log.last().unwrap().uuid, entity_group: None })
+    }
+
     // This unwrap is safe, since we reject an empty log with no last common ancestor
     let new_last_common_ancestor = remote_log_models.last().map(|model| model.uuid.clone().unwrap()).unwrap_or_else(|| last_common_ancestor.unwrap());
     let new_head_idx = remote_log_models.last().map(|model| model.sequence_idx.clone().unwrap()).unwrap_or(head_sequence_idx);
 
     let remote_changes_entities = changes.entities.iter().flat_map(|(entity_type, entries)| {
-        entries.iter().map(|entry| (entity_type.clone(), entry.uuid))
+        entries.iter().map(|entry| (entity_type.clone(), entry.uuid, entry.current_version))
     }).collect::<HashSet<_>>();
 
     let conflicting_entities = locally_changed_entities.intersection(&remote_changes_entities).collect::<HashSet<_>>();
 
-    conflicting_entities.iter().enumerate().for_each(|(idx, (entity_type, uuid))| {
+    conflicting_entities.iter().enumerate().for_each(|(idx, (entity_type, uuid, _version))| {
         remote_log_models.push(open_tab_entities::schema::tournament_log::Model {
             uuid: Uuid::new_v4(),
             tournament_id,
@@ -255,6 +261,7 @@ pub async fn reconcile_changes<C>(
         open_tab_entities::schema::tournament_log::Entity::insert_many(remote_log_models).exec(db).await?;
     }
     
+    let conflicting_entities = conflicting_entities.into_iter().map(|(entity_type, uuid, _version)| (entity_type.clone(), uuid.clone())).collect::<HashSet<_>>();
     // We bypass the normal save logic here, since we save the entire log at once
     let mut entities_to_save = vec![];
     for (entity_type, entities) in changes.entities.into_iter() {

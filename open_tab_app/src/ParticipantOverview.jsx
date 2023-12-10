@@ -21,6 +21,7 @@ import { openImportDialog } from "./openImportDialog";
 import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
 import ErrorBoundary from "./ErrorBoundary";
 import { invoke } from "@tauri-apps/api/tauri";
+import _ from "lodash";
 
 function TeamDetailView({team, onChange}) {
     let [name, setName] = useState(team.name);

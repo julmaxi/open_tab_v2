@@ -102,7 +102,8 @@ pub fn entity_group_derive_impl(input: TokenStream) -> TokenStream {
     let get_all_tournament_extends = variants_with_content_type.iter().map(|(variant, content_type)| {
         let vec_ident = entity_vec_idents.get(&variant.to_string()).expect("No vec ident found");
         quote! {
-            out.extend(<#content_type as crate::domain::entity::TournamentEntity>::get_many_tournaments(db, &self.#vec_ident.iter().collect()).await?.into_iter());
+            let entity_type_tournaments = <#content_type as crate::domain::entity::TournamentEntity>::get_many_tournaments(db, &self.#vec_ident.iter().collect()).await?;
+            out.extend(entity_type_tournaments.into_iter());
         }
     });
 

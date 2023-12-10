@@ -833,7 +833,8 @@ impl TournamentEntity for Ballot {
                 }
             }
         }
-
+        
+        dbg!(ballot_ids);
         Ok(entities.iter().map(|e| ballot_tournament_map.get(&e.uuid).map(|x| *x).flatten()).collect())
     }
 
@@ -844,392 +845,396 @@ impl TournamentEntity for Ballot {
 }
 
 
-#[test]
-fn test_get_empty_ballot() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        }
-    , vec![], vec![], vec![], vec![], vec![])?;
-
-    assert_eq!(ballot.uuid, Uuid::from_u128(100));
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators.len(), 0);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-
-#[test]
-fn test_get_ballot_with_gov_only() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        }
-    , vec![
-        schema::ballot_team::Model {
-            ballot_id: Uuid::from_u128(100),
-            team_id: Some(Uuid::from_u128(200)),
-            role: "g".into()
-        }
-    ], vec![], vec![], vec![], vec![])?;
-
-    assert!(ballot.government.team == Some(Uuid::from_u128(200)));
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators.len(), 0);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-
-#[test]
-fn test_get_ballot_with_opp_only() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        }
-    , vec![
-        schema::ballot_team::Model {
-            ballot_id: Uuid::from_u128(100),
-            team_id: Some(Uuid::from_u128(201)),
-            role: "o".into()
-        }
-    ], vec![], vec![], vec![], vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team == Some(Uuid::from_u128(201)));
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators.len(), 0);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_with_randomly_ordered_adjudicators() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(310),
-                position: 1, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(323),
-                position: 2, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(342),
-                position: 0, role: "n".into()
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_get_empty_ballot() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             }
-        ],
-        vec![],
-        vec![],
-        vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators, vec![
-        Uuid::from_u128(342),
-        Uuid::from_u128(310),
-        Uuid::from_u128(323)
-    ]);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_with_position_gaps() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(310),
-                position: 100, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(323),
-                position: 201, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(342),
-                position: 3, role: "n".into()
+        , vec![], vec![], vec![], vec![], vec![])?;
+    
+        assert_eq!(ballot.uuid, Uuid::from_u128(100));
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators.len(), 0);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    
+    #[test]
+    fn test_get_ballot_with_gov_only() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             }
-        ],
-        vec![],
-        vec![],
-        vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators, vec![
-        Uuid::from_u128(342),
-        Uuid::from_u128(310),
-        Uuid::from_u128(323)
-    ]);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_with_president() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![
-            schema::ballot_adjudicator::Model {
+        , vec![
+            schema::ballot_team::Model {
                 ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(301),
-                position: 0, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(302),
-                position: 1, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(303),
-                position: 2, role: "n".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(304),
-                position: 0, role: "p".into()
+                team_id: Some(Uuid::from_u128(200)),
+                role: "g".into()
             }
-        ],
-        vec![],
-        vec![],
-        vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.len(), 0);
-    assert_eq!(ballot.adjudicators, vec![
-        Uuid::from_u128(301),
-        Uuid::from_u128(302),
-        Uuid::from_u128(303)
-    ]);
-    assert!(ballot.president == Some(Uuid::from_u128(304)));
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_with_two_presidents() -> Result<(), BallotParseError> {
-    let result = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(304),
-                position: 0, role: "p".into()
-            },
-            schema::ballot_adjudicator::Model {
-                ballot_id: Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(304),
-                position: 1, role: "p".into()
+        ], vec![], vec![], vec![], vec![])?;
+    
+        assert!(ballot.government.team == Some(Uuid::from_u128(200)));
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators.len(), 0);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    
+    #[test]
+    fn test_get_ballot_with_opp_only() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             }
-        ],
-        vec![],
-        vec![],
-        vec![]);
-
-    assert_eq!(result, Err(BallotParseError::TooManyPresidents));
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_speech_order() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![],
-        vec![],
-        vec![
-            schema::ballot_speech::Model {
+        , vec![
+            schema::ballot_team::Model {
                 ballot_id: Uuid::from_u128(100),
-                position: 0,
-                role: "g".into(),
-                speaker_id: Some(Uuid::from_u128(410))
+                team_id: Some(Uuid::from_u128(201)),
+                role: "o".into()
+            }
+        ], vec![], vec![], vec![], vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team == Some(Uuid::from_u128(201)));
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators.len(), 0);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_with_randomly_ordered_adjudicators() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 2,
-                role: "o".into(),
-                speaker_id: Some(Uuid::from_u128(422))
+            vec![],
+            vec![
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(310),
+                    position: 1, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(323),
+                    position: 2, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(342),
+                    position: 0, role: "n".into()
+                }
+            ],
+            vec![],
+            vec![],
+            vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators, vec![
+            Uuid::from_u128(342),
+            Uuid::from_u128(310),
+            Uuid::from_u128(323)
+        ]);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_with_position_gaps() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 1,
-                role: "g".into(),
-                speaker_id: Some(Uuid::from_u128(411))
+            vec![],
+            vec![
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(310),
+                    position: 100, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(323),
+                    position: 201, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(342),
+                    position: 3, role: "n".into()
+                }
+            ],
+            vec![],
+            vec![],
+            vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators, vec![
+            Uuid::from_u128(342),
+            Uuid::from_u128(310),
+            Uuid::from_u128(323)
+        ]);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_with_president() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 1,
-                role: "o".into(),
-                speaker_id: Some(Uuid::from_u128(421))
+            vec![],
+            vec![
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(301),
+                    position: 0, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(302),
+                    position: 1, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(303),
+                    position: 2, role: "n".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(304),
+                    position: 0, role: "p".into()
+                }
+            ],
+            vec![],
+            vec![],
+            vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.len(), 0);
+        assert_eq!(ballot.adjudicators, vec![
+            Uuid::from_u128(301),
+            Uuid::from_u128(302),
+            Uuid::from_u128(303)
+        ]);
+        assert!(ballot.president == Some(Uuid::from_u128(304)));
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_with_two_presidents() -> Result<(), BallotParseError> {
+        let result = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 0,
-                role: "n".into(),
-                speaker_id: Some(Uuid::from_u128(430))
+            vec![],
+            vec![
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(304),
+                    position: 0, role: "p".into()
+                },
+                schema::ballot_adjudicator::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(304),
+                    position: 1, role: "p".into()
+                }
+            ],
+            vec![],
+            vec![],
+            vec![]);
+    
+        assert_eq!(result, Err(BallotParseError::TooManyPresidents));
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_speech_order() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 0,
-                role: "o".into(),
-                speaker_id: Some(Uuid::from_u128(420))
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 0,
+                    role: "g".into(),
+                    speaker_id: Some(Uuid::from_u128(410))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 2,
+                    role: "o".into(),
+                    speaker_id: Some(Uuid::from_u128(422))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 1,
+                    role: "g".into(),
+                    speaker_id: Some(Uuid::from_u128(411))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 1,
+                    role: "o".into(),
+                    speaker_id: Some(Uuid::from_u128(421))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 0,
+                    role: "n".into(),
+                    speaker_id: Some(Uuid::from_u128(430))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 0,
+                    role: "o".into(),
+                    speaker_id: Some(Uuid::from_u128(420))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 1,
+                    role: "n".into(),
+                    speaker_id: Some(Uuid::from_u128(431))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 2,
+                    role: "g".into(),
+                    speaker_id: Some(Uuid::from_u128(412))
+                },
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 2,
+                    role: "n".into(),
+                    speaker_id: Some(Uuid::from_u128(432))
+                },
+            ],
+            vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.iter().map(|s| s.speaker).collect_vec(), vec![
+            Some(Uuid::from_u128(410)),
+            Some(Uuid::from_u128(420)),
+            Some(Uuid::from_u128(411)),
+            Some(Uuid::from_u128(421)),
+            Some(Uuid::from_u128(430)),
+            Some(Uuid::from_u128(431)),
+            Some(Uuid::from_u128(432)),
+            Some(Uuid::from_u128(422)),
+            Some(Uuid::from_u128(412)),
+        ]);
+        assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![0, 0, 1, 1, 0, 1, 2, 2, 2]);
+        assert_eq!(ballot.adjudicators, vec![]);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    
+    #[test]
+    fn test_get_ballot_missing_speeches() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 1,
-                role: "n".into(),
-                speaker_id: Some(Uuid::from_u128(431))
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 2,
+                    role: "g".into(),
+                    speaker_id: Some(Uuid::from_u128(410))
+                },
+            ],
+            vec![])?;
+    
+        assert!(ballot.government.team.is_none());
+        assert!(ballot.opposition.team.is_none());
+        assert_eq!(ballot.speeches.iter().map(|s| s.speaker).collect_vec(), vec![
+            Some(Uuid::from_u128(410)),
+        ]);
+        assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![2]);
+        assert_eq!(ballot.adjudicators, vec![]);
+        assert!(ballot.president.is_none());
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_speech_scores() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 2,
-                role: "g".into(),
-                speaker_id: Some(Uuid::from_u128(412))
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                schema::ballot_speech::Model {
+                    ballot_id: Uuid::from_u128(100),
+                    position: 0,
+                    role: "g".into(),
+                    speaker_id: Some(Uuid::from_u128(410))
+                },
+            ],
+            vec![
+                schema::adjudicator_speech_score::Model {
+                    ballot_id:Uuid::from_u128(100),
+                    adjudicator_id: Uuid::from_u128(301),
+                    speech_role: "g".into(), speech_position: 0, manual_total_score: Some(72) }
+            ])?;
+    
+        assert_eq!(ballot.speeches[0].scores, HashMap::from_iter(vec![(Uuid::from_u128(301), SpeakerScore::Aggregate { total: 72 })].into_iter()));
+    
+        Ok(())
+    }
+    
+    #[test]
+    fn test_get_ballot_team_scores() -> Result<(), BallotParseError> {
+        let ballot = Ballot::from_models(
+            schema::ballot::Model {
+                uuid: Uuid::from_u128(100),
             },
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 2,
-                role: "n".into(),
-                speaker_id: Some(Uuid::from_u128(432))
-            },
-        ],
-        vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.iter().map(|s| s.speaker).collect_vec(), vec![
-        Some(Uuid::from_u128(410)),
-        Some(Uuid::from_u128(420)),
-        Some(Uuid::from_u128(411)),
-        Some(Uuid::from_u128(421)),
-        Some(Uuid::from_u128(430)),
-        Some(Uuid::from_u128(431)),
-        Some(Uuid::from_u128(432)),
-        Some(Uuid::from_u128(422)),
-        Some(Uuid::from_u128(412)),
-    ]);
-    assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![0, 0, 1, 1, 0, 1, 2, 2, 2]);
-    assert_eq!(ballot.adjudicators, vec![]);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-
-#[test]
-fn test_get_ballot_missing_speeches() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![],
-        vec![],
-        vec![
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 2,
-                role: "g".into(),
-                speaker_id: Some(Uuid::from_u128(410))
-            },
-        ],
-        vec![])?;
-
-    assert!(ballot.government.team.is_none());
-    assert!(ballot.opposition.team.is_none());
-    assert_eq!(ballot.speeches.iter().map(|s| s.speaker).collect_vec(), vec![
-        Some(Uuid::from_u128(410)),
-    ]);
-    assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![2]);
-    assert_eq!(ballot.adjudicators, vec![]);
-    assert!(ballot.president.is_none());
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_speech_scores() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![],
-        vec![],
-        vec![],
-        vec![
-            schema::ballot_speech::Model {
-                ballot_id: Uuid::from_u128(100),
-                position: 0,
-                role: "g".into(),
-                speaker_id: Some(Uuid::from_u128(410))
-            },
-        ],
-        vec![
-            schema::adjudicator_speech_score::Model {
-                ballot_id:Uuid::from_u128(100),
-                adjudicator_id: Uuid::from_u128(301),
-                speech_role: "g".into(), speech_position: 0, manual_total_score: Some(72) }
-        ])?;
-
-    assert_eq!(ballot.speeches[0].scores, HashMap::from_iter(vec![(Uuid::from_u128(301), SpeakerScore::Aggregate { total: 72 })].into_iter()));
-
-    Ok(())
-}
-
-#[test]
-fn test_get_ballot_team_scores() -> Result<(), BallotParseError> {
-    let ballot = Ballot::from_models(
-        schema::ballot::Model {
-            uuid: Uuid::from_u128(100),
-        },
-        vec![
-            schema::ballot_team::Model { ballot_id: Uuid::from_u128(100),role:"g".into(), team_id: None },
-        ],
-        vec![],
-        vec![
-            schema::adjudicator_team_score::Model { adjudicator_id: Uuid::from_u128(301), ballot_id: Uuid::from_u128(100), role_id: "g".into(), manual_total_score: Some(32) }
-        ],
-        vec![],
-        vec![])?;
-
-    assert_eq!(ballot.government.scores, HashMap::from_iter(vec![(Uuid::from_u128(301), TeamScore::Aggregate { total: 32 })].into_iter()));
-
-    Ok(())
+            vec![
+                schema::ballot_team::Model { ballot_id: Uuid::from_u128(100),role:"g".into(), team_id: None },
+            ],
+            vec![],
+            vec![
+                schema::adjudicator_team_score::Model { adjudicator_id: Uuid::from_u128(301), ballot_id: Uuid::from_u128(100), role_id: "g".into(), manual_total_score: Some(32) }
+            ],
+            vec![],
+            vec![])?;
+    
+        assert_eq!(ballot.government.scores, HashMap::from_iter(vec![(Uuid::from_u128(301), TeamScore::Aggregate { total: 32 })].into_iter()));
+    
+        Ok(())
+    }    
 }
