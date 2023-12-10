@@ -136,14 +136,28 @@ function BallotEditTable(props) {
                                 }
 
                                 if (speech.role == "government" || speech.role == "opposition") {
-                                    let speechScores = newBallot.speeches.filter(
-                                        (s) => s.role == speech.role && s.total_score !== null
-                                    ).map(
-                                        (s) => s.total_score
+                                    let otherSpeeches = newBallot.speeches.map((s, idx) => [idx, s]).filter(
+                                        s => s[1].role == speech.role
                                     );
+                                    
+                                    let speechScores = otherSpeeches.map(
+                                        s => s[1].total_score
+                                    );
+
+                                    console.log(otherSpeeches);
+                                    let missingSpeakerSpeeches = otherSpeeches.filter(s => s[1].speaker == null);
+                                    console.log(missingSpeakerSpeeches);
+                                    if (missingSpeakerSpeeches.length == 1) {
+                                        let allTeamSpeakers = [...new Set(otherSpeeches.map(s => s[1].speaker?.uuid))];
+                                        let availableSpeakers = speakerChoices.filter(s => !allTeamSpeakers.includes(s.uuid));
+                                        if (availableSpeakers.length == 1) {
+                                            newBallot.speeches[missingSpeakerSpeeches[0][0]].speaker = availableSpeakers[0];
+                                        }
+                                    }
+
                                     let totalSpeechScore = null;
                                     if (speechScores.length > 0) {
-                                        totalSpeechScore = speechScores.reduce(
+                                        totalSpeechScore = speechScores.filter(s => s != null).reduce(
                                             (a, b) => a + b, 0
                                         );
                                     }
@@ -239,7 +253,7 @@ function BallotSpeechRow(props) {
         {
             props.adjudicators.map((adj) => {
                 let score = props.speech.scores[adj.uuid];
-                return <td key={adj.uuid} className="border p-1">
+                return <td key={adj.uuid} className="border p-1 text-center">
                     <ScoreInputCell score={score === undefined ? null : score} maxScore={100} onChange={(score) => {
                         let newSpeech = {...props.speech, scores: {...props.speech.scores}};
                         if (score === null) {
@@ -283,7 +297,7 @@ function SpeakerSelectBox(props) {
 
 
 function ScoreInputCell(props) {
-    return <input className="m-0" onChange={evt => {
+    return <input className="m-0 w-full text-center" onChange={evt => {
         var value = parseInt(evt.target.value);
         if (evt.target.value === "" || isNaN(value)) {
             value = null
