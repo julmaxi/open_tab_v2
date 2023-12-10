@@ -38,7 +38,7 @@ export function FeedbackOverviewTable() {
         return <div>Loading...</div>
     }
 
-    return <div className="w-full h-full bla">
+    return <div className="w-full h-full">
         <ContentView defaultDrawerWidth={400}  forceOpen={selectedParticipantIds.size > 0}>
         <ContentView.Content>
             <SortableTable columns={[{
@@ -55,7 +55,7 @@ export function FeedbackOverviewTable() {
             <div className="w-full h-full overflow-auto flex flex-col">
                 {
                     [...selectedParticipantIds].map((participantId) => {
-                        return <div className="flex-1"><FeedbackDetailView participantId={participantId} /></div>
+                        return <div key={participantId} className="flex-1"><FeedbackDetailView participantId={participantId} /></div>
                     })
                 }
             </div>

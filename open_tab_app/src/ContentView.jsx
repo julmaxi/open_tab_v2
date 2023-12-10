@@ -14,7 +14,7 @@ const ContentView = ({ children, forceOpen, defaultDrawerWidth: defaultDrawerWid
 
   return (
     <div className="flex h-full relative">
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-w-0">
         {subcomponents.Content || ""}
       </div>
       <button 
@@ -35,7 +35,7 @@ const ContentView = ({ children, forceOpen, defaultDrawerWidth: defaultDrawerWid
 };
 
 let Content = ({ children }) => {
-    return <div className="flex-1">{children}</div>;
+    return <div className="flex-1 min-w-0">{children}</div>;
 };
 
 const Drawer = ({ children, size = 'w-64', isOpen = true }) => {

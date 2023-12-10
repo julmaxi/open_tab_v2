@@ -292,7 +292,7 @@ function BallotSpeechRow(props) {
         <td className="border p-1 text-center min-w-[3em]">{formatScore(props.speech.total_score)}</td>
         <td className="border p-1 text-center min-w-[3em]"></td>
         {
-            props.disableRepetitionConstraints && <td><input type="checkbox" checked={props.speech.is_opt_out} onChange={
+            props.disableRepetitionConstraints && <td><input type="checkbox" tabIndex={-1} checked={props.speech.is_opt_out} onChange={
                 (evt) => {
                     let newSpeech = {...props.speech, is_opt_out: evt.target.checked};
                     props.onSpeechChanged(newSpeech);
@@ -308,7 +308,7 @@ function SpeakerSelectBox(props) {
         (choice) => <option key={choice.uuid} value={choice.uuid}>{choice.name}</option>
     );
 
-    return <select className="appearance-none" value={props.speaker !== null ? props.speaker : ""} onChange={(evt) => {
+    return <select tabIndex={-1} className="appearance-none" value={props.speaker !== null ? props.speaker : ""} onChange={(evt) => {
         let value = evt.target.value;
         let selectedSpeaker = props.choices.find((choice) => choice.uuid === value);
         props.onChange(selectedSpeaker);
