@@ -67,6 +67,18 @@ function DragBox(props) {
   let maxIssueSeverity = sortedIssues.length > 0 ? sortedIssues[0].severity : 0;
   let severityBucket = severityToBucket(maxIssueSeverity);
   let issueColor = ISSUE_COLORS_BORDER[severityBucket];
+  let [isHovering, setIsHovering] = useState(false);
+
+  useEffect(() => {
+    if (isHovering) {
+        let timer = setTimeout(() => {
+          props.onHighlightIssues(isHovering, true);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+  }, [isHovering]);
+
+  let expandIssues = props.expandIssues;
 
   let swapHighlightSeverity = props.swapHighlightSeverity;
   let swapIssueColor = null;
@@ -80,7 +92,7 @@ function DragBox(props) {
       to: { opacity: props.highlightedIssues?.length > 0 ? 1 : 0 },
     }),
     [props.highlightedIssues?.length]
-  )
+  );
 
   return <div
     className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded`}
@@ -92,15 +104,22 @@ function DragBox(props) {
       {props.children}
     </div>
     <div className="flex items-center mr-1">
-        <ClashIndicator issues={props.issues} onHover={props.onHighlightIssues} />
+        <ClashIndicator issues={props.issues} onHover={(isHovering) => {
+          props.onHighlightIssues(isHovering, false);
+          setIsHovering(isHovering);
+        }} />
     </div>
     {props.highlightedIssues?.length > 0 ? <animated.div style={animationProps} className={`absolute w-full h-full top-0 left-0 border-4 rounded text-white ${issueColor}`}>
       <div className={`absolute top-0 right-0 text-xs p-0.5 rounded-bl ${ISSUE_COLORS_BG[severityBucket]}`}>
-        <p>{props.highlightedIssues[0].type}</p>
-        {props.highlightedIssues.length > 1 ? `+${props.highlightedIssues.length - 1} more`: []}
+        <IssueList highlightedIssues={props.highlightedIssues} expandIssues={expandIssues} />
       </div>
     </animated.div>: []}
   </div>
+}
+
+function IssueList({highlightedIssues, expandIssues}) {
+  return expandIssues ? highlightedIssues.map((i, idx) => <p key={idx}>{i.type}</p>) : <><p>{highlightedIssues[0].type}</p>
+  {highlightedIssues.length > 1 ? `+${highlightedIssues.length - 1} more`: []}</>
 }
 
 
@@ -118,13 +137,13 @@ function TeamItem(props) {
 
   return <DragBox
     issues={props.team.issues}
-    onHighlightIssues={(shouldHighlight) => {
+    expandIssues={props.expandIssues}
+    onHighlightIssues={(shouldHighlight, shouldExpand) => {
       if (shouldHighlight) {
-        //props.onHighlightIssues(props.team.members.map((m) => m.uuid));
-        props.onHighlightIssues(props.team.uuid);
+        props.onHighlightIssues(props.team.uuid, shouldExpand);
       }
       else {
-        props.onHighlightIssues(null);
+        props.onHighlightIssues(null, false);
       }
     }}
     highlightedIssues={props.highlightedIssues}
@@ -185,12 +204,15 @@ function ClashIndicator(props) {
 
 
 function SpeakerItem(props) {
-  return <DragBox issues={props.speaker.issues} onHighlightIssues={(shouldHighlight) => {
+  return <DragBox
+    issues={props.speaker.issues}
+    expandIssues={props.expandIssues}
+    onHighlightIssues={(shouldHighlight, shouldExpand) => {
     if (shouldHighlight) {
-      props.onHighlightIssues(props.speaker.uuid);
+      props.onHighlightIssues(props.speaker.uuid, shouldExpand);
     }
     else {
-      props.onHighlightIssues(null);
+      props.onHighlightIssues(null, false);
     }
   }} highlightedIssues={props.highlightedIssues}>
     <div>{props.speaker.name}</div>
@@ -212,12 +234,16 @@ function AdjudicatorItem(props) {
 
     swapIssueSeverity = props.dragSwapHighlight.severityBucket;
   }
-  return <DragBox issues={props.adjudicator.issues} swapHighlightSeverity={swapIssueSeverity} onHighlightIssues={(shouldHighlight) => {
+  return <DragBox
+    issues={props.adjudicator.issues}
+    swapHighlightSeverity={swapIssueSeverity}
+    expandIssues={props.expandIssues}
+    onHighlightIssues={(shouldHighlight, shouldExpand) => {
     if (shouldHighlight) {
-      props.onHighlightIssues(props.adjudicator.uuid);
+      props.onHighlightIssues(props.adjudicator.uuid, shouldExpand);
     }
     else {
-      props.onHighlightIssues(null);
+      props.onHighlightIssues(null, shouldExpand);
     }
   }} highlightedIssues={highlightedIssues}>
     <div className={props.adjudicator.is_available ? "": "line-through"}>{props.adjudicator.name}</div>
@@ -304,6 +330,8 @@ function DebateRow(props) {
   });
 
   let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
+
+  let [shouldExpandLocalIssues, setShouldExpandLocalIssues] = useState(false);
   
   return <>
     <tr>
@@ -316,8 +344,12 @@ function DebateRow(props) {
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
           {ballot.government !== null ? <TeamItem
             team={ballot.government}
+            expandIssues={props.expandIssues}
             onHighlightIssues={
-              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid, shouldExpand) => {
+                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+                setShouldExpandLocalIssues(shouldExpand);
+              }
             }
             highlightedIssues={
               highlightedIssues.government
@@ -328,8 +360,12 @@ function DebateRow(props) {
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
           {ballot.opposition !== null ? <TeamItem
             team={ballot.opposition}
+            expandIssues={shouldExpandLocalIssues}
             onHighlightIssues={
-              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid, shouldExpand) => {
+                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+                setShouldExpandLocalIssues(shouldExpand);
+              }
             }
             highlightedIssues={
               highlightedIssues.opposition
@@ -343,8 +379,12 @@ function DebateRow(props) {
             <SpeakerItem
             key={speaker.uuid}
             speaker={speaker}
+            expandIssues={shouldExpandLocalIssues}
             onHighlightIssues={
-              (uuid) => setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+              (uuid, shouldExpand) => {
+                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+                setShouldExpandLocalIssues(shouldExpand);
+              }
             }
             highlightedIssues={
               highlightedIssues.non_aligned_speakers[idx]
@@ -358,9 +398,11 @@ function DebateRow(props) {
             <AdjudicatorItem
             key={adjudicator.uuid}
             adjudicator={adjudicator}
+            expandIssues={shouldExpandLocalIssues}
             onHighlightIssues={
-              (uuid) => {
+              (uuid, shouldExpand) => {
                 setLocalHighlightedIssues(find_issues_with_target(ballot, uuid));
+                setShouldExpandLocalIssues(shouldExpand);
               }
             }
             highlightedIssues={
@@ -910,6 +952,15 @@ function DrawEditor(props) {
       
       <div className="flex-1 overflow-y-scroll">
         <table className="w-full">
+          <thead>
+            <tr>
+              <th>Teams</th>
+              <th>Non Aligned</th>
+              <th>Panel</th>
+              <th>President</th>
+            </tr>
+          </thead>
+
           <tbody>
             {debates.map((debate, debateIdx) => <DebateRow
               key={debate.uuid}

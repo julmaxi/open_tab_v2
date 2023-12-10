@@ -44,9 +44,9 @@ function TeamTab({tab, numRounds, markedBreaks}) {
     return <ScoreTable numRounds={numRounds} descriptionName={"Team"}>
         {
             tab.map(
-                (team) => {
+                (team, idx) => {
                     let teamMarkedBreaks = Object.keys(markedBreaks).filter((key) => markedBreaks[key].includes(team.team_uuid));
-                    return <TeamTabRow team={team} markedBreaks={teamMarkedBreaks} />
+                    return <TeamTabRow key={idx} team={team} markedBreaks={teamMarkedBreaks} />
                 }
             )
         }
@@ -149,7 +149,6 @@ function CurrentTabView() {
     let tournament = useContext(TournamentContext);
 
     let tabView = useView({type: "Tab", tournament_uuid: tournament.uuid}, null);
-    console.log(tabView);
     return <TabView tabView={tabView} />
 }
 

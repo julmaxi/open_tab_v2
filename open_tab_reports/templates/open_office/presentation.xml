@@ -244,7 +244,7 @@
                 <office:forms form:apply-design-mode="false" form:automatic-focus="false"/>
                 <draw:frame draw:layer="layout" presentation:class="title" presentation:style-name="pr4" presentation:user-transformed="true" svg:height="3.507cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
                     <draw:text-box>
-                        <text:p>Raum {{debate.debate_index}} {% if debate.venue %} :{{ debate.venue.venue_name }} {% endif %}</text:p>
+                        <text:p>Raum {{debate.debate_index + 1}} {% if debate.venue %} :{{ debate.venue.venue_name }} {% endif %}</text:p>
                     </draw:text-box>
                 </draw:frame>
                 <draw:frame draw:layer="layout" draw:text-style-name="P2" presentation:class="outline" presentation:style-name="Impress1-outline1" presentation:user-transformed="true" svg:height="5.809cm" svg:width="11.711cm" svg:x="2cm" svg:y="4.1cm">
@@ -314,7 +314,7 @@
                 <draw:frame draw:layer="layout" draw:text-style-name="P4" presentation:class="subtitle" presentation:style-name="pr7" svg:height="16.26cm" svg:width="24.599cm" svg:x="2cm" svg:y="0.836cm">
                     <draw:text-box>
                         <text:p text:style-name="P3">
-                            <text:span text:style-name="T3">Freie Redner bitte den Raum verlassen</text:span>
+                            <text:span text:style-name="T3">FR bitte den Raum verlassen</text:span>
                         </text:p>
                     </draw:text-box>
                 </draw:frame>

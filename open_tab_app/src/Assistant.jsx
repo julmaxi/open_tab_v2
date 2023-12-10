@@ -213,9 +213,9 @@ function LoadParticipantsStep({ }) {
             If it doesn't, adjust the file to look like the example.
         </p>
 
-        <div className='w-full shadow-inner bg-gray-50 font-mono whitespace-pre-line'>
-            Vorname,Name,Team,Club,Clashes
-            Peter,Petersson,#87,Club A;Club B,
+        <div className='w-full shadow-inner bg-gray-50 font-mono whitespace-pre-line p-1 mt-2 mb-2 text-sm'>
+            Vorname,Name,Team,Club,Clashes<br/>
+            Peter,Petersson,#87,Club A;Club B,<br/>
             Maria,Nielsdotter,Team A,Club A,Peter Petersson
         </div>
 
