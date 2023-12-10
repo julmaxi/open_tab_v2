@@ -243,6 +243,8 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
             Before you continue, you should make sure, all clashes
             and institution memberships are correct and fix them if necessary.
             You can do this in the <Link to="/participants">participants overview</Link>.
+
+            If applicable, you can also export the QR codes as a pdf, so participants can scan them.
         </p>
             <p>
                 You should also make sure, that the plan for your tournaments conforms to your
@@ -266,8 +268,6 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                 Finally, if you want a printed tab, you can save it from here.
             </p>
         }
-
-
 
         Once you are ready, you can generate the draw for the next batch of rounds.
 
@@ -334,6 +334,35 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
 
             </>}
 
+            {
+                is_first_in_tournament &&             <Button role="secondary" onClick={
+                    () => {
+                        save(
+                            {
+                                defaultPath: "qrcodes.pdf",
+                                filters: [
+                                    {
+                                        name: "PDF",
+                                        extensions: ["pdf"]
+                                    }
+                                ]
+                            }
+                        ).then((result) => {
+                            if (result !== null) {
+                                invoke(
+                                    "save_participant_qr_codes",
+                                    {
+                                        tournamentId: tournamentContext.uuid,
+                                        outPath: result
+                                    }
+                                )
+                            }
+                        })
+                    }
+                }>
+                    Export QR Codes…
+                </Button>    
+            }
             <Button onClick={() => {
                 executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid });
             }} role="primary">Generate Draw</Button>

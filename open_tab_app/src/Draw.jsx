@@ -15,6 +15,9 @@ import { TournamentContext } from "./TournamentContext";
 import { TabGroup, Tab } from "./TabGroup";
 import { useSelect } from "downshift";
 
+import { useSpring, useSpringRef, animated } from '@react-spring/web'
+
+
 const TRAY_DRAG_PATH = "__tray__";
 
 const ISSUE_COLORS_BG = {
@@ -249,24 +252,36 @@ function VenueSelector(props) {
     itemToString: item => (item ? item.name : ""),
     selectedItem: selectedItem || null,
   });
+  const springRef = useSpringRef()
+
+  let style = useSpring({
+    from: { height: 0},
+    to: {
+      height: isOpen ? 240: 0
+    },
+  });
 
   return <div className="inline">
     <button type="button" {...getToggleButtonProps()}>
       {selectedItem ? selectedItem.name : "<No Venue>"}
     </button>
-    <ul {...getMenuProps()} className="absolute w-72 bg-white mt-1 shadow-md max-h-80 overflow-auto p-0 z-10">
-      {isOpen &&
+    <div className="w-0 h-0 relative z-40">
+      <animated.div className="w-72 bg-white mt-1 shadow-md overflow-auto p-0 h-8" style={style}>
+      <ul {...getMenuProps()} className="w-full" >
+        {isOpen &&
 
-        venues.venues.map((item, index) => (
-          <li key={item.name} {...getItemProps({ item, index })} onClick={() => {
-            props.onVenueChange(item);
-            closeMenu();
-          }}>
-            {item.name}
-          </li>
-        ))
-      }
-    </ul>
+          venues.venues.map((item, index) => (
+            <li key={item.name} {...getItemProps({ item, index })} onClick={() => {
+              props.onVenueChange(item);
+              closeMenu();
+            }}>
+              {item.name}
+            </li>
+          ))
+        }
+      </ul>
+      </animated.div>
+    </div>
   </div>
 }
 
@@ -281,7 +296,6 @@ function DebateRow(props) {
   });
 
   let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
-  console.log(props.debate);
   
   return <>
     <tr>
@@ -708,6 +722,7 @@ function getMaxSeverityFromEvaluationResult(result) {
   return maxSeverity;
 
 }
+
 
 function DrawEditor(props) {
   function onDragEnd(from, to, isSwap) {

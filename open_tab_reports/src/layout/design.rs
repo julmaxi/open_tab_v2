@@ -365,7 +365,7 @@ pub struct QRCodeLayouter {
 
 impl QRCodeLayouter {
     fn content_as_matrix(&self) -> Result<Vec<Vec<bool>>> {
-        Ok(qrcode_generator::to_matrix(&self.content, qrcode_generator::QrCodeEcc::High)?)
+        Ok(qrcode_generator::to_matrix(&self.content, qrcode_generator::QrCodeEcc::Low)?)
     }
 }
 

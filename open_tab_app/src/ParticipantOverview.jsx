@@ -749,7 +749,7 @@ export function ParticipantOverview() {
                     })
                 }
             }>
-                Export QR Codes
+                Export QR Codes…
             </button>
         </div>
     </div>

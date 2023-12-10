@@ -6,6 +6,7 @@ import "./App.css";
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
+import { useSpring, animated } from 'react-spring';
 
 
 export function DragItem(props) {
@@ -98,18 +99,24 @@ function Placeholder(props) {
 
     let simulate_insert = isOver && active.data.current.type == props.type;
 
-    const style = {
+    let style = useSpring({
+        from: { height: 2 },
+        to: { height: simulate_insert ? 25 : 2 },
+        config: {
+            tension: 210, friction: 20
+        }
+    });
+
+
+    const innerStyle = {
         height: "2px",
-    };
-    const container_style = {
-        height: simulate_insert ? `25px` : "auto",
     };
 
     return (
-        <div style={container_style}>
-            <div ref={setNodeRef} style={style}>
+        <animated.div style={style}>
+            <div ref={setNodeRef} style={innerStyle}>
             </div>
-        </div>
+        </animated.div>
     );
 }
 
