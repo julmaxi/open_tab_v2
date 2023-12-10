@@ -37,7 +37,7 @@ def get_bundle_name(platform_name, version):
         return "Open Tab.app.tar.gz"
     elif platform_name == "windows":
         return f"Open Tab_{version}_x64_en-US.msi.zip"
-    elif platform == "linux":
+    elif platform_name == "linux":
         return f"open-tab_{version}_amd64.AppImage.tar.gz"
 
 def get_bundle_target_name(platform_name, arch):
@@ -45,7 +45,7 @@ def get_bundle_target_name(platform_name, arch):
         return f"app-{platform_name}-{arch}.app.tar.gz"
     elif platform_name == "windows":
         return f"app-{platform_name}-{arch}.msi.zip"
-    elif platform == "linux":
+    elif platform_name == "linux":
         return f"app-{platform_name}-{arch}_amd64.AppImage.tar.gz"
 
 def get_full_bundle_name(platform_name, arch, version):
