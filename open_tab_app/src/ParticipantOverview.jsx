@@ -468,6 +468,9 @@ function ParticipantTable(props) {
                 if (p.team_id) {
                     setSelectedTeamUuid(p.team_id);
                 }
+                else {
+                    setSelectedTeamUuid(null);
+                }
             }
             }
             columns={columns}

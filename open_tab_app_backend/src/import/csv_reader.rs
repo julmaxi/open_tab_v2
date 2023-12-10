@@ -190,6 +190,7 @@ impl CSVReaderConfig {
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(delimiter)
             .flexible(true)
+            .trim(csv::Trim::All)
             .from_reader(reader);
 
         let role_idx = self.role_column.ok_or(CSVParserErr::BadConfig)?;

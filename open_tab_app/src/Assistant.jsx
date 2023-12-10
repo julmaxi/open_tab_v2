@@ -149,7 +149,7 @@ function WaitForPublishRoundStep({ round_uuid }) {
 
             You can save the draw presentation, along with the print-out ballots
             by clicking the button below.
-            Note that ig you do not have the online functionality enabled, you should still set release times to proceed. They will have no other effect.
+            Note that if you do not have the online functionality enabled, you should still set release times to proceed. They will have no other effect.
         </p>
         <Button role="secondary" onClick={
             () => {
@@ -207,7 +207,17 @@ function LoadParticipantsStep({ }) {
             Simply write the scores behind a hash mark in the role column.
             For example <span>#42</span> will give the adjudicator a chairing score of 40 and a wing score of 20.
             You can later adjust these in the <a href="/participants">participants overview</a>.
+
+            The example below shows what the file can look like. If you export CSV from your spreadsheet program, it should work fine.
+            The format is flexible, so if, for example, first and last name are in the same column, it should still work.
+            If it doesn't, adjust the file to look like the example.
         </p>
+
+        <div className='w-full shadow-inner bg-gray-50 font-mono whitespace-pre-line'>
+            Vorname,Name,Team,Club,Clashes
+            Peter,Petersson,#87,Club A;Club B,
+            Maria,Nielsdotter,Team A,Club A,Peter Petersson
+        </div>
 
         <p>
             If you want to make use of the online functionality, you will need to select

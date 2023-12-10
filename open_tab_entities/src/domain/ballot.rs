@@ -834,7 +834,6 @@ impl TournamentEntity for Ballot {
             }
         }
         
-        dbg!(ballot_ids);
         Ok(entities.iter().map(|e| ballot_tournament_map.get(&e.uuid).map(|x| *x).flatten()).collect())
     }
 
