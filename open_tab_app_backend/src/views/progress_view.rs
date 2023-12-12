@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque, HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{participant::Participant, tournament_plan_node::TournamentPlanNode, tournament_plan_edge::TournamentPlanEdge, round::TournamentRound, debate::TournamentDebate, self}, schema::{self}, EntityGroup, EntityType};
+use open_tab_entities::{domain::{participant::Participant, tournament_plan_node::TournamentPlanNode, tournament_plan_edge::TournamentPlanEdge, round::TournamentRound, debate::TournamentDebate, self}, EntityGroup, EntityType};
 use sea_orm::prelude::*;
 use serde::Serialize;
 
@@ -138,7 +138,7 @@ impl ProgressView {
                             ));
                         }
                     },
-                    open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+                    open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id } => {
                         steps.push(Step::WaitForBreak { node_uuid: node.uuid, is_done: break_id.is_some() });
 
                         if break_id.is_some() {

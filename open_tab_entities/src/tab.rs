@@ -2,7 +2,7 @@
 
 use std::hash::Hash;
 use std::iter::{zip, self};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
 
 use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};
@@ -14,7 +14,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use crate::{prelude::*, domain};
 
-use crate::schema::{self, speaker};
+use crate::schema::{self};
 
 use itertools::Itertools;
 
@@ -261,7 +261,7 @@ impl TabView {
             let opt_out_counts = per_round_non_aligned_teams_opt_out_count.remove(&round_index).unwrap_or(HashMap::new());
 
             for (team_uuid, team_opt_out_count) in opt_out_counts.iter() {
-                let mut team_tab_entry = team_tab_entries.store.get_mut(*team_uuid).unwrap();                
+                let team_tab_entry = team_tab_entries.store.get_mut(*team_uuid).unwrap();                
                 team_tab_entry[round_index as usize].as_mut().map(|entry| {
                     entry.speaker_score += (*team_opt_out_count as f64) * non_aligned_invididual_scores.values().flatten().min_by_key(|s| OrderedFloat(**s)).map(|s| *s).unwrap_or(0.0);
                 });

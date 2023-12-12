@@ -1,4 +1,4 @@
-use sea_orm::{prelude::*, Database, DbBackend, Statement};
+use sea_orm::{prelude::*, Database};
 
 pub struct DatabaseConfig {
     url: String,

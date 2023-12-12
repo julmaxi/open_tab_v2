@@ -328,7 +328,7 @@ async fn get_participant_info(
                     position: position as i32
                 })
             }
-            else if (ballot.president == Some(participant_id)) {
+            else if ballot.president == Some(participant_id) {
                 (d.round_id, ParticipantRoundRoleInfo::President { debate: ParticipantDebateInfo::new_from(d, v) })
             }
             else {

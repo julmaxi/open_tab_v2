@@ -1,8 +1,8 @@
 mod common;
 use std::collections::HashMap;
 
-use open_tab_entities::{prelude::Participant, domain::ballot::{Ballot, BallotTeam}, Entity, EntityType, EntityState, EntityGroup, EntityGroupTrait};
-use open_tab_server::{tournament::{CreateTournamentRequest, CreateTournamentResponse}, auth::{GetTokenRequest, CreateUserRequest, CreateUserResponse, RegisterUserResponse, RegisterParticipantRequest, create_key}, sync::{FatLog, SyncRequest, LogEntry, EntityEntry}, participants::ParticipantInfoResponse};
+use open_tab_entities::{prelude::Participant, Entity, EntityType, EntityState, EntityGroup, EntityGroupTrait};
+use open_tab_server::{sync::{FatLog, SyncRequest, LogEntry, EntityEntry}, participants::ParticipantInfoResponse};
 use sea_orm::{prelude::Uuid, DatabaseConnection, IntoActiveModel, ActiveModelTrait};
 use tracing_test::traced_test;
 

@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::actions::ActionTrait;
 
-use open_tab_entities::domain::tournament_institution::TournamentInstitution;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetAdjudicatorBreakAction {
@@ -24,8 +24,8 @@ impl ActionTrait for SetAdjudicatorBreakAction {
         let node = open_tab_entities::domain::tournament_plan_node::TournamentPlanNode::get(db, self.node_id).await?;
 
         match &node.config {
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => anyhow::bail!("Cannot set adjudicator break on round"),
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config: _, rounds: _ } => anyhow::bail!("Cannot set adjudicator break on round"),
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id } => {
                 if let Some(break_id) = break_id {
                     let mut break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, *break_id).await?;
                     break_.breaking_adjudicators = self.breaking_adjudicators;

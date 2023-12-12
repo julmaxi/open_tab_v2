@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, iter::zip, cmp::Ordering, error::Erro
 use async_trait::async_trait;
 use sea_orm::{JoinType, FromQueryResult};
 use sea_orm::{prelude::*, ActiveValue, Condition, QuerySelect};
-use sea_query::IntoCondition;
+
 use serde::{Serialize, Deserialize};
 
 use crate::schema::{self};

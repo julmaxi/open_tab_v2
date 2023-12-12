@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, ColumnTrait};
 
 use crate::{domain::participant::{Participant, ParticipantRole, Speaker}, schema};
-use url::{Url, ParseError};
+
 
 
 pub struct ParticipantRegistrationInfo {

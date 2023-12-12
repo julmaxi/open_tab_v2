@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::actions::ActionTrait;
 
-use open_tab_entities::domain::tournament_institution::TournamentInstitution;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetBreakReleaseAction {

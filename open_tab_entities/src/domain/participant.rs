@@ -268,7 +268,7 @@ impl TournamentEntity for Participant {
                             adjudicator::ActiveModel { uuid: ActiveValue::Set(ent.uuid), chair_skill: ActiveValue::Set(adj.chair_skill), panel_skill: ActiveValue::Set(adj.panel_skill) }
                         );
                     },
-                    (ParticipantRole::Adjudicator(adj), Some(m), None) => {
+                    (ParticipantRole::Adjudicator(adj), Some(_m), None) => {
                         adj_changes.update.push(
                             adjudicator::ActiveModel { uuid: ActiveValue::Set(ent.uuid), chair_skill: ActiveValue::Set(adj.chair_skill), panel_skill: ActiveValue::Set(adj.panel_skill) }
                         )

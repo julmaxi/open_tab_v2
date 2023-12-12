@@ -2,7 +2,7 @@ use std::{str::FromStr};
 
 use axum::response::{IntoResponse, Response};
 
-use sea_orm::sea_query::extension::postgres::Type;
+
 use serde::{Serialize, Deserialize};
 use tracing::error;
 

@@ -1,12 +1,12 @@
-use std::{collections::HashMap, iter::empty};
+use std::{collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, derived_models::BreakNodeBackgroundInfo, domain::entity::LoadEntity, info::TournamentParticipantsInfo, EntityType, schema::adjudicator};
+use open_tab_entities::{EntityGroup, derived_models::BreakNodeBackgroundInfo, domain::entity::LoadEntity, EntityType};
 use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, ColumnTrait};
 use serde::Serialize;
 
 
-use crate::{LoadedView, draw::clashes::{ClashMap, ClashMapConfig, ClashMapEntry, ClashType}};
+use crate::{LoadedView, draw::clashes::{ClashMap, ClashMapConfig, ClashType}};
 
 
 pub struct LoadedAdjudicatorBreakCandidatesView {

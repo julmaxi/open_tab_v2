@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use argon2::Argon2;
-use axum::routing::{get, Route};
+use axum::routing::{get};
 use axum::{extract::State, headers::authorization::Bearer, routing::post, Json, Router};
 use base64::Engine;
 use open_tab_entities::schema;

@@ -1,11 +1,11 @@
-use std::{str::FromStr, collections::HashMap, f32::consts::E};
+use std::{str::FromStr, collections::HashMap};
 
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, EntityGroupTrait, schema, derived_models::{SummaryValue, compute_question_summary_values}};
 use rand::{thread_rng, seq::SliceRandom};
-use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait, QueryOrder, DbBackend, QueryTrait};
+use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait, QueryOrder};
 use serde::{Serialize, Deserialize};
 
 
