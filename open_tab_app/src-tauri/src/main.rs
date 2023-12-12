@@ -11,7 +11,7 @@ use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
 use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue};
-use tauri::{async_runtime::block_on, State, AppHandle, Manager};
+use tauri::{async_runtime::block_on, State, AppHandle, Manager, api::dialog::MessageDialogBuilder};
 use open_tab_entities::prelude::*;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
@@ -1254,6 +1254,34 @@ async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, co
     Ok(tournament)
 }
 
+struct DownloadProgress {
+    pub total: Option<u64>,
+    pub downloaded: u64,
+}
+
+impl DownloadProgress {
+    fn new() -> Self {
+        Self {
+            total: None,
+            downloaded: 0
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DownloadProgressMessage {
+    pub progress: Option<f32>,
+    pub error: Option<String>
+}
+
+async fn show_error(error: String) {
+    MessageDialogBuilder::new("Update Error", format!("There has been an error during the update process: {}", error)).buttons(
+        tauri::api::dialog::MessageDialogButtons::Ok 
+    ).kind(
+        tauri::api::dialog::MessageDialogKind::Error
+    ).show(|_| {});
+}
+
 fn main() {
     let db_path: PathBuf = dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or(PathBuf::from("."))).join("open_tab_db.sqlite3");
 
@@ -1269,7 +1297,7 @@ fn main() {
     let identity_provider = Arc::new(IdentityProvider::new_with_keys(settings.known_api_keys.clone()));
 
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             subscribe_to_view,
             execute_action,
@@ -1289,6 +1317,7 @@ fn main() {
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))
+        .manage(std::sync::Mutex::new(DownloadProgress::new()))
         .manage(open_tournaments_manager)
         .manage(RwLock::new(settings))
         .manage(Client::new())
@@ -1310,6 +1339,58 @@ fn main() {
 
             Ok(())  
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::Updater(updater_event) => {
+          match updater_event {
+            tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
+                if app_handle.get_window("update").is_none() {
+                    let updater_window = tauri::WindowBuilder::new(
+                        app_handle,
+                        "update", /* the unique window label */
+                        tauri::WindowUrl::App("index.html".into())
+                    ).title("Update Progress").build().map_err(|_| ()).unwrap();
+                    updater_window.show().unwrap();    
+                }
+            }
+            tauri::UpdaterEvent::Pending => {
+            }
+            tauri::UpdaterEvent::DownloadProgress { chunk_length, content_length } => {
+                if app_handle.get_window("update").is_none() {
+                    let updater_window = tauri::WindowBuilder::new(
+                        app_handle,
+                        "update", /* the unique window label */
+                        tauri::WindowUrl::App("index.html".into())
+                    ).title("Update Progress").build().map_err(|_| ()).unwrap();
+                    updater_window.show().unwrap();    
+                }
+                let mut progress = app_handle.state::<std::sync::Mutex<DownloadProgress>>().inner().lock().expect("Could not lock progress");
+                progress.total = content_length;
+                progress.downloaded += chunk_length as u64;
+
+                let msg = DownloadProgressMessage {
+                    progress: progress.total.map(|t| progress.downloaded as f32 / t as f32),
+                    error: None
+                };
+
+                app_handle.emit_to("update", "update-download-progress", msg).expect("Could not send progress");
+            }
+            tauri::UpdaterEvent::Downloaded => {
+                app_handle.get_window("update").map(|h|
+                    h.close()
+                );
+            }
+            tauri::UpdaterEvent::Updated => {
+            }
+            tauri::UpdaterEvent::AlreadyUpToDate => {
+            }
+            tauri::UpdaterEvent::Error(error) => {
+                tauri::async_runtime::spawn(show_error(error));
+            }
+            _ => (),
+          }
+        }
+        _ => {}});
 }

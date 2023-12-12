@@ -22,6 +22,7 @@ import { useContext } from 'react';
 import { ParticipantOverview } from "./ParticipantOverview";
 import TournamentManager from "./Setup/TournamentOverview";
 import LoginWindow from "./LoginWindow";
+import UpdateProgressWindow from "./UpdateProgressWindow";
 
 
 
@@ -127,6 +128,9 @@ export function App() {
     case "login":
       view = <LoginWindow />;
       break;
+    case "update":
+        view = <UpdateProgressWindow />;
+        break;
     case "main":
       view = <TournamentManager />;
       break;
