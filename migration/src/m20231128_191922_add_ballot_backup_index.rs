@@ -6,10 +6,8 @@ pub struct Migration;
 #[derive(Iden)]
 enum DebateBackupBallot {
     Table,
-    Uuid,
     DebateId,
     BallotId,
-    Timestamp,
 }
 
 #[async_trait::async_trait]
@@ -53,12 +51,4 @@ impl MigrationTrait for Migration {
 
         Ok(())
     }
-}
-
-#[derive(DeriveIden)]
-enum Post {
-    Table,
-    Id,
-    Title,
-    Text,
 }

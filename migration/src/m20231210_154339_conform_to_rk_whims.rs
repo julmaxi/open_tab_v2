@@ -22,11 +22,3 @@ impl MigrationTrait for Migration {
             .alter_table(Table::alter().table(BallotSpeech::Table).drop_column(BallotSpeech::IsOptOut).to_owned()).await
     }
 }
-
-#[derive(DeriveIden)]
-enum Post {
-    Table,
-    Id,
-    Title,
-    Text,
-}

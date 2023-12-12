@@ -42,6 +42,7 @@ impl TryFrom<schema::feedback_response_value::Model> for FeedbackResponseValue {
                 (Some(val), None, None) => FeedbackResponseValue::Bool {val},
                 (None, Some(val), None) => FeedbackResponseValue::Int {val},
                 (None, None, Some(val)) => FeedbackResponseValue::String {val},
+                (None, None, None) => return Err(LoadFeedbackError::NoValues(value.response_id).into()),
                 _ => return Err(LoadFeedbackError::MultipleValues(value.response_id, value.question_id).into())
             }
         )

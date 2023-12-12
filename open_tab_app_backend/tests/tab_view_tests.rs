@@ -5,8 +5,7 @@ use migration::MigratorTrait;
 use open_tab_entities::{prelude::*, Entity, mock::{make_mock_tournament_with_options, MockOption}, domain::entity::LoadEntity};
 use sea_orm::{prelude::*, Database, Statement};
 
-
-use open_tab_app_backend::{views::tab_view::LoadedTabView };
+use open_tab_app_backend::views::tab_view::LoadedTabView;
 
 const TAB_TOLERANCE : f64 = 0.0001;
 

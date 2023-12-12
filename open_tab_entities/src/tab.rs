@@ -2,7 +2,7 @@
 
 use std::hash::Hash;
 use std::iter::{zip, self};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 
 
 use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};

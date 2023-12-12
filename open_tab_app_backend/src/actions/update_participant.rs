@@ -72,11 +72,10 @@ impl ActionTrait for UpdateParticipantsAction {
                 let did_remove_from_team = match &participant_role {
                     crate::participants_list_view::ParticipantRole::Speaker { team_info } => {
                         match &team_info {
-                            ParticipantTeamInfo::Existing { team_id } if Some(*team_id) != old_speaker.team_id => true,
+                            ParticipantTeamInfo::Existing { team_id } if Some(*team_id) == old_speaker.team_id => false,
                             ParticipantTeamInfo::New { .. } | ParticipantTeamInfo::Existing { .. } => {
                                 true
                             },
-                            _ => false
                         }
                     },
                     crate::participants_list_view::ParticipantRole::Adjudicator { .. } => true
