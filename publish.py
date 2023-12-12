@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     info = {
       "version": f"v{version}",
-      "notes": "Update Opt-Out",
+      "notes": "Improve update process",
       "pub_date": date,
       "platforms": {
         f"{platform_name}-{arch}": {
