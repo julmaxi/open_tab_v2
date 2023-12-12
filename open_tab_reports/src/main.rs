@@ -38,7 +38,7 @@ fn main() {
 
 
     let mut content = DocumentLayouter::new();
-    let text = TextLayouter {
+    let _text = TextLayouter {
         //text: "ABCD EFGH IJKL MNOP QRST UVWX YZ".chars().into_iter().cycle().take(5000).join("").to_string(),
         text: "Zu Dionys dem Tyrannen, schlich 
         Damon den Dolch im Gewande, 

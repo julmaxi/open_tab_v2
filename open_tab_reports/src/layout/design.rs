@@ -1,12 +1,12 @@
 use std::{collections::HashMap, rc::{Weak, Rc}, cell::RefCell};
 
-use allsorts::{tag::LATN, gsub::FeatureMask, font::MatchingPresentation};
+use allsorts::{tag::LATN, font::MatchingPresentation};
 use image::GenericImageView;
 use itertools::Itertools;
-use pdf_writer::writers::Page;
-use unicode_linebreak::linebreaks;
+
+
 use unicode_segmentation::UnicodeSegmentation;
-use usvg::Text;
+
 
 use super::{LayoutedElement, LayoutedDocument, font::{Font, FontLoader}, FontRef, LayoutedPage, PageDimensions, TextElement, Instruction};
 
@@ -204,7 +204,7 @@ impl DocumentLayouter {
             curr_rect: None
         });
 
-        for mut elem in self.content {
+        for elem in self.content {
             let result = elem.next_elements(&mut resources, &mut body_layouter)?;
 
             for elem in result.elements {
@@ -239,9 +239,9 @@ impl ContentGenerator for TextLayouter {
         let words = self.text.split_word_bounds().collect::<Vec<&str>>();
         //let glyphs = allsorts_font.map_glyphs(&self.text, LATN, MatchingPresentation::NotRequired);
 
-        let mut x_cursor = 0.0;
+        let _x_cursor = 0.0;
         let line_height = self.font_size;
-        let mut curr_rect = layouter.next_rect();
+        let curr_rect = layouter.next_rect();
         if curr_rect.is_none() {
             return Ok(ContentGenerationResult {
                 elements: vec![],
@@ -249,7 +249,7 @@ impl ContentGenerator for TextLayouter {
                 outcome: ContentGenerationOutcome::Overflow
             });
         }
-        let mut curr_rect = curr_rect.unwrap();
+        let curr_rect = curr_rect.unwrap();
 
         let mut y_cursor = curr_rect.rect.y + curr_rect.rect.height - line_height;
 
@@ -370,7 +370,7 @@ impl QRCodeLayouter {
 }
 
 impl ContentGenerator for QRCodeLayouter {
-    fn next_elements(&self, resources: &mut ResourceLoader, layouter: &mut Box<dyn Layouter>) -> Result<ContentGenerationResult> {
+    fn next_elements(&self, _resources: &mut ResourceLoader, layouter: &mut Box<dyn Layouter>) -> Result<ContentGenerationResult> {
         let rect = layouter.next_rect();
         if rect.is_none() {
             return Ok(ContentGenerationResult {

@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials, ParticipantRegistrationInfo, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
 
 
 use std::io::Write;
@@ -271,7 +271,7 @@ pub fn make_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: O
 }
 
 pub fn make_pdf_registration_items<W>(
-    context: &TemplateContext,
+    _context: &TemplateContext,
     mut writer: W,
     registration_info: RegistrationInfo,
 ) -> Result<(), anyhow::Error> where W: Write + std::io::Seek {
