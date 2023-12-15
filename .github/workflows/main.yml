@@ -14,9 +14,6 @@ jobs:
       matrix:
         platform: [macos-latest, ubuntu-20.04, windows-latest]
     runs-on: ${{ matrix.platform }}
-    defaults:
-      run:
-        working-directory: ./open_tab_app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,16 +31,18 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: 'open_tab_app/src-tauri -> target'
 
       - name: Sync node version and setup cache
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           cache: 'npm' # Set this to npm, yarn or pnpm.
+          cache-dependency-path: open_tab_app/package-lock.json
 
       - name: Install frontend dependencies
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
+        working-directory: 'open_tab_app'
         run: npm install # Change this to npm, yarn or pnpm.
 
       - name: Build the app
