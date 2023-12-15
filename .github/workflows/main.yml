@@ -14,7 +14,9 @@ jobs:
       matrix:
         platform: [macos-latest, ubuntu-20.04, windows-latest]
     runs-on: ${{ matrix.platform }}
-
+    defaults:
+      run:
+        working-directory: ./open_tab_app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
