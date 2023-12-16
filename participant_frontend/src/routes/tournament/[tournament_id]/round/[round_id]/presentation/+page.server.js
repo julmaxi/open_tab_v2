@@ -1,8 +1,8 @@
-import { make_authenticated_request } from '$lib/api';
+import { makeAuthenticatedRequest } from '$lib/api';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, fetch, cookies }) {
-    let res = await make_authenticated_request(
+    let res = await makeAuthenticatedRequest(
         `api/draw/${params.round_id}`,
         cookies,
         {}

@@ -1,6 +1,6 @@
 import { env } from "$env/dynamic/public";
 
-export async function make_authenticated_request(
+export async function makeAuthenticatedRequest(
     url,
     cookies,
     options
@@ -26,4 +26,17 @@ export async function make_authenticated_request(
         console.error(Error(`Request to ${url} failed with status ${res.status}`))
     }
     return res   
+}
+
+export function getParticipantCookieNameInTournament(tournamentId) {
+    return "participant_id:" + tournamentId;
+}
+
+
+export function getParticipantIdInTournament(cookies, tournamentId) {
+    let participantId = cookies.get(getParticipantCookieNameInTournament(tournamentId));
+    if (participantId === undefined) {
+        throw Error("participant_id cookie is undefined");
+    }
+    return participantId;
 }

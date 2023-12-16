@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/public'
 import { redirect } from '@sveltejs/kit';
+import { getParticipantCookieNameInTournament } from '$lib/api';
 
 /** @type {import('./$types').Actions} */
 export const actions = {
@@ -14,8 +15,11 @@ export const actions = {
 
         if (res.status == 200) {
             let json = await res.json();
+
+            let cookieName = getParticipantCookieNameInTournament(json.tournament_id);
+
             event.cookies.set("token", json.token, {sameSite: true, path: "/"});
-            event.cookies.set("participant_id", json.participant_id, {sameSite: true, path: "/"});
+            event.cookies.set(cookieName, json.participant_id, {sameSite: true, path: "/"});
             throw redirect(302, `/tournament/${json.tournament_id}/home/${json.participant_id}`);
         }
 

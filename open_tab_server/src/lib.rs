@@ -21,6 +21,7 @@ pub mod sync;
 pub mod feedback;
 pub mod tab;
 pub mod presentation;
+pub mod users;
 
 use state::AppState;
 
@@ -54,6 +55,8 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
             tab::router()
         ).merge(
             presentation::router()
+        ).merge(
+            users::router()
         )
     )
     .layer(

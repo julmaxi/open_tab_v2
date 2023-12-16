@@ -1,11 +1,11 @@
 import { env } from '$env/dynamic/public'
-import { make_authenticated_request } from '$lib/api';
+import { getParticipantIdInTournament, makeAuthenticatedRequest } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, fetch, cookies }) {
-    let participantId = cookies.get("participant_id");
-    let res = await make_authenticated_request(
+    let participantId = getParticipantIdInTournament(cookies, params.tournament_id);
+    let res = await makeAuthenticatedRequest(
         `api/participant/${participantId}/info`,
         cookies,
         {}

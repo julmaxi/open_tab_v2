@@ -367,7 +367,10 @@ async fn get_participant_info(
             else {
                 SpeakerScoreInfo::Hidden
             };
-            let team_score = TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Government);
+            let team_score = match show_scores {
+                true => TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Government),
+                false => TeamScoreInfo::Hidden
+            };
             (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{
                 debate: ParticipantDebateInfo::new_from(d, v),
                 team_role: RoundTeamRole::Government,
@@ -391,7 +394,10 @@ async fn get_participant_info(
             else {
                 SpeakerScoreInfo::Hidden
             };
-            let team_score = TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Government);
+            let team_score = match show_scores {
+                true => TeamScoreInfo::from_ballot_and_team_role(&ballot_map.get(&d.ballot_id).unwrap(), RoundTeamRole::Opposition),
+                false => TeamScoreInfo::Hidden
+            };
 
             (d.round_id, ParticipantRoundRoleInfo::TeamSpeaker{
                 debate: ParticipantDebateInfo::new_from(d, v),
@@ -407,7 +413,6 @@ async fn get_participant_info(
 
     let rounds = all_rounds.into_iter().map(
         |round| {
-            dbg!(&round.uuid);
             let role = match round_roles.get(&round.uuid) {
                 Some(roles) => {
                     if roles.len() == 1 {
