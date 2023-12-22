@@ -134,6 +134,7 @@ pub struct Speech {
     pub role: SpeechRole,
     pub position: u8,
     pub scores: HashMap<Uuid, SpeakerScore>,
+    #[serde(default)]
     pub is_opt_out: bool
 }
 

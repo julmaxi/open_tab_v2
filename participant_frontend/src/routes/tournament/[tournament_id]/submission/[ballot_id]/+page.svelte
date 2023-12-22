@@ -6,9 +6,12 @@
     import { enhance } from "$app/forms";
     $: shouldEdit = $page.url.searchParams.get('edit') === "1";
     const debateId = data.debate.uuid;
+
+    const tournamentId = data.tournamentId;
+
 </script>
 
-<form method="POST" action={`/debate/${debateId}`} use:enhance>
+<form method="POST" action={`/tournament/${tournamentId}/debate/${debateId}`} use:enhance>
     <EditableBallot bind:ballot={data.ballot} compact={!shouldEdit} />
 
     {#if shouldEdit}

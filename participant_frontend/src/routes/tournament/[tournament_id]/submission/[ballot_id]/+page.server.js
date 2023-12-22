@@ -15,6 +15,7 @@ export async function load({ params, fetch, cookies }) {
         ballot: ballot.ballot,
         debate: {
             uuid: ballot.debate_id,
-        }
+        },
+        tournamentId: params.tournament_id,
     };
 }

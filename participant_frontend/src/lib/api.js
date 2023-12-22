@@ -23,7 +23,8 @@ export async function makeAuthenticatedRequest(
         }
     );
     if (res.status != 200) {
-        console.error(Error(`Request to ${url} failed with status ${res.status}`))
+        console.log(Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`));
+        throw Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`);
     }
     return res   
 }
