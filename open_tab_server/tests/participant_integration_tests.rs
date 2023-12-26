@@ -12,11 +12,12 @@ use crate::common::FixtureOptions;
 use assert_matches::assert_matches;
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_get_adjudicator_info_without_release_does_not_show_draw() {
     let mut fixture: common::Fixture = common::Fixture::new(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         }
     ).await;
@@ -34,11 +35,12 @@ async fn test_get_adjudicator_info_without_release_does_not_show_draw() {
 }
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_get_adjudicator_info_without_release_does_not_show_motion() {
     let mut fixture: common::Fixture = common::Fixture::new(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         }
     ).await;
@@ -65,11 +67,12 @@ async fn set_future_draw_release(db: DatabaseConnection) {
 }
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_get_adjudicator_info_with_future_release_does_not_show_motion() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         },
         Box::new(set_future_draw_release)
@@ -90,6 +93,7 @@ async fn test_get_adjudicator_info_with_future_release_does_not_show_motion() {
 
 async fn set_past_draw_release(db: DatabaseConnection) {
     let mut round_1 = open_tab_entities::domain::round::TournamentRound::get(&db, Uuid::from_u128(100)).await.unwrap();
+    round_1.debate_start_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     round_1.team_motion_release_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     EntityGroup::from(vec![
         Entity::TournamentRound(round_1)
@@ -97,11 +101,12 @@ async fn set_past_draw_release(db: DatabaseConnection) {
 }
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_get_adjudicator_info_with_past_release_does_show_motion() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release)
@@ -122,11 +127,12 @@ async fn test_get_adjudicator_info_with_past_release_does_show_motion() {
 
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_chair_sees_requests_for_wings_in_current_round() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release)
@@ -158,11 +164,12 @@ async fn test_chair_sees_requests_for_wings_in_current_round() {
 
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_team_member_sees_requests_for_chair_in_current_round() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(2000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release)
@@ -186,11 +193,12 @@ async fn test_team_member_sees_requests_for_chair_in_current_round() {
 
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_chair_does_not_see_requests_for_future_round() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release)
@@ -205,7 +213,7 @@ async fn test_chair_does_not_see_requests_for_future_round() {
 
     assert!(!body.feedback_submissions.iter().any(
         |submission| {
-            submission.round_id == Uuid::from_u128(101)
+            submission.debate_id == Uuid::from_u128(101)
         }
     ));
 }
@@ -213,6 +221,7 @@ async fn test_chair_does_not_see_requests_for_future_round() {
 async fn set_past_draw_release_and_make_round_1_silent(db: DatabaseConnection) {
     let mut round_1 = open_tab_entities::domain::round::TournamentRound::get(&db, Uuid::from_u128(100)).await.unwrap();
     round_1.team_motion_release_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
+    round_1.debate_start_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     round_1.is_silent = true;
     EntityGroup::from(vec![
         Entity::TournamentRound(round_1)
@@ -221,11 +230,12 @@ async fn set_past_draw_release_and_make_round_1_silent(db: DatabaseConnection) {
 }
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_team_does_not_see_request_for_silent_round() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(2000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release_and_make_round_1_silent)
@@ -240,17 +250,18 @@ async fn test_team_does_not_see_request_for_silent_round() {
 
     assert!(!body.feedback_submissions.iter().any(
         |submission| {
-            submission.round_id == Uuid::from_u128(100)
+            submission.debate_id == Uuid::from_u128(100)
         }
     ));
 }
 
 #[tokio::test]
-#[traced_test]
+
 async fn test_wing_does_see_request_for_silent_round() {
     let mut fixture: common::Fixture = common::Fixture::new_with_setup(
         FixtureOptions {
             mock_default_tournament: true,
+            use_participant_account: Some(Uuid::from_u128(3000)),
             ..Default::default()
         },
         Box::new(set_past_draw_release_and_make_round_1_silent)
@@ -261,6 +272,7 @@ async fn test_wing_does_see_request_for_silent_round() {
         .await;
 
     assert_eq!(response.status(), 200);
+
     let body = response.json::<ParticipantInfoResponse>().await;
 
     assert!(body.feedback_submissions.iter().any(

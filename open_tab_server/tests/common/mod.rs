@@ -13,6 +13,7 @@ use base64::{engine::general_purpose, Engine as _};
 pub struct FixtureOptions
  {
     pub mock_default_tournament: bool,
+    pub use_participant_account: Option<Uuid>
 }
 
 pub struct Fixture {
@@ -49,6 +50,17 @@ impl APIResponse {
             buf.extend_from_slice(&next.unwrap());
         }
         serde_json::from_slice(&buf).unwrap()
+    }
+
+    pub async fn text(&mut self) -> String {
+        let mut buf = Vec::new();
+
+        let body = self.response.body_mut();
+
+        while let Some(next) = body.data().await {
+            buf.extend_from_slice(&next.unwrap());
+        }
+        String::from_utf8(buf).unwrap()
     }
 }
 
@@ -93,11 +105,20 @@ impl Fixture {
             let key = create_key(&raw_key, new_user_uuid, None).unwrap();
             key.into_active_model().insert(&state.db).await.unwrap();
 
-            let user_tournament = open_tab_entities::schema::user_tournament::Model {
-                user_id: new_user_uuid,
-                tournament_id: group.tournaments[0].uuid,
-            };
-            user_tournament.into_active_model().insert(&state.db).await.unwrap();
+            if let Some(part_id) = options.use_participant_account {
+                let user_participant = open_tab_entities::schema::user_participant::Model {
+                    user_id: new_user_uuid,
+                    participant_id: part_id,
+                };
+                user_participant.into_active_model().insert(&state.db).await.unwrap();
+            }
+            else {
+                let user_tournament = open_tab_entities::schema::user_tournament::Model {
+                    user_id: new_user_uuid,
+                    tournament_id: group.tournaments[0].uuid,
+                };
+                user_tournament.into_active_model().insert(&state.db).await.unwrap();    
+            }
 
             auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&raw_key) };
             setup_func(state.db.clone()).await;

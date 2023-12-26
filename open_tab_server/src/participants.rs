@@ -66,7 +66,8 @@ pub struct ParticipantDebateInfo {
     ballot_id: Uuid,
     is_motion_released_to_non_aligned: bool,
     venue: Option<VenueInfo>,
-    debate_index: i32
+    debate_index: i32,
+    round_id: Uuid
 }
 
 impl ParticipantDebateInfo {
@@ -76,7 +77,8 @@ impl ParticipantDebateInfo {
             ballot_id: debate.ballot_id,
             is_motion_released_to_non_aligned: debate.is_motion_released_to_non_aligned,
             venue: venue.map(|v| VenueInfo{uuid: v.uuid, name: v.name}),
-            debate_index: debate.index
+            debate_index: debate.index,
+            round_id: debate.round_id
         }
     }
 }
@@ -474,17 +476,17 @@ async fn get_participant_info(
         match &round_info.participant_role {
             Some(ParticipantRoundRoleInfo::Adjudicator { debate, position }) => {
                 if *position == 0 {
-                    Some((FeedbackSourceRole::Chair, debate.clone(), &round_info.name, &debate.uuid))
+                    Some((FeedbackSourceRole::Chair, debate.clone(), &round_info.name, &debate.round_id))
                 }
                 else {
-                    Some((FeedbackSourceRole::Wing, debate.clone(), &round_info.name, &debate.uuid))
+                    Some((FeedbackSourceRole::Wing, debate.clone(), &round_info.name, &debate.round_id))
                 }
             },
             Some(ParticipantRoundRoleInfo::NonAlignedSpeaker { debate, .. }) if !round_info.is_silent  => {
-                Some((FeedbackSourceRole::NonAligned, debate.clone(), &round_info.name, &debate.uuid))
+                Some((FeedbackSourceRole::NonAligned, debate.clone(), &round_info.name, &debate.round_id))
             },
             Some(ParticipantRoundRoleInfo::TeamSpeaker { debate, .. }) if !round_info.is_silent => {
-                Some((FeedbackSourceRole::Team, debate.clone(), &round_info.name, &debate.uuid))
+                Some((FeedbackSourceRole::Team, debate.clone(), &round_info.name, &debate.round_id))
             },
             _ => None,
         }
@@ -516,7 +518,6 @@ async fn get_participant_info(
         ((submission.source_debate_id, submission.target_participant_id), submission)
     }).into_grouping_map().collect();
 
-    
     let target_participant_uuids = feedback_requests_debates.iter().flat_map(
         |(request_source_role, debate_info, _round_name, _round_id)| {
             let ballot = ballot_map.get(&debate_info.ballot_id).unwrap();
@@ -587,7 +588,7 @@ async fn get_participant_info(
                 out.extend(ballot.adjudicators[1..].iter().map(|adjudicator| {
                     let submissions = relevant_submission_map.get(
                         &(
-                            *round_id,
+                            debate_info.uuid,
                             *adjudicator
                         )
                     ).unwrap_or(&empty_vec);    
@@ -609,7 +610,7 @@ async fn get_participant_info(
                     ballot.president.iter().map(|pres| {
                         let submissions = relevant_submission_map.get(
                             &(
-                                *round_id,
+                                debate_info.uuid,
                                 *pres
                             )
                         ).unwrap_or(&empty_vec);
