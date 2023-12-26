@@ -2,6 +2,9 @@
     import ScoreDetailDisplay from "../../tab/ScoreDetailDisplay.svelte";
 import BoxButton from "./BoxButton.svelte";
     import ScoreDisplay from "./ScoreDisplay.svelte";
+    import { enhance } from "$app/forms";
+    import { invalidate } from '$app/navigation';
+    import BellAnimation from "$lib/BellAnimation.svelte";
 
     export let data;
 
@@ -35,6 +38,23 @@ import BoxButton from "./BoxButton.svelte";
         margin: 0.25rem;
         background-color: white;
         box-shadow: 0 0 0.25rem rgba(0, 0, 0, 0.25);
+    }
+
+    .box button {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        padding-left: 8px;
+        border-top: 1px solid #ccc;
+        font-weight: bold;
+        align-items: center;
+        line-height: 1rem;
+    }
+
+    .box button:disabled {
+        background-color: #eee;
     }
 
     .wrapper {
@@ -89,6 +109,10 @@ import BoxButton from "./BoxButton.svelte";
         padding-bottom: 0.5rem;
         background-color: #eee;
         text-align: center;
+    }
+
+    .bell-container {
+        width: .75rem;
     }
 </style>
 
@@ -178,9 +202,35 @@ import BoxButton from "./BoxButton.svelte";
         </div>
         <div>
             {#if round.participant_role.role === "Adjudicator" || round.participant_role.role === "President" }
-            <BoxButton
+                {#if round.status === 'InProgress' }
+                    <form action="?/releaseMotion" method="POST" use:enhance={
+                        async () => {
+                            return async ({ update, result }) => {
+                                round.isReleasingMotion = true;
+
+                                await update();
+
+                                round.participant_role.debate.is_motion_released_to_non_aligned = result.data.isMotionReleasedToNonAligned;
+                                round.isReleasingMotion = false;
+                            };
+                        }
+                    }>
+                        <input type="hidden" name="release" value={round.participant_role.debate.is_motion_released_to_non_aligned ? "false" : "true"} />
+                        <input type="hidden" name="debateId" value={round.participant_role.debate.uuid} />
+                        <button type="submit" disabled={round.isReleasingMotion} >
+                            {#if round.participant_role.debate.is_motion_released_to_non_aligned}Undo r{:else}R{/if}elease motion to non-aligned
+                            <div class="bell-container">
+                                {#if round.isReleasingMotion}
+                                    <BellAnimation color="black" />
+                                {/if}
+                            </div>
+                        </button>
+                    </form>
+                {/if}
+
+                <BoxButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}
-                label="Submit ballot" />
+                label="Submit ballot" />    
             {/if}
             {#each unsubmittedFeedbackForCurrentRounds[round.uuid] as missingFeedback}
                 <BoxButton

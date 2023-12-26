@@ -4,13 +4,13 @@ use std::collections::HashMap;
 
 use axum::{Router, Json};
 use axum::extract::{Path, State};
-use axum::routing::{post, get};
+use axum::routing::{post, get, patch};
 use chrono::Utc;
 
 use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
 
-use open_tab_entities::prelude::*;
+use open_tab_entities::{prelude::*, domain};
 use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::schema::{self};
 use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
@@ -362,6 +362,62 @@ async fn submit_ballot(
     }))
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag="state")]
+enum UpdateDebateStateRequest {
+    NonAlignedMotionRelease{release: bool}
+}
+
+
+async fn update_debate_state(
+    State(db): State<DatabaseConnection>,
+    Path(debate_id): Path<Uuid>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Json(request): Json<UpdateDebateStateRequest>,
+) -> Result<(), APIError> {
+    if !check_is_authorized_for_debate_result_submission(&db, &user, debate_id).await? {
+        return  Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
+    }
+
+    let mut query_results = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(&db).await.map_err(
+        |_| {
+            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting debate")
+        }
+    )?;
+    if query_results.len() != 1 {
+        return  Err((axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
+    }
+
+    let (debate, mut rounds) = query_results.pop().unwrap();
+    if rounds.len() != 1 {
+        return Err((axum::http::StatusCode::NOT_FOUND, "Round not found"))?;
+    }
+    let round = rounds.pop().unwrap();
+    let debate_has_started = round.debate_start_time.map_or(false, |t| t <= Utc::now().naive_utc());
+
+    if !debate_has_started {
+        return Err((axum::http::StatusCode::BAD_REQUEST, "Debate has not started"))?;
+    }
+
+    let debate = domain::debate::TournamentDebate::from_model(debate);
+
+    let mut entities = EntityGroup::new();
+
+    match request {
+        UpdateDebateStateRequest::NonAlignedMotionRelease{release} => {
+            entities.add(Entity::TournamentDebate(domain::debate::TournamentDebate {
+                is_motion_released_to_non_aligned: release,
+                ..debate
+            }));
+        }
+    }
+
+    entities.save_all_and_log_for_tournament(&db, round.tournament_id).await?;
+
+    Ok(())
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route(
@@ -371,5 +427,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/debate/:debate_id/submissions", post(submit_ballot)
         ).route(
             "/debate/:debate_id", get(get_debate)
+        ).route(
+            "/debate/:debate_id/state", post(update_debate_state)
         )
 }

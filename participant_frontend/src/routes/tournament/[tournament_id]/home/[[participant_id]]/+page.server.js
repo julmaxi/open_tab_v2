@@ -28,3 +28,31 @@ export async function load({ params, fetch, cookies }) {
         role: participant_info.role,
     };
 }
+
+export const actions = {
+    releaseMotion: async ({request, params, cookies}) => {
+        let formData = await request.formData();
+        let debateId = formData.get("debateId");
+        let releaseVal = formData.get("release") == "true";
+
+        let res = await makeAuthenticatedRequest(
+            `api/debate/${debateId}/state`,
+            cookies,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    release: releaseVal,
+                    state: "NonAlignedMotionRelease"
+                }),
+            }
+        );
+
+        return {isMotionReleasedToNonAligned: releaseVal};
+
+        //Prevents form resubmission
+        //throw redirect(302, `/tournament/${params.tournament_id}/home/${params.participant_id}`);
+    },
+}

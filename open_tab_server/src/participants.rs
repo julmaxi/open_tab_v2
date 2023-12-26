@@ -429,7 +429,7 @@ async fn get_participant_info(
             let show_motion = check_release_date(current_time, round.full_motion_release_time) || match &role {
                 ParticipantRoundRoleInfo::Adjudicator{..} | ParticipantRoundRoleInfo::TeamSpeaker{..} | ParticipantRoundRoleInfo::President {..} => 
                 check_release_date(current_time, round.team_motion_release_time),
-                ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => check_release_date(current_time, round.team_motion_release_time) && debate.is_motion_released_to_non_aligned,
+                ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => check_release_date(current_time, round.debate_start_time) && debate.is_motion_released_to_non_aligned,
                 ParticipantRoundRoleInfo::NotDrawn | ParticipantRoundRoleInfo::Multiple => false
             };
 
