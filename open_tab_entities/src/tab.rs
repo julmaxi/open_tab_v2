@@ -1,8 +1,9 @@
 
 
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::{zip, self};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 
 use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};
@@ -14,7 +15,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use crate::{prelude::*, domain};
 
-use crate::schema::{self};
+use crate::schema::{self, speaker};
 
 use itertools::Itertools;
 
@@ -85,6 +86,14 @@ struct VecMap<K, V> {
     store: HashMap<K, Vec<Option<V>>>
 }
 
+impl Debug for VecMap<Uuid, TeamTabEntryDetailedScore> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VecMap")
+        .field("store", &self.store.iter().map(|(k, v)| (k, v.len())).collect::<HashMap<_, _>>())
+        .finish()
+    }
+}
+
 impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
     fn new() -> VecMap<K, V> {
         VecMap {
@@ -135,6 +144,7 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
         vec[index] = Some(value);
     }
 }
+
 impl TabView {
     pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         Self::load_from_rounds_with_anonymity(db, round_ids, speaker_info, false).await
@@ -142,107 +152,88 @@ impl TabView {
 
     pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let num_round_ids = round_ids.len();
-        let relevant_ballots = schema::tournament_debate::Entity::find()
-        .inner_join(schema::tournament_round::Entity)
+        let rounds_with_debates = schema::tournament_round::Entity::find()
+        .find_with_related(schema::tournament_debate::Entity)
         .filter(schema::tournament_round::Column::Uuid.is_in(round_ids))
-        .find_with_related(schema::ballot::Entity)
-            .all(db)
-            .await?;
+        .all(db).await?;
 
-        let rounds = relevant_ballots.iter().map(
-            |(debate, _)| debate.clone()
-        )
-            .collect_vec()
-            .load_one(schema::tournament_round::Entity, db).await?
-            .into_iter()
-            .map(
-                |r|r.expect("DB constraint should prevent debate without round")
-            ).collect_vec();
-        let ballots = relevant_ballots.into_iter().map(|(_, mut ballots)| ballots.pop().expect("Schema should ensure there always is one ballot").uuid).collect_vec();
-
-        let ballots = domain::ballot::Ballot::get_many(db, ballots).await?;
-        let num_rounds = num_round_ids;
-        let rounds_and_debates = zip(rounds.into_iter(), ballots.into_iter()).sorted_by_key(|(round, _)| round.index).collect_vec();
+        let relevant_ballot_ids = rounds_with_debates.iter().flat_map(|(_, debates)| debates.iter().map(|d| d.ballot_id)).collect_vec();
+        let ballots = domain::ballot::Ballot::get_many(db, relevant_ballot_ids).await?;
+        let ballots_by_id = ballots.iter().map(|b| (b.uuid, b)).collect::<HashMap<_, _>>();
         
-        let mut team_tab_entries : VecMap<Uuid, _> = VecMap::new();
-        for team in speaker_info.teams_by_id.keys() {
-            team_tab_entries.reserve(team, num_rounds);
-        }
+        // Include uuid to ensure order is always stable, even when indices overlap
+        let round_order = rounds_with_debates.iter().map(|(round, _)| round).sorted_by_key(|r| (r.index, r.uuid)).map(|r| r.uuid).collect_vec();
 
-        let mut speaker_tab_entries: VecMap<Uuid, SpeakerTabEntryDetailedScore> = VecMap::new();
-        for speaker in speaker_info.speaker_teams.keys() {
-            speaker_tab_entries.reserve(speaker, num_rounds);
-        }
+        let mut team_detailed_scores = speaker_info.teams_by_id.iter().map(|(k, _)| (*k, HashMap::new())).collect::<HashMap<_, _>>();
+        let mut speaker_detailed_scores = speaker_info.speaker_teams.iter().map(|(k, _)| (*k, HashMap::new())).collect::<HashMap<_, _>>();
+        for (round, debates) in rounds_with_debates {
+            let mut non_aligned_teams = HashSet::new();
+            let mut non_aligned_teams_opt_out_count = HashMap::new();
+            let mut non_aligned_teams_individual_scores = HashMap::new();
+            for debate in debates.iter() {
+                let ballot = ballots_by_id.get(&debate.ballot_id).expect("Guaranteed by db constraints");
 
-        // For opt-out
-        let mut per_round_non_aligned_teams_opt_out_count = HashMap::new();
-        let mut per_round_non_aligned_teams_individual_scores = HashMap::new();
-        for (round, ballot) in rounds_and_debates {
-            Self::add_scores_for_team(&mut team_tab_entries, &round, &ballot, &ballot.government, TeamRoundRole::Government);
-            Self::add_scores_for_team(&mut team_tab_entries, &round, &ballot, &ballot.opposition, TeamRoundRole::Opposition);
+                for role in vec![TeamRoundRole::Government, TeamRoundRole::Opposition] {
+                    let (team_score, speaker_scores) = Self::detail_score_for_debate_side(&ballot, &role);
 
-            let non_aligned_teams_opt_out_count = per_round_non_aligned_teams_opt_out_count.entry(round.index).or_insert_with(|| HashMap::new());
-            let non_aligned_teams_individual_scores = per_round_non_aligned_teams_individual_scores.entry(round.index).or_insert_with(|| HashMap::new());
+                    let team_id = match &role {
+                        TeamRoundRole::Government => ballot.government.team,
+                        TeamRoundRole::Opposition => ballot.opposition.team,
+                        _ => unreachable!()
+                    };
 
-            for speech in ballot.speeches {
-                if let Some(speaker) = speech.speaker {
-                    let speaker_team = speaker_info.speaker_teams.get(&speaker).unwrap();
-                    let team_entry: Option<&mut TeamTabEntryDetailedScore> = team_tab_entries.get_mut(&speaker_team, round.index as usize);
-                
-                    match speech.role {
-                        SpeechRole::Government | SpeechRole::Opposition => assert!(team_entry.is_some(), "Team entry should exist"),
-                        SpeechRole::NonAligned => {
-                            if speech.is_opt_out {
-                                *non_aligned_teams_opt_out_count.entry(speaker_team).or_insert(0) += 1;
-                            }
-                            else {
-                                match team_entry {
-                                    Some(team_entry) => {
-                                        team_entry.speaker_score += speech.speaker_score().unwrap_or(0.0);
-                                        if let Some(speaker_score) = speech.speaker_score() {
-                                            non_aligned_teams_individual_scores.entry(speaker_team).or_insert_with(|| vec![]).push(speaker_score);
-                                        }
-                                    },
-                                    None => {
-                                        if let Some(speaker_score) = speech.speaker_score() {
-                                            non_aligned_teams_individual_scores.entry(speaker_team).or_insert_with(|| vec![]).push(speaker_score);
-                                            team_tab_entries.insert(
-                                                speaker_team,
-                                                round.index as usize,
-                                                TeamTabEntryDetailedScore {
-                                                    team_score: None,
-                                                    speaker_score,
-                                                    role: TeamRoundRole::NonAligned
-                                                }
-                                            );
-                                        }
-                                    }
-                                }    
-                            }
+                    if let Some(team_id) = team_id {
+                        let team_entries = team_detailed_scores.entry(team_id).or_insert_with(|| HashMap::new());
+                        if team_entries.contains_key(&round.uuid) {
+                            return Err(anyhow::Error::msg("Team can not be in the same round twice"));
                         }
+                        team_entries.insert(round.uuid, TeamTabEntryDetailedScore {
+                            team_score,
+                            speaker_score: speaker_scores.into_iter().sum(),
+                            role
+                        });
                     }
+                }
 
-                    if let Some(score) = speech.speaker_score() {
-                        if let Some(prev_score) = speaker_tab_entries.get(
-                            &speaker,
-                            round.index as usize
-                        ) {
-                            // Check does not apply in usual OPD rules,
-                            // but it is nice to have a clearly defined handling
-                            // for multiple non-opt-out speeches
-                            if prev_score.score > score {
-                                continue;
+                for speech in &ballot.speeches {
+                    if let Some(speaker) = speech.speaker {
+                        let speaker_team = speaker_info.speaker_teams.get(&speaker);
+                        
+                        let score = if speech.is_opt_out {
+                            match speech.role {
+                                SpeechRole::Government | SpeechRole::Opposition => {},
+                                SpeechRole::NonAligned => {
+                                    if let Some(speaker_team) = speaker_team {
+                                        *non_aligned_teams_opt_out_count.entry(*speaker_team).or_insert(0) += 1;
+                                    }
+                                }
                             }
+                            0.0
+                        }
+                        else {
+                            speech.speaker_score().unwrap_or(0.0)
+                        };
+    
+                        match speech.role {
+                            SpeechRole::Government | SpeechRole::Opposition => {},
+                            SpeechRole::NonAligned => {
+                                if let Some(speaker_team) = speaker_team {
+                                    non_aligned_teams.insert(*speaker_team);
+
+                                    if !speech.is_opt_out {
+                                        non_aligned_teams_individual_scores.entry(speaker_team).or_insert_with(|| vec![]).push(score);
+                                    }
+                                }
+                            },
                         }
 
-                        // Handle the super clevery thought out opt-out rule
-                        if speech.is_opt_out {
-                            continue;
-                        }
-                        speaker_tab_entries.insert(
-                            &speaker,
-                            round.index as usize,
-                            SpeakerTabEntryDetailedScore {
+                        if !speech.is_opt_out {
+                            let speaker_entries = speaker_detailed_scores.entry(speaker).or_insert_with(|| HashMap::new());
+                            dbg!(&speaker_entries, &speech);
+                            if speaker_entries.contains_key(&round.uuid) {
+                                return Err(anyhow::Error::msg(format!("Speaker {} can not be in the same round twice", speaker)));
+                            }
+                            speaker_entries.insert(round.uuid, SpeakerTabEntryDetailedScore {
                                 score,
                                 team_role: match speech.role {
                                     SpeechRole::Government => TeamRoundRole::Government,
@@ -250,93 +241,108 @@ impl TabView {
                                     SpeechRole::NonAligned => TeamRoundRole::NonAligned
                                 },
                                 speech_position: speech.position
-                            }
-                        );
+                            });    
+                        }
                     }
                 }
             }
-        }
 
-        for (round_index, non_aligned_invididual_scores) in per_round_non_aligned_teams_individual_scores.into_iter() {
-            let opt_out_counts = per_round_non_aligned_teams_opt_out_count.remove(&round_index).unwrap_or(HashMap::new());
+            let empty = vec![];
+            for team_id in non_aligned_teams {
+                let scores = non_aligned_teams_individual_scores.get(&team_id).unwrap_or(&empty);
+                let team_entries = team_detailed_scores.entry(team_id).or_insert_with(|| HashMap::new());
+                if team_entries.contains_key(&round.uuid) {
+                    return Err(anyhow::Error::msg("Team can not be in the same round as both team and non-aligned."));
+                }
 
-            for (team_uuid, team_opt_out_count) in opt_out_counts.iter() {
-                let team_tab_entry = team_tab_entries.store.get_mut(*team_uuid).unwrap();                
-                team_tab_entry[round_index as usize].as_mut().map(|entry| {
-                    entry.speaker_score += (*team_opt_out_count as f64) * non_aligned_invididual_scores.values().flatten().min_by_key(|s| OrderedFloat(**s)).map(|s| *s).unwrap_or(0.0);
+                let mut speaker_score = scores.iter().sum();
+
+                speaker_score += scores.iter().min_by_key(|s| OrderedFloat(**s)).map(|s| *s).unwrap_or(0.0) * (*non_aligned_teams_opt_out_count.get(&team_id).unwrap_or(&0) as f64);
+                
+                team_entries.insert(round.uuid, TeamTabEntryDetailedScore {
+                    team_score: None,
+                    speaker_score: speaker_score,
+                    role: TeamRoundRole::NonAligned
                 });
             }
-
         }
 
-        let mut total_team_scores = team_tab_entries.store.iter().map(|(team, scores)| {
-            let total_score = scores.iter().filter_map(|s| s.as_ref()).map(|s| s.total_score()).sum::<f64>();
-            (*team, total_score)
-        }).collect_vec();
-        total_team_scores.sort_by_key(|t| -OrderedFloat(t.1));
 
-        let mut total_speaker_scores = speaker_tab_entries.store.iter().map(|(speaker, scores)| {
-            let total_score = scores.iter().filter_map(|s| s.as_ref()).map(|s| s.score).sum::<f64>();
-            (*speaker, total_score)
-        }).collect_vec();
-        total_speaker_scores.sort_by_key(|s| -OrderedFloat(s.1));
-
-        let mut speaker_tab = vec![];
-        let mut prev_score = None;
-        let mut rank = 0;
-        let mut team_member_ranks = HashMap::new();
-        for (idx, (speaker, total_score)) in total_speaker_scores.into_iter().enumerate() {
-            if Some(total_score) != prev_score {
-                rank = idx as u32;
+        let mut speaker_tab = speaker_detailed_scores.into_iter().map(
+            |(speaker_id, per_round_score)| {
+                SpeakerTabEntry {
+                    rank: 0,
+                    speaker_name: speaker_info.participants_by_id.get(&speaker_id).map(|p| if respect_anonymity {get_participant_public_name(p)} else {p.name.clone()}).unwrap_or("<Unknown Speaker>".to_string()),
+                    team_name: speaker_info.speaker_teams.get(&speaker_id).and_then(|t| speaker_info.teams_by_id.get(t)).map(|t| t.name.clone()).unwrap_or("<Unknown Team>".to_string()),
+                    speaker_uuid: speaker_id,
+                    total_score: per_round_score.values().map(|s| s.score).sum(),
+                    avg_score: if per_round_score.values().len() > 0 {
+                        Some(per_round_score.values().map(|s| s.score).sum::<f64>() /  per_round_score.values().len() as f64)
+                    }
+                    else {
+                        None
+                    },
+                    detailed_scores: round_order.iter().map(|r| per_round_score.get(&r).cloned()).collect_vec(),
+                }
             }
-            let team_name = if let Some(team_id) = speaker_info.speaker_teams.get(&speaker) {
-                team_member_ranks.entry(team_id).or_insert_with(|| vec![]).push(rank + 1);
-                speaker_info.teams_by_id.get(&team_id).map(|t| t.name.clone()).unwrap_or("<Unknown Team>".to_string())
+        ).sorted_by_key(|s| -OrderedFloat(s.total_score)).collect_vec();
+
+        let mut prev_val = None;
+        let mut prev_rank = 0;
+        let mut speaker_rank_map = HashMap::new();
+        for (i, speaker) in speaker_tab.iter_mut().enumerate() {
+            match prev_val {
+                Some(prev_val) if prev_val == speaker.total_score => {
+                    speaker.rank = prev_rank;
+                },
+                _ => {
+                    speaker.rank = i as u32;
+                }
             }
-            else {
-                "<No Team>".to_string()
-            };
 
-            prev_score = Some(total_score);
-            let detailed_scores = speaker_tab_entries.store.get(&speaker).unwrap().clone();
-            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
-            let part = speaker_info.participants_by_id.get(&speaker).unwrap();
-            let speaker_tab_entry = SpeakerTabEntry {
-                rank,
-                detailed_scores,
-                speaker_name: if respect_anonymity {get_participant_public_name(&part)} else {part.name.clone()},
-                speaker_uuid: speaker,
-                team_name,
-                total_score,
-                avg_score: if num_rounds > 0 { Some(total_score / num_rounds as f64) } else { None },
-            };
-
-            speaker_tab.push(speaker_tab_entry);
+            speaker_rank_map.insert(speaker.speaker_uuid, speaker.rank);
+            prev_val = Some(speaker.total_score);
+            prev_rank = speaker.rank;
         }
 
-        let mut team_tab = vec![];
-        let mut prev_score = None;
-        let mut rank = 0;
-        for (idx, (team, total_score)) in total_team_scores.into_iter().enumerate() {
-            if prev_score.is_some() && Some(total_score) != prev_score {
-                rank = idx as u32;
+        dbg!(&team_detailed_scores);
+        let mut team_tab = team_detailed_scores.into_iter().map(
+            |(team_id, per_round_score)| {
+                TeamTabEntry {
+                    rank: 0,
+                    team_name: speaker_info.teams_by_id.get(&team_id).map(|t| t.name.clone()).unwrap_or("<Unknown Team>".to_string()),
+                    team_uuid: team_id,
+                    total_score: per_round_score.values().map(|s| s.total_score()).sum(),
+                    avg_score: if per_round_score.values().len() > 0 {
+                        Some(per_round_score.values().map(|s| s.total_score()).sum::<f64>() /  per_round_score.values().len() as f64)
+                    }
+                    else {
+                        None
+                    },
+                    detailed_scores: round_order.iter().map(|r| per_round_score.get(&r).cloned()).collect_vec(),
+                    member_ranks: speaker_info.team_members.get(&team_id).map(|members| {
+                        members.iter().filter_map(|member| speaker_rank_map.get(member).cloned()).sorted().collect_vec()
+                    }).unwrap_or(vec![])
+                }
             }
-            prev_score = Some(total_score);
-            let detailed_scores = team_tab_entries.store.get(&team).unwrap().clone();
-            let num_rounds = detailed_scores.iter().filter(|s| s.is_some()).count();
-            let team_tab_entry = TeamTabEntry {
-                rank,
-                detailed_scores,
-                team_name: speaker_info.teams_by_id.get(&team).unwrap().name.clone(),
-                team_uuid: team,
-                total_score,
-                avg_score: if num_rounds > 0 { Some(total_score / num_rounds as f64) } else { None },
-                member_ranks: team_member_ranks.get(&team).cloned().unwrap_or(vec![])
-            };
+        ).sorted_by_key(|s| -OrderedFloat(s.total_score)).collect_vec();
 
-            team_tab.push(team_tab_entry);
+        let mut prev_val = None;
+        let mut prev_rank = 0;
+        for (i, team) in team_tab.iter_mut().enumerate() {
+            match prev_val {
+                Some(prev_val) if prev_val == team.total_score => {
+                    team.rank = prev_rank;
+                },
+                _ => {
+                    team.rank = i as u32;
+                }
+            }
+
+            speaker_rank_map.insert(team.team_uuid, team.rank);
+            prev_val = Some(team.total_score);
+            prev_rank = team.rank;
         }
-
         Ok(
             TabView { team_tab, speaker_tab, num_rounds: num_round_ids as u32 }
         )
@@ -361,6 +367,15 @@ impl TabView {
     pub async fn load_from_tournament_with_rounds_with_anonymity<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let speaker_info = super::info::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
         Self::load_from_rounds_with_anonymity(db, round_ids, &speaker_info, respect_anonymity).await
+    }
+
+    fn detail_score_for_debate_side(ballot: &Ballot, team_role: &TeamRoundRole) -> (Option<f64>, Vec<f64>) {
+        let (team_score, speaker_scores) = match team_role {
+            TeamRoundRole::Government => (ballot.government.team_score(), ballot.government_speech_scores()),
+            TeamRoundRole::Opposition => (ballot.opposition.team_score(), ballot.opposition_speech_scores()),
+            TeamRoundRole::NonAligned => panic!("Can't compute team score for non-aligned speakers")
+        };
+        (team_score, speaker_scores)
     }
 
     fn add_scores_for_team(team_tab_entries: &mut VecMap<Uuid, TeamTabEntryDetailedScore>, round: &schema::tournament_round::Model, ballot: &Ballot, ballot_team: &BallotTeam, team_role: TeamRoundRole) {

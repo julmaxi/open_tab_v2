@@ -99,7 +99,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     ].into_iter().collect()
                 },
                 Speech {
-                    speaker: Some(Uuid::from_u128(2050)),
+                    speaker: Some(Uuid::from_u128(2051)),
                     role: SpeechRole::NonAligned,
                     position: 1,
                     is_opt_out: false,
@@ -110,7 +110,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                     ].into_iter().collect()
                 },
                 Speech {
-                    speaker: Some(Uuid::from_u128(2051)),
+                    speaker: Some(Uuid::from_u128(2052)),
                     role: SpeechRole::NonAligned,
                     position: 2,
                     is_opt_out: false,
