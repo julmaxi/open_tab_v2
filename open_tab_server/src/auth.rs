@@ -4,6 +4,7 @@ use argon2::Argon2;
 use axum::routing::get;
 use axum::{extract::State, headers::authorization::Bearer, routing::post, Json, Router};
 use base64::Engine;
+use chrono::Duration;
 use open_tab_entities::schema;
 use open_tab_entities::{prelude::Participant, schema::user_access_key};
 use rand::{thread_rng, Rng};
@@ -33,6 +34,8 @@ use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 pub struct AuthenticatedUser {
     pub uuid: Uuid,
     pub authorized_only_for_tournament: Option<Uuid>,
+    pub is_password_authorized: bool,
+    pub is_access_only: bool
 }
 
 impl AuthenticatedUser {
@@ -207,6 +210,8 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
             return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
                 uuid: user.uuid,
                 authorized_only_for_tournament: None,
+                is_password_authorized: true,
+                is_access_only: false
             }));
         } else {
             let TypedHeader(bearer_header) =
@@ -241,6 +246,8 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
             return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
                 uuid: key.user_id,
                 authorized_only_for_tournament: key.tournament_id,
+                is_password_authorized: false,
+                is_access_only: true
             }));
         }
     }
@@ -349,6 +356,8 @@ pub fn create_key(
     key: &[u8],
     user_id: Uuid,
     tournament_id: Option<Uuid>,
+    validity_duration: Option<chrono::Duration>,
+    is_access_only: bool,
 ) -> Result<user_access_key::Model, Box<dyn std::error::Error>> {
     let salt = SaltString::from_b64("bXlzYWx0bXlzYWx0").unwrap();
     let hashed_key = Argon2::default().hash_password(key, &salt)?;
@@ -356,6 +365,8 @@ pub fn create_key(
         key_hash: hashed_key.to_string(),
         user_id,
         tournament_id,
+        expiry_date: validity_duration.map(|d| (chrono::Utc::now() + d).naive_utc()),
+        is_access_only
     })
 }
 
@@ -371,10 +382,19 @@ pub async fn create_token_handler(
         )
             .into());
     }
+    if user.is_access_only {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Access only tokens can't create new tokens",
+        )
+            .into());
+    }
 
     let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
 
-    let token = create_key(&key, user.uuid, request.tournament).map_err(handle_error_dyn)?;
+    let duration = Duration::minutes(10);
+    let expiration = if user.is_password_authorized { Some(duration) } else { None };
+    let token = create_key(&key, user.uuid, request.tournament, expiration, !user.is_password_authorized).map_err(handle_error_dyn)?;
     token
         .into_active_model()
         .insert(&db)
@@ -425,7 +445,7 @@ pub async fn register_user_handler(
                 if let Some(existing_user) = existing_user {
                     let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
                     let token =
-                        create_key(&key, existing_user.user_id, None).map_err(handle_error_dyn)?;
+                        create_key(&key, existing_user.user_id, None, None, false).map_err(handle_error_dyn)?;
                     token
                         .into_active_model()
                         .insert(&db)
@@ -453,7 +473,7 @@ pub async fn register_user_handler(
                         .await
                         .map_err(handle_error)?;
                     let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
-                    let user_key = create_key(&key, new_user_id, None).map_err(handle_error_dyn)?;
+                    let user_key = create_key(&key, new_user_id, None, None, false).map_err(handle_error_dyn)?;
                     user_key
                         .into_active_model()
                         .insert(&db)

@@ -102,7 +102,7 @@ impl Fixture {
 
             let raw_key = [0, 0, 0, 0];
 
-            let key = create_key(&raw_key, new_user_uuid, None).unwrap();
+            let key = create_key(&raw_key, new_user_uuid, None, None, false).unwrap();
             key.into_active_model().insert(&state.db).await.unwrap();
 
             if let Some(part_id) = options.use_participant_account {

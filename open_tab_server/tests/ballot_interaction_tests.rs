@@ -207,7 +207,7 @@ async fn test_submit_ballot_adds_entry() {
 
 fn get_test_user_key() -> open_tab_entities::schema::user_access_key::Model {
     let raw_key = [0, 0, 0, 1];
-    create_key(&raw_key, Uuid::from_u128(13000), None).unwrap()
+    create_key(&raw_key, Uuid::from_u128(13000), None, None, false).unwrap()
 }
 
 async fn create_test_user(db: DatabaseConnection) {

@@ -43,7 +43,7 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
     //changes.save_all_and_log_for_tournament(&db, uuid).await.map_err(handle_error_dyn)?;
     changes.save_all(&db).await?;
     let key = thread_rng().gen::<[u8; 32]>();
-    let token = create_key(&key, user.uuid, Some(uuid)).map_err(handle_error_dyn)?;
+    let token = create_key(&key, user.uuid, Some(uuid), None, false).map_err(handle_error_dyn)?;
     token.into_active_model().insert(&db).await.map_err(handle_error)?;
 
     let user_tournament = open_tab_entities::schema::user_tournament::Model {

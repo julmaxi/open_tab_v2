@@ -200,7 +200,7 @@ async fn submit_feedback_form(
 
     let (source_participant_id, source_team_id) = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
-            let is_authorized = user.check_is_authorized_as_participant(&db, source_id).await?;
+            let is_authorized = user.check_is_authorized_as_participant(&db, source_id).await?  || user.check_is_authorized_for_tournament_administration(&db, tournament_id).await?;
             if !is_authorized {
                 return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
             }
@@ -209,7 +209,7 @@ async fn submit_feedback_form(
         },
         FeedbackSourceRole::Team => {
             
-            if !user.check_is_authorized_as_member_of_team(&db, source_id).await? {
+            if !(user.check_is_authorized_as_member_of_team(&db, source_id).await? || user.check_is_authorized_for_tournament_administration(&db, tournament_id).await?) {
                 return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
             }
             (None, Some(source_id))

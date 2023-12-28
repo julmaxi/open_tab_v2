@@ -209,15 +209,23 @@ async fn get_participant_info(
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantInfoResponse>, APIError> {
-    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
-        return Err(err);
-    }
     let transaction = db.begin().await.map_err(handle_error)?;
 
     let participant_query_result = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
     .find_also_related(open_tab_entities::schema::tournament::Entity)
         .one(&transaction).await.map_err(handle_error)?;
+
+    let is_admin = if let Some(participant_query_result) = &participant_query_result  {
+        user.check_is_authorized_for_tournament_administration(&transaction, participant_query_result.1.as_ref().expect("Guaranteed by consistency constraints").uuid).await?
+    } else {
+        false
+    };
+
+    if !(is_admin || user.check_is_authorized_as_participant(&transaction, participant_id).await?) {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        transaction.rollback().await.map_err(handle_error)?;
+        return Err(err);
+    }
 
     if participant_query_result.is_none() {
         transaction.rollback().await.map_err(handle_error)?;

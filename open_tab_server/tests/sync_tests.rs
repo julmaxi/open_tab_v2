@@ -237,7 +237,9 @@ async fn test_can_not_add_participant_to_other_tournament() {
     .get(&format!("/api/participant/{}", participant_uuid))
     .await;
 
-    assert_eq!(response.status(), 404);
+    // If the participant does not exist, we are forbidden
+    // from accessing it.
+    assert_eq!(response.status(), 403);
 }
 
 
@@ -299,7 +301,10 @@ async fn test_can_delete_participant() {
     .get(&format!("/api/participant/{}", participant_uuid))
     .await;
 
-    assert_eq!(response.status(), 404);
+    // If we delete a participant, we can no longer access it
+    // with admin rights, since the auth check requires the
+    // participant to exist.
+    assert_eq!(response.status(), 403);
 }
 
 #[tokio::test]
@@ -320,7 +325,7 @@ async fn test_can_delete_non_existant_participant() {
     .get(&format!("/api/participant/{}", participant_uuid))
     .await;
 
-    assert_eq!(response.status(), 404);
+    assert_eq!(response.status(), 403);
 
     let mut response = fixture.get(&format!("/api/tournament/{}/log", default_tournament_uuid)).await;
     assert_eq!(response.status(), 200);
@@ -360,7 +365,7 @@ async fn test_can_delete_non_existant_participant() {
     .get(&format!("/api/participant/{}", participant_uuid))
     .await;
 
-    assert_eq!(response.status(), 404);
+    assert_eq!(response.status(), 403);
 }
 
 
