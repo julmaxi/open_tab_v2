@@ -1,9 +1,9 @@
-import { getParticipantCookieNameInTournament, getParticipantIdInTournament, makeAuthenticatedRequest } from '$lib/api';
+import { getParticipantCookieNameInTournament, getParticipantIdInTournamentServerOnly, makeAuthenticatedRequestServerOnly } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, cookies }) {
-    let res = await makeAuthenticatedRequest(
+    let res = await makeAuthenticatedRequestServerOnly(
         `api/feedback/${params.source_role}/${params.target_role}/debate/${params.debate_id}/for/${params.target_id}/from/${params.source_id}`,
         cookies,
         {}
@@ -43,15 +43,13 @@ export const actions = {
 
         let submitUrl = `api/feedback/${params.source_role}/${params.target_role}/debate/${params.debate_id}/for/${params.target_id}/from/${params.source_id}`;
 
-        let res = await makeAuthenticatedRequest(submitUrl, cookies, {
+        let res = await makeAuthenticatedRequestServerOnly(submitUrl, cookies, {
             body: JSON.stringify({"answers": jsonForm}),
             method: "POST",
             headers: {"Content-Type": "application/json"},
         });
-        console.log(res.status);
-        console.log(await res.text());
 
-        let participantId = getParticipantIdInTournament(cookies, params.tournament_id);
+        let participantId = getParticipantIdInTournamentServerOnly(cookies, params.tournament_id);
 
         if (res.status == 200) {
             throw redirect(302, `/tournament/${params.tournament_id}/home/${participantId}`);

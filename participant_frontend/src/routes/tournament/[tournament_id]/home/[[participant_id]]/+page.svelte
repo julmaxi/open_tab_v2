@@ -1,28 +1,30 @@
 <script>
     import ScoreDetailDisplay from "../../tab/ScoreDetailDisplay.svelte";
-import BoxButton from "./BoxButton.svelte";
+    import BoxButton from "./BoxButton.svelte";
     import ScoreDisplay from "./ScoreDisplay.svelte";
     import { enhance } from "$app/forms";
-    import { invalidate } from '$app/navigation';
+    import { invalidate, invalidateAll } from '$app/navigation';
     import BellAnimation from "$lib/BellAnimation.svelte";
+    import { getToken } from "$lib/api";
+    import { onMount } from "svelte";
+    import { env } from "$env/dynamic/public";
 
     export let data;
 
-    let currentRounds = data.rounds.filter(round => round.status === 'DrawReleased' || round.status == "WaitingToStart" || round.status === 'InProgress');
-    let futureRounds = data.rounds.filter(round => round.status === 'Planned');
-    let pastRounds = data.rounds.filter(round => round.status === 'Completed')
+    $: currentRounds = data.rounds.filter(round => round.status === 'DrawReleased' || round.status == "WaitingToStart" || round.status === 'InProgress');
+    $: pastRounds = data.rounds.filter(round => round.status === 'Completed')
 
-    let submittedFeedback = data.feedback_submissions.filter(feedback => feedback.submitted_responses.length > 0);
-    let unsubmittedFeedback = data.feedback_submissions.filter(feedback => feedback.submitted_responses.length === 0);
-    let unsubmittedFeedbackForCurrentRounds = {};
+    $: submittedFeedback = data.feedback_submissions.filter(feedback => feedback.submitted_responses.length > 0);
+    $: unsubmittedFeedback = data.feedback_submissions.filter(feedback => feedback.submitted_responses.length === 0);
+    $: unsubmittedFeedbackForCurrentRounds = {};
     let overdueFeedback = []
 
-    for (let round of currentRounds) {
+    $: for (let round of currentRounds) {
         unsubmittedFeedbackForCurrentRounds[round.uuid] = unsubmittedFeedback.filter(feedback => feedback.debate_id === round?.participant_role?.debate?.uuid);
     }
-    let currentDebateIds = currentRounds.map(round => round?.participant_role?.debate?.uuid);
+    $: currentDebateIds = currentRounds.map(round => round?.participant_role?.debate?.uuid);
 
-    overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.debate_id));
+    $: overdueFeedback = unsubmittedFeedback.filter(feedback => !currentDebateIds.includes(feedback.debate_id));
 
     function formatDate(date) {
         let hours = date.getHours().toString();
@@ -30,6 +32,70 @@ import BoxButton from "./BoxButton.svelte";
 
         return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
     }
+
+    $: expectedReloadTime = data.expectedReload ? new Date(data.expectedReload + "+00:00") : null
+
+    let currTimeoutId = null;
+
+    onMount(() => {
+        let source = new EventSource(
+            `${env.PUBLIC_API_URL}/api/notifications/participant/${data.participantId}`
+        );
+
+        if (expectedReloadTime !== null) {
+            currTimeoutId = setTimeout(() => {
+                invalidateAll();
+            },
+            expectedReloadTime - Date.now() + 100 + Math.random() * 1000
+        );
+        }
+
+        source.addEventListener("participant", (event) => {
+            let data = JSON.parse(event.data);
+
+            //There is a bit of a discrepancy here between
+            //how the reload times are set here and how they
+            //are set when loading the page.
+            //Reloads here will happen whenever any release
+            //time is changed, whereas reload times from the server
+            //are only set if necessary (i.e. if we are in the draw for the round).
+            //This is since before the draw release we do not know
+            //whether we are part of a debate or not from the front end.
+            //We could be a bit more clever though once the draw is released,
+            //to avoid some reloads, but for now this will suffice.
+            if (data.event.type == "ReleaseTimeUpdated") {
+                let newTime = data.event.new_time ? new Date(data.event.new_time + "+00:00") : null;
+
+                if (newTime !== null) {
+                    if (!expectedReloadTime || newTime < expectedReloadTime) {
+                        expectedReloadTime = newTime;
+                        if (newTime < Date.now()) {
+                            invalidateAll();
+                        }
+                        else {
+                            clearTimeout(currTimeoutId);
+                                currTimeoutId = setTimeout(() => {
+                                    invalidateAll();
+                                },
+                                newTime - Date.now() + 100 + Math.random() * 1000
+                            );
+                        }
+                    }
+                }
+            }
+            else if (data.event.type == "DebateMotionReleaseUpdated") {
+                invalidateAll();
+            }
+        });
+
+        source.onerror = (event) => {
+            console.log("Error", event);
+        }
+
+        return () => {
+            source.close();
+        }
+    });
 </script>
 
 <style>

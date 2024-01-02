@@ -18,8 +18,8 @@ export const actions = {
 
             let cookieName = getParticipantCookieNameInTournament(json.tournament_id);
 
-            event.cookies.set("token", json.token, {sameSite: true, path: "/"});
-            event.cookies.set(cookieName, json.participant_id, {sameSite: true, path: "/"});
+            event.cookies.set("token", json.token, {sameSite: true, path: "/", maxAge: 60 * 60 * 24 * 7 * 4});
+            event.cookies.set(cookieName, json.participant_id, {sameSite: true, path: "/", httpOnly: false, maxAge: 60 * 60 * 24 * 7 * 4});
             throw redirect(302, `/tournament/${json.tournament_id}/home/${json.participant_id}`);
         }
 

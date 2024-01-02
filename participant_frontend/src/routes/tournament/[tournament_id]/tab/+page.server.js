@@ -1,9 +1,9 @@
 import { env } from '$env/dynamic/public'
-import { makeAuthenticatedRequest } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly } from '$lib/api';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, fetch, cookies }) {
-    let res = await makeAuthenticatedRequest(
+    let res = await makeAuthenticatedRequestServerOnly(
         `api/tournament/${params.tournament_id}/tab`,
         cookies,
         {}

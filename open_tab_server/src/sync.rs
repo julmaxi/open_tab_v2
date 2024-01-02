@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
@@ -8,6 +9,7 @@ use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_fr
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
 
+use tokio::sync::Mutex;
 use tracing::error_span;
 
 use crate::{state::AppState, response::{APIError, handle_error}, auth::ExtractAuthenticatedUser};
@@ -315,6 +317,7 @@ pub struct SyncRequestResponse {
 
 async fn handle_sync_push_request(
     State(db): State<DatabaseConnection>,
+    State(notifications): State<Arc<Mutex<crate::notify::ParticipantNotificationManager>>>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
     Json(request_body): Json<SyncRequest<Entity, EntityType>>
@@ -339,7 +342,7 @@ async fn handle_sync_push_request(
         request_body.log,
         request_body.last_common_ancestor,
         MergeStrategy::Reject,
-        false
+        true
     ).await?;
 
     match &outcome {
@@ -357,7 +360,9 @@ async fn handle_sync_push_request(
             transaction.rollback().await.map_err(handle_error)?;
             return Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid tournament")));
         },
-        ReconciliationOutcome::Success { .. } => {
+        ReconciliationOutcome::Success { entity_group, .. } => {
+            notifications.lock().await.process_entities(&transaction, entity_group.as_ref().unwrap()).await;
+
             transaction.commit().await.map_err(handle_error)?;
             return Ok(
                 Json(

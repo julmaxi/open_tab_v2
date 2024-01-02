@@ -247,7 +247,7 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
                 uuid: key.user_id,
                 authorized_only_for_tournament: key.tournament_id,
                 is_password_authorized: false,
-                is_access_only: true
+                is_access_only: key.is_access_only
             }));
         }
     }
@@ -266,12 +266,14 @@ pub struct CreateUserResponse {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GetTokenRequest {
+    #[serde(default)]
     pub tournament: Option<Uuid>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GetTokenResponse {
     pub token: String,
+    pub expires: Option<i64>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -403,6 +405,7 @@ pub async fn create_token_handler(
 
     return Ok(GetTokenResponse {
         token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
+        expires: expiration.map(|d| (chrono::Utc::now() + d).naive_utc().timestamp_millis()),
     }
     .into());
 }

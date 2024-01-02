@@ -1,11 +1,11 @@
 import { env } from '$env/dynamic/public'
 import { redirect } from '@sveltejs/kit';
 
-import { makeAuthenticatedRequest } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly } from '$lib/api';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, cookies }) {
-    let res = await makeAuthenticatedRequest(
+    let res = await makeAuthenticatedRequestServerOnly(
         `api/debate/${params.debate_id}`,
         cookies,
         {}
@@ -149,7 +149,7 @@ export const actions = {
 
         ballot.speeches = speeches;
 
-        let res = await makeAuthenticatedRequest(
+        let res = await makeAuthenticatedRequestServerOnly(
             `api/debate/${params.debate_id}/submissions`,
             cookies,
             {body: JSON.stringify({ballot: ballot}), method: "POST", headers: {"Content-Type": "application/json"}}

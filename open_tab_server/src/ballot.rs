@@ -6,6 +6,7 @@ use axum::{Router, Json};
 use axum::extract::{Path, State};
 use axum::routing::{post, get, patch};
 use chrono::Utc;
+use std::sync::Arc;
 
 use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
@@ -17,8 +18,10 @@ use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
 use itertools::Itertools;
+use tokio::sync::Mutex;
 
 use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser};
+use crate::notify::ParticipantNotificationManager;
 
 use open_tab_entities::domain::round::check_release_date;
 
@@ -372,6 +375,7 @@ enum UpdateDebateStateRequest {
 
 async fn update_debate_state(
     State(db): State<DatabaseConnection>,
+    State(notifications): State<Arc<Mutex<ParticipantNotificationManager>>>,
     Path(debate_id): Path<Uuid>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Json(request): Json<UpdateDebateStateRequest>,
@@ -414,6 +418,8 @@ async fn update_debate_state(
     }
 
     entities.save_all_and_log_for_tournament(&db, round.tournament_id).await?;
+
+    notifications.lock().await.notify_debate_non_aligned_motion_release_state(&db, debate_id).await?;
 
     Ok(())
 }

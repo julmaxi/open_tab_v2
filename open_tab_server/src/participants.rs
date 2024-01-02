@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
@@ -18,7 +18,8 @@ pub struct ParticipantInfoResponse {
     pub name: String,
     pub role: ParticipantRoleInfo,
     pub rounds: Vec<ParticipantRoundInfo>,
-    pub feedback_submissions: Vec<FeedbackSubmissionInfo>
+    pub feedback_submissions: Vec<FeedbackSubmissionInfo>,
+    pub expected_reload: Option<chrono::NaiveDateTime>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -420,6 +421,7 @@ async fn get_participant_info(
 
     let round_roles : HashMap<Uuid, Vec<ParticipantRoundRoleInfo>> = participant_adjudicator_debates.chain(participant_non_aligned_speaker_debates).chain(participant_gov_debates).chain(participant_opp_debates).into_grouping_map().collect();
 
+    let mut expected_reload = None;
 
     let rounds = all_rounds.into_iter().map(
         |round| {
@@ -440,6 +442,29 @@ async fn get_participant_info(
                 ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => check_release_date(current_time, round.debate_start_time) && debate.is_motion_released_to_non_aligned,
                 ParticipantRoundRoleInfo::NotDrawn | ParticipantRoundRoleInfo::Multiple => false
             };
+
+            let next_reload_time = match &role {
+                ParticipantRoundRoleInfo::Adjudicator{..} | ParticipantRoundRoleInfo::TeamSpeaker{..} | ParticipantRoundRoleInfo::President {..} => {
+                    vec![round.draw_release_time, round.team_motion_release_time, round.debate_start_time, round.round_close_time]
+                }
+                ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => {
+                    vec![round.draw_release_time, round.full_motion_release_time, round.debate_start_time, round.round_close_time]
+                }
+                ParticipantRoundRoleInfo::NotDrawn | ParticipantRoundRoleInfo::Multiple => vec![]
+            }.iter().filter(|t| {
+                if let Some(t) = t {
+                    t > &current_time
+                }
+                else {
+                    false
+                }
+            }).min().cloned().flatten();
+
+            if let Some(next_reload_time) = next_reload_time {
+                if expected_reload.is_none() || Some(next_reload_time) < expected_reload {
+                    expected_reload = Some(next_reload_time);
+                }
+            }
 
             let status = if check_release_date(current_time, round.round_close_time) {
                 RoundStatus::Completed
@@ -647,7 +672,8 @@ async fn get_participant_info(
         name: participant.name,
         role,
         rounds,
-        feedback_submissions: feedback_requests
+        feedback_submissions: feedback_requests,
+        expected_reload
     }))
 }
 

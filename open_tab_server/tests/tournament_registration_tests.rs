@@ -13,7 +13,7 @@ async fn test_create_user() {
     let response = common::Fixture::default()
         .await
         .post_json("/api/users", CreateUserRequest {
-            password: "test".to_string(),
+            password: "testtest".to_string(),
             user_email: None
         })
         .await;
@@ -43,7 +43,7 @@ async fn test_can_create_generic_token_with_login() {
     let mut fixture = common::Fixture::default().await;
     let mut response = fixture
         .post_json("/api/users", CreateUserRequest {
-            password: "test".to_string(),
+            password: "testtest".to_string(),
             user_email: None
         })
         .await;
@@ -53,7 +53,7 @@ async fn test_can_create_generic_token_with_login() {
 
     fixture.auth = common::Auth::Basic {
         username: user_id.to_string(),
-        password: "test".to_string(),
+        password: "testtest".to_string(),
     };
 
     let response = fixture
@@ -71,7 +71,7 @@ async fn test_can_not_create_generic_token_with_wrong_password() {
     let mut fixture = common::Fixture::default().await;
     let mut response = fixture
         .post_json("/api/users", CreateUserRequest {
-            password: "test".to_string(),
+            password: "testtest".to_string(),
             user_email: None
         })
         .await;
@@ -99,7 +99,7 @@ async fn test_can_not_create_tournament_without_login() {
     let mut fixture = common::Fixture::default().await;
     let response = fixture
         .post_json("/api/tournaments", CreateTournamentRequest {
-            name: "test".to_string(),
+            name: "testtest".to_string(),
             uuid: Uuid::from_u128(5)
         })
         .await;
@@ -117,7 +117,7 @@ async fn test_can_create_tournament_with_token() {
     };
     let response = fixture
         .post_json("/api/tournaments", CreateTournamentRequest {
-            name: "test".to_string(),
+            name: "testtest".to_string(),
             uuid: Uuid::from_u128(5)
         })
         .await;
@@ -135,7 +135,7 @@ async fn test_tournament_token_can_not_create_generic_token() {
     };
     let mut response = fixture
         .post_json("/api/tournaments", CreateTournamentRequest {
-            name: "test".to_string(),
+            name: "testtest".to_string(),
             uuid: Uuid::from_u128(5)
         })
         .await;

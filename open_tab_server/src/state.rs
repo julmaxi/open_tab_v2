@@ -1,14 +1,17 @@
+use std::sync::Arc;
 use axum::extract::FromRef;
 use db::DatabaseConfig;
 use migration::MigratorTrait;
+use tokio::sync::Mutex;
 
-use crate::db;
+use crate::{db, notify::ParticipantNotificationManager};
 use sea_orm::{prelude::*, Statement};
 
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: DatabaseConnection
+    pub db: DatabaseConnection,
+    pub notifications: Arc<Mutex<ParticipantNotificationManager>>,
 }
 
 impl AppState {
@@ -30,7 +33,8 @@ impl AppState {
         }
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
-            db
+            db,
+            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
         }
     }
 
@@ -47,7 +51,8 @@ impl AppState {
         }
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
-            db
+            db,
+            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
         }
     }
 
@@ -64,7 +69,8 @@ impl AppState {
         ).await.expect("Failed to enable foreign keys");
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
-            db
+            db,
+            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
         }
     }
 }
@@ -72,5 +78,11 @@ impl AppState {
 impl FromRef<AppState> for DatabaseConnection {
     fn from_ref(app_state: &AppState) -> DatabaseConnection {
         app_state.db.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<Mutex<ParticipantNotificationManager>> {
+    fn from_ref(app_state: &AppState) -> Arc<Mutex<ParticipantNotificationManager>> {
+        app_state.notifications.clone()
     }
 }

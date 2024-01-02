@@ -31,6 +31,8 @@ tracing-test = {version = "0.2.4", features = ["no-env-filter"] }
 itertools = "*"
 anyhow = "*"
 serde_yaml = "0.9.27"
+tokio-stream = {version="0.1.14", features = ["sync"]}
+weak-table = "0.3.2"
 
 [dev-dependencies]
 assert_matches = "1.5.0"

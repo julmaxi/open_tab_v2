@@ -874,7 +874,6 @@ async fn set_remote(
     let settings = settings_lock.read().await;
 
     let _remote = settings.known_remotes.iter().find(|r| r.url == remote_url).map(|r| r.clone()).ok_or(())?;
-    dbg!(&_remote);
 
     let transaction = db.begin().await.map_err(|_| ())?;
 

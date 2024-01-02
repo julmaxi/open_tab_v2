@@ -151,7 +151,7 @@ impl Fixture {
     pub async fn create_user_and_token(&mut self) -> (Uuid, String) {
         let mut response = self
             .post_json("/api/users", CreateUserRequest {
-                password: "test".to_string(),
+                password: "testtest".to_string(),
                 user_email: None,
             })
             .await;
@@ -161,7 +161,7 @@ impl Fixture {
 
         self.auth = Auth::Basic {
             username: user_id.to_string(),
-            password: "test".to_string(),
+            password: "testtest".to_string(),
         };
         
         let mut response = self

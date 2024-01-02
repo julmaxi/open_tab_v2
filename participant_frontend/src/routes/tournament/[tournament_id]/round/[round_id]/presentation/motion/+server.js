@@ -1,9 +1,9 @@
-import { makeAuthenticatedRequest } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly } from '$lib/api';
 import { error } from '@sveltejs/kit';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ params, cookies }) {
-    let res = await makeAuthenticatedRequest(
+    let res = await makeAuthenticatedRequestServerOnly(
         `api/draw/${params.round_id}/release-motion`,
         cookies,
         {
