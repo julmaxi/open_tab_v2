@@ -1,52 +1,14 @@
-
-
-
-
 use async_trait::async_trait;
 use open_tab_entities::{prelude::*, domain::entity::LoadEntity};
 
 use sea_orm::prelude::*;
 
 
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Serialize, Deserialize};
+
+use open_tab_server::patch::PatchValue;
 
 use super::ActionTrait;
-
-#[derive(Debug, Clone, Serialize)]
-pub enum PatchValue<V> {
-    NotSet,
-    Set(V)
-}
-
-impl<T> Default for PatchValue<T> {
-    fn default() -> Self {
-        PatchValue::NotSet
-    }
-}
-
-/*
-impl<T> From<Option<T>> for PatchValue<T> {
-    fn from(opt: Option<T>) -> PatchValue<T> {
-        match opt {
-            Some(v) => PatchValue::Set(v),
-            None => PatchValue::NotSet,
-        }
-    }
-}
-
-*/
-
-impl<'de, T> Deserialize<'de> for PatchValue<T>
-where
-    T: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        T::deserialize(deserializer).map(|v| PatchValue::Set(v))
-    }
-}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

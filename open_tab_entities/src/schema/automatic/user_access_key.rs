@@ -10,7 +10,7 @@ pub struct Model {
     pub user_id: Uuid,
     pub tournament_id: Option<Uuid>,
     pub expiry_date: Option<DateTime>,
-    pub is_access_only: bool
+    pub is_access_only: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -8,6 +8,7 @@
     import { getToken } from "$lib/api";
     import { onMount } from "svelte";
     import { env } from "$env/dynamic/public";
+    import { parseDate } from "$lib/date";
 
     export let data;
 
@@ -33,7 +34,7 @@
         return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
     }
 
-    $: expectedReloadTime = data.expectedReload ? new Date(data.expectedReload + "+00:00") : null
+    $: expectedReloadTime = data.expectedReload ? parseDate(data.expectedReload) : null
 
     let currTimeoutId = null;
 
@@ -64,7 +65,7 @@
             //We could be a bit more clever though once the draw is released,
             //to avoid some reloads, but for now this will suffice.
             if (data.event.type == "ReleaseTimeUpdated") {
-                let newTime = data.event.new_time ? new Date(data.event.new_time + "+00:00") : null;
+                let newTime = data.event.new_time ? parseDate(data.event.new_time) : null;
 
                 if (newTime !== null) {
                     if (!expectedReloadTime || newTime < expectedReloadTime) {
@@ -260,13 +261,18 @@
 
             {#if round.debate_start_time != null}
                 <div>
-                    Debate starts at {formatDate(new Date(round.debate_start_time + "+00:00"))}
+                    Debate starts at {formatDate(parseDate(round.debate_start_time))}
                 </div>
             {/if}
 
         </div>
         </div>
         <div>
+            {#if round.status === 'InProgress' }
+                <BoxButton
+                href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer`}
+                label="Go to Timer" />    
+            {/if}
             {#if round.participant_role.role === "Adjudicator" || round.participant_role.role === "President" }
                 {#if round.status === 'InProgress' }
                     <form action="?/releaseMotion" method="POST" use:enhance={

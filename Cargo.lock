@@ -3737,6 +3737,7 @@ dependencies = [
  "mcmf",
  "migration",
  "open_tab_entities",
+ "open_tab_server",
  "ordered-float 3.9.2",
  "rand 0.8.5",
  "regex",

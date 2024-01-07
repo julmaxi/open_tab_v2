@@ -25,7 +25,7 @@ pub enum Relation {
         from = "Column::TeamId",
         to = "super::team::Column::Uuid",
         on_update = "Cascade",
-        on_delete = "Cascade"
+        on_delete = "SetNull"
     )]
     Team,
     #[sea_orm(has_many = "super::tournament_break_speaker::Entity")]

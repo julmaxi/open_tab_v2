@@ -61,7 +61,7 @@ pub struct Ballot {
     pub president: Option<Uuid>
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Ord, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all="snake_case")]
 pub enum SpeechRole {
     Government,
@@ -75,8 +75,11 @@ impl FromStr for SpeechRole {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "g" => Ok(SpeechRole::Government),
+            "government" => Ok(SpeechRole::Government),
             "o" => Ok(SpeechRole::Opposition),
+            "opposition" => Ok(SpeechRole::Opposition),
             "n" => Ok(SpeechRole::NonAligned),
+            "non_aligned" => Ok(SpeechRole::NonAligned),
             _ => Err(BallotParseError::UnknownSpeechRole)
         }
     }
@@ -383,41 +386,7 @@ impl Ballot {
         ).collect();
         let mut speeches = speeches?;
 
-        speeches.sort_by(|s1, s2| {
-            match (&s1.role, &s2.role) {
-                (SpeechRole::NonAligned, _) => {
-                    if s2.position <= 1 {
-                        Ordering::Greater
-                    }
-                    else {
-                        Ordering::Less
-                    }
-                },
-                (_, SpeechRole::NonAligned) => {
-                    if s1.position <= 1 {
-                        Ordering::Less
-                    }
-                    else {
-                        Ordering::Greater
-                    }
-                },
-                (role_1, role_2) => {
-                    if s1.position != s2.position {
-                        u8::cmp(&s1.position, &s2.position)
-                    }
-                    else {
-                        let c = SpeechRole::cmp(&role_1, &role_2);
-
-                        if s1.position == 2 {
-                            c.reverse()
-                        }
-                        else {
-                            c
-                        }
-                    }
-                }
-            }
-        });
+        speeches.sort_by(order_speeches);
 
         Ok(
             Ballot { uuid: ballot.uuid, speeches, government, opposition, adjudicators, president: chair }
@@ -785,19 +754,8 @@ impl Ballot {
     pub fn is_scored(&self) -> bool {
         return self.government_total().is_some() || self.opposition_total().is_some();
     }
-}
 
-
-#[async_trait]
-impl TournamentEntity for Ballot {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
-        self.save(db, guarantee_insert).await?;
-        Ok(())
-    }
-
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let ballot_ids = entities.iter().map(|e| e.uuid).collect_vec();
-
+    pub async fn get_tournaments_from_ids<C>(db: &C, ballot_ids: Vec<Uuid>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: ConnectionTrait {
         let ballot_ids2 = ballot_ids.clone();
         
         let ids : Vec<(Uuid, Uuid, Option<Uuid>)> = schema::tournament_round::Entity::find()
@@ -840,7 +798,58 @@ impl TournamentEntity for Ballot {
             }
         }
         
-        Ok(entities.iter().map(|e| ballot_tournament_map.get(&e.uuid).map(|x| *x).flatten()).collect())
+        Ok(ballot_ids.iter().map(|e| ballot_tournament_map.get(&e).map(|x| *x).flatten()).collect())
+
+    }
+}
+
+pub fn order_speeches(s1: &Speech, s2: &Speech) -> Ordering {
+    match (&s1.role, &s2.role) {
+        (SpeechRole::NonAligned, _) => {
+            if s2.position <= 1 {
+                Ordering::Greater
+            }
+            else {
+                Ordering::Less
+            }
+        },
+        (_, SpeechRole::NonAligned) => {
+            if s1.position <= 1 {
+                Ordering::Less
+            }
+            else {
+                Ordering::Greater
+            }
+        },
+        (role_1, role_2) => {
+            if s1.position != s2.position {
+                u8::cmp(&s1.position, &s2.position)
+            }
+            else {
+                let c = SpeechRole::cmp(&role_1, &role_2);
+
+                if s1.position == 2 {
+                    c.reverse()
+                }
+                else {
+                    c
+                }
+            }
+        }
+    }
+}
+
+
+#[async_trait]
+impl TournamentEntity for Ballot {
+    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+        self.save(db, guarantee_insert).await?;
+        Ok(())
+    }
+
+    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+        let ballot_ids = entities.iter().map(|e| e.uuid).collect_vec();
+        Self::get_tournaments_from_ids(db, ballot_ids).await
     }
 
     async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {

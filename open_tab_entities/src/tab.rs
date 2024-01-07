@@ -229,7 +229,6 @@ impl TabView {
 
                         if !speech.is_opt_out {
                             let speaker_entries = speaker_detailed_scores.entry(speaker).or_insert_with(|| HashMap::new());
-                            dbg!(&speaker_entries, &speech);
                             if speaker_entries.contains_key(&round.uuid) {
                                 return Err(anyhow::Error::msg(format!("Speaker {} can not be in the same round twice", speaker)));
                             }

@@ -3,6 +3,7 @@
 pub use super::adjudicator::Entity as Adjudicator;
 pub use super::adjudicator_availability_override::Entity as AdjudicatorAvailabilityOverride;
 pub use super::ballot_adjudicator::Entity as BallotAdjudicator;
+pub use super::ballot_speech_timing::Entity as BallotSpeechTiming;
 pub use super::debate_backup_ballot::Entity as DebateBackupBallot;
 pub use super::feedback_form::Entity as FeedbackForm;
 pub use super::feedback_form_question::Entity as FeedbackFormQuestion;

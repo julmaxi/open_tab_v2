@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod adjudicator;
 pub mod adjudicator_availability_override;
 pub mod ballot_adjudicator;
+pub mod ballot_speech_timing;
 pub mod debate_backup_ballot;
 pub mod feedback_form;
 pub mod feedback_form_question;

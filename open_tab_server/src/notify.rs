@@ -1,12 +1,13 @@
 use std::{collections::{HashMap, HashSet}, sync::{Weak, Arc}, convert::Infallible, pin::Pin, time::Duration};
 
-use open_tab_entities::{EntityGroup, schema, domain::{tournament, self, entity::LoadEntity}};
+use open_tab_entities::{EntityGroup, schema, domain::{tournament, self, entity::LoadEntity, ballot::SpeechRole}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ConnectionTrait};
 use tokio::{sync::{broadcast::{Sender, Receiver}, Mutex}, pin};
 use tokio_stream::{Stream, StreamMap, wrappers::BroadcastStream, StreamExt};
 
 use axum::{extract::{Path, State}, response::{Sse, sse::Event}, Json, Router, routing::get};
 use serde::{Serialize, Deserialize};
+use tracing::Subscriber;
 use weak_table::WeakValueHashMap;
 
 use crate::{state::AppState, response::{handle_error, APIError}, auth::ExtractAuthenticatedUser};
@@ -17,7 +18,37 @@ use crate::{state::AppState, response::{handle_error, APIError}, auth::ExtractAu
 pub enum ParticipantEventType {
     DebateMotionReleaseUpdated{debate_id: Uuid},
     ReleaseTimeUpdated{round_id: Uuid, new_time: Option<chrono::NaiveDateTime>, time: ReleaseTime},
+    SpeechTimeUpdate{
+        speech_role: SpeechRole,
+        speech_position: i32,
+        is_response: bool,
+        start: Option<chrono::NaiveDateTime>,
+        end: Option<chrono::NaiveDateTime>,
+    },
+    ActiveSpeechUpdate {
+        speech: Option<DebateCurrentSpeech>
+    },
 }
+
+
+impl ParticipantEventType {
+    fn channel(&self) -> &str {
+        match self {
+            ParticipantEventType::DebateMotionReleaseUpdated{..} => "participant",
+            ParticipantEventType::ReleaseTimeUpdated{..} => "participant",
+            ParticipantEventType::SpeechTimeUpdate{..} => "timer",
+            ParticipantEventType::ActiveSpeechUpdate { .. } => "timer"
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct DebateCurrentSpeech {
+    speech_role: SpeechRole,
+    speech_position: u8,
+    is_response: bool
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(tag = "type")]
@@ -31,7 +62,7 @@ pub enum ReleaseTime {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticipantEvent {
-    event: ParticipantEventType,
+    pub event: ParticipantEventType,
 }
 
 pub struct TournamentBroadcastState {
@@ -86,7 +117,9 @@ impl ParticipantNotificationManager {
             e.ok()
         });
 
-        let stream = stream.map(|e| Ok(Event::default().event("participant").data(serde_json::to_string(&e).unwrap())));
+        let stream = stream.map(|e| Ok(Event::default().event(
+            e.event.channel()
+        ).data(serde_json::to_string(&e).unwrap())));
 
         Ok(Box::pin(stream))
     }
@@ -100,12 +133,22 @@ impl ParticipantNotificationManager {
         let stream = BroadcastStream::new(receiver);
         let stream = stream.filter_map(|e| e.ok());
 
-        let stream = stream.map(|e| Ok(Event::default().event("participant").data(serde_json::to_string(&e).unwrap())));
+        let stream = stream.map(|e| Ok(Event::default().event(
+            e.event.channel()
+        ).data(serde_json::to_string(&e).unwrap())));
 
         Ok(Box::pin(stream))
     }
 
     pub async fn notify_debate_non_aligned_motion_release_state<C>(&mut self, db: &C, debate_id: Uuid) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+        self.notify_debate(db, debate_id, ParticipantEvent {
+            event: ParticipantEventType::DebateMotionReleaseUpdated {
+                debate_id
+            }
+        }).await   
+    }
+
+    pub async fn notify_debate<C>(&mut self, db: &C, debate_id: Uuid, event: ParticipantEvent) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         let debate = schema::tournament_debate::Entity::find_by_id(debate_id).one(db).await?;
         if let Some(debate) = debate {
             let ballot = domain::ballot::Ballot::get(db, debate.ballot_id).await?;
@@ -136,16 +179,14 @@ impl ParticipantNotificationManager {
 
             for participant_id in all_participants {
                 if let Some(sender) = self.participant_broadcast_senders.get(&participant_id) {
-                    sender.send(ParticipantEvent {
-                        event: ParticipantEventType::DebateMotionReleaseUpdated {
-                            debate_id
-                        }
-                    }).unwrap();
+                    //We ignore the send error
+                    let r = sender.send(event.clone());
+                    if r.is_err() {
+                        self.participant_broadcast_senders.remove(&participant_id);
+                    }
                 }
             }
         }
-
-    
         Ok(())
     }
 
@@ -209,7 +250,6 @@ pub async fn get_participant_events(
     let (participant, mut tournament) = result.pop().unwrap();
     let tournament = tournament.pop().expect("Guaranteed by db constraints");
     
-
     let tournament_stream = notifications.subscribe_to_tournament(&db, tournament.uuid).await?;
     let participant_stream = notifications.subscribe_to_participant(participant.uuid).await?;
 
