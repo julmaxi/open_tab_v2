@@ -121,13 +121,20 @@
     onMount(() => {
         const bellElement = document.querySelector("#bell_audio");
 
-        navigator?.wakeLock?.request().then(
+        const requestWakeLock = () => {navigator?.wakeLock?.request().then(
             (wakeLock) => {
                 wakeLock.addEventListener('release', () => {
                     console.log('Wake Lock was released');
                 });
             }
-        );
+        )};
+
+
+        const handleVisibilityChange = async () => {
+            requestWakeLock();
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
 
         setInterval(
             () => {
