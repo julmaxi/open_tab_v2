@@ -32,6 +32,10 @@
         return `${TEAM_POSITION_NAMES[speech.position]} der ${teamName}`
     }
 
+    /**
+     * @param {{ [x: string]: any; }} speeches
+     * @param {string | number} currIdx
+     */
     function notifyBackendOfSpeechChange(speeches, currIdx) {
         let currSpeech = speeches[currIdx];
         let speech = null;
@@ -56,9 +60,16 @@
         );
     }
 
+    /**
+     * @param {{ start: number; end: number; segments: { duration: number; }[]; }} speech
+     * @param {number | Date} now
+     * 
+     * @returns {[number | null, number | null]}
+     */
     function findCurrSegment(speech, now) {
         if (speech) {
             if (speech.start) {
+                // @ts-ignore
                 let passedTime = speech.end || now - speech.start;
                 let currSegment = 0;
                 let currSegmentEnd = speech.segments[0].duration;
@@ -80,6 +91,9 @@
         return [null, null]
     }
 
+    /**
+     * @param {{ start?: any; end?: any; position: any; role: any; target_length?: any; is_response: any; segments?: any; }} speech
+     */
     function mapSpeech(
         speech
     ) {
@@ -107,15 +121,29 @@
     );
     let now = new Date();
 
+    // @ts-ignore
     let currIdx = speeches.findIndex(speech => !speech.end);
     if (currIdx == -1) {
         currIdx = speeches.length;
     }
     $: currSpeech = currIdx < speeches.length ? speeches[currIdx] : null;
 
+    /**
+     * @type {number|null}
+     * 
+     */
     let currSegment = 0;
+    /**
+     * @type {number|null}
+     * 
+     */
+    let currSegmentEnd = 0;
+
     $: [currSegment, currSegmentEnd] = findCurrSegment(currSpeech, now);
 
+    /**
+     * @type {AudioContext | null}
+     */
     let audioContext = null;
 
     onMount(() => {
@@ -141,8 +169,9 @@
                 now = new Date();
 
                 if (currSpeech && currSpeech.start && !currSpeech.end) {
+                    // @ts-ignore
                     let passedTime = now - currSpeech.start;
-                    if (currSegmentEnd !== null && passedTime > currSegmentEnd) {
+                    if (currSegmentEnd !== null && currSegment !== null && passedTime > currSegmentEnd) {
                         currSegment += 1;
                         if (currSegment < currSpeech.segments.length) {
                             currSegmentEnd += currSpeech.segments[currSegment].duration;
@@ -150,6 +179,7 @@
                         else {
                             currSegmentEnd = null;
                         }
+                        // @ts-ignore
                         bellElement?.play();
                     }
                 }
@@ -278,11 +308,12 @@
                 <input type="hidden" name="key" value={currSpeech.start === null ? "start" : "end"} />
 
                 {#if currSpeech.start === null || currSpeech.end === null}
-                    <button type="submit" onclick={
+                    <button type="submit" on:click={
                         () => {
                             if (!audioContext) {
                                 audioContext = new window.AudioContext;
                                 const bellElement = document.querySelector("#bell_audio");
+                                // @ts-ignore
                                 let track = audioContext.createMediaElementSource(bellElement);
                                 track.connect(audioContext.destination);
                             }
