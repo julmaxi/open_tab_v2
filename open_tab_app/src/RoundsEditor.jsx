@@ -548,8 +548,8 @@ function ManualBreakSelector({ relevantTab, onDone, ...props }) {
         for (let team of relevantTab.tab.team_tab) {
             teamTabData.push({
                 team_name: team.team_name,
-                rank: team.rank,
-                total_points: team.total_points,
+                rank: team.rank + 1,
+                total_points: team.total_score,
                 team_uuid: team.team_uuid,
                 break: false,
                 has_breaking_speaker: false
@@ -560,8 +560,8 @@ function ManualBreakSelector({ relevantTab, onDone, ...props }) {
         for (let speaker of relevantTab.tab.speaker_tab) {
             speakerTabData.push({
                 speaker_name: speaker.speaker_name,
-                rank: speaker.rank,
-                total_points: speaker.total_points,
+                rank: speaker.rank + 1,
+                total_points: speaker.total_score,
                 speaker_uuid: speaker.speaker_uuid,
                 break: false,
                 is_in_breaking_team: false
@@ -627,7 +627,6 @@ function ManualBreakSelector({ relevantTab, onDone, ...props }) {
     }
 
     function setTopNBreak(n_breaking_teams) {
-        console.log(n_breaking_teams);
         let newTeamTabData = structuredClone(teamTabData);
         let newSpeakerTabData = structuredClone(speakerTabData);
 
@@ -707,7 +706,7 @@ function ManualBreakSelector({ relevantTab, onDone, ...props }) {
                     {
                         key: "total_points", header: "Points", cellFactory: (val, rowIdx, idx, row) => {
                             return <td>{avgPointFormat.format(
-                                relevantTab.tab.team_tab[rowIdx].total_points
+                                relevantTab.tab.team_tab[rowIdx].total_score
                             )}</td>
                         }
                     },
@@ -734,7 +733,7 @@ function ManualBreakSelector({ relevantTab, onDone, ...props }) {
                     {
                         key: "total_points", header: "Points", cellFactory: (val, rowIdx, idx, row) => {
                             return <td>{avgPointFormat.format(
-                                relevantTab.tab.speaker_tab[rowIdx].total_points
+                                relevantTab.tab.speaker_tab[rowIdx].total_score
                             )}</td>
                         }
                     },
