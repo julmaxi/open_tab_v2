@@ -1,9 +1,4 @@
-use std::collections::HashSet;
-
-
-
-
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use open_tab_entities::domain::entity::LoadEntity;
@@ -301,6 +296,8 @@ pub struct DrawAdjudicator {
     pub uuid: Uuid,
     pub name: String,
     pub institutions: Vec<DrawInstitution>,
+    pub chair_skill: i16,
+    pub panel_skill: i16,
 }
 
 impl From<DrawAdjudicator> for SetDrawAdjudicator {
@@ -365,6 +362,21 @@ impl DrawView {
     fn draw_adjudicator_from_uuid(adjudicator_uuid: Uuid, info: &TournamentParticipantsInfo) -> DrawAdjudicator {
         let adjudicator = info.participants_by_id.get(&adjudicator_uuid).unwrap();
 
+        let (chair_skill, panel_skill) = match &adjudicator.role {
+            ParticipantRole::Speaker(_) => {
+                (0, 0)
+            },
+            ParticipantRole::Adjudicator(
+                Adjudicator {
+                    chair_skill,
+                    panel_skill,
+                    ..
+                }
+            ) => {
+                (*chair_skill, *panel_skill)
+            }
+        };
+
         DrawAdjudicator {
             uuid: adjudicator.uuid,
             name: adjudicator.name.clone(),
@@ -372,6 +384,8 @@ impl DrawView {
                 uuid: i.uuid,
                 name: info.institutions_by_id.get(&i.uuid).map(|i| i.name.clone()).unwrap_or_else(|| "Unknown".to_string())
             }).collect(),
+            chair_skill,
+            panel_skill
         }
     }
 

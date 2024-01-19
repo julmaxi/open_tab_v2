@@ -21,6 +21,7 @@ mod import_feedback_system;
 mod set_adjudicator_break;
 mod update_teams;
 mod set_break_release;
+mod redraw_round;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -37,6 +38,7 @@ pub use self::import_feedback_system::ImportFeedbackSystemAction;
 pub use self::set_adjudicator_break::SetAdjudicatorBreakAction;
 pub use self::update_teams::UpdateTeamsAction;
 pub use self::set_break_release::SetBreakReleaseAction;
+pub use self::redraw_round::RedrawRoundAction;
 
 pub(crate) use self::edit_tree::EditTreeActionType;
 
@@ -57,6 +59,7 @@ pub enum Action {
     SetAdjudicatorBreak { action: SetAdjudicatorBreakAction },
     UpdateTeams { action: UpdateTeamsAction },
     SetBreakRelease { action: SetBreakReleaseAction },
+    RedrawRound { action: RedrawRoundAction },
 }
 
 impl Action {
@@ -76,6 +79,7 @@ impl Action {
             Action::SetAdjudicatorBreak { action } => action.get_changes(db).await,
             Action::UpdateTeams { action } => action.get_changes(db).await,
             Action::SetBreakRelease { action } => action.get_changes(db).await,
+            Action::RedrawRound { action } => action.get_changes(db).await,
         }
     }
 }

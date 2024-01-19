@@ -1,13 +1,13 @@
 //@ts-check
-import React, { useState, useId, useMemo, useEffect, useCallback, useContext } from "react";
+import React, { useState, useId, useMemo, useEffect, useCallback, useContext, createContext } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
 
-import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin, DragOverlay} from '@dnd-kit/core';
-import {CSS} from '@dnd-kit/utilities';
+import { DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin, DragOverlay } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
-import {DragItem, DropList, DropSlot, DropWell, makeDragHandler} from './DragDrop.jsx';
+import { DragItem, DropList, DropSlot, DropWell, makeDragHandler } from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
 import { executeAction } from "./Action";
@@ -16,6 +16,7 @@ import { TabGroup, Tab } from "./TabGroup";
 import { useSelect } from "downshift";
 
 import { useSpring, useSpringRef, animated } from '@react-spring/web'
+import { ask } from "@tauri-apps/api/dialog";
 
 
 const TRAY_DRAG_PATH = "__tray__";
@@ -71,11 +72,11 @@ function DragBox(props) {
 
   useEffect(() => {
     if (isHovering) {
-        let timer = setTimeout(() => {
-          props.onHighlightIssues(isHovering, true);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
+      let timer = setTimeout(() => {
+        props.onHighlightIssues(isHovering, true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
   }, [isHovering]);
 
   let expandIssues = props.expandIssues;
@@ -104,22 +105,22 @@ function DragBox(props) {
       {props.children}
     </div>
     <div className="flex items-center mr-1">
-        <ClashIndicator issues={props.issues} onHover={(isHovering) => {
-          props.onHighlightIssues(isHovering, false);
-          setIsHovering(isHovering);
-        }} />
+      <ClashIndicator issues={props.issues} onHover={(isHovering) => {
+        props.onHighlightIssues(isHovering, false);
+        setIsHovering(isHovering);
+      }} />
     </div>
     {props.highlightedIssues?.length > 0 ? <animated.div style={animationProps} className={`absolute w-full h-full top-0 left-0 border-4 rounded text-white ${issueColor}`}>
       <div className={`absolute top-0 right-0 text-xs p-0.5 rounded-bl ${ISSUE_COLORS_BG[severityBucket]}`}>
         <IssueList highlightedIssues={props.highlightedIssues} expandIssues={expandIssues} />
       </div>
-    </animated.div>: []}
+    </animated.div> : []}
   </div>
 }
 
-function IssueList({highlightedIssues, expandIssues}) {
+function IssueList({ highlightedIssues, expandIssues }) {
   return expandIssues ? highlightedIssues.map((i, idx) => <p key={idx}>{i.type}</p>) : <><p>{highlightedIssues[0].type}</p>
-  {highlightedIssues.length > 1 ? `+${highlightedIssues.length - 1} more`: []}</>
+    {highlightedIssues.length > 1 ? `+${highlightedIssues.length - 1} more` : []}</>
 }
 
 
@@ -148,12 +149,12 @@ function TeamItem(props) {
     }}
     highlightedIssues={props.highlightedIssues}
   >
-      <div>{props.team.name}</div>
-      <HorizontalList>
-        {props.team.members.map((member) => <div key={member.uuid} className="text-xs">{member.name}</div>)}
-      </HorizontalList>
-      <HorizontalList>
-        {unique_participant_institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
+    <div>{props.team.name}</div>
+    <HorizontalList>
+      {props.team.members.map((member) => <div key={member.uuid} className="text-xs">{member.name}</div>)}
+    </HorizontalList>
+    <HorizontalList>
+      {unique_participant_institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
     </HorizontalList>
   </DragBox>
 }
@@ -177,7 +178,7 @@ function bucketIssuesBySeverity(issues) {
     let bucket = severityToBucket(issue.severity);
     acc[bucket].push(issue);
     return acc;
-  }, {misc: [], low: [], mid: [], high: []});
+  }, { misc: [], low: [], mid: [], high: [] });
   return issueBuckets;
 }
 
@@ -185,19 +186,39 @@ function bucketIssuesBySeverity(issues) {
 function ClashIndicator(props) {
   let issueBuckets = bucketIssuesBySeverity(props.issues);
 
+  let settings = useContext(DrawEditorSettingsContext);
+  let issueCount = props.issues.length;
+
+  if (!settings.showMiscIssues) {
+    issueCount -= issueBuckets.misc.length;
+    issueBuckets.misc = [];
+  }
+  if (!settings.showLowIssues) {
+    issueCount -= issueBuckets.low.length;
+    issueBuckets.low = [];
+  }
+  if (!settings.showMidIssues) {
+    issueCount -= issueBuckets.mid.length;
+    issueBuckets.mid = [];
+  }
+  if (!settings.showHighIssues) {
+    issueCount -= issueBuckets.high.length;
+    issueBuckets.high = [];
+  }
+
   return <div className="font-mono font-bold flex h-6 rounded-md overflow-hidden w-16 border border-gray-600 text-xs" onMouseEnter={() => props.onHover(true)} onMouseLeave={() => props.onHover(false)}>
     {
-      props.issues.length == 0 ?
-      <div className="h-full flex-1 flex items-center justify-center bg-green-500 text-white pl-1 pr-1 text-lg">{"\u2713"}</div>
-      :
-      ["misc", "low", "mid", "high"].map(
-        (key) => {
-          return issueBuckets[key].length > 0 ?
-          <div key={key} className={`h-full flex flex-1 items-center justify-center text-white pl-1 pr-1 ${ISSUE_COLORS_BG[key]}`}>{issueBuckets[key].length <= 9 ? issueBuckets[key].length : <span className="text-[8px]">&gt;9</span>}</div>
-          :
-          null
-        }
-      )
+      issueCount == 0 ?
+        <div className="h-full flex-1 flex items-center justify-center bg-green-500 text-white pl-1 pr-1 text-lg">{"\u2713"}</div>
+        :
+        ["misc", "low", "mid", "high"].map(
+          (key) => {
+            return issueBuckets[key].length > 0 ?
+              <div key={key} className={`h-full flex flex-1 items-center justify-center text-white pl-1 pr-1 ${ISSUE_COLORS_BG[key]}`}>{issueBuckets[key].length <= 9 ? issueBuckets[key].length : <span className="text-[8px]">&gt;9</span>}</div>
+              :
+              null
+          }
+        )
     }
   </div>;
 }
@@ -208,19 +229,28 @@ function SpeakerItem(props) {
     issues={props.speaker.issues}
     expandIssues={props.expandIssues}
     onHighlightIssues={(shouldHighlight, shouldExpand) => {
-    if (shouldHighlight) {
-      props.onHighlightIssues(props.speaker.uuid, shouldExpand);
-    }
-    else {
-      props.onHighlightIssues(null, false);
-    }
-  }} highlightedIssues={props.highlightedIssues}>
+      if (shouldHighlight) {
+        props.onHighlightIssues(props.speaker.uuid, shouldExpand);
+      }
+      else {
+        props.onHighlightIssues(null, false);
+      }
+    }} highlightedIssues={props.highlightedIssues}>
     <div>{props.speaker.name}</div>
     <div className="text-xs">{props.speaker.team_name}</div>
     <HorizontalList>
       {props.speaker.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
     </HorizontalList>
   </DragBox>
+}
+
+
+function SkillDisplay({ label, skill, ...props }) {
+  let hue = skill / 100 * 120;
+
+  return <div className="flex-1 inline-block text-center" style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}>
+    {label}: <span className="font-bold">{skill}</span>
+  </div>
 }
 
 
@@ -239,14 +269,18 @@ function AdjudicatorItem(props) {
     swapHighlightSeverity={swapIssueSeverity}
     expandIssues={props.expandIssues}
     onHighlightIssues={(shouldHighlight, shouldExpand) => {
-    if (shouldHighlight) {
-      props.onHighlightIssues(props.adjudicator.uuid, shouldExpand);
-    }
-    else {
-      props.onHighlightIssues(null, shouldExpand);
-    }
-  }} highlightedIssues={highlightedIssues}>
-    <div className={props.adjudicator.is_available ? "": "line-through"}>{props.adjudicator.name}</div>
+      if (shouldHighlight) {
+        props.onHighlightIssues(props.adjudicator.uuid, shouldExpand);
+      }
+      else {
+        props.onHighlightIssues(null, shouldExpand);
+      }
+    }} highlightedIssues={highlightedIssues}>
+    <div className={props.adjudicator.is_available ? "" : "line-through"}>{props.adjudicator.name}</div>
+    <div className="text-xs rounded w-20 flex flex-row overflow-hidden">
+      <SkillDisplay label="C" skill={props.adjudicator.chair_skill} />
+      <SkillDisplay label="P" skill={props.adjudicator.panel_skill} />
+    </div>
     <HorizontalList>
       {props.adjudicator.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
     </HorizontalList>
@@ -270,7 +304,7 @@ function filter_issues_by_target(issues, target_uuid) {
 function VenueSelector(props) {
   let tournamentId = useContext(TournamentContext).uuid;
 
-  let venues = useView({type: "Venues", tournament_uuid: tournamentId}, {venues: []});
+  let venues = useView({ type: "Venues", tournament_uuid: tournamentId }, { venues: [] });
 
   let selectedItem = props.venue ? venues.venues.find((v) => v.uuid === props.venue.uuid) : null;
 
@@ -289,9 +323,9 @@ function VenueSelector(props) {
   const springRef = useSpringRef()
 
   let style = useSpring({
-    from: { height: 0},
+    from: { height: 0 },
     to: {
-      height: isOpen ? 240: 0
+      height: isOpen ? 240 : 0
     },
   });
 
@@ -301,19 +335,19 @@ function VenueSelector(props) {
     </button>
     <div className="w-0 h-0 relative z-40">
       <animated.div className="w-72 bg-white mt-1 shadow-md overflow-auto p-0 h-8" style={style}>
-      <ul {...getMenuProps()} className="w-full" >
-        {isOpen &&
+        <ul {...getMenuProps()} className="w-full" >
+          {isOpen &&
 
-          venues.venues.map((item, index) => (
-            <li key={item.name} {...getItemProps({ item, index })} onClick={() => {
-              props.onVenueChange(item);
-              closeMenu();
-            }}>
-              {item.name}
-            </li>
-          ))
-        }
-      </ul>
+            venues.venues.map((item, index) => (
+              <li key={item.name} {...getItemProps({ item, index })} onClick={() => {
+                props.onVenueChange(item);
+                closeMenu();
+              }}>
+                {item.name}
+              </li>
+            ))
+          }
+        </ul>
       </animated.div>
     </div>
   </div>
@@ -332,7 +366,7 @@ function DebateRow(props) {
   let highlightedIssues = props.dragHighlightedIssues ? props.dragHighlightedIssues : localHighlightedIssues;
 
   let [shouldExpandLocalIssues, setShouldExpandLocalIssues] = useState(false);
-  
+
   return <>
     <tr>
       <td colSpan={4}>
@@ -354,7 +388,7 @@ function DebateRow(props) {
             highlightedIssues={
               highlightedIssues.government
             }
-            /> : []}
+          /> : []}
         </DropWell>
         <br />
         <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
@@ -370,25 +404,25 @@ function DebateRow(props) {
             highlightedIssues={
               highlightedIssues.opposition
             }
-            /> : []}
+          /> : []}
         </DropWell>
       </td>
       <td className="border">
         <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
           {ballot.non_aligned_speakers.map((speaker, idx) =>
             <SpeakerItem
-            key={speaker.uuid}
-            speaker={speaker}
-            expandIssues={shouldExpandLocalIssues}
-            onHighlightIssues={
-              (uuid, shouldExpand) => {
-                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
-                setShouldExpandLocalIssues(shouldExpand);
+              key={speaker.uuid}
+              speaker={speaker}
+              expandIssues={shouldExpandLocalIssues}
+              onHighlightIssues={
+                (uuid, shouldExpand) => {
+                  setLocalHighlightedIssues(find_issues_with_target(ballot, uuid))
+                  setShouldExpandLocalIssues(shouldExpand);
+                }
               }
-            }
-            highlightedIssues={
-              highlightedIssues.non_aligned_speakers[idx]
-            }
+              highlightedIssues={
+                highlightedIssues.non_aligned_speakers[idx]
+              }
             />)}
         </DropList>
       </td>
@@ -396,20 +430,20 @@ function DebateRow(props) {
         <DropList minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
           {ballot.adjudicators.map((adjudicator, idx) =>
             <AdjudicatorItem
-            key={adjudicator.uuid}
-            adjudicator={adjudicator}
-            expandIssues={shouldExpandLocalIssues}
-            onHighlightIssues={
-              (uuid, shouldExpand) => {
-                setLocalHighlightedIssues(find_issues_with_target(ballot, uuid));
-                setShouldExpandLocalIssues(shouldExpand);
+              key={adjudicator.uuid}
+              adjudicator={adjudicator}
+              expandIssues={shouldExpandLocalIssues}
+              onHighlightIssues={
+                (uuid, shouldExpand) => {
+                  setLocalHighlightedIssues(find_issues_with_target(ballot, uuid));
+                  setShouldExpandLocalIssues(shouldExpand);
+                }
               }
-            }
-            highlightedIssues={
-              highlightedIssues.adjudicators[idx]
-            }
-            dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == adjudicator.uuid ? props.dragSwapHighlight : null}
-          />)}
+              highlightedIssues={
+                highlightedIssues.adjudicators[idx]
+              }
+              dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == adjudicator.uuid ? props.dragSwapHighlight : null}
+            />)}
         </DropList>
       </td>
       <td className="border">
@@ -418,7 +452,7 @@ function DebateRow(props) {
           type="adjudicator"
           collection={["debates", props.debate.index, "ballot", "president"]}
         >
-          {ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => {}} dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == ballot.president.uuid ? props.dragSwapHighlight : null} /> : []}
+          {ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => { }} dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == ballot.president.uuid ? props.dragSwapHighlight : null} /> : []}
         </DropWell>
       </td>
     </tr>
@@ -446,7 +480,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
     if (val.position.type === "NotSet") {
       let to_collection = clone(getPath(draw, to.collection));
       let to_debate = clone(draw.debates[to.collection[1]]);
-      
+
       if (to.index !== undefined) {
         if (isSwap) {
           to_collection[to.index] = val.adjudicator;
@@ -458,10 +492,10 @@ function simulateDragOutcome(draw, from, to, isSwap) {
       else {
         to_collection = val.adjudicator;
       }
-  
+
       updatePath(to_debate, to.collection.slice(2), to_collection);
-    
-      return {[to.collection[1]]: to_debate};  
+
+      return { [to.collection[1]]: to_debate };
     }
     else {
       if (val.position.position.type === "Panel") {
@@ -488,13 +522,13 @@ function simulateDragOutcome(draw, from, to, isSwap) {
 
   if (to.collection === TRAY_DRAG_PATH) {
     if (from.index !== undefined) {
-        from_collection.splice(from.index, 1);
+      from_collection.splice(from.index, 1);
     }
     else {
       from_collection = null;
     }
     updatePath(from_debate, from.collection.slice(2), from_collection);
-    return {[from.collection[1]]: from_debate};
+    return { [from.collection[1]]: from_debate };
   }
   else {
     var to_collection;
@@ -515,7 +549,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
         if (from.index < to.index) {
           let tmp = from_collection[from.index];
           to_collection.splice(to.index, 0, tmp);
-          from_collection.splice(from.index, 1);  
+          from_collection.splice(from.index, 1);
         }
         else {
           let tmp = from_collection[from.index];
@@ -549,10 +583,10 @@ function simulateDragOutcome(draw, from, to, isSwap) {
   updatePath(to_debate, to.collection.slice(2), to_collection);
 
   if (from.collection[1] == to.collection[1]) {
-    return {[from.collection[1]]: from_debate};
+    return { [from.collection[1]]: from_debate };
   }
   else {
-    return {[from.collection[1]]: from_debate, [to.collection[1]]: to_debate};
+    return { [from.collection[1]]: from_debate, [to.collection[1]]: to_debate };
   }
 }
 
@@ -563,7 +597,7 @@ function adjPositionToStr(position) {
   }
   else {
     let chairStr = "";
-    
+
     if (position.position.type == "President") {
       chairStr = "Pres.";
     }
@@ -598,7 +632,7 @@ function teamPositionToStr(position) {
   }
 }
 
-function AdjudicatorTable({adjudicator_index, ...props}) {
+function AdjudicatorTable({ adjudicator_index, ...props }) {
   return <div className="h-full overflow-auto">
     <table className="w-full text-sm">
       <thead className="sticky top-0 bg-white">
@@ -608,24 +642,24 @@ function AdjudicatorTable({adjudicator_index, ...props}) {
         </tr>
       </thead>
       <tbody className="w-full">
-      {
-        adjudicator_index.map(
-          (adj, idx) => {
-            return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
-              <td className={
-                adj.is_available ? "" : "line-through"
-              }>{adj.adjudicator.name}</td>
-              <td>{adjPositionToStr(adj.position)}</td>
-            </DragItem>
-          }
-        )
-      }
+        {
+          adjudicator_index.map(
+            (adj, idx) => {
+              return <DragItem content_tag="tr" key={idx} collection={TRAY_DRAG_PATH} index={adj.adjudicator.uuid} type={"adjudicator"}>
+                <td className={
+                  adj.is_available ? "" : "line-through"
+                }>{adj.adjudicator.name}</td>
+                <td>{adjPositionToStr(adj.position)}</td>
+              </DragItem>
+            }
+          )
+        }
       </tbody>
     </table>
   </div>
 }
 
-function TeamTable({team_index, ...props}) {
+function TeamTable({ team_index, ...props }) {
   return <div className="h-full overflow-auto">
     <table className="w-full text-sm">
       <thead className="sticky top-0 bg-white">
@@ -646,13 +680,13 @@ function TeamTable({team_index, ...props}) {
 }
 
 
-function SpeakerIndexEntries({team, positions, ...props}) {
-  let rows =  team.members.map(
+function SpeakerIndexEntries({ team, positions, ...props }) {
+  let rows = team.members.map(
     (member) => {
       let position = positions[member.uuid];
       return <tr>
         <td className="pl-4">{member.name}</td>
-        <td>{position.debate_index + 1}{position.position !== undefined ? ` (${position.position + 1})` : [] }</td>
+        <td>{position.debate_index + 1}{position.position !== undefined ? ` (${position.position + 1})` : []}</td>
       </tr>;
     }
   );
@@ -662,7 +696,7 @@ function SpeakerIndexEntries({team, positions, ...props}) {
 }
 
 
-function TeamIndexEntry({entry, ...props}) {
+function TeamIndexEntry({ entry, ...props }) {
   let [isExpanded, setIsExpanded] = useState(false);
 
   return <>
@@ -683,7 +717,7 @@ function TeamIndexEntry({entry, ...props}) {
 
 const DropIndicator = ({ visible }) => {
   return (
-    <div 
+    <div
       className={`absolute w-full h-full bg-black bg-opacity-50 z-10 flex items-center justify-center 
       ${visible ? '' : 'hidden'}`}>
       <div className="text-center py-3 px-6 rounded-lg">
@@ -697,7 +731,103 @@ const DropIndicator = ({ visible }) => {
 }
 
 
-function DrawToolTray({adjudicator_index, team_index, isDragging, ...props}) {
+export const DrawEditorSettingsContext = createContext({
+  showMiscIssues: true,
+  showLowIssues: true,
+  showMidIssues: true,
+  showHighIssues: true,
+  updateSettings: (newSettings) => { }
+});
+
+
+function DrawSettingsEditor({round_id}) {
+  let settings = useContext(DrawEditorSettingsContext);
+
+  const handleShowMiscIssuesChange = () => {
+    settings.updateSettings({ ...settings, showMiscIssues: !settings.showMiscIssues });
+  };
+
+  const handleShowLowIssuesChange = () => {
+    settings.updateSettings({ ...settings, showLowIssues: !settings.showLowIssues });
+  };
+
+  const handleShowMidIssuesChange = () => {
+    settings.updateSettings({ ...settings, showMidIssues: !settings.showMidIssues });
+  };
+
+  const handleShowHighIssuesChange = () => {
+    settings.updateSettings({ ...settings, showHighIssues: !settings.showHighIssues });
+  };
+
+  return (
+    <div className="p-4">
+      <div className="space-y-4">
+        <div>
+          <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              className="form-checkbox rounded text-blue-600 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              checked={settings.showMiscIssues}
+              onChange={handleShowMiscIssuesChange}
+            />
+            <span>Show Misc. Issues</span>
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center space-x-2 text-sm font-medium text-blue-500">
+            <input
+              type="checkbox"
+              className="form-checkbox rounded text-blue-600 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              checked={settings.showLowIssues}
+              onChange={handleShowLowIssuesChange}
+            />
+            <span>Show Low Issues</span>
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center space-x-2 text-sm font-medium text-yellow-700">
+            <input
+              type="checkbox"
+              className="form-checkbox rounded text-yellow-600 focus:border-yellow-300 focus:ring focus:ring-yellow-200 focus:ring-opacity-50"
+              checked={settings.showMidIssues}
+              onChange={handleShowMidIssuesChange}
+            />
+            <span>Show Mid Issues</span>
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center space-x-2 text-sm font-medium text-red-700">
+            <input
+              type="checkbox"
+              className="form-checkbox rounded text-red-600 focus:border-red-300 focus:ring focus:ring-red-200 focus:ring-opacity-50"
+              checked={settings.showHighIssues}
+              onChange={handleShowHighIssuesChange}
+            />
+            <span>Show Severe Issues</span>
+          </label>
+        </div>
+      </div>
+      <div className="mt-4">
+        <button
+          className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded"
+          onClick={() => {
+            ask('Are you sure? This will override the previous venues.', { title: 'Regenerate Break', type: 'warning' }).then(
+              (result) => {
+                console.log(result);
+                if (result === true) {
+                  executeAction("RedrawRound", { round_id: round_id, mode: "Venues" });
+                }
+              })
+          }}
+        >
+          Assign Venues
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DrawToolTray({ round_id, adjudicator_index, team_index, isDragging, ...props }) {
   return <div className="w-72 border-l h-full relative">
     <DropSlot collection={TRAY_DRAG_PATH} type={"adjudicator"} className={"h-full"}>
       <DropIndicator visible={isDragging} />
@@ -707,6 +837,9 @@ function DrawToolTray({adjudicator_index, team_index, isDragging, ...props}) {
         </Tab>
         <Tab name="Teams">
           <TeamTable team_index={team_index} />
+        </Tab>
+        <Tab name="Settings" autoScroll={false}>
+          <DrawSettingsEditor round_id={round_id} />
         </Tab>
       </TabGroup>
     </DropSlot>
@@ -748,7 +881,7 @@ function getDragInfoFromDragInfo(drag_info, draw) {
 }
 
 
-function DragItemPreview({item, highlight, ...props}) {
+function DragItemPreview({ item, highlight, ...props }) {
   let issueColor = highlight ? ISSUE_COLORS_BG[highlight] : "bg-gray-100";
 
   return <div className={`${issueColor} min-w-[14rem] p-1 rounded`}>
@@ -787,7 +920,7 @@ function DrawEditor(props) {
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
     executeAction("UpdateDraw", {
-        updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
+      updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
     });
   }
 
@@ -818,15 +951,15 @@ function DrawEditor(props) {
       let outcome = simulateDragOutcome(draw, from, to, isSwap);
       let dragTargetRoomId = to.collection[to.collection.length - 3];
       let targetRoom = outcome[dragTargetRoomId].ballot;
-  
-      invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: [targetRoom], targetUuid: draggedAdjudicatorId}).then(
+
+      invoke("evaluate_ballots", { tournamentId: tournament.uuid, roundId: roundId, ballots: [targetRoom], targetUuid: draggedAdjudicatorId }).then(
         (issues) => {
           let maxSeverity = getMaxSeverityFromEvaluationResult(issues[0]);
           let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
           setDraggedItemHighlight(severityBucket);
         }
       );
-      
+
       if (isSwap) {
         let swapAdjudicatorId = null;
         if (to.index !== undefined) {
@@ -842,7 +975,7 @@ function DrawEditor(props) {
         if (swapAdjudicatorId !== null && from.collection !== TRAY_DRAG_PATH) {
           let dragSourceRoomId = from.collection[from.collection.length - 3];
           let sourceRoom = outcome[dragSourceRoomId].ballot;
-          invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: [sourceRoom], targetUuid: swapAdjudicatorId}).then(
+          invoke("evaluate_ballots", { tournamentId: tournament.uuid, roundId: roundId, ballots: [sourceRoom], targetUuid: swapAdjudicatorId }).then(
             (issues) => {
               let maxSeverity = getMaxSeverityFromEvaluationResult(issues[0]);
               let severityBucket = maxSeverity == 0 ? "none" : severityToBucket(maxSeverity);
@@ -895,8 +1028,8 @@ function DrawEditor(props) {
   }
   const onDragOver = makeDragHandler(onDragOverFunc);
 
-  let currentView = {type: "Draw", uuid: props.round_uuid};
-  let draw = useView(currentView, {"debates": [], "adjudicator_index": []});
+  let currentView = { type: "Draw", uuid: props.round_uuid };
+  let draw = useView(currentView, { "debates": [], "adjudicator_index": [] });
   let debates = draw.debates;
 
   let roundId = props.round_uuid;
@@ -929,13 +1062,13 @@ function DrawEditor(props) {
         x.active.data.current,
         {
           index: 0,
-          collection: ["debates", i, "ballot", "adjudicators"] 
+          collection: ["debates", i, "ballot", "adjudicators"]
         },
         false
       );
       simulatedBallots.push(outcome[i].ballot);
     }
-    invoke("evaluate_ballots", {tournamentId: tournament.uuid, roundId: roundId, ballots: simulatedBallots, targetUuid: simulatedBallots[0].adjudicators[0].uuid}).then(
+    invoke("evaluate_ballots", { tournamentId: tournament.uuid, roundId: roundId, ballots: simulatedBallots, targetUuid: simulatedBallots[0].adjudicators[0].uuid }).then(
       (issues) => {
         setDragHighlightedIssues(issues);
       }
@@ -947,41 +1080,53 @@ function DrawEditor(props) {
     dragItemInfo = getDragInfoFromDragInfo(draggedItem, draw);
   }
 
+  let [settings, setSettings] = useState({
+    showMiscIssues: true,
+    showLowIssues: true,
+    showMidIssues: true,
+    showHighIssues: true,
+    updateSettings: (newSettings) => {
+      setSettings(newSettings);
+    }
+  });
+
   return <div className="flex flex-row w-full h-full">
-    <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragOver={dragOver} onDragStart={dragStart}>
-      
-      <div className="flex-1 overflow-y-scroll">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th>Teams</th>
-              <th>Non Aligned</th>
-              <th>Panel</th>
-              <th>President</th>
-            </tr>
-          </thead>
+    <DrawEditorSettingsContext.Provider value={settings}>
+      <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragOver={dragOver} onDragStart={dragStart}>
 
-          <tbody>
-            {debates.map((debate, debateIdx) => <DebateRow
-              key={debate.uuid}
-              debate={debate}
-              dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
-              dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
-              onVenueChange={(venue) => {
-                executeAction("UpdateDraw", {updated_debates: [{...debate, venue: venue}]});
-              }
-            }
-            />)}
-          </tbody>
-        </table>
-      </div>
+        <div className="flex-1 overflow-y-scroll">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th>Teams</th>
+                <th>Non Aligned</th>
+                <th>Panel</th>
+                <th>President</th>
+              </tr>
+            </thead>
 
-      <DrawToolTray adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} isDragging={dragItemInfo !== null} />
+            <tbody>
+              {debates.map((debate, debateIdx) => <DebateRow
+                key={debate.uuid}
+                debate={debate}
+                dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
+                dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
+                onVenueChange={(venue) => {
+                  executeAction("UpdateDraw", { updated_debates: [{ ...debate, venue: venue }] });
+                }
+                }
+              />)}
+            </tbody>
+          </table>
+        </div>
 
-      <DragOverlay dropAnimation={null}>
-        {dragItemInfo ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
-      </DragOverlay>
-    </DndContext>
+        <DrawToolTray round_id={draw.round_uuid} adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} isDragging={dragItemInfo !== null} />
+
+        <DragOverlay dropAnimation={null}>
+          {dragItemInfo ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
+        </DragOverlay>
+      </DndContext>
+    </DrawEditorSettingsContext.Provider>
   </div>
 }
 
