@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge, self}, EntityType, tab::TeamRoundRole, derived_models::{BreakNodeBackgroundInfo, NodeExecutionError}};
+use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge, self, ballot}, EntityType, tab::TeamRoundRole, derived_models::{BreakNodeBackgroundInfo, NodeExecutionError}};
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use sea_orm::{prelude::*, QueryOrder};
@@ -17,7 +17,8 @@ use thiserror::Error;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "mode")]
 pub enum RedrawMode {
-    Venues
+    Venues,
+    MissingNonAligned
 }
 
 
@@ -65,6 +66,84 @@ impl ActionTrait for RedrawRoundAction {
                     g.add(Entity::TournamentDebate(
                         domain::debate::TournamentDebate::from_model(debate)
                     ));
+                }
+
+                Ok(g)
+            },
+            RedrawMode::MissingNonAligned => { 
+                let debates = open_tab_entities::schema::tournament_debate::Entity::find()
+                .filter(open_tab_entities::schema::tournament_debate::Column::RoundId.eq(self.round_id))
+                .order_by_asc(open_tab_entities::schema::tournament_debate::Column::Index)
+                .all(db)
+                .await?;
+
+                let ballot_ids = debates.iter().map(|d| d.ballot_id).collect::<Vec<_>>();
+
+                let mut ballots = domain::ballot::Ballot::get_many(db, ballot_ids).await?;
+
+                let mut non_aligned_teams = HashSet::new();
+                let mut used_speakers = HashSet::new();
+
+                let info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
+
+                let mut g = EntityGroup::new();
+
+                for ballot in &ballots {
+                    for speech in &ballot.speeches {
+                        match &speech.role {
+                            SpeechRole::NonAligned => {
+                                if let Some(id) = &speech.speaker {
+                                    used_speakers.insert(id);                                    
+                                    non_aligned_teams.insert(info.speaker_teams[&id]);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                let desired_non_aligned_speakers = non_aligned_teams.iter().flat_map(|t| info.team_members[t].iter()).collect_vec();//.flatten().cloned().collect_vec();
+                dbg!(&desired_non_aligned_speakers);
+
+                let mut missing = desired_non_aligned_speakers.into_iter().filter(|s| !used_speakers.contains(s)).collect_vec();
+                dbg!(&missing);
+
+                let mut rng = thread_rng();
+                missing.shuffle(&mut rng);
+
+                let mut missing_iter = missing.into_iter();
+
+                for ballot in ballots.iter_mut() {
+                    let mut did_change = false;
+                    let mut num_non_aligned = 0;
+
+                    for speech in ballot.speeches.iter() {
+                        match &speech.role {
+                            SpeechRole::NonAligned => {
+                                num_non_aligned += 1;
+                            },
+                            _ => {}
+                        }
+                    }
+
+                    for idx in 0..(3 - num_non_aligned) {
+                        if let Some(next) = missing_iter.next() {
+                            did_change = true;
+                            ballot.speeches.push(
+                                Speech {
+                                    speaker: Some(*next),
+                                    role: SpeechRole::NonAligned,
+                                    position: num_non_aligned + idx,
+                                    scores: HashMap::new(),
+                                    is_opt_out: false
+                                }
+                            )
+                        }    
+                    }
+
+                    if did_change {
+                        g.add(Entity::Ballot(ballot.clone()));
+                    }
                 }
 
                 Ok(g)

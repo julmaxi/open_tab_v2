@@ -822,6 +822,20 @@ function DrawSettingsEditor({round_id}) {
         >
           Assign Venues
         </button>
+        <button
+          className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded"
+          onClick={() => {
+            ask('Are you sure? This will override part of the draw.', { title: 'Regenerate Break', type: 'warning' }).then(
+              (result) => {
+                console.log(result);
+                if (result === true) {
+                  executeAction("RedrawRound", { round_id: round_id, mode: "MissingNonAligned" });
+                }
+              })
+          }}
+        >
+          Assign Missing Non-Aligned
+        </button>
       </div>
     </div>
   );
