@@ -214,13 +214,14 @@ impl ParticipantNotificationManager {
                             let entry = prev_state.round_times.entry(round.uuid).or_insert_with(|| HashMap::new());
                             entry.insert(release_time.clone(), new_time.clone());
                             
-                            sender.send(ParticipantEvent {
+                            //TODO: Temporary fix
+                            let _ = sender.send(ParticipantEvent {
                                 event: ParticipantEventType::ReleaseTimeUpdated {
                                     round_id: round.uuid,
                                     new_time: new_time.clone(),
                                     time: release_time.clone(),
                                 }
-                            }).unwrap();
+                            });
                         }
                     }
                 }

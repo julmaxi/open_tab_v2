@@ -23,43 +23,43 @@
         <style:style style:family="graphic" style:name="standard">
             <style:graphic-properties draw:fill="solid" draw:fill-color="#729fcf" draw:marker-end-center="false" draw:marker-end-width="0.2cm" draw:marker-start-center="false" draw:marker-start-width="0.2cm" draw:shadow="hidden" draw:shadow-color="#808080" draw:shadow-offset-x="0.2cm" draw:shadow-offset-y="0.2cm" draw:stroke="solid" draw:textarea-horizontal-align="justify" fo:padding-bottom="0.125cm" fo:padding-left="0.25cm" fo:padding-right="0.25cm" fo:padding-top="0.125cm" svg:stroke-color="#3465a4" svg:stroke-width="0cm">
                 <text:list-style style:name="standard">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                         <style:list-level-properties text:min-label-width="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="2">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
@@ -144,43 +144,43 @@
         <style:style style:family="presentation" style:name="Impress-outline1">
             <style:graphic-properties draw:auto-grow-height="false" draw:fill="none" draw:fit-to-size="shrink-to-fit" draw:stroke="none" style:shrink-to-fit="true">
                 <text:list-style style:name="Impress-outline1">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                         <style:list-level-properties text:min-label-width="0.9cm" text:space-before="0.3cm"/>
                         <style:text-properties fo:color="#333333" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â€“" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="2">
                         <style:list-level-properties text:min-label-width="0.9cm" text:space-before="1.5cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="75%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="3">
                         <style:list-level-properties text:min-label-width="0.8cm" text:space-before="2.8cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â€“" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="75%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="6.6cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="7.8cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="9cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="10.2cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="11.4cm"/>
                         <style:text-properties fo:color="#ffffff" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
@@ -224,43 +224,43 @@
         <style:style style:family="presentation" style:name="Impress-subtitle">
             <style:graphic-properties draw:fill="none" draw:stroke="none" draw:textarea-vertical-align="middle">
                 <text:list-style style:name="Impress-subtitle">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="1">
                         <style:list-level-properties/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="2">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="3">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
@@ -272,43 +272,43 @@
         <style:style style:family="presentation" style:name="Impress-title">
             <style:graphic-properties draw:fill="none" draw:fit-to-size="shrink-to-fit" draw:stroke="none" draw:textarea-vertical-align="middle" style:shrink-to-fit="true">
                 <text:list-style style:name="Impress-title">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="1">
                         <style:list-level-properties/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="2">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="3">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
@@ -333,43 +333,43 @@
         <style:style style:family="presentation" style:name="Impress1-outline1">
             <style:graphic-properties draw:auto-grow-height="false" draw:fill="none" draw:fit-to-size="false" draw:stroke="none" style:shrink-to-fit="false">
                 <text:list-style style:name="Impress1-outline1">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                         <style:list-level-properties text:min-label-width="0.9cm" text:space-before="0.3cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â€“" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="2">
                         <style:list-level-properties text:min-label-width="0.9cm" text:space-before="1.5cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="75%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                         <style:list-level-properties text:min-label-width="0.8cm" text:space-before="2.8cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â€“" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎ " text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="75%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="6.6cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="7.8cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="9cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="10.2cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="11.4cm"/>
                         <style:text-properties fo:color="#ef2929" fo:font-family="StarSymbol" fo:font-size="45%"/>
                     </text:list-level-style-bullet>
@@ -419,43 +419,43 @@
         <style:style style:family="presentation" style:name="Impress1-subtitle">
             <style:graphic-properties draw:fill="none" draw:stroke="none" draw:textarea-vertical-align="middle">
                 <text:list-style style:name="Impress1-subtitle">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                         <style:list-level-properties text:min-label-width="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="2">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
@@ -467,43 +467,43 @@
         <style:style style:family="presentation" style:name="Impress1-title">
             <style:graphic-properties draw:fill="none" draw:stroke="none" draw:textarea-vertical-align="middle">
                 <text:list-style style:name="Impress1-title">
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                         <style:list-level-properties text:min-label-width="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="2">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="4">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
-                    <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+                    <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                         <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                         <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
                     </text:list-level-style-bullet>
@@ -614,85 +614,85 @@
             <style:text-properties fo:font-size="14pt" style:font-name="Noto Sans Regular"/>
         </style:style>
         <text:list-style style:name="ML1">
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                 <style:list-level-properties text:min-label-width="0.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="2">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="4">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
         </text:list-style>
         <text:list-style style:name="ML2">
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="1">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="1">
                 <style:list-level-properties text:min-label-width="0.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="2">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="2">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="0.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="3">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="3">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.2cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="4">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="4">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="1.8cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="5">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="5">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="2.4cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="6">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="6">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="7">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="7">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="3.6cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="8">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="8">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.2cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="9">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="9">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="4.8cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>
-            <text:list-level-style-bullet text:bullet-char="â—" text:level="10">
+            <text:list-level-style-bullet text:bullet-char="◼︎" text:level="10">
                 <style:list-level-properties text:min-label-width="0.6cm" text:space-before="5.4cm"/>
                 <style:text-properties fo:font-family="StarSymbol" fo:font-size="45%" style:use-window-font-color="true"/>
             </text:list-level-style-bullet>

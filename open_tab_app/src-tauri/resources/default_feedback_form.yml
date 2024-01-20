@@ -19,8 +19,8 @@ shared_questions:
         max: 21
         orientation: mean
         labels:
-            -21: ">10 zu niedrig"
-            21: ">10 zu hoch"
+            -21: ">20 zu niedrig"
+            21: ">20 zu hoch"
 
     speech_level:
         short_name: speech_level
