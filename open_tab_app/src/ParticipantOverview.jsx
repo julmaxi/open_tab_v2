@@ -477,7 +477,7 @@ function ParticipantTable(props) {
         />
         <div className="h-full flex flex-col overflow-auto">
         {
-            selectedParticipantUuid !== null &&
+            selectedParticipant != null &&
            <>
             <ErrorBoundary>
                     <ParticipantDetailView participant={selectedParticipant} onClose={() => {
@@ -490,7 +490,7 @@ function ParticipantTable(props) {
             </>
         }
 
-        { selectedTeam && <TeamDetailView team={selectedTeam} /> }
+        { selectedParticipant && selectedTeam && <TeamDetailView team={selectedTeam} /> }
         </div>
     </div>
 }
