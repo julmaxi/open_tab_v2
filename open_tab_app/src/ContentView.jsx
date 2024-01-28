@@ -9,7 +9,7 @@ const ContentView = ({ children, forceOpen, defaultDrawerWidth: defaultDrawerWid
 
   let subcomponents = {};
   React.Children.forEach(children, (child) => {
-    subcomponents[child.type.name] = child;
+    subcomponents[ContentView.SubcomponentNames[child.type.name]] = child;
   });
 
   return (
@@ -45,7 +45,12 @@ const Drawer = ({ children, size = 'w-64', isOpen = true }) => {
 };
 
 ContentView.Content = Content;
+ContentView.SubcomponentNames = {
+    [Content.name]: "Content",
+    [Drawer.name]: "Drawer"
+};
 ContentView.Drawer = Drawer;
+ContentView.DrawerKey = Drawer.name;
 
 
 
