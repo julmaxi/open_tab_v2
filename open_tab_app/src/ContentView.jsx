@@ -52,6 +52,4 @@ ContentView.SubcomponentNames = {
 ContentView.Drawer = Drawer;
 ContentView.DrawerKey = Drawer.name;
 
-
-
 export default ContentView;
