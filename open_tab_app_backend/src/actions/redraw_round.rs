@@ -103,10 +103,8 @@ impl ActionTrait for RedrawRoundAction {
                 }
 
                 let desired_non_aligned_speakers = non_aligned_teams.iter().flat_map(|t| info.team_members[t].iter()).collect_vec();//.flatten().cloned().collect_vec();
-                dbg!(&desired_non_aligned_speakers);
 
                 let mut missing = desired_non_aligned_speakers.into_iter().filter(|s| !used_speakers.contains(s)).collect_vec();
-                dbg!(&missing);
 
                 let mut rng = thread_rng();
                 missing.shuffle(&mut rng);
@@ -115,30 +113,20 @@ impl ActionTrait for RedrawRoundAction {
 
                 for ballot in ballots.iter_mut() {
                     let mut did_change = false;
-                    let mut num_non_aligned = 0;
 
-                    for speech in ballot.speeches.iter() {
+                    for speech in ballot.speeches.iter_mut() {
                         match &speech.role {
                             SpeechRole::NonAligned => {
-                                num_non_aligned += 1;
+                                if speech.speaker.is_none() {
+                                    dbg!("HIT!");
+                                    if let Some(speaker) = missing_iter.next() {
+                                        speech.speaker = Some(speaker.clone());
+                                        did_change = true;
+                                    }
+                                }
                             },
                             _ => {}
                         }
-                    }
-
-                    for idx in 0..(3 - num_non_aligned) {
-                        if let Some(next) = missing_iter.next() {
-                            did_change = true;
-                            ballot.speeches.push(
-                                Speech {
-                                    speaker: Some(*next),
-                                    role: SpeechRole::NonAligned,
-                                    position: num_non_aligned + idx,
-                                    scores: HashMap::new(),
-                                    is_opt_out: false
-                                }
-                            )
-                        }    
                     }
 
                     if did_change {
@@ -146,6 +134,7 @@ impl ActionTrait for RedrawRoundAction {
                     }
                 }
 
+                dbg!(&g.ballots.len());
                 Ok(g)
             }
         }

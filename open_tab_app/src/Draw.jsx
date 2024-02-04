@@ -410,7 +410,7 @@ function DebateRow(props) {
       <td className="border">
         <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
           {ballot.non_aligned_speakers.map((speaker, idx) =>
-            <SpeakerItem
+            speaker ? <SpeakerItem
               key={speaker.uuid}
               speaker={speaker}
               expandIssues={shouldExpandLocalIssues}
@@ -423,7 +423,8 @@ function DebateRow(props) {
               highlightedIssues={
                 highlightedIssues.non_aligned_speakers[idx]
               }
-            />)}
+            /> : <div className="h-8 w-full text-center italic border-2 border-dashed border-gray-500 text-gray-500 rounded">Missing</div>)
+          }
         </DropList>
       </td>
       <td className="border">

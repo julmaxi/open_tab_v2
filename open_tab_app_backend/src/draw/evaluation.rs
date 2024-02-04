@@ -730,10 +730,10 @@ mod test {
                 ..Default::default()
             }
             .into()],
-            non_aligned_speakers: vec![DrawSpeaker {
+            non_aligned_speakers: vec![Some(DrawSpeaker {
                 uuid: Uuid::from_u128(700),
                 ..Default::default()
-            }],
+            })],
             ..Default::default()
         };
 
@@ -1072,10 +1072,10 @@ mod test {
                 uuid: Uuid::from_u128(801),
                 ..Default::default()
             }),
-            non_aligned_speakers: vec![DrawSpeaker {
+            non_aligned_speakers: vec![Some(DrawSpeaker {
                 uuid: Uuid::from_u128(720),
                 ..Default::default()
-            }],
+            })],
             ..Default::default()
         };
 

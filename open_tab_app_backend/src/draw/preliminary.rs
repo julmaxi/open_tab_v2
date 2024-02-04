@@ -172,7 +172,7 @@ impl PreliminaryRoundGenerator {
                                 .iter()
                                 .enumerate()
                                 .map(|(idx, s)| Speech {
-                                    speaker: Some(s.uuid),
+                                    speaker: s.as_ref().map(|s| s.uuid),
                                     role: SpeechRole::NonAligned,
                                     is_opt_out: false,
                                     position: idx as u8,
@@ -268,10 +268,10 @@ impl PreliminaryRoundGenerator {
                                 .iter()
                                 .map(|ballot| {
                                     let mut new_non_aligned = ballot.non_aligned_speakers.clone();
-                                    new_non_aligned.push(DrawSpeaker {
+                                    new_non_aligned.push(Some(DrawSpeaker {
                                         uuid: speaker_id.clone(),
                                         ..Default::default()
-                                    });
+                                    }));
                                     DrawBallot {
                                         non_aligned_speakers: new_non_aligned,
                                         ..ballot.clone()
@@ -362,7 +362,7 @@ mod test {
                     opp_stats[round_idx] = TeamPositionStatisticEntry::Opposition;
                 }
 
-                for non_aligned in &ballot.non_aligned_speakers {
+                for non_aligned in ballot.non_aligned_speakers.iter().filter_map(|s| s.as_ref()) {
                     let team_id = *member_team_id_map.get(&non_aligned.uuid).unwrap();
                     let non_aligned_stats: &mut Vec<TeamPositionStatisticEntry> = team_stats
                         .entry(team_id)

@@ -107,7 +107,7 @@ impl From<&DrawBallot> for DebateInfo {
             opposition: ballot.opposition.as_ref().map(|g| g.uuid),
             chair: ballot.adjudicators.get(0).map(|a| a.adjudicator.uuid),
             wings: ballot.adjudicators.iter().skip(1).map(|a| a.adjudicator.uuid).collect_vec(),
-            non_aligned_speakers: ballot.non_aligned_speakers.iter().map(|s| s.uuid).collect_vec(),
+            non_aligned_speakers: ballot.non_aligned_speakers.iter().filter_map(|s| s.as_ref().map(|s| s.uuid)).collect_vec(),
             president: ballot.president.as_ref().map(|p| p.adjudicator.uuid)
         }
     }

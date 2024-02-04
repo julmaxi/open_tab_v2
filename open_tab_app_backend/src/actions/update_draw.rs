@@ -56,10 +56,10 @@ impl ActionTrait for UpdateDrawAction {
             let mut new_speeches = vec![];
             for (i, speech) in debate.non_aligned_speakers.iter().enumerate() {
                 if i < existing_non_aligned_speeches.len() {
-                    existing_non_aligned_speeches[i].speaker = Some(speech.uuid);
+                    existing_non_aligned_speeches[i].speaker = speech.as_ref().map(|s| s.uuid);
                 } else {
                     new_speeches.push(Speech {
-                        speaker: Some(speech.uuid),
+                        speaker: speech.as_ref().map(|s| s.uuid),
                         role: open_tab_entities::domain::ballot::SpeechRole::NonAligned,
                         position: i as u8,
                         scores: HashMap::new(),

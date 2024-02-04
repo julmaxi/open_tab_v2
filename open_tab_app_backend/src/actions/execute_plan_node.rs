@@ -49,10 +49,10 @@ fn round_draw_from_team_and_speaker_pairs(team_pairs: Vec<TeamPair>, speaker_pai
                     }
                 ),
                 non_aligned_speakers: speaker_pair.into_iter().map(
-                    |speaker_id| DrawSpeaker {
+                    |speaker_id| Some(DrawSpeaker {
                         uuid: speaker_id,
                         ..Default::default()
-                    }
+                    })
                 ).collect(),
                 ..Default::default()
             };

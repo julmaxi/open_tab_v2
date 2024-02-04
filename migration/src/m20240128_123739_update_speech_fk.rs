@@ -37,6 +37,7 @@ impl MigrationTrait for Migration {
         match manager.get_database_backend() {
             sea_orm::DatabaseBackend::Sqlite => {
                 manager.get_connection().execute(Statement::from_string(manager.get_database_backend(), "PRAGMA foreign_keys=off;")).await?;
+                manager.get_connection().execute(Statement::from_string(manager.get_database_backend(), "PRAGMA legacy_alter_table=1;")).await?;
 
                 manager.rename_table(
                     Table::rename()
@@ -87,7 +88,11 @@ impl MigrationTrait for Migration {
                 .await?;
 
                 manager.get_connection().execute(Statement::from_string(manager.get_database_backend(), "INSERT INTO ballot_speech (ballot_id, position, role, speaker_id, is_opt_out) SELECT ballot_id, position, role, speaker_id, is_opt_out FROM ballot_speech_temp;")).await?;
-    
+
+                manager.get_connection().execute(Statement::from_string(manager.get_database_backend(), "PRAGMA foreign_keys=on;")).await?;
+
+                manager.drop_table(Table::drop().table(BallotSpeechTemp::Table).to_owned()).await?;
+
             }
             _ => {
                 manager
@@ -119,10 +124,6 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Replace the sample below with your own migration scripts
         todo!();
-
-        manager
-            .drop_table(Table::drop().table(Post::Table).to_owned())
-            .await
     }
 }
 

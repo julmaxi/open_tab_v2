@@ -61,11 +61,8 @@ impl LoadedView for LoadedDrawView {
             || changes.tournament_venues.len() > 0
             || changes.participants.len() > 0
             || changes.participant_clashs.len() > 0
-            || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentVenue)
-            || changes.deletions.iter().any(|d| d.0 == EntityType::Participant)
-            || changes.deletions.iter().any(|d| d.0 == EntityType::ParticipantClash)
             || changes.teams.len() > 0
-            || changes.deletions.iter().any(|d| d.0 == EntityType::Team)
+            || changes.deletions.iter().any(|d| vec![EntityType::Team, EntityType::TournamentVenue, EntityType::Participant, EntityType::ParticipantClash].contains(&d.0))
         {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
@@ -195,7 +192,7 @@ pub struct DrawBallot {
     pub uuid: Uuid,
     pub government: Option<DrawTeam>,
     pub opposition: Option<DrawTeam>,
-    pub non_aligned_speakers: Vec<DrawSpeaker>,
+    pub non_aligned_speakers: Vec<Option<DrawSpeaker>>,
     pub adjudicators: Vec<SetDrawAdjudicator>,
     pub president: Option<SetDrawAdjudicator>,
 }
@@ -236,7 +233,7 @@ impl Into<Ballot> for DrawBallot {
         speeches.extend(
             self.non_aligned_speakers.into_iter().enumerate().map(
                 |(idx, u)| Speech {
-                    speaker: Some(u.uuid),
+                    speaker: u.map(|s| s.uuid),
                     role: SpeechRole::NonAligned,
                     position: idx as u8,
                     scores: HashMap::new(),
@@ -423,14 +420,11 @@ impl DrawView {
             uuid: ballot.uuid,
             government: Self::draw_team_from_ballot_team(&ballot.government, info),
             opposition: Self::draw_team_from_ballot_team(&ballot.opposition, info),
-            non_aligned_speakers: ballot.speeches.iter().filter_map(|speech| {
-                if speech.role == SpeechRole::NonAligned {
-                    if let Some(speaker_uuid) = speech.speaker {
-                        Some(Self::draw_speaker_from_uuid(speaker_uuid, info))
-                    }
-                    else {
-                        None
-                    }
+            non_aligned_speakers: ballot.speeches.iter().filter(
+                |speech| speech.role == SpeechRole::NonAligned
+            ).map(|speech| {
+                if let Some(speaker_uuid) = speech.speaker {
+                    Some(Self::draw_speaker_from_uuid(speaker_uuid, info))
                 }
                 else {
                     None
@@ -489,7 +483,7 @@ impl DrawView {
         ballot.adjudicators.iter_mut().for_each(|adjudicator| {
             adjudicator.issues = ballot_evaluation.adjudicator_issues.get(&adjudicator.adjudicator.uuid).unwrap_or(&vec![]).clone();
         });
-        ballot.non_aligned_speakers.iter_mut().for_each(|speaker| {
+        ballot.non_aligned_speakers.iter_mut().filter_map(|s| s.as_mut()).for_each(|speaker| {
             speaker.issues = ballot_evaluation.non_aligned_issues.get(&speaker.uuid).unwrap_or(&vec![]).clone();
         });
 
@@ -580,7 +574,7 @@ impl DrawView {
                 );
             }
 
-            debate.ballot.non_aligned_speakers.iter().enumerate().for_each(|(position, speaker)| {
+            debate.ballot.non_aligned_speakers.iter().filter_map(|s| s.as_ref()).enumerate().for_each(|(position, speaker)| {
                 let team = inverse_team_map.get(&speaker.uuid);
                 if let Some(team_uuid) = team {
                     let mut prev_positions = team_positions.get_mut(team_uuid).unwrap();

@@ -162,16 +162,20 @@ async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache
     let changes: EntityGroup = action.execute(&transaction).await?;
     let deleted_tournaments = changes.get_all_deletion_tournaments(&transaction).await?;
     changes.save_all(&transaction).await?;
-    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().chain(deleted_tournaments.into_iter()).filter_map(|s| s).next().unwrap();
-    changes.save_log_with_tournament_id(&transaction, tournament).await?;
+    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().chain(deleted_tournaments.into_iter()).filter_map(|s| s).next();
+    if let Some(tournament) = tournament {
+        changes.save_log_with_tournament_id(&transaction, tournament).await?;
 
-    transaction.commit().await?;
-    let transaction = db.begin().await?;
-
-    let notifications = view_cache.update_and_get_changes(&transaction, &changes).await?;
-    transaction.commit().await?;
-
-    Ok(notifications)
+        transaction.commit().await?;
+        let transaction = db.begin().await?;
+    
+        let notifications = view_cache.update_and_get_changes(&transaction, &changes).await?;
+        transaction.commit().await?;    
+        Ok(notifications)
+    }
+    else {
+        anyhow::bail!("No tournament found in changes");
+    }
 }
 
 
@@ -519,7 +523,7 @@ async fn evaluate_ballots(db: State<'_, DatabaseConnection>, tournament_id: Uuid
             opposition: r.opposition_issues.into_iter().filter(
                 |i| i.target.uuid() == target_uuid
             ).collect_vec(),
-            non_aligned_speakers: b.non_aligned_speakers.iter().map(|s| r.non_aligned_issues.get(&s.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
+            non_aligned_speakers: b.non_aligned_speakers.iter().filter_map(|s| s.as_ref()).map(|s| r.non_aligned_issues.get(&s.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
             adjudicators: b.adjudicators.iter().map(|s| r.adjudicator_issues.get(&s.adjudicator.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
         }
     ).collect())
