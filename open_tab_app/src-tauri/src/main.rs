@@ -25,6 +25,9 @@ use std::sync::Arc;
 
 mod tournament_creation;
 mod identity;
+mod settings;
+
+use crate::settings::{AppSettings, get_settings, add_remote, remove_remote, RemoteSettings};
 
 
 #[allow(dead_code)]
@@ -522,10 +525,6 @@ async fn evaluate_ballots(db: State<'_, DatabaseConnection>, tournament_id: Uuid
     ).collect())
 }
 
-#[tauri::command]
-async fn get_settings(settings: State<'_, RwLock<AppSettings>>) -> Result<AppSettings, ()> {
-    Ok(settings.inner().read().await.clone())
-}
 
 #[tauri::command]
 async fn open_tournament(
@@ -908,65 +907,6 @@ async fn set_remote(
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AppSettings {
-    known_remotes: Vec<RemoteSettings>,
-    known_api_keys: HashMap<String, String>
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RemoteSettings {
-    url: String,
-    name: String,
-    account_name: Option<String>,
-}
-
-impl AppSettings {
-    fn settings_path() -> PathBuf {
-        let settings_dir = dirs::config_dir().unwrap_or(PathBuf::from(".")).join("com.juliussteen.open-tab");
-        let settings_path = settings_dir.join("settings.json");
-        settings_path
-    }
-
-    fn try_read() -> Result<Self, anyhow::Error> {
-        let settings_path = Self::settings_path();
-        let settings_file = File::open(&settings_path)?;
-
-        let settings = serde_json::from_reader(settings_file)?;
-        Ok(settings)
-    }
-
-    fn write(&self) -> Result<(), anyhow::Error> {
-        let path = Self::settings_path();
-        let dir = path.parent().unwrap();
-        std::fs::create_dir_all(dir)?;
-        let settings_file = File::create(&path)?;
-
-        serde_json::to_writer(settings_file, &self)?;
-        Ok(())
-    }
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            known_remotes: vec![
-                RemoteSettings {
-                    url: "https://api.debateresult.com".to_string(),
-                    name: "Default".to_string(),
-                    account_name: None,
-                },
-                RemoteSettings {
-                    url: "http://localhost:3000".to_string(),
-                    name: "Local".to_string(),
-                    account_name: None,
-                }
-            ],
-            known_api_keys: HashMap::new()
-        }
-    }
-}
-
 #[derive(Debug, Error, Serialize, Deserialize)]
 #[serde(tag = "error")]
 enum LoginError {
@@ -1302,6 +1242,8 @@ fn main() {
             get_tournament_list,
             open_tournament,
             get_settings,
+            add_remote,
+            remove_remote,
             set_remote,
             get_tournament_connectivity_status,
             login_to_remote,
