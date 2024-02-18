@@ -16,8 +16,7 @@ import { confirm } from '@tauri-apps/api/dialog';
 
 import {
     BrowserRouter as Router,
-    unstable_useBlocker as useBlocker,
-  } from "react-router-dom";
+} from "react-router-dom";
 import { openImportDialog } from "./openImportDialog";
 
 

@@ -144,13 +144,6 @@ async fn subscribe_to_view(view: View, db: State<'_, DatabaseConnection>, view_c
     }))
 }
 
-/*
-#[tauri::command]
-async fn add_remote(db: State<'_, DatabaseConnection>) {
-    
-}
-*/
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ActionResponse {
     success: bool,
