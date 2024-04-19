@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, iter::zip};
 
 
-use rand::thread_rng;
+use rand::{thread_rng, Rng};
 
 
 use crate::draw_view::DrawBallot;
@@ -56,7 +56,8 @@ fn auction_algorithm(
     for _ in 0..10000 {
         if let Some(next) = queue.pop_front() {
             let bids = weights.get_option_ballots(next);
-            let (best_bid, _) = zip(bids.iter(), prices.iter()).map(|(weight, price)| weight - price).enumerate().filter(|(_idx, b)| b > &0.0).max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap();
+
+            let (best_bid, _) = zip(bids.iter(), prices.iter()).map(|(weight, price)| weight - price).enumerate().max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap();
 
             if owners[best_bid] == usize::MAX {
                 owners[best_bid] = next;
@@ -73,13 +74,13 @@ fn auction_algorithm(
     owners.into_iter().enumerate().map(|(obj, owner)| (owner, obj)).collect()
 }
 
-pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, _randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
-    let _rng = thread_rng();
+pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
+    let mut rng = thread_rng();
     let mut matrix = Matrix::new(ballots.len(), ballots[0].len());
     for (option_idx, ballot_options) in ballots.iter().enumerate() {
         for (ballot_idx, ballot) in ballot_options.iter().enumerate() {
             let issues = evaluator.find_issues_in_ballot(ballot);
-            let weight: f64 = issues.total_severity() as f64 + 0.01;// + rng.gen_range(0.0..randomization_scale);
+            let weight: f64 = issues.total_severity() as f64 + rng.gen_range(0.0..randomization_scale);
 
             matrix.set(
                 option_idx,
