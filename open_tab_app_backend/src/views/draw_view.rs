@@ -344,10 +344,11 @@ impl DrawView {
     }
 
     fn draw_team_from_uuid(team_uuid: Uuid, info: &TournamentParticipantsInfo) -> DrawTeam {
+        let empty : Vec<Uuid> = vec![];
         DrawTeam {
             uuid: team_uuid,
             name: info.teams_by_id.get(&team_uuid).unwrap().name.clone(),
-            members: info.team_members.get(&team_uuid).unwrap().iter().map(|speaker_uuid| {
+            members: info.team_members.get(&team_uuid).unwrap_or(&empty).iter().map(|speaker_uuid| {
                 Self::draw_speaker_from_uuid(
                     *speaker_uuid, info
                 )

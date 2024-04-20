@@ -23,6 +23,7 @@ import { ParticipantOverview } from "./ParticipantOverview";
 import TournamentManager from "./Setup/TournamentOverview";
 import LoginWindow from "./LoginWindow";
 import UpdateProgressWindow from "./UpdateProgressWindow";
+import { ErrorHandlingContext } from "./Action.js";
 
 
 
@@ -109,11 +110,34 @@ function WindowFrame(props) {
   </div>
 }
 
+function cleanErrors(errors) {
+  let currTime = new Date().getTime();
+  return errors.filter((error) => currTime - error.time < 5000);
+}
+
 export function TournamentWindow({tournamentId}) {
+  let [currentErrors, setCurrentErrors] = useState([]);
   return <TournamentContext.Provider value={({uuid: tournamentId})}>
+    <ErrorHandlingContext.Provider value={({handleError: (error) => {
+      let currTime = new Date().getTime();
+      setCurrentErrors([...currentErrors, {error, time: currTime}]);
+      setTimeout(() => setCurrentErrors((errors) => {return cleanErrors(errors);}), 5000);
+    }})}>
     <div className="overscroll-none">
+      <div className="absolute z-20 top-0 left-0">
+        <ul className="">
+          {currentErrors.map((error, index) => <li className="bg-red-500 font-bold text-white shadow-sm rounded-md p-2 mb-1" key={index}>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 inline-block">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+
+            <span className="inline-block pl-1">{error.error}</span>
+            </li>)}
+        </ul>
+      </div>
       <WindowFrame />
     </div>
+    </ErrorHandlingContext.Provider>
   </TournamentContext.Provider>
 }
 

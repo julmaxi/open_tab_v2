@@ -52,12 +52,15 @@ pub enum PreliminaryDrawError {
     IncorrectTeamCount(usize),
     #[error("Incorrect number of rounds: {0}")]
     IncorrectRoundCount(usize),
+    #[error("Incorrect team size {is} for team {team_id}")]
+    IncorrectTeamSize{is: usize, team_id: Uuid},
     #[error("Other error: {source}")]
     Other {
         #[from]
         source: anyhow::Error,
     },
 }
+
 
 impl PreliminaryRoundGenerator {
     pub fn generate_draw_for_rounds(
@@ -74,6 +77,15 @@ impl PreliminaryRoundGenerator {
             return Err(PreliminaryDrawError::IncorrectTeamCount(
                 context.teams.len(),
             ));
+        }
+
+        for team in &context.teams {
+            if team.member_ids.len() != 3 {
+                return Err(PreliminaryDrawError::IncorrectTeamSize {
+                    is: team.member_ids.len(),
+                    team_id: team.uuid,
+                });
+            }
         }
 
         let num_debates = context.teams.len() / 3;

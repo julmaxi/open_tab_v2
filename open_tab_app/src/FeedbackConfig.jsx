@@ -4,9 +4,11 @@ import Button from "./Button"
 import { open } from "@tauri-apps/api/dialog";
 
 import { TournamentContext } from "./TournamentContext";
+import { ErrorHandlingContext } from "./Action";
 
 export function FeedbackConfigRoute() {
     let tournamentId = useContext(TournamentContext).uuid;
+    let errorContext = useContext(ErrorHandlingContext);
     return <div className="flex align-middle justify-center w-full h-full flex-col">
         <Button role="primary" onClick={
             () => {
@@ -15,7 +17,7 @@ export function FeedbackConfigRoute() {
                         executeAction("ImportFeedbackSystem", {
                             tournament_uuid: tournamentId,
                             template_path: result
-                        })
+                        }, errorContext.handleError)
                     }
                 })
             }

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useContext, useMemo } from "react";
 import { useState } from "react";
-import { executeAction } from "./Action";
+import { ErrorHandlingContext, executeAction } from "./Action";
 import { getPath, useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 
@@ -26,6 +26,7 @@ import _ from "lodash";
 function TeamDetailView({team, onChange}) {
     let [name, setName] = useState(team.name);
     let tournamentContext = useContext(TournamentContext);
+    let errorContext = useContext(ErrorHandlingContext);
 
     useEffect(() => {
         setName(team.name);
@@ -50,7 +51,7 @@ function TeamDetailView({team, onChange}) {
                     uuid: team.uuid,
                     name: name
                 }
-            ]})
+            ]}, errorContext.handleError)
         }}> Save </Button> }
 
     </div>

@@ -16,7 +16,7 @@ use open_tab_entities::prelude::*;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{View, draw_view::DrawBallot, LoadedView, Action, import::CSVReaderConfig, draw::evaluation::{DrawIssue, DrawEvaluator}, tournament_status_view::LoadedTournamentStatusView, feedback::FormTemplate};
+use open_tab_app_backend::{draw::{evaluation::{DrawEvaluator, DrawIssue}, preliminary::PreliminaryDrawError}, draw_view::DrawBallot, feedback::FormTemplate, import::CSVReaderConfig, tournament_status_view::LoadedTournamentStatusView, Action, LoadedView, View};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -151,6 +151,7 @@ async fn subscribe_to_view(view: View, db: State<'_, DatabaseConnection>, view_c
 struct ActionResponse {
     success: bool,
     message: Option<String>,
+    error: Option<String>
 }
 
 async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache: &mut ViewCache) -> Result<Vec<ChangeNotification>, anyhow::Error> {
@@ -180,6 +181,22 @@ struct ChangeNotificationSet {
     changes: Vec<ChangeNotification>
 }
 
+async fn error_to_end_user_message<C>(db: &C, err: &anyhow::Error) -> String where C: sea_orm::ConnectionTrait {
+    if let Some(err) = err.downcast_ref::<PreliminaryDrawError>() {
+        match err {
+            PreliminaryDrawError::IncorrectTeamSize { is, team_id } => {
+                let team = open_tab_entities::domain::team::Team::get(db, *team_id).await;
+                let team_name = team.map(|t| t.name.clone()).unwrap_or(String::from("unknown")).to_string();
+                return format!("Team {} has {} members, but the draw requires {} members", team_name, is, 3);
+            },
+            _ => err.to_string()
+        }
+    }
+    else {
+        err.to_string()
+    }
+}
+
 
 #[tauri::command]
 async fn execute_action(app: AppHandle, action: Action, db: State<'_, DatabaseConnection>, view_cache: State<'_, Mutex<ViewCache>>) -> Result<ActionResponse, ()> {
@@ -192,13 +209,15 @@ async fn execute_action(app: AppHandle, action: Action, db: State<'_, DatabaseCo
             app.emit_all("views-changed", ChangeNotificationSet {changes: notifications}).expect("Event send failed");
             ActionResponse {
                 success: true,
-                message: None
+                message: None,
+                error: None
             }
         },
         Err(err) => {
             ActionResponse {
                 success: false,
-                message: Some(err.to_string())
+                error: Some(error_to_end_user_message(db.inner(), &err).await),
+                message: None
             }
         }
     })

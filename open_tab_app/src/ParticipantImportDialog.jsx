@@ -18,6 +18,7 @@ import {
     BrowserRouter as Router,
 } from "react-router-dom";
 import { openImportDialog } from "./openImportDialog";
+import { ErrorHandlingContext } from "./Action";
 
 
 function NumberField(props) {
@@ -213,6 +214,7 @@ export function ParticipantImportDialogButton({buttonFactory, buttonProps: butto
     
     let [importDialogState, setImportDialogState] = useState(null);
     let tournamentContext = useContext(TournamentContext);
+    let errorContext = useContext(ErrorHandlingContext);
 
     let ButtonFactory = "button";
     if (buttonFactory != null) {
@@ -238,7 +240,8 @@ export function ParticipantImportDialogButton({buttonFactory, buttonProps: butto
                                 tournament_id: tournamentContext.uuid,
                                 path: importDialogState.file,
                                 parser_config: values
-                            }
+                            },
+                            errorContext.handleError
                         );
                         setImportDialogState(null);
                     }

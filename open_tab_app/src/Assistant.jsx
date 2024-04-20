@@ -14,6 +14,8 @@ import { open, save } from '@tauri-apps/api/dialog';
 import { DateTimeSelectorButton } from './DateTimeSelectorButton';
 import { AdjudicatorBreakSelector } from './AdjudicatorBreakSelector';
 import ModalOverlay from './Modal';
+import { ErrorHandlingContext } from './Action';
+
 
 const StepTypeRenderers = {
     "LoadParticipants": LoadParticipantsStep,
@@ -43,6 +45,7 @@ function Link({ to, children }) {
 
 function WaitForBreakStep({ node_uuid }) {
     let tournamentContext = useContext(TournamentContext);
+    let errorContext = useContext(ErrorHandlingContext);
     return <div className='w-full'>
         <h1>Break</h1>
 
@@ -54,7 +57,7 @@ function WaitForBreakStep({ node_uuid }) {
         </p>
 
         <Button onClick={() => {
-            executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid });
+            executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid }, errorContext.handleError);
         }} role="primary">Break</Button>
     </div>
 }
@@ -62,6 +65,7 @@ function WaitForBreakStep({ node_uuid }) {
 
 function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
     let isDone = num_submitted >= num_expected;
+    let errorContext = useContext(ErrorHandlingContext);
     return <div className='w-full'>
         <h1>Results</h1>
 
@@ -89,7 +93,7 @@ function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
                         round_id: round_uuid, update: {
                             "round_close_time": date.toISOString().slice(0, -1),
                         }
-                    });
+                    }, errorContext.handleError);
                 }
             }}
         >
@@ -99,6 +103,7 @@ function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
 }
 
 function WaitForMotionRelease({ round_uuid }) {
+    let errorContext = useContext(ErrorHandlingContext);
     return <div className='w-full'>
         <h1>Release Motion</h1>
 
@@ -125,7 +130,7 @@ function WaitForMotionRelease({ round_uuid }) {
                             "team_motion_release_time": date.toISOString().slice(0, -1),
                             "full_motion_release_time": fullMotionReleaseTime.toISOString().slice(0, -1),
                         }
-                    });
+                    }, errorContext.handleError);
                 }
             }}
         >
@@ -137,7 +142,7 @@ function WaitForMotionRelease({ round_uuid }) {
 
 
 function WaitForPublishRoundStep({ round_uuid }) {
-    let tournamentContext = useContext(TournamentContext);
+    let errorContext = useContext(ErrorHandlingContext);
     return <div className='w-full'>
         <h1>Publish Round</h1>
         <p>
@@ -245,6 +250,7 @@ function LoadParticipantsStep({ }) {
 function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_node }) {
     let tournamentContext = useContext(TournamentContext);
     let [isEditingAdjudicatorBreak, setIsEditingAdjudicatorBreak] = useState(false);
+    let errorContext = useContext(ErrorHandlingContext);
 
     return <div className='w-full'>
         <h1>Draw</h1>
@@ -292,7 +298,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                             executeAction("SetBreakRelease", {
                                 node_uuid: previous_break_node,
                                 time: date.toISOString().slice(0, -1),
-                            });
+                            }, errorContext.handleError);
                         }
                     }}
                 >
@@ -332,7 +338,8 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                                 {
                                     node_id: previous_break_node,
                                     breaking_adjudicators: breakingAdjudicators,
-                                }
+                                },
+                                errorContext.handleError
                             )
 
                             setIsEditingAdjudicatorBreak(false);
@@ -374,7 +381,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                 </Button>    
             }
             <Button onClick={() => {
-                executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid });
+                executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid }, errorContext.handleError);
             }} role="primary">Generate Draw</Button>
         </div>
     </div>

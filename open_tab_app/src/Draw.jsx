@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { DragItem, DropList, DropSlot, DropWell, makeDragHandler } from './DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
-import { executeAction } from "./Action";
+import { ErrorHandlingContext, executeAction } from "./Action";
 import { TournamentContext } from "./TournamentContext";
 import { TabGroup, Tab } from "./TabGroup";
 import { useSelect } from "downshift";
@@ -743,6 +743,7 @@ export const DrawEditorSettingsContext = createContext({
 
 function DrawSettingsEditor({round_id}) {
   let settings = useContext(DrawEditorSettingsContext);
+  let errorContext = useContext(ErrorHandlingContext);
 
   const handleShowMiscIssuesChange = () => {
     settings.updateSettings({ ...settings, showMiscIssues: !settings.showMiscIssues });
@@ -816,7 +817,7 @@ function DrawSettingsEditor({round_id}) {
               (result) => {
                 console.log(result);
                 if (result === true) {
-                  executeAction("RedrawRound", { round_id: round_id, mode: "Venues" });
+                  executeAction("RedrawRound", { round_id: round_id, mode: "Venues" }, errorContext.handleError);
                 }
               })
           }}
@@ -830,7 +831,7 @@ function DrawSettingsEditor({round_id}) {
               (result) => {
                 console.log(result);
                 if (result === true) {
-                  executeAction("RedrawRound", { round_id: round_id, mode: "MissingNonAligned" });
+                  executeAction("RedrawRound", { round_id: round_id, mode: "MissingNonAligned" }, errorContext.handleError);
                 }
               })
           }}
@@ -934,9 +935,11 @@ function DrawEditor(props) {
     });
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
+    let errorContext = useContext(ErrorHandlingContext);
+
     executeAction("UpdateDraw", {
       updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
-    });
+    }, errorContext.handleError);
   }
 
   function onDragOverFunc(from, to, isSwap) {
@@ -1105,6 +1108,8 @@ function DrawEditor(props) {
     }
   });
 
+  let errorContext = useContext(ErrorHandlingContext);
+
   return <div className="flex flex-row w-full h-full">
     <DrawEditorSettingsContext.Provider value={settings}>
       <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragOver={dragOver} onDragStart={dragStart}>
@@ -1127,7 +1132,7 @@ function DrawEditor(props) {
                 dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
                 dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
                 onVenueChange={(venue) => {
-                  executeAction("UpdateDraw", { updated_debates: [{ ...debate, venue: venue }] });
+                  executeAction("UpdateDraw", { updated_debates: [{ ...debate, venue: venue }] }, errorContext.handleError);
                 }
                 }
               />)}

@@ -1,11 +1,13 @@
 
 
 
+use std::collections::HashMap;
+
 use base64::{engine::general_purpose, Engine};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution, participant_clash::ParticipantClash, self}};
+use open_tab_entities::{domain::{self, entity::LoadEntity, participant::ParticipantInstitution, participant_clash::ParticipantClash, team}, prelude::*};
 
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, FromQueryResult, JoinType, QuerySelect, SelectColumns};
 
 use crate::participants_list_view::{ParticipantEntry, ParticipantTeamInfo};
 use serde::{Serialize, Deserialize};
@@ -26,6 +28,8 @@ pub struct UpdateParticipantsAction {
 impl ActionTrait for UpdateParticipantsAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut groups = EntityGroup::new();
+
+        let mut team_member_count_changes : HashMap<Uuid, i32> = HashMap::new();
 
         for participant in self.updated_participants.into_iter() {
             if self.deleted_participants.contains(&participant.uuid) {
@@ -67,29 +71,9 @@ impl ActionTrait for UpdateParticipantsAction {
             .one(_db)
             .await?;
 
-            //TODO: Could be one query with some work
             if let Some(old_speaker) = old_speaker {
-                let did_remove_from_team = match &participant_role {
-                    crate::participants_list_view::ParticipantRole::Speaker { team_info } => {
-                        match &team_info {
-                            ParticipantTeamInfo::Existing { team_id } if Some(*team_id) == old_speaker.team_id => false,
-                            ParticipantTeamInfo::New { .. } | ParticipantTeamInfo::Existing { .. } => {
-                                true
-                            },
-                        }
-                    },
-                    crate::participants_list_view::ParticipantRole::Adjudicator { .. } => true
-                };
-
-                if did_remove_from_team {
-                    let old_team_members = open_tab_entities::schema::speaker::Entity::find()
-                    .filter(open_tab_entities::schema::speaker::Column::TeamId.eq(old_speaker.team_id))
-                    .count(_db)
-                    .await?;
-
-                    if old_team_members == 1 {
-                        groups.delete(EntityType::Team, old_speaker.team_id.unwrap());
-                    }
+                if let Some(team_id) = old_speaker.team_id {
+                    team_member_count_changes.entry(team_id).and_modify(|c| *c -= 1).or_insert(-1);
                 }
             }
 
@@ -108,6 +92,8 @@ impl ActionTrait for UpdateParticipantsAction {
                         new_uuid
                     },
                     ParticipantTeamInfo::Existing { team_id } => {
+                        team_member_count_changes.entry(*team_id).and_modify(|c| *c += 1).or_insert(1);
+
                         team_id.clone()
                     }
                 };
@@ -135,8 +121,41 @@ impl ActionTrait for UpdateParticipantsAction {
             ));
         }
 
-        for uuid in self.deleted_participants.into_iter() {
-            groups.delete(EntityType::Participant, uuid);
+        let deleted_participant_models = open_tab_entities::domain::participant::Participant::get_many(_db, self.deleted_participants.clone()).await?;     
+        for participant in deleted_participant_models {
+            groups.delete(EntityType::Participant, participant.uuid);
+            match participant.role {
+                ParticipantRole::Speaker(speaker) => {
+                    if let Some(team_id) = speaker.team_id {
+                        team_member_count_changes.entry(team_id).and_modify(|c| *c -= 1).or_insert(-1);
+                    }
+                },
+                _ => {}
+            }
+        }
+
+        #[derive(Debug, FromQueryResult)]
+        struct TeamMemberCount {
+            team_id: Uuid,
+            count: i32,
+        }
+
+        let possibly_empty_teams = team_member_count_changes.iter().filter(|(_, c)| **c < 0).map(|(k, _)| *k).collect::<Vec<_>>();
+        
+        let changed_team_member_count = open_tab_entities::schema::speaker::Entity::find()
+            .select_only()
+            .select_column(open_tab_entities::schema::speaker::Column::TeamId)
+            .select_column_as(open_tab_entities::schema::speaker::Column::Uuid.count(), "count")
+            .group_by(open_tab_entities::schema::speaker::Column::TeamId)
+            .filter(open_tab_entities::schema::speaker::Column::TeamId.is_in(possibly_empty_teams))
+            .into_model::<TeamMemberCount>()
+            .all(_db)
+            .await?;
+
+        let deleted_teams = changed_team_member_count.iter().filter(|c| c.count + team_member_count_changes.get(&c.team_id).copied().unwrap_or(0) <= 0).map(|c| c.team_id).collect::<Vec<_>>();
+
+        for team_id in deleted_teams {
+            groups.delete(EntityType::Team, team_id);
         }
 
         Ok(groups)
