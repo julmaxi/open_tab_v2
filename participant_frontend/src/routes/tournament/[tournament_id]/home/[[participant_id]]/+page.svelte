@@ -268,7 +268,7 @@
         </div>
         </div>
         <div>
-            {#if round.status === 'InProgress' && round.participant_role != null }
+            {#if round.status === 'InProgress' && round.participant_role.debate != null }
                 <BoxButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer`}
                 label="Go to Timer" />    
