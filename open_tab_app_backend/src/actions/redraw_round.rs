@@ -118,7 +118,6 @@ impl ActionTrait for RedrawRoundAction {
                         match &speech.role {
                             SpeechRole::NonAligned => {
                                 if speech.speaker.is_none() {
-                                    dbg!("HIT!");
                                     if let Some(speaker) = missing_iter.next() {
                                         speech.speaker = Some(speaker.clone());
                                         did_change = true;
@@ -134,7 +133,6 @@ impl ActionTrait for RedrawRoundAction {
                     }
                 }
 
-                dbg!(&g.ballots.len());
                 Ok(g)
             }
         }

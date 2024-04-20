@@ -21,6 +21,12 @@ pub struct DebateBackupBallot {
 
 
 impl DebateBackupBallot {
+    pub async fn get_all_for_debate<C>(db: &C, debate_id: Uuid) -> Result<Vec<DebateBackupBallot>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+        let rows = schema::debate_backup_ballot::Entity::find().filter(schema::debate_backup_ballot::Column::DebateId.eq(debate_id)).all(db).await?;
+
+        Ok(rows.into_iter().map(Self::from_model).collect())
+    }
+    
     async fn get_many_tournaments_impl<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let debates_with_rounds = schema::tournament_debate::Entity::find()
             .filter(

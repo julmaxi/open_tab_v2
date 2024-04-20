@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge}, EntityType, tab::TeamRoundRole, derived_models::{BreakNodeBackgroundInfo, NodeExecutionError}};
+use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, tab::TeamRoundRole, EntityType};
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
@@ -304,6 +304,20 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                     EntityType::TournamentDebate,
                     debate.uuid
                 );
+
+                changes.delete(
+                    EntityType::Ballot,
+                    debate.ballot_id
+                );
+
+                let backup_ballots = open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot::get_all_for_debate(db, debate.uuid).await?;
+
+                for backup_ballot in backup_ballots {
+                    changes.delete(
+                        EntityType::DebateBackupBallot,
+                        backup_ballot.uuid
+                    );
+                }
             }
 
             round_existing_debates.into_iter().take(round_new_ballots.len()).collect_vec()
