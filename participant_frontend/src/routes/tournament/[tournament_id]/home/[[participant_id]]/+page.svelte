@@ -381,6 +381,7 @@
     </thead>
     <tbody>
         {#each pastRounds as round}
+            {#if round.participant_role.role === "Adjudicator"}
             <tr>
                 <td>{round.name}</td>
                 <td>{round.motion.motion}</td>
@@ -390,6 +391,7 @@
                     </a>
                 </td>
             </tr>
+            {/if}
         {/each}
     </tbody> 
 </table>
