@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, ballot::SpeechRole, self}, schema, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema, EntityGroup, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
@@ -100,6 +100,7 @@ pub enum RoundStatus {
     InProgress,
     Completed
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticipantRoundInfo {
@@ -525,16 +526,7 @@ async fn get_participant_info(
         }
     }).collect_vec();
 
-    let all_feedback_forms = FeedbackForm::get_all_in_tournament(&transaction, participant.tournament_id).await?;
-
-    let overall_visibility = all_feedback_forms.iter().fold(
-        Default::default(),
-        |acc : FeedbackFormVisibility, val| {
-            acc | &val.visibility
-        }
-    );
-
-    let feedback_directions = overall_visibility.to_feedback_direction_pairs();
+    let feedback_directions = get_tournament_feedback_directions(&transaction, participant.tournament_id).await?;
 
     let mut submission_filter = schema::feedback_response::Column::SourceParticipantId.eq(participant_id);
 

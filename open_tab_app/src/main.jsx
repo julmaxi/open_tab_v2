@@ -17,6 +17,7 @@ import { FeedbackConfigRoute } from "./FeedbackConfig";
 import VenueViewRoute from "./Venues";
 import TournamentViewRoute from "./TournamentView";
 import { AssistantRoute } from "./Assistant";
+import { FeedbackProgressRoute } from "./FeedbackProgress";
 
 const router = createMemoryRouter([
   {
@@ -55,6 +56,10 @@ const router = createMemoryRouter([
       {
         path: "feedback-config",
         element: <FeedbackConfigRoute />,
+      },
+      {
+        path: "feedback-progress",
+        element: <FeedbackProgressRoute />,
       },
       {
         path: "tab",

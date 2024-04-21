@@ -69,7 +69,6 @@ pub struct FeedbackFormSubmissionResponse {
     submission_id: Uuid   
 }
 
-
 async fn get_feedback_form(
     State(db): State<DatabaseConnection>,
     Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
@@ -130,7 +129,6 @@ async fn get_relevant_questions<C>(db: &C, tournament_id: Uuid, source_role: Fee
     }).collect_vec();
     Ok(questions)
 }
-
 
 async fn submit_feedback_form(
     State(db): State<DatabaseConnection>,

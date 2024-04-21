@@ -79,6 +79,9 @@ function SideNav(props) {
       <NavItem href="/feedback-config">
         Settings
       </NavItem>
+      <NavItem href="/feedback-progress">
+        Progress
+      </NavItem>
     </NavGroup>
     <NavItem href="/venues">
       Venues

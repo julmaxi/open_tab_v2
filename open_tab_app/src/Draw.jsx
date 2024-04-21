@@ -924,6 +924,7 @@ function getMaxSeverityFromEvaluationResult(result) {
 
 
 function DrawEditor(props) {
+  let errorContext = useContext(ErrorHandlingContext);
   function onDragEnd(from, to, isSwap) {
     setDragHighlightedIssues(null);
     setDraggedItemHighlight(null);
@@ -935,7 +936,6 @@ function DrawEditor(props) {
     });
     let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
 
-    let errorContext = useContext(ErrorHandlingContext);
 
     executeAction("UpdateDraw", {
       updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
@@ -1107,8 +1107,6 @@ function DrawEditor(props) {
       setSettings(newSettings);
     }
   });
-
-  let errorContext = useContext(ErrorHandlingContext);
 
   return <div className="flex flex-row w-full h-full">
     <DrawEditorSettingsContext.Provider value={settings}>
