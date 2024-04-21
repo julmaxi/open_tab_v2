@@ -53,7 +53,6 @@ pub struct FeedbackProgressMatrix {
 impl FeedbackProgressMatrix {
     pub async fn from_tournament<C>(db: &C, tournament_id: Uuid) -> anyhow::Result<FeedbackProgressMatrix> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_id).await?;
-        dbg!(&rounds);
         let feedback_directions = get_tournament_feedback_directions(db, tournament_id).await?;
 
         let debates = domain::debate::TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|u| u.uuid).collect_vec()).await?;
@@ -149,6 +148,25 @@ pub fn get_feedback_requests_from_ballot(ballot: &Ballot, directions: &Vec<(Feed
                             source_id: SourceId::Participant{uuid: *adj},
                             source_role: FeedbackSourceRole::Wing,
                             target_role: FeedbackTargetRole::Chair
+                        });
+                    }
+                }
+            },
+            (FeedbackSourceRole::Wing, FeedbackTargetRole::Wing) => {
+                if ballot.adjudicators.len() > 2 {
+                    let wings = &ballot.adjudicators[1..];
+                    for pair in wings.iter().combinations(2) {
+                        out.push(FeedbackRequest {
+                            target_id: *pair[0],
+                            source_id: SourceId::Participant{uuid: *pair[1]},
+                            source_role: FeedbackSourceRole::Wing,
+                            target_role: FeedbackTargetRole::Wing
+                        });
+                        out.push(FeedbackRequest {
+                            target_id: *pair[1],
+                            source_id: SourceId::Participant{uuid: *pair[0]},
+                            source_role: FeedbackSourceRole::Wing,
+                            target_role: FeedbackTargetRole::Wing
                         });
                     }
                 }
