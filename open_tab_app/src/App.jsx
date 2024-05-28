@@ -12,14 +12,12 @@ import "./App.css";
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
 
-import {DropList, DropWell, makeDragHandler} from './DragDrop.jsx';
 import DrawEditor from "./Draw";
 import { Outlet, Route, useParams } from "react-router";
 import { Link } from "react-router-dom";
 import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 import { useContext } from 'react';
-import { ParticipantOverview } from "./ParticipantOverview";
 import TournamentManager from "./Setup/TournamentOverview";
 import LoginWindow from "./LoginWindow";
 import UpdateProgressWindow from "./UpdateProgressWindow";

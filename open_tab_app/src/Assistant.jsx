@@ -1,7 +1,7 @@
 import { useTransition, animated, useSpringRef } from '@react-spring/web'
 import { useState, useEffect, useMemo, useContext } from 'react';
 import { TournamentContext } from './TournamentContext';
-import Button from './Button';
+import Button from './UI/Button';
 import { useView } from './View';
 import RemoteSelector from './RemoteSelector';
 import { useSettings } from './settings';
@@ -11,9 +11,9 @@ import { ParticipantImportDialogButton } from './ParticipantImportDialog';
 import { Link as RouterLink } from 'react-router-dom';
 import { executeAction } from './Action';
 import { open, save } from '@tauri-apps/api/dialog';
-import { DateTimeSelectorButton } from './DateTimeSelectorButton';
+import { DateTimeSelectorButton } from './UI/DateTimeSelectorButton';
 import { AdjudicatorBreakSelector } from './AdjudicatorBreakSelector';
-import ModalOverlay from './Modal';
+import ModalOverlay from './UI/Modal';
 import { ErrorHandlingContext } from './Action';
 
 

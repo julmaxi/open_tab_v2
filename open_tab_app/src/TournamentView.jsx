@@ -3,7 +3,7 @@ import { TournamentContext } from "./TournamentContext";
 import { useView } from "./View";
 import { useSettings } from "./settings";
 
-import ModalOverlay from "./Modal";
+import ModalOverlay from "./UI/Modal";
 
 import RemoteSelector from "./RemoteSelector";
 import { invoke } from "@tauri-apps/api/tauri";

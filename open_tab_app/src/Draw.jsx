@@ -7,7 +7,7 @@ import "./App.css";
 import { DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin, DragOverlay } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
-import { DragItem, DropList, DropSlot, DropWell, makeDragHandler } from './DragDrop.jsx';
+import { DragItem, DropList, DropSlot, DropWell, makeDragHandler } from './UI/DragDrop.jsx';
 
 import { useView, updatePath, getPath, clone } from './View.js'
 import { ErrorHandlingContext, executeAction } from "./Action";

@@ -6,7 +6,7 @@ import {
   createMemoryRouter,
   RouterProvider,
 } from "react-router-dom";
-import { ParticipantOverview } from "./ParticipantOverview";
+import ParticipantRoute from "./Routes/Participants";
 
 import { RoundResultRoute } from "./Results";
 import { RoundsEditorRoute } from "./RoundsEditor";
@@ -42,7 +42,7 @@ const router = createMemoryRouter([
       },
       {
         path: "participants",
-        element: <ParticipantOverview />
+        element: <ParticipantRoute />
       },
       {
         index: true,

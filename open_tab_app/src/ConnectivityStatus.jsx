@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { TournamentContext } from './TournamentContext';
 import {listen} from '@tauri-apps/api/event';
 import { useView } from './View';
-import ModalOverlay from './Modal';
+import ModalOverlay from './UI/Modal';
 import LoginWidget from './LoginWidget';
 import { invoke } from '@tauri-apps/api/tauri';
 import { useSettings } from "./settings";

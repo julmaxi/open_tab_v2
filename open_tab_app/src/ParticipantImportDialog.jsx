@@ -6,10 +6,10 @@ import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 
-import ModalOverlay from "./Modal";
-import Button from "./Button";
+import ModalOverlay from "./UI/Modal";
+import Button from "./UI/Button";
 import { SortableTable, EditableCell } from "./SortableTable";
-import ComboBox from "./ComboBox";
+import ComboBox from "./UI/ComboBox";
 import { useEffect } from "react";
 import _ from "lodash";
 import { confirm } from '@tauri-apps/api/dialog';

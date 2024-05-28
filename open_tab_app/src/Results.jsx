@@ -7,9 +7,9 @@ import { getPath, useView } from "./View";
 import { open } from '@tauri-apps/api/dialog';
 import { TournamentContext } from "./TournamentContext";
 
-import ModalOverlay from "./Modal";
+import ModalOverlay from "./UI/Modal";
 import { useParams } from "react-router";
-import Button from "./Button";
+import Button from "./UI/Modal";
 
 const ROLE_COLORS = {
     "government": "bg-green-200",

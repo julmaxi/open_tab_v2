@@ -1,7 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import ButtonField from '../ButtonField';
-
-import {open} from '@tauri-apps/api/dialog';
 
 const TournamentCreationForm = ({ onAbort, onSubmit }) => {
   const [name, setName] = useState('');

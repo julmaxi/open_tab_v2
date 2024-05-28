@@ -1,6 +1,6 @@
 import { useContext } from "react"
 import { executeAction } from "./Action"
-import Button from "./Button"
+import Button from "./UI/Modal"
 import { open } from "@tauri-apps/api/dialog";
 
 import { TournamentContext } from "./TournamentContext";

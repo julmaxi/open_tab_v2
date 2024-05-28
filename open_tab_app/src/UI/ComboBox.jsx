@@ -77,7 +77,7 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
                 <div className="flex shadow-sm bg-white gap-0.5">
                     <input
                         placeholder={placeholder || ""}
-                        className="w-full p-1.5"
+                        className="w-full p-1.5 border rounded"
                         {...getInputProps()}
                     />
                     <button

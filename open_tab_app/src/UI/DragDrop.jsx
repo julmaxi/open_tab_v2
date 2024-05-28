@@ -1,10 +1,6 @@
-import { useState, useId, useMemo, Children } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/tauri";
-import "./App.css";
+import { useId, Children } from "react";
 
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 
 import { useSpring, animated } from 'react-spring';
 

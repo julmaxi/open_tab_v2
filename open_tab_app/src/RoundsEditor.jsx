@@ -1,10 +1,10 @@
 import { Children, useState, forwardRef, useContext, useEffect } from "react";
-import Button from "./Button";
+import Button from "./UI/Modal";
 
 import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";
 import { ask } from '@tauri-apps/api/dialog';
-import ExponentialStepper from "./ExponentialStepper";
+import ExponentialStepper from "./UI/ExponentialStepper";
 
 const avgPointFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -156,10 +156,10 @@ function TournamentSubtree({ onSelectNode, selectedNodeId, ...props }) {
 }
 
 import { executeAction } from "./Action";
-import { Popover } from "./Popover";
+import { Popover } from "./UI/Popover";
 import ContentView from "./ContentView";
 import Select from "./Select";
-import ModalOverlay from "./Modal";
+import ModalOverlay from "./UI/Modal";
 import { SortableTable } from "./SortableTable";
 import { AdjudicatorBreakSelector } from "./AdjudicatorBreakSelector";
 

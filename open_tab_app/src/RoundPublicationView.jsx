@@ -6,11 +6,11 @@ import {TournamentContext} from "./TournamentContext";
 
 import {useView} from "./View";
 import { executeAction } from "./Action";
-import ModalOverlay from "./Modal";
-import Button from "./Button";
+import ModalOverlay from "./UI/Modal";
+import Button from "./UI/Modal";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
-import { DateTimeSelectorButton } from "./DateTimeSelectorButton";
+import { DateTimeSelectorButton } from "./UI/DateTimeSelectorButton";
 
 function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
     let [refeshVal, setRefresh] = useState(0);
