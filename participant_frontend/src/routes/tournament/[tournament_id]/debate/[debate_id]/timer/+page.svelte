@@ -32,6 +32,15 @@
         return `${TEAM_POSITION_NAMES[speech.position]} der ${teamName}`
     }
 
+    function computeTimePassed(speech, now) {
+        return speech?.start ? (
+            speech.end ?
+            speech.end.getTime() - speech.start.getTime() - speech.pauseMilliseconds:
+            now.getTime() - speech.start.getTime() - speech.pauseMilliseconds
+        ):
+        0;
+    }
+
     /**
      * @param {{ [x: string]: any; }} speeches
      * @param {string | number} currIdx
@@ -62,37 +71,29 @@
 
     /**
      * @param {{ start: number; end: number; segments: { duration: number; }[]; }} speech
-     * @param {number | Date} now
      * 
      * @returns {[number | null, number | null]}
      */
-    function findCurrSegment(speech, now) {
+    function findCurrSegment(speech) {
         if (speech) {
-            if (speech.start) {
-                // @ts-ignore
-                let passedTime = speech.end || now - speech.start;
-                let currSegment = 0;
-                let currSegmentEnd = speech.segments[0].duration;
-                for (let segment of speech.segments) {
-                    if (passedTime > currSegmentEnd) {
-                        currSegment += 1;
-                        currSegmentEnd = segment.duration;
-                    }
+            let passedTime = computeTimePassed(speech, new Date());
+            let currSegment = 0;
+            let currSegmentEnd = 0;
+            for (let segment of speech.segments) {
+                if (passedTime >= currSegmentEnd) {
+                    currSegment += 1;
+                    currSegmentEnd += segment.duration;
                 }
-
-                return [currSegment, currSegmentEnd];
             }
-            else {
-                //We assume here that every speech has at least one segment
-                return [0, speech.segments[0].duration];
-            }
+            return [currSegment, currSegmentEnd];
         }
-
-        return [null, null]
+        else {
+            return [null, null]
+        }
     }
 
     /**
-     * @param {{ start?: any; end?: any; position: any; role: any; target_length?: any; is_response: any; segments?: any; }} speech
+     * @param {{ start?: any; end?: any; position: any; role: any; target_length?: any; is_response: any; segments?: any; pause_milliseconds?: any; }} speech
      */
     function mapSpeech(
         speech
@@ -112,7 +113,8 @@
                         duration: segment.duration * 1000.0,
                     }
                 }
-            )
+            ),
+            pauseMilliseconds: speech.pause_milliseconds
         }
     }
 
@@ -139,7 +141,50 @@
      */
     let currSegmentEnd = 0;
 
-    $: [currSegment, currSegmentEnd] = findCurrSegment(currSpeech, now);
+    $: currSpeechTimePassed = currSpeech?.start ? (
+        currSpeech.end ?
+            currSpeech.end.getTime() - currSpeech.start.getTime() - currSpeech.pauseMilliseconds:
+            now.getTime() - currSpeech.start.getTime() - currSpeech.pauseMilliseconds
+        ):
+        0;
+
+    //$: [currSegment, currSegmentEnd] = findCurrSegment(currSpeech);
+
+    /**
+     * @type {ReturnType<typeof setTimeout> | null}
+     */
+    let nextSegmentTimer = null;
+
+    let scheduledRings = 0;
+
+    function resetNextSegmentTimer(currSpeech, currSpeechEnd, currSpeechStart) {
+        if (nextSegmentTimer !== null) {
+            clearTimeout(nextSegmentTimer);
+        }
+        [currSegment, currSegmentEnd] = findCurrSegment(currSpeech);
+        
+
+        if (currSpeechEnd && currSpeechStart === null && currSegmentEnd !== null) {
+            nextSegmentTimer = setTimeout(
+                () => {
+                    let bellElement = document.querySelector("#bell_audio");
+                    scheduledRings = 2;
+                    // @ts-ignore
+                    bellElement.play().catch(
+                        (err) => {
+                            console.error(err);
+                        }
+                    );
+                    resetNextSegmentTimer(currSpeech, currSpeechEnd, currSpeechStart);
+                },
+                currSegmentEnd - currSpeechTimePassed
+            );
+        }
+    }
+
+
+    $: resetNextSegmentTimer(currSpeech, currSpeech?.start, currSpeech?.end);
+
 
     /**
      * @type {AudioContext | null}
@@ -148,6 +193,17 @@
 
     onMount(() => {
         const bellElement = document.querySelector("#bell_audio");
+        bellElement.onended = () => {
+            console.log(scheduledRings);
+            if (scheduledRings > 0) {
+                scheduledRings -= 1;
+                bellElement.play().catch(
+                    (err) => {
+                        console.error(err);
+                    }
+                )
+            }
+        }
 
         const requestWakeLock = () => {navigator?.wakeLock?.request().then(
             (wakeLock) => {
@@ -163,28 +219,11 @@
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-
         setInterval(
             () => {
                 now = new Date();
-
-                if (currSpeech && currSpeech.start && !currSpeech.end) {
-                    // @ts-ignore
-                    let passedTime = now - currSpeech.start;
-                    if (currSegmentEnd !== null && currSegment !== null && passedTime > currSegmentEnd) {
-                        currSegment += 1;
-                        if (currSegment < currSpeech.segments.length) {
-                            currSegmentEnd += currSpeech.segments[currSegment].duration;
-                        }
-                        else {
-                            currSegmentEnd = null;
-                        }
-                        // @ts-ignore
-                        bellElement?.play();
-                    }
-                }
             },
-            10
+            1
         );
 
         let source = new EventSource(
@@ -195,14 +234,12 @@
 
             let eventInfo = data.event;
             if (eventInfo.type == "ActiveSpeechUpdate") {
-                console.log(eventInfo);
                 if (!eventInfo.speech) {
                     currIdx = speeches.length;
                 }
                 else {
                     for (let idx = 0; idx < speeches.length; idx++) {
                         let speech = speeches[idx];
-                        console.log(eventInfo.speech.speech_position);
                         if (speech.position === eventInfo.speech.speech_position && speech.role === eventInfo.speech.speech_role && speech.isResponse === eventInfo.speech.is_response) {
                             currIdx = idx;
                             break
@@ -216,6 +253,7 @@
                     if (speech.position === eventInfo.speech_position && speech.role === eventInfo.speech_role && speech.isResponse === eventInfo.is_response) {
                         speech.start = eventInfo.start ? parseDate(eventInfo.start) : null;
                         speech.end = eventInfo.end ? parseDate(eventInfo.end) : null;
+                        speech.pauseMilliseconds = eventInfo.pause_milliseconds;
                         speeches = speeches;
                     }
                 }
@@ -275,6 +313,7 @@
     <source src={bell} type="audio/wav">
 </audio>
 
+
 <div class="timer-container">
     <div class="top-padding"></div>
 
@@ -283,7 +322,7 @@
             {currSpeech.name}
         </span>
 
-        <Timer targetTime={currSpeech.targetLength} startTime={currSpeech.start} currTime={currSpeech.end !== null ? currSpeech.end : now} />
+        <Timer targetTime={currSpeech.targetLength} timePassed={currSpeechTimePassed} />
 
         {#if enableControls }
             <form method="POST" action="?/setTime" use:enhance={
@@ -292,6 +331,8 @@
                     evt.data.append(
                         'time', time.toISOString()
                     );
+                    
+                    time = new Date(time.toISOString())
 
                     if (currSpeech.start) {
                         currSpeech.end = time;
@@ -341,11 +382,39 @@
 
     <div class="padding"></div>
     
+
+    {#if enableControls && currSpeech }
+    <form method="POST" action="?/resume" use:enhance={
+        (evt) => {
+            let now = new Date();
+            currSpeech.pauseMilliseconds = currSpeech.pauseMilliseconds + now.getTime() - currSpeech.end.getTime();
+            currSpeech.end = null;
+
+            evt.data.append(
+                'resumeTime', now.toISOString()
+            );
+        }
+    } style={
+        currSpeech && currSpeech.end ? "" : "visibility: hidden;"
+    }>
+        <input type="hidden" name="speechPosition" value={currSpeech.position} />
+        <input type="hidden" name="speechRole" value={currSpeech.role} />
+        <input type="hidden" name="isResponse" value={currSpeech.isResponse ? "true" : "false"} />
+        <input type="hidden" name="speechEnd" value={currSpeech.end} />
+        <input type="hidden" name="previousPause" value={currSpeech.pauseMilliseconds} />
+        
+        <button type="submit">
+            Resume
+        </button>
+    </form>
+    {/if}
+
     {#if enableControls && currSpeech }
     <form method="POST" action="?/reset" use:enhance={
         () => {
             currSpeech.end = null;
             currSpeech.start = null;
+            currSpeech.pauseMilliseconds = 0;
         }
     } style={
         currSpeech && currSpeech.end ? "" : "visibility: hidden;"
@@ -359,6 +428,7 @@
         </button>
     </form>
     {/if}
+    
     
     {#if enableControls}
         <button on:click={

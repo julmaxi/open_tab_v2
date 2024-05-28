@@ -7,7 +7,7 @@ use axum::extract::{Path, State};
 use axum::routing::{post, get, patch};
 use chrono::Utc;
 use open_tab_entities::domain::ballot_speech_timing::BallotSpeechTiming;
-use std::sync::Arc;
+use std::sync::{Arc, RwLockReadGuard};
 
 use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
@@ -19,7 +19,7 @@ use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
 use itertools::Itertools;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser};
 use crate::ballot::check_is_authorized_for_debate_result_submission;
@@ -42,7 +42,7 @@ enum UpdateDebateStateRequest {
 
 async fn update_debate_state(
     State(db): State<DatabaseConnection>,
-    State(notifications): State<Arc<Mutex<ParticipantNotificationManager>>>,
+    State(notifications): State<Arc<RwLock<ParticipantNotificationManager>>>,
     Path(debate_id): Path<Uuid>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Json(request): Json<UpdateDebateStateRequest>,
@@ -86,7 +86,7 @@ async fn update_debate_state(
 
     entities.save_all_and_log_for_tournament(&db, round.tournament_id).await?;
 
-    notifications.lock().await.notify_debate_non_aligned_motion_release_state(&db, debate_id).await?;
+    notifications.as_ref().read().await.notify_debate_non_aligned_motion_release_state(&db, debate_id);
 
     Ok(())
 }
@@ -133,20 +133,20 @@ async fn get_debate_timing_info(
                 7 * 60,
                 None,
                 vec![
-                    SegmentInfo {duration: 60, end_ring: RingType::Single},
-                    SegmentInfo {duration: 5*60, end_ring: RingType::Single},
-                    SegmentInfo {duration: 60, end_ring: RingType::Double},
-                    SegmentInfo {duration: 15, end_ring: RingType::Permanent},
+                    SegmentInfo {duration: 60, end_ring: RingType::Single, segment_type: SegmentType::Protected},
+                    SegmentInfo {duration: 5*60, end_ring: RingType::Single, segment_type: SegmentType::Normal},
+                    SegmentInfo {duration: 60, end_ring: RingType::Double, segment_type: SegmentType::Protected},
+                    SegmentInfo {duration: 15, end_ring: RingType::Permanent, segment_type: SegmentType::Grace},
                 ]
             ),
             SpeechRole::NonAligned => (
                 3 * 60 + 30,
                 Some(60),
                 vec![
-                    SegmentInfo {duration: 60, end_ring: RingType::Single},
-                    SegmentInfo {duration: 2 * 60, end_ring: RingType::Single},
-                    SegmentInfo {duration: 30, end_ring: RingType::Double},
-                    SegmentInfo {duration: 15, end_ring: RingType::Permanent},
+                    SegmentInfo {duration: 60, end_ring: RingType::Single, segment_type: SegmentType::Protected},
+                    SegmentInfo {duration: 2 * 60, end_ring: RingType::Single, segment_type: SegmentType::Normal},
+                    SegmentInfo {duration: 30, end_ring: RingType::Double, segment_type: SegmentType::Protected},
+                    SegmentInfo {duration: 15, end_ring: RingType::Permanent, segment_type: SegmentType::Grace},
                 ]
         ),
         };
@@ -159,25 +159,28 @@ async fn get_debate_timing_info(
                 role: speech.role,
                 position: speech.position,
                 segments,
-                is_response: false
+                is_response: false,
+                pause_milliseconds: timing.as_ref().map(|timing| timing.pause_milliseconds).unwrap_or(0)
             }
         );
 
-        if let Some(target_length) = response_target_length {
+        if let Some(response_target_length) = response_target_length {
             out.push(
                 DebateSpeechTiming {
                     start: timing.as_ref().map(|timing| timing.response_start_time).flatten(),
                     end: timing.as_ref().map(|timing| timing.response_end_time).flatten(),
-                    target_length,
+                    target_length: response_target_length,
                     role: speech.role,
                     position: speech.position,
                     segments: vec![
                         SegmentInfo {
-                            duration: target_length,
-                            end_ring: RingType::Double
+                            duration: response_target_length,
+                            end_ring: RingType::Double,
+                            segment_type: SegmentType::Protected
                         }
                     ],
-                    is_response: true
+                    is_response: true,
+                    pause_milliseconds: timing.as_ref().map(|timing| timing.response_pause_milliseconds).unwrap_or(0)
                 }
             );
         }
@@ -205,6 +208,10 @@ struct DebateTimingUpdateRequest {
     response_start: PatchValue<Option<chrono::NaiveDateTime>>,
     #[serde(default)]
     response_end: PatchValue<Option<chrono::NaiveDateTime>>,
+    #[serde(default)]
+    pause_milliseconds: PatchValue<i32>,
+    #[serde(default)]
+    response_pause_milliseconds: PatchValue<i32>,
 }
 
 async fn check_has_permission_for_timer<C>(
@@ -239,7 +246,7 @@ async fn set_debate_timing(
     State(db): State<DatabaseConnection>,
     Path(debate_id): Path<Uuid>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
-    State(notifications): State<Arc<Mutex<ParticipantNotificationManager>>>,
+    State(notifications): State<Arc<RwLock<ParticipantNotificationManager>>>,
     Json(request): Json<DebateTimingUpdateRequest>,
 ) -> Result<(), APIError> {
 
@@ -255,6 +262,8 @@ async fn set_debate_timing(
         end_time: None,
         response_start_time: None,
         response_end_time: None,
+        pause_milliseconds: 0,
+        response_pause_milliseconds: 0
     });
 
     let mut did_update_main = false;
@@ -266,6 +275,10 @@ async fn set_debate_timing(
         timing.end_time = end;
         did_update_main = true;
     }
+    if let PatchValue::Set(pause) = request.pause_milliseconds {
+        timing.pause_milliseconds = pause;
+        did_update_main = true;
+    }
 
     let mut did_update_response = false;
     if let PatchValue::Set(response_start) = request.response_start {
@@ -274,6 +287,10 @@ async fn set_debate_timing(
     }
     if let PatchValue::Set(response_end) = request.response_end {
         timing.response_end_time = response_end;
+        did_update_response = true;
+    }
+    if let PatchValue::Set(response_pause) = request.response_pause_milliseconds {
+        timing.response_pause_milliseconds = response_pause;
         did_update_response = true;
     }
 
@@ -287,7 +304,8 @@ async fn set_debate_timing(
                     speech_position: timing.speech_position,
                     start: timing.start_time,
                     end: timing.end_time,
-                    is_response: false
+                    is_response: false,
+                    pause_milliseconds: timing.pause_milliseconds
                 }
             }
         );
@@ -301,29 +319,25 @@ async fn set_debate_timing(
                     speech_position: timing.speech_position,
                     start: timing.response_start_time,
                     end: timing.response_end_time,
-                    is_response: true
+                    is_response: true,
+                    pause_milliseconds: timing.response_pause_milliseconds
                 }
             }
         );
     }
 
+
     let mut group = EntityGroup::new();
     group.add(Entity::BallotSpeechTiming(timing));
     group.save_all_and_log_for_tournament(&db, tournament_id).await?;
 
-    let mut notifications = notifications.lock().await;
 
     for event in events {
-        notifications.notify_debate(
-            &db,
-            debate_id,
-            event
-        ).await?;
+        notifications.read().await.notify_debate(&db, debate_id, event).await?;
     }
 
     Ok(())
 }
-
 
 #[derive(Deserialize, Debug)]
 struct DebateCurrentSpeechNotificationRequest {
@@ -334,12 +348,12 @@ async fn send_current_speech_notification(
     State(db): State<DatabaseConnection>,
     Path(debate_id): Path<Uuid>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
-    State(notifications): State<Arc<Mutex<ParticipantNotificationManager>>>,
+    State(notifications): State<Arc<RwLock<ParticipantNotificationManager>>>,
     Json(request): Json<DebateCurrentSpeechNotificationRequest>,
 ) -> Result<(), APIError> {
     let _ = check_has_permission_for_timer(&db, debate_id, &user).await?;
 
-    notifications.lock().await.notify_debate(
+    notifications.read().await.notify_debate(
         &db,
         debate_id,
         ParticipantEvent {
@@ -368,13 +382,23 @@ struct DebateSpeechTiming {
     start: Option<chrono::NaiveDateTime>,
     end: Option<chrono::NaiveDateTime>,
     target_length: u64,
-    segments: Vec<SegmentInfo>
+    segments: Vec<SegmentInfo>,
+
+    pause_milliseconds: i32,
 }
 
 #[derive(Serialize)]
 struct SegmentInfo {
     duration: u64,
     end_ring: RingType,
+    segment_type: SegmentType
+}
+
+#[derive(Serialize)]
+enum SegmentType {
+    Protected,
+    Normal,
+    Grace
 }
 
 #[derive(Serialize)]

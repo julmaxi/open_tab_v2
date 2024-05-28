@@ -1,8 +1,13 @@
 <script>
-    export let targetTime; // in seconds
-    export let startTime; // in miliseconds
-    export let currTime; // in miliseconds
+    export let targetTime; // in miliseconds
+    export let timePassed; // in miliseconds
 
+    /**
+     * Formats seconds into a string of the form "mm:ss".
+     * 
+     * @param {number} s The number of seconds to format.
+     * @returns {string} The formatted string.
+     */
     function formatSeconds(s) {
         if (s < 0) {
             return `-${formatSeconds(-s)}`;
@@ -29,9 +34,5 @@
 </style>
 
 <div class="timer-container">
-    {#if startTime === null}
-        {formatSeconds(targetTime)}
-    {:else}
-        {formatSeconds(targetTime - (currTime - startTime) / 1000)}
-    {/if}
+    {formatSeconds(targetTime - timePassed / 1000)}
 </div>

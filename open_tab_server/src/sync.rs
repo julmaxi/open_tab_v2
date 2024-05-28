@@ -9,7 +9,7 @@ use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_fr
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
 
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use tracing::error_span;
 
 use crate::{state::AppState, response::{APIError, handle_error}, auth::ExtractAuthenticatedUser};
@@ -317,7 +317,7 @@ pub struct SyncRequestResponse {
 
 async fn handle_sync_push_request(
     State(db): State<DatabaseConnection>,
-    State(notifications): State<Arc<Mutex<crate::notify::ParticipantNotificationManager>>>,
+    State(notifications): State<Arc<RwLock<crate::notify::ParticipantNotificationManager>>>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
     Json(request_body): Json<SyncRequest<Entity, EntityType>>
@@ -361,7 +361,7 @@ async fn handle_sync_push_request(
             return Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid tournament")));
         },
         ReconciliationOutcome::Success { entity_group, .. } => {
-            notifications.lock().await.process_entities(&transaction, entity_group.as_ref().unwrap()).await;
+            notifications.read().await.process_entities(&transaction, entity_group.as_ref().unwrap()).await;
 
             transaction.commit().await.map_err(handle_error)?;
             return Ok(

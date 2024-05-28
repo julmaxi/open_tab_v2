@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, sync::{Weak, Arc}, convert::Infallibl
 
 use open_tab_entities::{EntityGroup, schema, domain::{tournament, self, entity::LoadEntity, ballot::SpeechRole}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ConnectionTrait};
-use tokio::{sync::{broadcast::{Sender, Receiver}, Mutex}, pin};
+use tokio::{pin, sync::{broadcast::{Receiver, Sender}, Mutex, RwLock}};
 use tokio_stream::{Stream, StreamMap, wrappers::BroadcastStream, StreamExt};
 
 use axum::{extract::{Path, State}, response::{Sse, sse::Event}, Json, Router, routing::get};
@@ -24,6 +24,7 @@ pub enum ParticipantEventType {
         is_response: bool,
         start: Option<chrono::NaiveDateTime>,
         end: Option<chrono::NaiveDateTime>,
+        pause_milliseconds: i32,
     },
     ActiveSpeechUpdate {
         speech: Option<DebateCurrentSpeech>
@@ -140,7 +141,7 @@ impl ParticipantNotificationManager {
         Ok(Box::pin(stream))
     }
 
-    pub async fn notify_debate_non_aligned_motion_release_state<C>(&mut self, db: &C, debate_id: Uuid) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    pub async fn notify_debate_non_aligned_motion_release_state<C>(&self, db: &C, debate_id: Uuid) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         self.notify_debate(db, debate_id, ParticipantEvent {
             event: ParticipantEventType::DebateMotionReleaseUpdated {
                 debate_id
@@ -148,7 +149,7 @@ impl ParticipantNotificationManager {
         }).await   
     }
 
-    pub async fn notify_debate<C>(&mut self, db: &C, debate_id: Uuid, event: ParticipantEvent) -> Result<(), anyhow::Error> where C: ConnectionTrait {
+    pub async fn notify_debate<C>(&self, db: &C, debate_id: Uuid, event: ParticipantEvent) -> Result<(), anyhow::Error> where C: ConnectionTrait {
         let debate = schema::tournament_debate::Entity::find_by_id(debate_id).one(db).await?;
         if let Some(debate) = debate {
             let ballot = domain::ballot::Ballot::get(db, debate.ballot_id).await?;
@@ -181,16 +182,13 @@ impl ParticipantNotificationManager {
                 if let Some(sender) = self.participant_broadcast_senders.get(&participant_id) {
                     //We ignore the send error
                     let r = sender.send(event.clone());
-                    if r.is_err() {
-                        self.participant_broadcast_senders.remove(&participant_id);
-                    }
                 }
             }
         }
         Ok(())
     }
 
-    pub async fn process_entities<C>(&mut self, _db: &C, entities: &EntityGroup) where C: ConnectionTrait {
+    pub async fn process_entities<C>(&self, _db: &C, entities: &EntityGroup) where C: ConnectionTrait {
         //We only process the round notifications here. All other notifications are handled by
         //the individual server endpoint directly, since the associated values will typically never
         //be updated in a sync from the frontend.
@@ -235,10 +233,10 @@ impl ParticipantNotificationManager {
 
 pub async fn get_participant_events(
     State(db): State<DatabaseConnection>,
-    State(notifications): State<Arc<Mutex<ParticipantNotificationManager>>>,
+    State(notifications): State<Arc<RwLock<ParticipantNotificationManager>>>,
     Path(participant_id): Path<Uuid>,
 )-> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, APIError> {
-    let mut notifications = notifications.lock().await;
+    let mut notifications = notifications.write().await;
     let mut result = schema::participant::Entity::find()
         .find_with_related(schema::tournament::Entity)
         .filter(schema::participant::Column::Uuid.eq(participant_id))

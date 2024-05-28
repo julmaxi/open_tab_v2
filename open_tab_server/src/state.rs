@@ -2,7 +2,7 @@ use std::sync::Arc;
 use axum::extract::FromRef;
 use db::DatabaseConfig;
 use migration::MigratorTrait;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::{db, notify::ParticipantNotificationManager};
 use sea_orm::{prelude::*, Statement};
@@ -11,7 +11,7 @@ use sea_orm::{prelude::*, Statement};
 #[derive(Clone)]
 pub struct AppState {
     pub db: DatabaseConnection,
-    pub notifications: Arc<Mutex<ParticipantNotificationManager>>,
+    pub notifications: Arc<RwLock<ParticipantNotificationManager>>,
 }
 
 impl AppState {
@@ -34,7 +34,7 @@ impl AppState {
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
             db,
-            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
+            notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
         }
     }
 
@@ -52,7 +52,7 @@ impl AppState {
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
             db,
-            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
+            notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
         }
     }
 
@@ -70,7 +70,7 @@ impl AppState {
         migration::Migrator::up(&db, None).await.unwrap();
         AppState {
             db,
-            notifications: Arc::new(Mutex::new(ParticipantNotificationManager::new())),
+            notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
         }
     }
 }
@@ -81,8 +81,8 @@ impl FromRef<AppState> for DatabaseConnection {
     }
 }
 
-impl FromRef<AppState> for Arc<Mutex<ParticipantNotificationManager>> {
-    fn from_ref(app_state: &AppState) -> Arc<Mutex<ParticipantNotificationManager>> {
+impl FromRef<AppState> for Arc<RwLock<ParticipantNotificationManager>> {
+    fn from_ref(app_state: &AppState) -> Arc<RwLock<ParticipantNotificationManager>> {
         app_state.notifications.clone()
     }
 }

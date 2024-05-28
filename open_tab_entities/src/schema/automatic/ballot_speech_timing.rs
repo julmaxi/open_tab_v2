@@ -14,6 +14,8 @@ pub struct Model {
     pub end_time: Option<DateTime>,
     pub response_start_time: Option<DateTime>,
     pub response_end_time: Option<DateTime>,
+    pub pause_milliseconds: i32,
+    pub response_pause_milliseconds: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
