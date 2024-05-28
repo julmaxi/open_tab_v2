@@ -22,7 +22,7 @@ export function TeamDetailView({ team, onChange }) {
     );
 
     return <div className="w-full">
-        <label>Team Name</label>
+        <label className="font-bold">Team Name</label>
         <div className="mb-2">
             <TextField value={name} onChange={(e) => {
                 setName(e.target.value);
