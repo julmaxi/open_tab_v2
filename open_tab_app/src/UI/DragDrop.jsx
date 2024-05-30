@@ -1,8 +1,14 @@
-import { useId, Children } from "react";
+import { useId, Children, useRef, useEffect } from "react";
 
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 
 import { useSpring, animated } from 'react-spring';
+
+import {
+    useFloating, offset, flip, shift, autoUpdate
+} from '@floating-ui/react';
+
+import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip";
 
 
 export function DragItem(props) {
@@ -10,13 +16,21 @@ export function DragItem(props) {
 
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: id,
-        data: { collection: props.collection, index: props.index, type: props.type }
+        data: { collection: props.collection, index: props.index, type: props.type },
+        disabled: props.disabled
     });
     const style = transform ? {
         visibility: "hidden"
         //transform: CSS.Translate.toString(transform),
-    } : undefined;
+    } : {};
 
+    style.userSelect = "none";
+    style.msUserSelect = "none";
+    style.WebkitUserSelect = "none";
+
+    if (props.disabled) {
+        style.cursor = "default";
+    }
 
     if (props.content_tag == "tr") {
         return (
@@ -28,7 +42,23 @@ export function DragItem(props) {
     else {
         return (
             <div ref={setNodeRef} style={style} className={props.className || ""} {...listeners} {...attributes}>
-                {props.children}
+                {
+                    props.disabled ?
+                    <Tooltip>
+                        <TooltipContent>
+                            <div className="bg-gray-700 text-white text-xs p-1 rounded bg-opacity-75">
+                                {props.disabledMessage}
+                            </div>
+                        </TooltipContent> 
+                        <TooltipTrigger asChild>
+                        <div>
+                            {props.children}
+                        </div>
+                        </TooltipTrigger>    
+                    </Tooltip>
+                    : props.children
+                }
+                
             </div>
         );    
     }
@@ -62,7 +92,7 @@ export function DropList(props) {
                 props.children.flatMap(
                     (child, idx) => [
                         <DropSlot key={`item_${idx}`} collection={props.collection} index={idx} type={props.type}>
-                            <DragItem collection={props.collection} index={idx} type={props.type}>{child}</DragItem>
+                            <DragItem disabledMessage={props.disabledMessage} disabled={props.disabled} collection={props.collection} index={idx} type={props.type}>{child}</DragItem>
                         </DropSlot>,
                         <Placeholder key={`placeholder_${idx}`} collection={props.collection} index={idx + 1} type={props.type} />
                     ]
@@ -77,7 +107,7 @@ export function DropWell(props) {
     return (
         <div style={{minWidth: props.minWidth}} className={props.className || ""}>
             <DropSlot collection={props.collection} type={props.type} className={props.slotClassName}>
-                {Children.count(props.children) > 0 ? <DragItem className={props.slotClassName} collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
+                {Children.count(props.children) > 0 ? <DragItem disabledMessage={props.disabledMessage} disabled={props.disabled} className={props.slotClassName} collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
             </DropSlot>
         </div>
     );

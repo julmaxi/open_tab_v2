@@ -46,6 +46,8 @@ let SWAP_BASE_COLORS = {
   high: [239, 68, 68]
 }
 
+const TEAM_DRAW_DISABLED_MESSAGE = "You need to enable team assignment in the settings to change the team and speaker draw.";
+
 let SWAP_ISSUE_GRADIENTS = Object.fromEntries(Object.entries(SWAP_BASE_COLORS).map(
   ([key, color]) => {
     if (color === null) {
@@ -133,8 +135,6 @@ function HorizontalList(props) {
 function TeamItem(props) {
   let all_participant_institutions = props.team.members.map((m) => m.institutions).flat().sort((a, b) => a.name.localeCompare(b.name));
   let unique_participant_institutions = [...new Set(all_participant_institutions.map((i) => i.uuid))].map((uuid) => all_participant_institutions.find((i) => i.uuid === uuid));
-
-  //let highlightedIssues = all_participant_issues.filter((i) => props.issueHightlightedParticipantUuids.includes(i.target_participant_id));
 
   return <DragBox
     issues={props.team.issues}
@@ -367,6 +367,8 @@ function DebateRow(props) {
 
   let [shouldExpandLocalIssues, setShouldExpandLocalIssues] = useState(false);
 
+  let settings = useContext(DrawEditorSettingsContext);
+
   return <>
     <tr>
       <td colSpan={4}>
@@ -375,7 +377,7 @@ function DebateRow(props) {
     </tr>
     <tr>
       <td className="border">
-        <DropWell type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
+        <DropWell disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
           {ballot.government !== null ? <TeamItem
             team={ballot.government}
             expandIssues={props.expandIssues}
@@ -391,7 +393,7 @@ function DebateRow(props) {
           /> : []}
         </DropWell>
         <br />
-        <DropWell type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
+        <DropWell disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
           {ballot.opposition !== null ? <TeamItem
             team={ballot.opposition}
             expandIssues={shouldExpandLocalIssues}
@@ -408,7 +410,7 @@ function DebateRow(props) {
         </DropWell>
       </td>
       <td className="border">
-        <DropList type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
+        <DropList disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
           {ballot.non_aligned_speakers.map((speaker, idx) =>
             speaker ? <SpeakerItem
               key={speaker.uuid}
@@ -737,6 +739,7 @@ export const DrawEditorSettingsContext = createContext({
   showLowIssues: true,
   showMidIssues: true,
   showHighIssues: true,
+  enableAlterTeamDraw: false,
   updateSettings: (newSettings) => { }
 });
 
@@ -760,6 +763,10 @@ function DrawSettingsEditor({round_id}) {
   const handleShowHighIssuesChange = () => {
     settings.updateSettings({ ...settings, showHighIssues: !settings.showHighIssues });
   };
+
+  const handleSetEnableAlterTeamDraw = () => {
+    settings.updateSettings({ ...settings, enableAlterTeamDraw: !settings.enableAlterTeamDraw });
+  }
 
   return (
     <div className="p-4">
@@ -809,6 +816,19 @@ function DrawSettingsEditor({round_id}) {
           </label>
         </div>
       </div>
+
+      <div className="mt-4">
+        <label className="flex items-center space-x-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            className="form-checkbox rounded focus:ring focus:ring-opacity-50"
+            checked={settings.enableAlterTeamDraw}
+            onChange={handleSetEnableAlterTeamDraw}
+          />
+          <span>Allow Reassiging Teams/Non Aligned</span>
+        </label>
+      </div>
+
       <div className="mt-4">
         <button
           className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded"
@@ -838,6 +858,8 @@ function DrawSettingsEditor({round_id}) {
         >
           Assign Missing Non-Aligned
         </button>
+
+        
       </div>
     </div>
   );
