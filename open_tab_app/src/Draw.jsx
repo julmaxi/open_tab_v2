@@ -425,7 +425,7 @@ function DebateRow(props) {
               highlightedIssues={
                 highlightedIssues.non_aligned_speakers[idx]
               }
-            /> : <div className="h-8 w-full text-center italic border-2 border-dashed border-gray-500 text-gray-500 rounded">Missing</div>)
+            /> : <div key={idx} className="h-8 w-full text-center italic border-2 border-dashed border-gray-500 text-gray-500 rounded">Missing</div>)
           }
         </DropList>
       </td>
