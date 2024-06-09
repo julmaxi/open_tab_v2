@@ -7,6 +7,7 @@ use base64::{engine::general_purpose, Engine};
 use async_trait::async_trait;
 use open_tab_entities::{domain::{self, entity::LoadEntity, participant::ParticipantInstitution, participant_clash::ParticipantClash, team}, prelude::*};
 
+use rand::{thread_rng, Rng};
 use sea_orm::{prelude::*, FromQueryResult, QuerySelect, SelectColumns};
 
 use crate::participants_list_view::{ParticipantEntry, ParticipantTeamInfo};
@@ -73,6 +74,7 @@ impl ActionTrait for UpdateParticipantsAction {
                 _ => unreachable!("Should not be possible to have a new team here")
             };
 
+            let registration_key : [u8; 32] = thread_rng().gen();
             groups.add(Entity::Participant(
                 Participant {
                     uuid: if participant.uuid.is_nil() { Uuid::new_v4() } else { participant.uuid },
@@ -83,7 +85,7 @@ impl ActionTrait for UpdateParticipantsAction {
                         uuid: p.uuid,
                         clash_severity: p.clash_severity as u16
                     }).collect(),
-                    registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?,
+                    registration_key: Some(registration_key.to_vec()),
                     is_anonymous: participant.is_anonymous
                 }
             ));
