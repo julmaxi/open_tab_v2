@@ -50,8 +50,8 @@ impl FontLoader {
         .select_best_match(&[FamilyName::Title(name.clone()), FamilyName::SansSerif], &Properties::new())?;
         let (buf, _font_index)= match font.clone() {
             font_kit::handle::Handle::Path { path, .. } => {
-                println!("Path: {:?}", path);
-                return Err(anyhow::anyhow!("Path fonts not supported"))
+                let data = std::fs::read(path)?;
+                (Arc::new(data), 0)
             },
             font_kit::handle::Handle::Memory { bytes, font_index } => {
                 (bytes, font_index as usize)
