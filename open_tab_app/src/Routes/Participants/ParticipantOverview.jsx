@@ -18,6 +18,8 @@ import { ChangeRoleView, ParticipantDetailView } from "./ParticipantDetailView";
 import { TeamDetailView } from "./TeamDetailView";
 import Button from "../../UI/Button";
 import { RowBlockerContext, BlockLease, RowBlockManager } from "./RowBlocker";
+import AddParticipantDialog from "./AddParticipantDialog";
+import { Toolbar, ToolbarButton } from "../../UI/Toolbar";
 
 function ParticipantTable(props) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
@@ -181,7 +183,7 @@ function ParticipantTable(props) {
             {
                 selectedParticipant != null &&
                 <ErrorBoundary>
-                    <div className="p-1 border-l-2">
+                    <div className="p-1">
                         <ParticipantDetailView participant={selectedParticipant} onClose={() => {
                             setSelectedParticipantUuid(null)
                             setSelectedTeamUuid(null)
@@ -218,6 +220,9 @@ export function ParticipantOverview() {
     let participants = useView(currentView, { "teams": {}, "adjudicators": {} });
 
     let [importDialogState, setImportDialogState] = useState(null);
+    let [addParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
+
+    console.log(participants);
 
     return <div className="flex flex-col h-full w-full" onKeyDown={(e) => {
         if (e.nativeEvent.key == "Escape") {
@@ -241,6 +246,45 @@ export function ParticipantOverview() {
             }
         </ModalOverlay>
 
+        <ModalOverlay open={addParticipantDialogOpen}>
+            <AddParticipantDialog onAbort={() => setAddParticipantDialogOpen(false)} onSubmit={(values) => {
+                let role = null;
+                console.log(values);
+
+                if (values.role.type == "adjudicator") {
+                    role = {
+                        chair_skill: values.role.chair_skill,
+                        panel_skill: values.role.panel_skill,
+                        unavailable_rounds: [],
+                        type: "Adjudicator"
+                    }
+                }
+                else {
+                    role = {
+                        team_id: values.role.team,
+                        type: "Speaker"
+                    }
+                }
+                executeAction(
+                    "UpdateParticipants",
+                    {
+                        tournament_id: tournamentContext.uuid,
+                        added_participants: [{
+                            name: values.name,
+                            tournament_id: tournamentContext.uuid,
+                            institutions: [],
+                            clashes: [],
+                            registration_key: null,
+                            is_anonymous: false,
+                            ...role,
+                        }],
+                        deleted_participants: [],
+                    }
+                );
+                setAddParticipantDialogOpen(false);
+            }} />
+        </ModalOverlay>
+
         <div className="min-h-0">
             {
                 Object.entries(participants.teams).length + Object.entries(participants.adjudicators).length > 0 ?
@@ -252,10 +296,12 @@ export function ParticipantOverview() {
                     </div>
             }
         </div>
-        <div className="flex-none w-full h-12 bg-gray-200">
-            <ParticipantImportDialogButton />
+        <Toolbar>
+            <ParticipantImportDialogButton buttonFactory={({children}) => <ToolbarButton icon={"upload"}>{children}</ToolbarButton>} />
 
-            <button onClick={
+            <ToolbarButton icon="add" onClick={() => setAddParticipantDialogOpen(true)}>Add Participant</ToolbarButton>
+
+            <ToolbarButton icon="qr" onClick={
                 () => {
                     save(
                         {
@@ -281,7 +327,7 @@ export function ParticipantOverview() {
                 }
             }>
                 Export QR Codes…
-            </button>
-        </div>
+            </ToolbarButton>
+        </Toolbar>
     </div>
 }

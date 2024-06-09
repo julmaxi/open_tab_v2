@@ -95,8 +95,6 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
         );
         setHasChanges(newHasChanges);
 
-        console.log(participant, modifiedParticipant, newHasChanges)
-
         if (newHasChanges) {
             let lease = block();
             return () => {

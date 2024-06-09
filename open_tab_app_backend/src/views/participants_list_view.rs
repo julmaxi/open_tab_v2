@@ -75,6 +75,8 @@ pub struct TeamEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticipantEntry {
+    // For decoding during participant adds
+    #[serde(default)]
     pub uuid: Uuid,
     pub name: String,
     #[serde(flatten)]

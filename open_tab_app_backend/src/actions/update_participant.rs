@@ -7,7 +7,7 @@ use base64::{engine::general_purpose, Engine};
 use async_trait::async_trait;
 use open_tab_entities::{domain::{self, entity::LoadEntity, participant::ParticipantInstitution, participant_clash::ParticipantClash, team}, prelude::*};
 
-use sea_orm::{prelude::*, FromQueryResult, JoinType, QuerySelect, SelectColumns};
+use sea_orm::{prelude::*, FromQueryResult, QuerySelect, SelectColumns};
 
 use crate::participants_list_view::{ParticipantEntry, ParticipantTeamInfo};
 use serde::{Serialize, Deserialize};
@@ -18,7 +18,10 @@ use open_tab_entities::group::EntityType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateParticipantsAction {
+    #[serde(default)]
     updated_participants: Vec<ParticipantEntry>,
+    #[serde(default)]
+    added_participants: Vec<ParticipantEntry>,
     #[serde(default)]
     deleted_participants: Vec<Uuid>,
     tournament_id: Uuid
@@ -30,6 +33,61 @@ impl ActionTrait for UpdateParticipantsAction {
         let mut groups = EntityGroup::new();
 
         let mut team_member_count_changes : HashMap<Uuid, i32> = HashMap::new();
+
+        let mut new_teams_created = HashMap::<String, Uuid>::new();
+
+        for participant in self.added_participants.into_iter() {
+            let mut participant_role = participant.role;
+            if let crate::participants_list_view::ParticipantRole::Speaker { team_info } = &mut participant_role {
+                match team_info {
+                    ParticipantTeamInfo::New { new_team_name } => {
+                        let team_id = if let Some(team_id) = new_teams_created.get(new_team_name) {
+                            *team_id
+                        }
+                        else {
+                            let new_team = domain::team::Team {
+                                uuid: Uuid::new_v4(),
+                                name: new_team_name.clone(),
+                                tournament_id: self.tournament_id
+                            };
+                            let new_uuid = new_team.uuid;
+                            new_teams_created.insert(new_team_name.clone(), new_uuid);
+                            groups.add(Entity::Team(new_team));
+                            new_uuid
+                        };
+                        
+                        *team_info = ParticipantTeamInfo::Existing { team_id };
+                        team_id
+                    },
+                    ParticipantTeamInfo::Existing { team_id } => {
+                        team_member_count_changes.entry(*team_id).and_modify(|c| *c += 1).or_insert(1);
+
+                        team_id.clone()
+                    }
+                };
+            }
+
+            let role = match participant_role {
+                crate::participants_list_view::ParticipantRole::Speaker { team_info: ParticipantTeamInfo::Existing { team_id } } => ParticipantRole::Speaker(Speaker { team_id: Some(team_id) }),
+                crate::participants_list_view::ParticipantRole::Adjudicator { chair_skill, panel_skill, unavailable_rounds } => ParticipantRole::Adjudicator(Adjudicator { chair_skill, panel_skill, unavailable_rounds }),
+                _ => unreachable!("Should not be possible to have a new team here")
+            };
+
+            groups.add(Entity::Participant(
+                Participant {
+                    uuid: if participant.uuid.is_nil() { Uuid::new_v4() } else { participant.uuid },
+                    name: participant.name,
+                    role,
+                    tournament_id: self.tournament_id,
+                    institutions: participant.institutions.into_iter().map(|p| ParticipantInstitution {
+                        uuid: p.uuid,
+                        clash_severity: p.clash_severity as u16
+                    }).collect(),
+                    registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?,
+                    is_anonymous: participant.is_anonymous
+                }
+            ));
+        }
 
         for participant in self.updated_participants.into_iter() {
             if self.deleted_participants.contains(&participant.uuid) {
@@ -81,15 +139,23 @@ impl ActionTrait for UpdateParticipantsAction {
             if let crate::participants_list_view::ParticipantRole::Speaker { team_info } = &mut participant_role {
                 match team_info {
                     ParticipantTeamInfo::New { new_team_name } => {
-                        let new_team = domain::team::Team {
-                            uuid: Uuid::new_v4(),
-                            name: new_team_name.clone(),
-                            tournament_id: self.tournament_id
+                        let team_id = if let Some(team_id) = new_teams_created.get(new_team_name) {
+                            *team_id
+                        }
+                        else {
+                            let new_team = domain::team::Team {
+                                uuid: Uuid::new_v4(),
+                                name: new_team_name.clone(),
+                                tournament_id: self.tournament_id
+                            };
+                            let new_uuid = new_team.uuid;    
+                            new_teams_created.insert(new_team_name.clone(), new_uuid);
+                            groups.add(Entity::Team(new_team));
+                            new_uuid
                         };
-                        let new_uuid = new_team.uuid;
-                        *team_info = ParticipantTeamInfo::Existing { team_id: new_team.uuid };
-                        groups.add(Entity::Team(new_team));
-                        new_uuid
+                        
+                        *team_info = ParticipantTeamInfo::Existing { team_id };
+                        team_id
                     },
                     ParticipantTeamInfo::Existing { team_id } => {
                         team_member_count_changes.entry(*team_id).and_modify(|c| *c += 1).or_insert(1);

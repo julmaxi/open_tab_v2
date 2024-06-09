@@ -15,11 +15,11 @@ export function SplitDetailView({ children }) {
         throw new Error("ResizableView must not have more than two children");
     }
 
-    return <div className="flex w-full">
+    return <div className="flex w-full h-full">
         <div className="flex-1">
             {children[0]}
         </div>
-        {numChildren > 1 ? <div style={{ "width": width, "minWidth": "200px" }} className="relative h-full overflow-scroll">
+        {numChildren > 1 ? <div style={{ "width": width, "minWidth": "200px" }} className="relative h-full overflow-scroll border-l-2">
             <DragHandle onDragDelta={(delta) => {
                 // The width is the width of the right pane, so we need to subtract the delta
                 let newWidth = width - delta;
