@@ -1,7 +1,7 @@
 use std::{sync::Arc};
 
 use allsorts::{binary::read::ReadScope, font_data::{FontData, DynamicFontTableProvider}};
-use font_kit::source::SystemSource;
+use font_kit::{family_name::FamilyName, properties::Properties, source::SystemSource};
 
 
 pub struct Font {
@@ -47,8 +47,7 @@ impl FontLoader {
 
     pub fn load_from_postscript_name(&self, name: String) -> Result<Font, anyhow::Error> {
         let font = self.source
-        .select_by_postscript_name(&name).unwrap();
-
+        .select_best_match(&[FamilyName::Title(name.clone()), FamilyName::SansSerif], &Properties::new())?;
         let (buf, _font_index)= match font.clone() {
             font_kit::handle::Handle::Path { path, .. } => {
                 println!("Path: {:?}", path);
