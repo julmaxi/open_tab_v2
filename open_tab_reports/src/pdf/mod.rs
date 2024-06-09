@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 
-use itertools::Itertools;
-use pdf_writer::{PdfWriter, Ref, Content, Name, Str, writers::Resources, Finish, types::{FontFlags, SystemInfo}, Rect};
+use itertools::{Itertools, WithPosition};
+use pdf_writer::{types::{ColorSpaceOperand, FontFlags, SystemInfo}, writers::{OutputIntent, Resources}, Content, Dict, Finish, Name, Pdf, Rect, Ref, Str, TextStr, Writer as _};
 
 use crate::layout::{LayoutedDocument, TextElement, FontRef, Instruction, Position, LayoutedPage, LayoutedElement, GraphicsRef, QRCodeElement};
 
@@ -106,6 +106,8 @@ impl QRCodeElement {
 
     fn write_to_content(&self, content: &mut Content, _context: &Context, _local_context: &LocalContext) {
         content.save_state();
+        content.set_fill_color_space(ColorSpaceOperand::DeviceRgb);
+        content.set_stroke_color_space(ColorSpaceOperand::DeviceRgb);
         content.set_fill_color(vec![0.0, 0.0, 0.0]);
 
         let cell_size = self.size / self.data.len() as f32;
@@ -200,8 +202,8 @@ impl LayoutedElement {
 
 impl LayoutedDocument {
     pub fn write_as_pdf(&self) -> Result<Vec<u8>, anyhow::Error> {
-        let mut writer = PdfWriter::new();
-
+        let mut writer = Pdf::new();
+        
         let mut context = Context::new();
 
         for idx in 0..self.fonts.len() {
@@ -216,22 +218,11 @@ impl LayoutedDocument {
         let page_tree_id = context.next_ref();
         let page_ids = self.pages.iter().map(|_| context.next_ref()).collect_vec();
 
-        let meta_data_id = context.next_ref();
-
-        writer.catalog(catalog_id).pages(page_tree_id).metadata(meta_data_id);
+        //let meta_data_id = context.next_ref();
+        let mut catalog = writer.catalog(catalog_id);
+        catalog.pages(page_tree_id);
+        drop(catalog);
         writer.pages(page_tree_id).kids(page_ids.clone()).count(self.pages.len() as i32);
-
-        let meta = "
-        <?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>
-   <x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"Adobe XMP Core 5.4-c002 1.000000, 0000/00/00-00:00:00        \">
-           <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">
-            <rdf:Description rdf:about=\"\"
-                  xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\">
-               <xmp:CreatorTool>OpenTab</xmp:CreatorTool>
-            </rdf:Description>
-      </rdf:RDF>
-</x:xmpmeta>";
-        writer.metadata(meta_data_id, meta.as_bytes());
 
         let mut global_required_resources = RequiredResources::new();
 
@@ -292,7 +283,9 @@ impl LayoutedDocument {
                 ordering: Str(b"Identity"),
                 supplement: 0,
             })
-            .font_descriptor(font_desc_id);
+            .font_descriptor(font_desc_id)
+            .cid_to_gid_map_predefined(Name("Identity".as_bytes()))
+            ;
         
             let mut widths = cid_font.widths();
             for (g, w) in glyph_widths.into_iter() {
