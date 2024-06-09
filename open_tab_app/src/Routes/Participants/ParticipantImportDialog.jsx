@@ -2,14 +2,14 @@
 
 import React, { useCallback, useContext } from "react";
 import { useState } from "react";
-import { executeAction } from "./Action";
-import { getPath, useView } from "./View";
-import { TournamentContext } from "./TournamentContext";
+import { executeAction } from "../../Action";
+import { getPath, useView } from "../../View";
+import { TournamentContext } from "../../TournamentContext";
 
-import ModalOverlay from "./UI/Modal";
-import Button from "./UI/Button";
-import { SortableTable, EditableCell } from "./SortableTable";
-import ComboBox from "./UI/ComboBox";
+import ModalOverlay from "../../UI/Modal";
+import Button from "../../UI/Button";
+import { SortableTable, EditableCell } from "../../SortableTable";
+import ComboBox from "../../UI/ComboBox";
 import { useEffect } from "react";
 import _ from "lodash";
 import { confirm } from '@tauri-apps/api/dialog';
@@ -17,8 +17,8 @@ import { confirm } from '@tauri-apps/api/dialog';
 import {
     BrowserRouter as Router,
 } from "react-router-dom";
-import { openImportDialog } from "./openImportDialog";
-import { ErrorHandlingContext } from "./Action";
+import { openImportDialog } from "../../openImportDialog";
+import { ErrorHandlingContext } from "../../Action";
 
 
 function NumberField(props) {

@@ -7,7 +7,6 @@ export function SplitDetailView({ children }) {
     let numChildren = 0;
     React.Children.forEach(children, (c) => {
         if (c) {
-            console.log(c);
             numChildren++;
         }
     });

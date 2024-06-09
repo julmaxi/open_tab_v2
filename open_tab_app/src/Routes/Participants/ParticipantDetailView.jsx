@@ -7,15 +7,14 @@ import Button from "../../UI/Button";
 import { SortableTable } from "../../SortableTable";
 import ComboBox from "../../UI/ComboBox";
 import { useEffect } from "react";
-import { confirm } from '@tauri-apps/api/dialog';
 import { useBlocker as useBlocker } from "react-router-dom";
 import _ from "lodash";
 import TextField from "../../UI/TextField";
+import { RowBlockerContext } from "./RowBlocker";
 
 export function ChangeRoleView({ participant, currentType, allTeams }) {
     let teams = Object.values(allTeams);
     let tournamentContext = useContext(TournamentContext);
-    console.log(participant);
     return <Section title="Change Role">
         {
             currentType == "Speaker" && <Button
@@ -80,10 +79,32 @@ function AdjudicatorSkillInput({ value, onChange }) {
 export function ParticipantDetailView({ onClose, participant, ...props }) {
     let [modifiedParticipant, setModifiedParticipant] = useState(participant);
 
-    let hasChanges = !_.eq(
-        participant,
-        modifiedParticipant
-    );
+    useEffect(() => {
+        if (modifiedParticipant?.uuid != participant?.uuid) {
+            setModifiedParticipant(participant);
+        }
+    }, [participant, modifiedParticipant.uuid]);
+
+    let [hasChanges, setHasChanges] = useState(false);
+    let { block } = useContext(RowBlockerContext);
+
+    useEffect(() => {
+        let newHasChanges = !_.isEqual(
+            participant,
+            modifiedParticipant
+        );
+        setHasChanges(newHasChanges);
+
+        console.log(participant, modifiedParticipant, newHasChanges)
+
+        if (newHasChanges) {
+            let lease = block();
+            return () => {
+                lease.unblock();
+            }
+        }
+    }, [participant, modifiedParticipant]);
+
     useBlocker(
         hasChanges
     );
@@ -97,10 +118,6 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
     let flatParticipantView = Object.values(participantView.teams).flatMap((team) => {
         return Object.values(team.members);
     }).concat(Object.values(participantView.adjudicators));
-
-    useEffect(() => {
-        setModifiedParticipant(participant);
-    }, [participant]);
 
     if (!modifiedParticipant) {
         return <div className="h-full">
@@ -119,7 +136,7 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
         }
     }
 
-    return <div className="w-full">
+    return <div className="w-full p-2">
         <button
             onClick={onClose}
             className="absolute top-1 right-1 z-10 bg-transparent text-gray-700 font-semibold hover:text-red-500 text-2xl rounded"
@@ -210,7 +227,6 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
             <ComboBox placeholder={"Add Institution"} items={allInstitutions} ignoredItemNames={modifiedParticipant.institutions.map(i => i.name)} onSelect={(institution, isCreate) => {
 
                 if (isCreate) {
-                    console.log(institution);
                     let newUuid = crypto.randomUUID();
                     executeAction("CreateInstitution", { tournament_uuid: tournamentContext.uuid, name: institution, uuid: newUuid });
                     let institutionEntry = {

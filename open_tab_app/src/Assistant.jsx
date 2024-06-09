@@ -7,7 +7,7 @@ import RemoteSelector from './RemoteSelector';
 import { useSettings } from './settings';
 import { invoke } from '@tauri-apps/api/tauri';
 import { openImportDialog } from './openImportDialog';
-import { ParticipantImportDialogButton } from './ParticipantImportDialog';
+import { ParticipantImportDialogButton } from './Routes/Participants/ParticipantImportDialog';
 import { Link as RouterLink } from 'react-router-dom';
 import { executeAction } from './Action';
 import { open, save } from '@tauri-apps/api/dialog';

@@ -1,6 +1,6 @@
 //@ts-check
 
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { executeAction } from "../../Action";
 import { TournamentContext } from "../../TournamentContext";
 import { getPath, useView } from "../../View";
@@ -11,12 +11,13 @@ import ModalOverlay from "../../UI/Modal";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import ErrorBoundary from "../../ErrorBoundary";
-import { ParticipantImportDialogButton } from "../../ParticipantImportDialog";
+import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
 import { SplitDetailView } from "../../UI/SplitDetailView";
 import { CSVImportDialog } from "./CSVImportDialog";
 import { ChangeRoleView, ParticipantDetailView } from "./ParticipantDetailView";
 import { TeamDetailView } from "./TeamDetailView";
 import Button from "../../UI/Button";
+import { RowBlockerContext, BlockLease, RowBlockManager } from "./RowBlocker";
 
 function ParticipantTable(props) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
@@ -31,7 +32,6 @@ function ParticipantTable(props) {
     //This way, this will not work if the remote server does not
     //call its frontend tabs.servername
     //For now, not worth the additional complexity to fix.
-    // Parse the url
     if (url != null) {
         let parsedUrl = new URL(url);
         if (parsedUrl.host == "localhost:3000") {
@@ -125,8 +125,8 @@ function ParticipantTable(props) {
 
     if (url != null) {
         columns.push({
-            "key": "registration_key", "header": "Secret", cellFactory: (value) => {
-                return <td><button className="underline text-blue-500" onClick={(evt) => {
+            "key": "registration_key", "header": "Secret", cellFactory: (value, rowIdx, colIdx) => {
+                return <td key={colIdx}><button className="underline text-blue-500" onClick={(evt) => {
                     navigator.clipboard.writeText(`${url}/register/${value}`);
                     evt.stopPropagation();
                 }}>Copy Reg. URL</button></td>
@@ -134,23 +134,48 @@ function ParticipantTable(props) {
         });
     }
 
-    return <div className="h-full flex">
+    let rowBlockManager = useMemo(
+        () => {
+            return new RowBlockManager()
+        },
+        [flatTable]
+    );
+
+    useEffect(() => {
+        // If the selected participant changes from a team to an adjudicator (or changes team),
+        // the selected team should be cleared.
+        // It is repeated below, to prevent flickering in all other cases.
+        let p = participantsById[selectedParticipantUuid];
+        if (p && p.team_id) {
+            setSelectedTeamUuid(p.team_id);
+        }
+        else {
+            setSelectedTeamUuid(null);
+        }
+    }, [selectedParticipantUuid, participantsById]);
+
+    return <RowBlockerContext.Provider value={rowBlockManager}>
+    <div className="h-full flex">
         <SplitDetailView>
             <SortableTable
                 data={flatTable}
                 rowId="uuid"
                 selectedRowId={selectedParticipantUuid}
-                onSelectRow={(uuid) => {
-                    setSelectedParticipantUuid(uuid)
-                    let p = participantsById[uuid];
-                    if (p.team_id) {
-                        setSelectedTeamUuid(p.team_id);
+                onSelectRow={async (uuid) => {
+                    if (
+                        !rowBlockManager.isBlocked() ||
+                        await confirm("You have unsaved changes. Are you sure you want to switch participants? Changes will be lost.")
+                    ) {
+                        setSelectedParticipantUuid(uuid)
+                        let p = participantsById[uuid];
+                        if (p.team_id) {
+                            setSelectedTeamUuid(p.team_id);
+                        }
+                        else {
+                            setSelectedTeamUuid(null);
+                        }                            
                     }
-                    else {
-                        setSelectedTeamUuid(null);
-                    }
-                }
-                }
+                }}
                 columns={columns}
             />
             {
@@ -183,6 +208,7 @@ function ParticipantTable(props) {
             }
         </SplitDetailView>
     </div>
+    </RowBlockerContext.Provider>
 }
 
 export function ParticipantOverview() {

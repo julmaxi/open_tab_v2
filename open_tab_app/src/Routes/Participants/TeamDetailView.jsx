@@ -6,6 +6,7 @@ import Button from "../../UI/Button";
 import { useEffect } from "react";
 import _ from "lodash";
 import TextField from "../../UI/TextField";
+import { RowBlockerContext } from "./RowBlocker";
 
 export function TeamDetailView({ team, onChange }) {
     let [name, setName] = useState(team.name);
@@ -19,6 +20,19 @@ export function TeamDetailView({ team, onChange }) {
     let hasChanges = !_.eq(
         team.name,
         name
+    );
+
+    let { block } = useContext(RowBlockerContext);
+
+    useEffect(() => {
+            if (hasChanges) {
+                let lease = block();
+                return () => {
+                    lease.unblock();
+                }
+            }
+        },
+        [hasChanges]
     );
 
     return <div className="w-full">
