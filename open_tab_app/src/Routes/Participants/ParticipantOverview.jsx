@@ -299,7 +299,7 @@ export function ParticipantOverview() {
         <Toolbar>
             <ParticipantImportDialogButton buttonFactory={({children}) => <ToolbarButton icon={"upload"}>{children}</ToolbarButton>} />
 
-            <ToolbarButton icon="add" onClick={() => setAddParticipantDialogOpen(true)}>Add Participant</ToolbarButton>
+            <ToolbarButton icon="add" onClick={() => setAddParticipantDialogOpen(true)}>Add Participant…</ToolbarButton>
 
             <ToolbarButton icon="qr" onClick={
                 () => {
