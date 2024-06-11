@@ -7,11 +7,19 @@ import { useEffect } from "react";
 import _ from "lodash";
 import TextField from "../../UI/TextField";
 import { RowBlockerContext } from "./RowBlocker";
+import { useView } from "../../View";
 
 export function TeamDetailView({ team, onChange }) {
     let [name, setName] = useState(team.name);
     let tournamentContext = useContext(TournamentContext);
     let errorContext = useContext(ErrorHandlingContext);
+
+    let currentView = { type: "ParticipantsList", tournament_uuid: tournamentContext.uuid };
+    let { teams } = useView(currentView, { "teams": {}, "adjudicators": {} });
+
+    let teamNames = new Set(Object.values(teams).map(
+        team => team.name
+    ));
 
     useEffect(() => {
         setName(team.name);
@@ -43,7 +51,12 @@ export function TeamDetailView({ team, onChange }) {
             }} />
         </div>
 
-        {hasChanges && <Button onClick={() => {
+        {hasChanges && <Button onClick={async () => {
+            if (teamNames.has(name)) {
+                if (!await confirm("A team with this name already exists. Are you sure to rename this team? If you need to change the team of this speaker, use the 'Move to Team' option above instead.")) {
+                    return;
+                }
+            }
             executeAction("UpdateTeams", {
                 tournament_id: tournamentContext.uuid, updates: [
                     {
