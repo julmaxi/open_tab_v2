@@ -23,7 +23,7 @@ pub enum Relation {
     #[sea_orm(
         belongs_to = "super::ballot_speech::Entity",
         from = "(Column::SpeechBallotId, Column::SpeechBallotId, Column::SpeechBallotId, Column::SpeechRole, Column::SpeechRole, Column::SpeechRole, Column::SpeechPosition, Column::SpeechPosition, Column::SpeechPosition)",
-        to = "(super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Role, super::ballot_speech::Column::Position, super::ballot_speech::Column::Role, super::ballot_speech::Column::Position, super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Role, super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Position)",
+        to = "(super::ballot_speech::Column::Role, super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Position, super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Position, super::ballot_speech::Column::Role, super::ballot_speech::Column::BallotId, super::ballot_speech::Column::Role, super::ballot_speech::Column::Position)",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]

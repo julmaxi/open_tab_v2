@@ -21,7 +21,7 @@ impl Tournament {
             uuid: Uuid::new_v4(),
             annoucements_password: None,
             name: "New Tournament".into(),
-            feedback_release_time: None
+            feedback_release_time: None,
         }
     }
 }

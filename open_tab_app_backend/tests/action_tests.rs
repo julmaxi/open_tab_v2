@@ -12,11 +12,11 @@ use open_tab_app_backend::{actions::UpdateDrawAction, draw_view::{DrawBallot, Dr
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
     migration::Migrator::up(&db, None).await.unwrap();
-    let _r = db.execute(Statement::from_sql_and_values(
+    /*let _r = db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
         "PRAGMA foreign_keys = ON;",
         vec![])
-    ).await?;
+    ).await?;*/
 
     if with_mock_env {
         let entities = make_mock_tournament_with_options(MockOption {deterministic_uuids: true, ..Default::default()});

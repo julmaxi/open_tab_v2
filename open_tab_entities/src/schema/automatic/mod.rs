@@ -14,6 +14,7 @@ pub mod feedback_response;
 pub mod feedback_response_value;
 pub mod participant_clash;
 pub mod participant_tournament_institution;
+pub mod published_tournament;
 pub mod speaker;
 pub mod team;
 pub mod tournament;

@@ -8,3 +8,5 @@ members = [
     "open_tab_macros",
     "open_tab_reports",
 ]
+
+workspace.resolver = "2"

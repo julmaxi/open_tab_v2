@@ -86,7 +86,7 @@ async fn update_debate_state(
 
     entities.save_all_and_log_for_tournament(&db, round.tournament_id).await?;
 
-    notifications.as_ref().read().await.notify_debate_non_aligned_motion_release_state(&db, debate_id);
+    notifications.as_ref().read().await.notify_debate_non_aligned_motion_release_state(&db, debate_id).await?;
 
     Ok(())
 }

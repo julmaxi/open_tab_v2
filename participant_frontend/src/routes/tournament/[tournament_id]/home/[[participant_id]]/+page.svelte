@@ -1,6 +1,6 @@
 <script>
     import ScoreDetailDisplay from "../../tab/ScoreDetailDisplay.svelte";
-    import BoxButton from "./BoxButton.svelte";
+    import CardButton from "$lib/CardButton.svelte";
     import ScoreDisplay from "./ScoreDisplay.svelte";
     import { enhance } from "$app/forms";
     import { invalidate, invalidateAll } from '$app/navigation';
@@ -198,7 +198,7 @@
     </div>
 
     {#each overdueFeedback as feedback}
-        <BoxButton href={
+        <CardButton href={
             `/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`
         } label={`${feedback.target_name} (${feedback.target_role.type}) in ${feedback.round_name}`} />
     {/each}
@@ -269,7 +269,7 @@
         </div>
         <div>
             {#if round.status === 'InProgress' && round.participant_role.role !== "NotDrawn" }
-                <BoxButton
+                <CardButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer`}
                 label="Go to Timer" />    
             {/if}
@@ -300,12 +300,12 @@
                     </form>
                 {/if}
 
-                <BoxButton
+                <CardButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}`}
                 label="Submit ballot" />    
             {/if}
             {#each unsubmittedFeedbackForCurrentRounds[round.uuid] as missingFeedback}
-                <BoxButton
+                <CardButton
                     href={`/tournament/${data.tournamentId}/feedback/${missingFeedback.source_role.type.toLowerCase()}/${missingFeedback.target_role.type.toLowerCase()}/debate/${missingFeedback.debate_id}/for/${missingFeedback.target_id}/from/${missingFeedback.source_id.uuid}`}
                     label={`Submit feedback for ${missingFeedback.target_name}`} />
             {/each}

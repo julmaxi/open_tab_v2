@@ -14,6 +14,7 @@ mod m20231228_094035_add_key_expiry;
 mod m20240102_170321_add_speech_timing;
 mod m20240128_123739_update_speech_fk;
 mod m20240224_191827_add_speech_pause;
+mod m20240611_200708_add_publication_settings;
 
 pub struct Migrator;
 
@@ -34,6 +35,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240102_170321_add_speech_timing::Migration),
             Box::new(m20240128_123739_update_speech_fk::Migration),
             Box::new(m20240224_191827_add_speech_pause::Migration),
+            Box::new(m20240611_200708_add_publication_settings::Migration),
         ]
     }
 }

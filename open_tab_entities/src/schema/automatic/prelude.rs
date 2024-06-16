@@ -12,6 +12,7 @@ pub use super::feedback_response::Entity as FeedbackResponse;
 pub use super::feedback_response_value::Entity as FeedbackResponseValue;
 pub use super::participant_clash::Entity as ParticipantClash;
 pub use super::participant_tournament_institution::Entity as ParticipantTournamentInstitution;
+pub use super::published_tournament::Entity as PublishedTournament;
 pub use super::speaker::Entity as Speaker;
 pub use super::team::Entity as Team;
 pub use super::tournament::Entity as Tournament;
