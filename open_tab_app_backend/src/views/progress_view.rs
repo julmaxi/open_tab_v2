@@ -104,21 +104,24 @@ impl ProgressView {
                         if rounds.len() == config.num_rounds() as usize {
                             for round_id in rounds {
                                 let round = all_rounds_by_id.get(&round_id).expect("Db constraint failed");
-                                steps.push(Step::WaitForPublishRound { round_uuid: round.uuid, is_done: round.draw_release_time.is_some() });
-                                if round.draw_release_time.is_some() {
-                                    steps.push(Step::WaitForMotionRelease { round_uuid: round.uuid, is_done: round.full_motion_release_time.is_some() });
-                                    if round.full_motion_release_time.is_some() {
-                                        let debate_ids = all_round_debate_ids.get(&round.uuid).expect("Db constraint failed");
+                                steps.push(Step::WaitForMotion { round_uuid: round.uuid, is_done: round.motion.is_some() });
+                                if round.motion.is_some() {
+                                    steps.push(Step::WaitForPublishRound { round_uuid: round.uuid, is_done: round.draw_release_time.is_some() });
+                                    if round.draw_release_time.is_some() {
+                                        steps.push(Step::WaitForMotionRelease { round_uuid: round.uuid, is_done: round.full_motion_release_time.is_some() });
+                                        if round.full_motion_release_time.is_some() {
+                                            let debate_ids = all_round_debate_ids.get(&round.uuid).expect("Db constraint failed");
 
-                                        let ballots = debate_ids.iter().map(|d| all_ballots_by_debate_id.get(d).expect("Db constraint failed")).collect_vec();
+                                            let ballots = debate_ids.iter().map(|d| all_ballots_by_debate_id.get(d).expect("Db constraint failed")).collect_vec();
 
-                                        let num_scores = ballots.iter().filter(|b| b.is_scored()).count();
+                                            let num_scores = ballots.iter().filter(|b| b.is_scored()).count();
 
 
-                                        steps.push(Step::WaitForResults { round_uuid: round.uuid, num_submitted: num_scores, num_expected: debate_ids.len(), is_silent: round.is_silent, is_done: round.round_close_time.is_some() });
-                                        node_is_done = round.round_close_time.is_some();
-                                        if round.round_close_time.is_some() {
-                                            continue;
+                                            steps.push(Step::WaitForResults { round_uuid: round.uuid, num_submitted: num_scores, num_expected: debate_ids.len(), is_silent: round.is_silent, is_done: round.round_close_time.is_some() });
+                                            node_is_done = round.round_close_time.is_some();
+                                            if round.round_close_time.is_some() {
+                                                continue;
+                                            }
                                         }
                                     }
                                 }
@@ -170,6 +173,7 @@ impl ProgressView {
 enum Step {
     LoadParticipants { is_done: bool },
     WaitForDraw { node_uuid: Uuid, is_done: bool, is_first_in_tournament: bool, previous_break_node: Option<Uuid> },
+    WaitForMotion { round_uuid: Uuid, is_done: bool },
     WaitForPublishRound { round_uuid: Uuid, is_done: bool },
     WaitForMotionRelease { round_uuid: Uuid, is_done: bool },
     WaitForResults { round_uuid: Uuid, num_submitted: usize, num_expected: usize, is_silent: bool, is_done: bool },

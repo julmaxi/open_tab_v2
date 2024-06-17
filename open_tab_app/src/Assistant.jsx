@@ -15,11 +15,13 @@ import { DateTimeSelectorButton } from './UI/DateTimeSelectorButton';
 import { AdjudicatorBreakSelector } from './AdjudicatorBreakSelector';
 import ModalOverlay from './UI/Modal';
 import { ErrorHandlingContext } from './Action';
+import { EditMotionForm } from './RoundPublicationView';
 
 
 const StepTypeRenderers = {
     "LoadParticipants": LoadParticipantsStep,
     "WaitForDraw": WaitForDrawStep,
+    "WaitForMotion": WaitForMotionStep,
     "Welcome": WelcomeStep,
     "WaitForPublishRound": WaitForPublishRoundStep,
     "WaitForMotionRelease": WaitForMotionRelease,
@@ -61,6 +63,7 @@ function WaitForBreakStep({ node_uuid }) {
         }} role="primary">Break</Button>
     </div>
 }
+
 
 
 function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
@@ -244,6 +247,42 @@ function LoadParticipantsStep({ }) {
         </div>
 
         <ParticipantImportDialogButton buttonFactory={Button} buttonProps={{ role: "primary" }} />
+    </div>
+}
+
+function WaitForMotionStep({ round_uuid }) {
+    let [showDialog, setShowDialog] = useState(false);
+
+    let currentView = {type: "RoundPublication", round_uuid };
+    let publicationInfo = useView(currentView, null);
+    return <div className='w-full'>
+        <h1>Motion</h1>
+
+        <p>
+            If you have not done so yet, it is now time to enter the motion for the round, along with the info slide.
+            The motion will not yet be revealed to the participants.
+        </p>
+
+        <Button role="primary" onClick={() => {
+            setShowDialog(true);
+        }}>Enter Motion…</Button>
+
+        <ModalOverlay open={showDialog} closeOnOverlayClick={true} onAbort={() => setShowDialog(false)}>
+            {publicationInfo ? <EditMotionForm
+                motion={publicationInfo.motion}
+                infoSlide={publicationInfo.info_slide}
+                onChange={(motion, info_slide) => {
+                    executeAction("UpdateRound", {
+                        round_id: round_uuid,
+                        update: {
+                            motion: motion,
+                            info_slide: info_slide
+                        }
+                    });
+                    setShowDialog(false);
+                }}
+            /> : []}
+        </ModalOverlay>
     </div>
 }
 

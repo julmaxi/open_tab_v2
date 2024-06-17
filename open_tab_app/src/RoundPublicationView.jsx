@@ -11,6 +11,7 @@ import Button from "./UI/Button";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import { DateTimeSelectorButton } from "./UI/DateTimeSelectorButton";
+import TextField from "./UI/TextField";
 
 function RoundStatusBarButton({name, releaseTime, onSetReleaseTime}) {
     let [refeshVal, setRefresh] = useState(0);
@@ -118,8 +119,6 @@ function RoundStatusBar({drawReleaseTime, teamMotionReleaseTime, debateStartTime
 function EditMotionPanel({motion, info_slide, onChange}) {
     let [isEditing, setIsEditing] = useState(false);
 
-    let [newMotion, setNewMotion] = useState(motion);
-    let [newInfoSlide, setNewInfoSlide] = useState(info_slide);
     return <div>
             <h2>Motion</h2>
             <input type="text" readOnly value={motion || ""} />
@@ -132,26 +131,36 @@ function EditMotionPanel({motion, info_slide, onChange}) {
                 }
             }>Edit</Button>
             <ModalOverlay open={isEditing} closeOnOverlayClick={false} onAbort={() => setIsEditing(false)} windowClassName={"w-[80%]"}>
-                <h2>Motion</h2>
-                <input type="text" defaultValue={motion || ""} onChange={(evt) => {
-                    setNewMotion(evt.target.value);
+                <EditMotionForm motion={motion} infoSlide={info_slide} onChange={(motion, info_slide) => {
+                    onChange(motion, info_slide);
+                    setIsEditing(false);
                 }} />
-
-                <h2>Info Slide</h2>
-                <textarea defaultValue={info_slide || ""} onChange={(evt) => {
-                    setNewInfoSlide(evt.target.value);
-                }} />
-
-                <Button onClick={
-                    () => {
-                        setIsEditing(false);
-                        onChange(newMotion, newInfoSlide);
-                    }
-                } role="primary">Save</Button>
             </ModalOverlay> 
     </div>
 }
 
+export function EditMotionForm({motion, infoSlide, onChange}) {
+    let [newMotion, setNewMotion] = useState();
+    let [newInfoSlide, setNewInfoSlide] = useState();
+
+    return <div>
+        <h2>Motion</h2>
+        <TextField value={newMotion || motion || ""} onChange={(evt) => {
+            setNewMotion(evt.target.value);
+        }} />
+
+        <h2>Info Slide</h2>
+        <TextField value={newInfoSlide || infoSlide || ""} onChange={(evt) => {
+            setNewInfoSlide(evt.target.value);
+        }} area={true} />
+
+        <Button onClick={
+            () => {
+                onChange(newMotion, newInfoSlide);
+            }
+        } role="primary">Save</Button>
+    </div>
+}
 
 export function RoundPublicationView({roundId}) {
     let currentView = {type: "RoundPublication", round_uuid: roundId};
@@ -170,7 +179,6 @@ export function RoundPublicationView({roundId}) {
         is_silent: false,
     };*/
 
-    console.log(publicationInfo);
     if (publicationInfo === null) {
         return <div>Loading…</div>
     }
