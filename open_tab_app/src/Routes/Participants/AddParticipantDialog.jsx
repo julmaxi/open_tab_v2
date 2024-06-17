@@ -3,7 +3,7 @@ import { TournamentContext } from "../../TournamentContext";
 
 import { useView } from "../../View";
 
-import { Form, validateForm } from "./Form";
+import { Form, validateForm } from "../../UI/Form";
 
 import Button from "../../UI/Button";
 

@@ -15,7 +15,7 @@ import { FeedbackOverviewRoute } from "./FeedbackView";
 import { TabViewRoute } from "./TabView";
 import { FeedbackConfigRoute } from "./FeedbackConfig";
 import VenueViewRoute from "./Venues";
-import TournamentViewRoute from "./TournamentView";
+import TournamentViewRoute from "./Routes/TournamentSettings/TournamentView";
 import { AssistantRoute } from "./Assistant";
 import { FeedbackProgressRoute } from "./FeedbackProgress";
 

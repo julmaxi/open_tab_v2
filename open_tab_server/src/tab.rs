@@ -7,7 +7,7 @@ use open_tab_entities::{prelude::TournamentRound, tab::TabView};
 use sea_orm::{DatabaseConnection, prelude::*};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, auth::ExtractAuthenticatedUser, state::AppState};
+use crate::{response::{APIError, handle_error}, auth::MaybeExtractAuthenticatedUser, state::AppState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TabResponse {
@@ -19,11 +19,25 @@ pub struct TabResponse {
 pub async fn get_current_tab(
     State(db): State<DatabaseConnection>,
     Path(tournament_id): Path<Uuid>,
-    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    MaybeExtractAuthenticatedUser(user): MaybeExtractAuthenticatedUser,
 ) -> Result<Json<TabResponse>, APIError> {
-    if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized for this tournament"));
-        return Err(err);
+    let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
+        .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
+        .one(&db)
+        .await.map_err(handle_error)?;
+    
+    let allow_unchecked_access = published_tournament.map(|t| t.show_tab).unwrap_or(false);
+    if !allow_unchecked_access {
+        if let Some(user) = user {
+            if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
+                let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized for this tournament"));
+                return Err(err);
+            }
+        }
+        else {
+            let err = APIError::from((StatusCode::UNAUTHORIZED, "You must be logged in to access this tournament"));
+            return Err(err);
+        }
     }
     let tournament_rounds = TournamentRound::get_all_in_tournament(&db, tournament_id).await.map_err(handle_error)?;
 

@@ -59,6 +59,7 @@ impl LoadedView for LoadedTournamentStatusView {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TournamentStatusView {
+    name: String,
     annoucements_password: Option<String>,
     remote_url: Option<String>,
 }
@@ -74,6 +75,7 @@ impl TournamentStatusView {
             .await?;
 
         Ok(Self {
+            name: tournament.name,
             annoucements_password: tournament.annoucements_password,
             remote_url: remote.map(|r| r.url)
         })

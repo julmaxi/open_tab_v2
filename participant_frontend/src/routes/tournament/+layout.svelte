@@ -31,12 +31,15 @@ export let data;
     text-decoration: none;
     color: black;
   }
+
+  .tournament_name {
+    padding-right: 5px;
+    border-right: 1px solid #ccc;
+  }
 </style>
 
 <nav>
-	<a href="/tournament/{data.tournamentId}/home">Overview</a>
-	<a href="/tournament/{data.tournamentId}/tab">Tab</a>
-	<a href="/tournament/{data.tournamentId}/settings">Settings</a>
+  <span class="tournament_name">{data.tournamentName}</span>
   {#each data.additionalLinks as link}
     <a href="{link.url}">{link.name}</a>
   {/each}

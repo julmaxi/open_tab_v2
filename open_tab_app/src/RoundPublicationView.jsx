@@ -7,7 +7,7 @@ import {TournamentContext} from "./TournamentContext";
 import {useView} from "./View";
 import { executeAction } from "./Action";
 import ModalOverlay from "./UI/Modal";
-import Button from "./UI/Modal";
+import Button from "./UI/Button";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import { DateTimeSelectorButton } from "./UI/DateTimeSelectorButton";

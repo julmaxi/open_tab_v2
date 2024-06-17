@@ -1,7 +1,7 @@
 import React from "react";
 import { useState } from "react";
 import Button from "../../UI/Button";
-import { Form, validateForm } from "./Form";
+import { Form, validateForm } from "../../UI/Form";
 
 
 export function CSVImportDialog(props) {

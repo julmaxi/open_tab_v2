@@ -3,7 +3,7 @@ import { useView } from "./View"
 import { TournamentContext } from "./TournamentContext";
 import { SortableTable, EditableCell } from "./SortableTable";
 import { executeAction } from "./Action";
-import Button from "./UI/Modal";
+import Button from "./UI/Button";
 
 
 

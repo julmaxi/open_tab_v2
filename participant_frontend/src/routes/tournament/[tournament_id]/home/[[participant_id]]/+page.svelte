@@ -268,6 +268,7 @@
         </div>
         </div>
         <div>
+            <CardButton href={`/tournament/${data.tournamentId}/round/${round.uuid}/draw`} label="View Full Draw" />
             {#if round.status === 'InProgress' && round.participant_role.role !== "NotDrawn" }
                 <CardButton
                 href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer`}

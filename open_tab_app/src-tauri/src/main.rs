@@ -1139,6 +1139,88 @@ async fn save_participant_qr_codes(db: State<'_, DatabaseConnection>, template_c
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum APIRequestMethod {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct APIRequestResponse {
+    status: u16,
+    body: String
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TournamentAPIRequest {
+    method: APIRequestMethod,
+    url: String,
+    body: Option<String>,
+}
+
+#[tauri::command]
+async fn send_tournament_api_request(
+    db: State<'_, DatabaseConnection>,
+    client: State<'_, Client>,
+    identity_provider: State<'_, Arc<IdentityProvider>>,
+    tournament_id: Uuid,
+    request: TournamentAPIRequest
+) -> Result<APIRequestResponse, String> {
+    let tournament_remote = schema::tournament_remote::Entity::find().filter(schema::tournament_remote::Column::TournamentId.eq(tournament_id)).one(&*db).await.map_err(|_| "Could not find remote")?;
+
+
+    if let Some(tournament_remote) = tournament_remote {
+        let base_url = &tournament_remote.url;
+        let request_url = format!("{}{}", base_url, request.url);
+        let api_key = identity_provider.get_key_blocking(&tournament_remote.url).await.map_err(|e| e.to_string())?;
+
+        let request_builder = match request.method {
+            APIRequestMethod::GET => {
+                client.get(request_url)
+            },
+            APIRequestMethod::POST => {
+                client.post(request_url)
+            },
+            APIRequestMethod::PUT => {
+                client.put(request_url)
+            },
+            APIRequestMethod::DELETE => {
+                client.delete(request_url)
+            },
+            APIRequestMethod::PATCH => {
+                client.patch(request_url)
+            }
+        };
+
+        let request_builder = request_builder.bearer_auth(api_key);
+
+        let request_builder = if let Some(body) = request.body {
+            request_builder.body(body).header("Content-Type", "application/json")
+        }
+        else {
+            request_builder
+        };
+
+        let response = request_builder.send().await.map_err(|e| e.to_string())?;
+
+        let status = response.status();
+        let text = response.text().await.map_err(|e| e.to_string())?;
+
+        Ok(
+            APIRequestResponse {
+                status: status.as_u16(),
+                body: text
+            }
+        )
+    }
+    else {
+        Err("No remote".to_string())
+    }
+}
+
 
 #[tauri::command]
 async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, node_id: Option<Uuid>, path: String) -> Result<(), ()> {
@@ -1171,6 +1253,7 @@ async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, co
     if config.use_default_feedback_system {
         let template_path = app.path_resolver().resolve_resource("resources/default_feedback_form.yml");
         if let Some(template_path) = template_path {
+            dbg!(&template_path);
             let template_file = File::open(template_path).map_err(handle_error)?;
             let result = FormTemplate::from_reader(template_file).map_err(handle_error)?;
 
@@ -1270,7 +1353,8 @@ fn main() {
             save_round_files,
             create_tournament,
             save_tab,
-            save_participant_qr_codes
+            save_participant_qr_codes,
+            send_tournament_api_request
         ])
         .manage(db)
         .manage(Mutex::new(ViewCache::new()))

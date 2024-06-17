@@ -23,7 +23,8 @@
         "save": true
       },
       "fs": {
-        "scope": ["$RESOURCE/*"]
+        "scope": ["$RESOURCE/*"],
+        "readFile": true
       }
     },
     "updater": {

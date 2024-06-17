@@ -157,6 +157,8 @@ impl AuthenticatedUser {
 
 pub struct ExtractAuthenticatedUser(pub AuthenticatedUser);
 
+pub struct MaybeExtractAuthenticatedUser(pub Option<AuthenticatedUser>);
+
 #[async_trait]
 impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
     type Rejection = APIError;
@@ -249,6 +251,23 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
                 is_password_authorized: false,
                 is_access_only: key.is_access_only
             }));
+        }
+    }
+}
+
+#[async_trait]
+impl FromRequestParts<AppState> for MaybeExtractAuthenticatedUser {
+    type Rejection = APIError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let authenticated_user = ExtractAuthenticatedUser::from_request_parts(parts, state).await;
+        if let Ok(authenticated_user) = authenticated_user {
+            Ok(MaybeExtractAuthenticatedUser(Some(authenticated_user.0)))
+        } else {
+            Ok(MaybeExtractAuthenticatedUser(None))
         }
     }
 }

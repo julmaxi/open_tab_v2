@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useContext } from 'react';
 import { TournamentContext } from './TournamentContext';
 import Button from './UI/Button';
 import { useView } from './View';
-import RemoteSelector from './RemoteSelector';
+import RemoteSelector from './Routes/TournamentSettings/RemoteSelector';
 import { useSettings } from './settings';
 import { invoke } from '@tauri-apps/api/tauri';
 import { openImportDialog } from './openImportDialog';

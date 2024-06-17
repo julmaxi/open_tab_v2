@@ -20,7 +20,7 @@ export default function ModalOverlay(props) {
 }
 
 function DialogWindow(props) {
-    return <div className={`z-10 bg-white p-8 ${props.windowClassName}`}>
+    return <div className={`z-10 bg-white p-8 ${props.windowClassName} max-h-lvh overflow-scroll`}>
         {props.children}
     </div>
 }

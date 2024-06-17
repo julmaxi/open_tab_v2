@@ -1,5 +1,5 @@
 import { Children, useState, forwardRef, useContext, useEffect } from "react";
-import Button from "./UI/Modal";
+import Button from "./UI/Button";
 
 import { useView } from "./View";
 import { TournamentContext } from "./TournamentContext";

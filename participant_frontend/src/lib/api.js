@@ -38,7 +38,7 @@ export function getParticipantCookieNameInTournament(tournamentId) {
 export function getParticipantIdInTournamentServerOnly(cookies, tournamentId) {
     let participantId = cookies.get(getParticipantCookieNameInTournament(tournamentId));
     if (participantId === undefined) {
-        throw Error("participant_id cookie is undefined");
+        return null;
     }
     return participantId;
 }
@@ -109,6 +109,29 @@ export async function makeAuthenticatedRequest(
         {
             ...options,
             headers: new Headers({'Authorization': authString}),
+        }
+    );
+    if (res.status != 200) {
+        console.log(Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`));
+        throw Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`);
+    }
+    return res
+}
+
+
+export async function makeRequest(
+    fetch,
+    url,
+    options
+) {
+    if (env.PUBLIC_API_URL === undefined) {
+        throw Error("PUBLIC_API_URL is undefined");
+    }
+
+    const res = await fetch(
+        `${env.PUBLIC_API_URL}/${url}`,
+        {
+            ...options,
         }
     );
     if (res.status != 200) {

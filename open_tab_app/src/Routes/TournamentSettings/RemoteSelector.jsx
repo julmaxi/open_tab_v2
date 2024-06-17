@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-import ModalOverlay from './UI/Modal';
-import { executeAction } from './Action';
+import ModalOverlay from '../../UI/Modal';
+import { executeAction } from '../../Action';
 import { invoke } from '@tauri-apps/api/tauri';
 import { confirm } from '@tauri-apps/api/dialog';
 

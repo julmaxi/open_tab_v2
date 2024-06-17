@@ -3,11 +3,11 @@ use std::{collections::HashMap, vec};
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema::{self, published_tournament}, EntityGroup, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, auth::ExtractAuthenticatedUser, state::AppState};
+use crate::{auth::ExtractAuthenticatedUser, response::{handle_error, APIError}, state::AppState, tournament};
 
 use open_tab_entities::domain::round::check_release_date;
 
@@ -16,6 +16,7 @@ use open_tab_entities::domain::round::check_release_date;
 #[serde(tag="type")]
 pub struct ParticipantInfoResponse {
     pub name: String,
+    pub tournament_name: String,
     pub role: ParticipantRoleInfo,
     pub rounds: Vec<ParticipantRoundInfo>,
     pub feedback_submissions: Vec<FeedbackSubmissionInfo>,
@@ -659,9 +660,15 @@ async fn get_participant_info(
         }
     ).collect_vec();
 
+    let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
+    .filter(
+        open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament.uuid)
+    ).one(&transaction).await.map_err(handle_error)?;
+
     transaction.rollback().await.map_err(handle_error)?;
     Ok(Json(ParticipantInfoResponse {
         name: participant.name,
+        tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
         role,
         rounds,
         feedback_submissions: feedback_requests,
@@ -701,6 +708,7 @@ async fn get_participant_role(participant_id: Uuid, transaction: &sea_orm::Datab
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ParticipantShortInfoResponse {
     name: String,
+    tournament_name: String,
     role: ParticipantRoleInfo,
 }
 
@@ -716,19 +724,29 @@ async fn get_participant_short_info(
 
     let transaction = db.begin().await.map_err(handle_error)?;
     let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
-    .one(&transaction).await.map_err(handle_error)?;
+    .find_with_related(open_tab_entities::schema::tournament::Entity)
+    .all(&transaction).await.map_err(handle_error)?;
+
+    let participant = participant.into_iter().next();
 
     if participant.is_none() {
         transaction.rollback().await.map_err(handle_error)?;
         return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
     }
-    let participant = participant.unwrap();
+    let (participant, tournament) = participant.unwrap();
+    let tournament = tournament.into_iter().next().unwrap(); // Guaranteed by consistency constraints
+
+    let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
+    .filter(
+        open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament.uuid)
+    ).one(&transaction).await.map_err(handle_error)?;
 
     let role = get_participant_role(participant_id, &transaction).await?;
 
     transaction.rollback().await.map_err(handle_error)?;
     Ok(Json(ParticipantShortInfoResponse {
         name: participant.name,
+        tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
         role
     }))
 }

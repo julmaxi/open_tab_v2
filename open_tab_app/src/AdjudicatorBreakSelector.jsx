@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Button from "./UI/Modal";
+import Button from "./UI/Button";
 import { useView } from "./View";
 import { SortableTable } from "./SortableTable";
 

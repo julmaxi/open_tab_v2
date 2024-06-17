@@ -285,7 +285,7 @@ export function ParticipantOverview() {
             }} />
         </ModalOverlay>
 
-        <div className="min-h-0">
+        <div className="min-h-0 flex-1">
             {
                 Object.entries(participants.teams).length + Object.entries(participants.adjudicators).length > 0 ?
                     <ParticipantTable participants={participants} />
@@ -297,7 +297,7 @@ export function ParticipantOverview() {
             }
         </div>
         <Toolbar>
-            <ParticipantImportDialogButton buttonFactory={({children}) => <ToolbarButton icon={"upload"}>{children}</ToolbarButton>} />
+            <ParticipantImportDialogButton buttonFactory={({children, onClick}) => <ToolbarButton icon={"upload"} onClick={onClick}>{children}</ToolbarButton>} />
 
             <ToolbarButton icon="add" onClick={() => setAddParticipantDialogOpen(true)}>Add Participant…</ToolbarButton>
 

@@ -1,12 +1,13 @@
 import { useContext, useState } from "react";
-import { TournamentContext } from "./TournamentContext";
-import { useView } from "./View";
-import { useSettings } from "./settings";
+import { TournamentContext } from "../../TournamentContext";
+import { useView } from "../../View";
+import { useSettings } from "../../settings";
 
-import ModalOverlay from "./UI/Modal";
+import ModalOverlay from "../../UI/Modal";
 
 import RemoteSelector from "./RemoteSelector";
 import { invoke } from "@tauri-apps/api/tauri";
+import SettingsEditor from "./SettingsEditor";
 
 export default function TournamentViewRoute(props) {
     let tournament = useContext(TournamentContext);
@@ -15,7 +16,8 @@ export default function TournamentViewRoute(props) {
     let settings = useSettings();
     let tournamentId = useContext(TournamentContext).uuid;
 
-    return <div className="h-full w-full">
+    return <div className="h-full w-full p-2">
+        <h1 className="font-bold">Remote Settings</h1>
         {
             statusView ? 
             <div className="h-full w-full flex flex-col">
@@ -30,6 +32,11 @@ export default function TournamentViewRoute(props) {
                 <p>
                     {statusView.annoucements_password}
                 </p>
+
+                <div className="pt-2">
+                    { statusView.remote_url !== null ? <SettingsEditor /> : []}
+                </div>
+                
             </div>  
             : 
             <p>Loading</p>

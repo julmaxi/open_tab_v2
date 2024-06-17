@@ -9,7 +9,7 @@ import { TournamentContext } from "./TournamentContext";
 
 import ModalOverlay from "./UI/Modal";
 import { useParams } from "react-router";
-import Button from "./UI/Modal";
+import Button from "./UI/Button";
 
 const ROLE_COLORS = {
     "government": "bg-green-200",

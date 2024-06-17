@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import _ from "lodash";
+import { open } from '@tauri-apps/api/dialog';
+import { readBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
+
 
 function NumberField(props) {
     return <input
@@ -75,6 +79,58 @@ function EitherOrField(props) {
     </div>;
 }
 
+function BinaryRadioField(props) {
+    let id = _.uniqueId("binary_radio");
+    return <div className="flex items-center">
+        <input id={`${id}-yes`} className="mr-1" type="radio" onChange={() => props.onChange(true)} checked={props.value == true} />
+        <label htmlFor={`${id}-yes`} className="mr-4">Yes</label>
+        <input id={`${id}-no`} className="mr-1" type="radio" onChange={() => props.onChange(false)} checked={!props.value} />
+        <label htmlFor={`${id}-no`}>No</label>
+    </div>;
+}
+
+function DateTimeField(props) {
+    return <input
+        key={props.key}
+        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+        type="datetime-local"
+        placeholder={props.def.required ? "Required" : ""}
+        value={props.value ?? ""} onChange={(event) => {
+            props.onChange(event.target.value);
+        }} />;
+}
+
+function guessImageType(data) {
+    if (data[0] == 0xFF && data[1] == 0xD8) {
+        return "image/jpeg";
+    }
+    if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47) {
+        return "image/png";
+    }
+    return null;
+}
+
+function ImageSelectorField(props) {
+    return <div>
+        <div className="border rounded shadow-inner w-16 h-16 flex items-center p-1 cursor-pointer" onClick={async () => {
+            let file = await open({ accept: "image/*" });
+            if (file) {
+                let content = await readBinaryFile(file);
+                let type = guessImageType(content);
+                let blob = new Blob([content], { type: type });
+                let reader = new FileReader();
+                reader.onload = (event) => {
+                    props.onChange(event.target.result);
+                }
+                reader.readAsDataURL(blob);
+            }
+        }}>
+            {props.value ? <img className="w-full h-full object-contain" src={props.value} /> : <span className="text-gray-400 text-sm">No image</span>}
+        </div>
+        {props.value && <button className="text-sm text-gray-400" onClick={() => props.onChange(null)}>Clear</button>}
+    </div>;
+}
+
 function getFieldFactoryFromType(type) {
     switch (type) {
         case "number":
@@ -85,6 +141,12 @@ function getFieldFactoryFromType(type) {
             return TextField;
         case "multiple_choice":
             return MultipleChoiceField;
+        case "bool":
+            return BinaryRadioField;
+        case "datetime":
+            return DateTimeField;
+        case "image":
+            return ImageSelectorField;
         default:
             return () => <div>Unknown field type</div>;
     }
@@ -126,7 +188,7 @@ export function validateForm(values, formDef) {
             errors[fieldDef.key] = validationResult.errors;
             hasErrors = hasErrors || validationResult.hasErrors;
         }
-        if (fieldDef.required && (values[fieldDef.key] == null || values[fieldDef.key] == "")) {
+        if (fieldDef.required && (values[fieldDef.key] === null || values[fieldDef.key] === "")) {
             errors[fieldDef.key] = "Required";
             hasErrors = true;
         }

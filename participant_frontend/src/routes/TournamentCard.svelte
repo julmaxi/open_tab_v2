@@ -1,18 +1,9 @@
 <script>
-  import TournamentCard from './TournamentCard.svelte';
-
     import Card from "$lib/Card.svelte";
     import CardButton from "$lib/CardButton.svelte";
-    import { makeRequest } from '$lib/api';
-    import { onMount } from 'svelte';
 
-    export let data;
-
-    let tournamentsInProgress = data.tournamentsInfo.active;
-
-    let tournamentsUpcoming = data.tournamentsInfo.upcoming;
+    export let tournament;
 </script>
-
 
 <style>
     .list {
@@ -97,46 +88,27 @@
     .card-content img {
         padding-bottom: 5px;
     }
-
-    .note {
-        font-style: italic;
-    }
-
-    .section {
-        margin-bottom: 10px;
-    }
 </style>
 
-<nav>
-    <span>Open Tab</span>
-</nav>
+<Card>
+    <div class="card-content" slot="content">
+        <h3>{tournament.name}</h3>
 
-<div class="back">
-<div class="container">
-    <div class="section">
-    <h2>In Progress</h2>
-    {#if tournamentsInProgress.length === 0}
-        <p class="note">There are no tournaments in progress right now.</p>
-    {:else}
-    <div class="list">
-        {#each tournamentsInProgress as tournament}
-            <TournamentCard tournament={tournament} />
-        {/each}
+        {#if tournament.image}
+            <div class="img-container">
+                <img src={tournament.image} alt="Tournament Logo" />
+            </div>
+        {/if}
     </div>
-    {/if}
+
+    <div class="footer" slot="footer">
+        {#if tournament.show_tab }
+            <CardButton label="View Tab" href={`/tournament/${tournament.tournament_uuid}/tab`} />
+        {/if}
+        {#if tournament.show_motions }
+            <CardButton label="View Motions" />
+        {/if}
     </div>
-    
-    <div class="section">
-    <h2>Upcoming</h2>
-    {#if tournamentsUpcoming.length === 0}
-        <p class="note">There are no upcoming tournaments right now.</p>
-    {:else}
-        <div class="list">
-        {#each tournamentsUpcoming as tournament}
-            <TournamentCard tournament={tournament} />
-        {/each}
-        </div>
-    {/if}
-    </div>
-</div>
-</div>
+</Card>
+
+

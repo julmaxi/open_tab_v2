@@ -25,6 +25,7 @@ pub mod users;
 pub mod notify;
 pub mod debate;
 pub mod patch;
+pub mod round;
 
 use state::AppState;
 
@@ -64,6 +65,8 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
             notify::router()
         ).merge(
             debate::router()
+        ).merge(
+            round::router()
         )
     )
     .layer(
