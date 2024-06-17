@@ -88,8 +88,13 @@
     .card-content img {
         padding-bottom: 5px;
     }
+
+    a {
+        display: block;
+    }
 </style>
 
+<a href={`/tournament/${tournament.tournament_uuid}`}>
 <Card>
     <div class="card-content" slot="content">
         <h3>{tournament.name}</h3>
@@ -110,5 +115,5 @@
         {/if}
     </div>
 </Card>
-
+</a>
 
