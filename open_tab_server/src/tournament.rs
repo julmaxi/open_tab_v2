@@ -360,7 +360,7 @@ impl PublicRoundInfo {
         Self {
             uuid: round.uuid,
             round_name: format!("Round {}", round.index + 1),
-            motion: if show_motions { Some(MotionInfo::from_round(round)) } else { None },
+            motion: if show_motions && check_release_date(now, round.full_motion_release_time) { Some(MotionInfo::from_round(round)) } else { None },
             state: check_release_date(now, round.round_close_time).then(|| RoundState::Concluded).unwrap_or(RoundState::InProgress),
         }
     }

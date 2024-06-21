@@ -77,7 +77,7 @@
         <div class="item">
         <Card>
             <div slot="content" class="card-content">
-                <h2>Debate {debate.debate_index + 1} {#if debate.venue} {debate.venue.name} {/if}</h2>
+                <h2>Debate {debate.debate_index + 1} {#if debate.venue} {debate.venue.venue_name} {/if}</h2>
                 <div class="team-container">
                     <p>
                         {debate.government.team_name}
