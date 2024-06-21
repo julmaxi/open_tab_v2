@@ -177,6 +177,9 @@ function SettingsEditorForm({values, defaultTournamentName, onValuesChanged, onC
     ];
 
     return <div>
+        <div>
+            { values["list_publicly"] && !(values["start_date"] && values["end_date"]) && <p className='text-sm text-red-500 max-w-64'>If you want your tournament to appear on the front page, you need to specify a start and end date for your tournament.</p> }
+        </div>
         <Form
             fields={fields}
             values={values}

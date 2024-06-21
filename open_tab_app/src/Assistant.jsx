@@ -16,6 +16,7 @@ import { AdjudicatorBreakSelector } from './AdjudicatorBreakSelector';
 import ModalOverlay from './UI/Modal';
 import { ErrorHandlingContext } from './Action';
 import { EditMotionForm } from './RoundPublicationView';
+import SettingsEditorButton from './Routes/TournamentSettings/SettingsEditor';
 
 
 const StepTypeRenderers = {
@@ -227,12 +228,14 @@ function LoadParticipantsStep({ }) {
             Maria,Nielsdotter,Team A,Club A,Peter Petersson
         </div>
 
+        <ParticipantImportDialogButton buttonFactory={Button} buttonProps={{ role: "primary" }} />
+
         <p>
             If you want to make use of the online functionality, you will need to select
             a remote server to host the tournament on.
         </p>
 
-        <div className='p-4'>
+        <div>
             {
                 settings && statusView &&
                 <RemoteSelector
@@ -244,9 +247,16 @@ function LoadParticipantsStep({ }) {
                     }
                 />
             }
+            {
+                settings && statusView && statusView.remote_url &&
+                <>                    
+                    <p>If you want non-participants to be able to follow along with your tournament, you should edit the publication settings.</p>
+                    <SettingsEditorButton />
+                </>
+            
+            }
         </div>
 
-        <ParticipantImportDialogButton buttonFactory={Button} buttonProps={{ role: "primary" }} />
     </div>
 }
 
@@ -391,7 +401,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
             </>}
 
             {
-                is_first_in_tournament &&             <Button role="secondary" onClick={
+                is_first_in_tournament && <Button role="secondary" onClick={
                     () => {
                         save(
                             {

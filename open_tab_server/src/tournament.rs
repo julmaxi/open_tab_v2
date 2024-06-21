@@ -306,8 +306,8 @@ pub async fn get_active_tournaments_handler(
 
     let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
-            open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).or(
-                open_tab_entities::schema::published_tournament::Column::EndDate.is_null()
+            open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
+                open_tab_entities::schema::published_tournament::Column::EndDate.is_null().not()
             )
         ))
         .all(&db)
