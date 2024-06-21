@@ -95,7 +95,7 @@ pub struct ImageInfo {
 
 impl Serialize for ImageInfo {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-        serializer.serialize_str(&format!("data:{};base64,{}", self.mime_type, base64::engine::general_purpose::STANDARD_NO_PAD.encode(&self.data)))
+        serializer.serialize_str(&format!("data:{};base64,{}", self.mime_type, base64::engine::general_purpose::STANDARD.encode(&self.data)))
     }
 }
 
@@ -224,6 +224,10 @@ pub async fn update_tournament_settings_handler(
     if let Some(image) = request.image {
         published_tournament.image_data = sea_orm::ActiveValue::Set(Some(image.data));
         published_tournament.image_type = sea_orm::ActiveValue::Set(Some(image.mime_type));
+    }
+    else {
+        published_tournament.image_data = sea_orm::ActiveValue::Set(None);
+        published_tournament.image_type = sea_orm::ActiveValue::Set(None);
     }
     published_tournament.list_publicly = sea_orm::ActiveValue::Set(request.list_publicly);
     published_tournament.show_participants = sea_orm::ActiveValue::Set(request.show_participants);
