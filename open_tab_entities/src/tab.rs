@@ -304,7 +304,6 @@ impl TabView {
             prev_rank = speaker.rank;
         }
 
-        dbg!(&team_detailed_scores);
         let mut team_tab = team_detailed_scores.into_iter().map(
             |(team_id, per_round_score)| {
                 TeamTabEntry {
