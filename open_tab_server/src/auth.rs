@@ -39,6 +39,97 @@ pub struct AuthenticatedUser {
 }
 
 impl AuthenticatedUser {
+    async fn try_from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, APIError> {
+        let basic_header =
+            TypedHeader::<Authorization<Basic>>::from_request_parts(parts, state).await;
+
+        if let Ok(basic_header) = basic_header {
+            let decoded = basic_header.0;
+            let user_name = decoded.username();
+            let password = decoded.password();
+
+            let user = if user_name.starts_with("mail#") {
+                open_tab_entities::schema::user::Entity::find()
+                    .filter(
+                        open_tab_entities::schema::user::Column::UserEmail
+                            .eq(user_name.trim_start_matches("mail#")),
+                    )
+                    .one(&state.db)
+                    .await
+                    .map_err(handle_error)?
+            } else {
+                let user_uuid = Uuid::from_str(user_name)
+                    .map_err(|_| (StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
+                open_tab_entities::schema::user::Entity::find_by_id(user_uuid)
+                    .one(&state.db)
+                    .await
+                    .map_err(handle_error)?
+            };
+
+            let user = user.ok_or((
+                StatusCode::UNAUTHORIZED,
+                "User not found or password incorrect",
+            ))?;
+
+            let password_hash =
+                PasswordHash::new(&user.password_hash).expect("invalid password hash");
+            let algs: &[&dyn PasswordVerifier] = &[&Argon2::default()];
+
+            password_hash.verify_password(algs, password).map_err(|_| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "User not found or password incorrect",
+                )
+            })?;
+
+            return Ok(AuthenticatedUser {
+                uuid: user.uuid,
+                authorized_only_for_tournament: None,
+                is_password_authorized: true,
+                is_access_only: false
+            });
+        } else {
+            let TypedHeader(bearer_header) =
+                TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
+                    .await
+                    .map_err(|_| {
+                        (
+                            StatusCode::UNAUTHORIZED,
+                            "No valid authorization header found",
+                        )
+                    })?;
+            let key = base64::engine::general_purpose::STANDARD_NO_PAD
+                .decode(&bearer_header.0.token())
+                .unwrap();
+            let salt = SaltString::from_b64("bXlzYWx0bXlzYWx0").unwrap();
+            let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "No valid authorization header found",
+                )
+            })?;
+
+            let key = open_tab_entities::schema::user_access_key::Entity::find_by_id(
+                hashed_key.to_string(),
+            )
+            .one(&state.db)
+            .await
+            .map_err(handle_error)?;
+
+            let key = key.ok_or((StatusCode::UNAUTHORIZED, "Bearer token invalid"))?;
+
+            return Ok(AuthenticatedUser {
+                uuid: key.user_id,
+                authorized_only_for_tournament: key.tournament_id,
+                is_password_authorized: false,
+                is_access_only: key.is_access_only
+            });
+        }
+    }
+    
     pub async fn check_is_authorized_for_tournament_administration<C>(
         &self,
         db: &C,
@@ -167,91 +258,7 @@ impl FromRequestParts<AppState> for ExtractAuthenticatedUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let basic_header =
-            TypedHeader::<Authorization<Basic>>::from_request_parts(parts, state).await;
-
-        if let Ok(basic_header) = basic_header {
-            let decoded = basic_header.0;
-            let user_name = decoded.username();
-            let password = decoded.password();
-
-            let user = if user_name.starts_with("mail#") {
-                open_tab_entities::schema::user::Entity::find()
-                    .filter(
-                        open_tab_entities::schema::user::Column::UserEmail
-                            .eq(user_name.trim_start_matches("mail#")),
-                    )
-                    .one(&state.db)
-                    .await
-                    .map_err(handle_error)?
-            } else {
-                let user_uuid = Uuid::from_str(user_name)
-                    .map_err(|_| (StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
-                open_tab_entities::schema::user::Entity::find_by_id(user_uuid)
-                    .one(&state.db)
-                    .await
-                    .map_err(handle_error)?
-            };
-
-            let user = user.ok_or((
-                StatusCode::UNAUTHORIZED,
-                "User not found or password incorrect",
-            ))?;
-
-            let password_hash =
-                PasswordHash::new(&user.password_hash).expect("invalid password hash");
-            let algs: &[&dyn PasswordVerifier] = &[&Argon2::default()];
-
-            password_hash.verify_password(algs, password).map_err(|_| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    "User not found or password incorrect",
-                )
-            })?;
-
-            return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
-                uuid: user.uuid,
-                authorized_only_for_tournament: None,
-                is_password_authorized: true,
-                is_access_only: false
-            }));
-        } else {
-            let TypedHeader(bearer_header) =
-                TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
-                    .await
-                    .map_err(|_| {
-                        (
-                            StatusCode::UNAUTHORIZED,
-                            "No valid authorization header found",
-                        )
-                    })?;
-            let key = base64::engine::general_purpose::STANDARD_NO_PAD
-                .decode(&bearer_header.0.token())
-                .unwrap();
-            let salt = SaltString::from_b64("bXlzYWx0bXlzYWx0").unwrap();
-            let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    "No valid authorization header found",
-                )
-            })?;
-
-            let key = open_tab_entities::schema::user_access_key::Entity::find_by_id(
-                hashed_key.to_string(),
-            )
-            .one(&state.db)
-            .await
-            .map_err(handle_error)?;
-
-            let key = key.ok_or((StatusCode::UNAUTHORIZED, "Bearer token invalid"))?;
-
-            return Ok(ExtractAuthenticatedUser(AuthenticatedUser {
-                uuid: key.user_id,
-                authorized_only_for_tournament: key.tournament_id,
-                is_password_authorized: false,
-                is_access_only: key.is_access_only
-            }));
-        }
+        AuthenticatedUser::try_from_request_parts(parts, state).await.map(ExtractAuthenticatedUser)
     }
 }
 
@@ -263,12 +270,7 @@ impl FromRequestParts<AppState> for MaybeExtractAuthenticatedUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let authenticated_user = ExtractAuthenticatedUser::from_request_parts(parts, state).await;
-        if let Ok(authenticated_user) = authenticated_user {
-            Ok(MaybeExtractAuthenticatedUser(Some(authenticated_user.0)))
-        } else {
-            Ok(MaybeExtractAuthenticatedUser(None))
-        }
+        Ok(MaybeExtractAuthenticatedUser(AuthenticatedUser::try_from_request_parts(parts, state).await.ok()))
     }
 }
 
@@ -424,7 +426,7 @@ pub async fn create_token_handler(
 
     return Ok(GetTokenResponse {
         token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
-        expires: expiration.map(|d| (chrono::Utc::now() + d).naive_utc().timestamp_millis()),
+        expires: expiration.map(|d| (chrono::Utc::now() + d).timestamp_millis()),
     }
     .into());
 }

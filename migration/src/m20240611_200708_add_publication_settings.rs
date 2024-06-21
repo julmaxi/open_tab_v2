@@ -15,6 +15,7 @@ enum PublishedTournament {
     ShowMotions,
     ShowDraws,
     ShowTab,
+    ShowParticipants,
     StartDate,
     EndDate,
     Location
@@ -83,6 +84,12 @@ impl MigrationTrait for Migration {
                         .not_null()
                 )
                 .col(
+                    ColumnDef::new(PublishedTournament::ShowParticipants)
+                        .boolean()
+                        .default(false)
+                        .not_null()
+                )
+                .col(
                     ColumnDef::new(PublishedTournament::StartDate)
                         .date_time()
                 )
@@ -94,13 +101,21 @@ impl MigrationTrait for Migration {
                     ColumnDef::new(PublishedTournament::Location)
                         .string()
                 )
+                .foreign_key(
+                    ForeignKey::create()
+                    .name("fk_published_tournament_tournament_id")
+                    .from(PublishedTournament::Table, PublishedTournament::TournamentId)
+                    .to(Tournament::Table, Tournament::Uuid)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .on_update(ForeignKeyAction::Cascade)
+                )
                 .to_owned()
         ).await?;
 
         manager.create_index(
             Index::create()
                 .table(PublishedTournament::Table)
-                .name("published_tournament_tournament_id")
+                .name("idx-published_tournament_tournament_id")
                 .col(PublishedTournament::TournamentId)
                 .unique()
                 .to_owned()
@@ -122,15 +137,6 @@ impl MigrationTrait for Migration {
                 .to_owned()
         ).await?;
 
-        manager.create_foreign_key(
-            ForeignKey::create()
-                .name("fk_published_tournament_tournament_id")
-                .from(PublishedTournament::Table, PublishedTournament::TournamentId)
-                .to(Tournament::Table, Tournament::Uuid)
-                .on_delete(ForeignKeyAction::Cascade)
-                .on_update(ForeignKeyAction::Cascade)
-                .to_owned()
-        ).await?;
         Ok(())
     }
 

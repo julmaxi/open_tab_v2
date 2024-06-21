@@ -36,6 +36,13 @@ export async function load({ params, fetch, cookies }) {
                 url: `/tournament/${params.tournament_id}/settings`,
             }
         )
+
+        additionalLinks.push(
+            {
+                name: "Participants",
+                url: `/tournament/${params.tournament_id}/participants`,
+            }
+        )
     
         if (participantInfo.role.type == "Adjudicator") {
             additionalLinks.push({
@@ -66,6 +73,15 @@ export async function load({ params, fetch, cookies }) {
                 {
                     name: "Tab",
                     url: `/tournament/${params.tournament_id}/tab`,
+                }
+            );
+        }
+
+        if (public_info.show_participants) {
+            additionalLinks.push(
+                {
+                    name: "Participants",
+                    url: `/tournament/${params.tournament_id}/participants`,
                 }
             );
         }

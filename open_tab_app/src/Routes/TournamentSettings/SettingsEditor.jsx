@@ -81,6 +81,7 @@ function SettingsEditor({tournamentId, onClose}) {
                         let requestBody = {
                             list_publicly: values.list_publicly,
                             public_name: values.public_name,
+                            show_participants: values.show_participants,
                             show_motions: values.show_motions,
                             show_draws: values.show_draws,
                             show_tab: values.show_tab,
@@ -88,6 +89,7 @@ function SettingsEditor({tournamentId, onClose}) {
                             end_date: values.end_date && new Date(Date.parse(values.end_date)).toISOString().slice(0, -1),
                             image: values.image
                         };
+                        console.log(requestBody);
 
                         let response = await invoke("send_tournament_api_request", {tournamentId: tournamentId, request: {
                                 body: JSON.stringify(requestBody),
@@ -123,6 +125,12 @@ function SettingsEditorForm({values, defaultTournamentName, onValuesChanged, onC
             key: "list_publicly",
             type: "bool",
             displayName: "List Publicly",
+            required: true
+        },
+        {
+            key: "show_participants",
+            type: "bool",
+            displayName: "Show Participants",
             required: true
         },
         {

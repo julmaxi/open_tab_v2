@@ -78,6 +78,7 @@ pub struct TournamentPublicationSettings {
     pub public_name: String,
     pub image: Option<ImageInfo>,
     pub list_publicly: bool,
+    pub show_participants: bool,
     pub show_motions: bool,
     pub show_draws: bool,
     pub show_tab: bool,
@@ -131,6 +132,7 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
             public_name: model.public_name,
             image,
             list_publicly: model.list_publicly,
+            show_participants: model.show_participants,
             show_motions: model.show_motions,
             show_draws: model.show_draws,
             show_tab: model.show_tab,
@@ -224,6 +226,7 @@ pub async fn update_tournament_settings_handler(
         published_tournament.image_type = sea_orm::ActiveValue::Set(Some(image.mime_type));
     }
     published_tournament.list_publicly = sea_orm::ActiveValue::Set(request.list_publicly);
+    published_tournament.show_participants = sea_orm::ActiveValue::Set(request.show_participants);
     published_tournament.show_motions = sea_orm::ActiveValue::Set(request.show_motions);
     published_tournament.show_draws = sea_orm::ActiveValue::Set(request.show_draws);
     published_tournament.show_tab = sea_orm::ActiveValue::Set(request.show_tab);
@@ -338,6 +341,7 @@ pub struct TournamentPublicInfo {
     show_motions: bool,
     show_tab: bool,
     show_draws: bool,
+    show_participants: bool,
 }
 
 #[derive(Serialize)]
@@ -423,6 +427,7 @@ pub async fn get_public_tournament_info_handler(
             show_draws: published_tournament.show_draws,
             show_motions: published_tournament.show_motions,
             show_tab: published_tournament.show_tab,
+            show_participants: published_tournament.show_participants,
         }
     ))
 }

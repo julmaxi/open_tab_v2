@@ -13,6 +13,7 @@ pub struct Model {
     pub image_data: Option<Vec<u8>>,
     pub image_type: Option<String>,
     pub list_publicly: bool,
+    pub show_participants: bool,
     pub show_motions: bool,
     pub show_draws: bool,
     pub show_tab: bool,

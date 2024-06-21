@@ -3,11 +3,11 @@ use std::{collections::HashMap, vec};
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema::{self, published_tournament}, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema::{self, adjudicator, published_tournament}, EntityGroup, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
-use crate::{auth::ExtractAuthenticatedUser, response::{handle_error, APIError}, state::AppState, tournament};
+use crate::{auth::{ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser}, response::{handle_error, APIError}, state::AppState, tournament};
 
 use open_tab_entities::domain::round::check_release_date;
 
@@ -804,9 +804,127 @@ pub async fn update_participant_settings(
     }
 }
 
+#[derive(Serialize)]
+pub struct ParticipantList {
+    teams: Vec<TeamInfo>,
+    adjudicators: Vec<ParticipantInfo>,
+    institutions: HashMap<Uuid, InstitutionInfo>
+}
+
+#[derive(Serialize)]
+pub struct TeamInfo {
+    uuid: Uuid,
+    name: String,
+    members: Vec<ParticipantInfo>,
+}
+
+#[derive(Serialize)]
+pub struct ParticipantInfo {
+    uuid: Uuid,
+    display_name: String,
+    institutions: Vec<Uuid>,
+    is_anonymous: bool
+}
+
+#[derive(Serialize)]
+pub struct InstitutionInfo {
+    uuid: Uuid,
+    name: String,
+}
+
+impl From<open_tab_entities::schema::tournament_institution::Model> for InstitutionInfo {
+    fn from(model: open_tab_entities::schema::tournament_institution::Model) -> Self {
+        Self {
+            uuid: model.uuid,
+            name: model.name
+        }
+    }
+}
+
+pub async fn list_participants(
+    State(db): State<DatabaseConnection>,
+    MaybeExtractAuthenticatedUser(user): MaybeExtractAuthenticatedUser,
+    Path(tournament_id): Path<Uuid>,
+) -> Result<Json<ParticipantList>, APIError> {
+    let tournament = open_tab_entities::schema::published_tournament::Entity::find().filter(
+        open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id)
+    ).one(&db).await.map_err(handle_error)?;
+
+    let mut is_authorized = false;
+    if let Some(tournament) = tournament {
+        is_authorized = tournament.show_participants
+    }
+
+    if !is_authorized {
+        if let Some(user) = user {
+            if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
+                return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+            }
+        }
+
+        return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+    }
+
+    let institutions_by_id = open_tab_entities::schema::tournament_institution::Entity::find()
+    .filter(
+        open_tab_entities::schema::tournament_institution::Column::TournamentId.eq(tournament_id)
+    ).all(&db).await.map_err(handle_error)?.into_iter().map(|i| (i.uuid, InstitutionInfo::from(i))).collect::<HashMap<_, _>>();
+
+    let mut participants_by_id = open_tab_entities::schema::participant::Entity::find()
+    .find_with_related(open_tab_entities::schema::participant_tournament_institution::Entity)
+    .filter(
+        open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id)
+    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+        |(participant, institutions)| {
+            let institutions = institutions.into_iter().map(|i| i.institution_id).collect::<Vec<_>>();
+            
+            (participant.uuid, ParticipantInfo {
+                uuid: participant.uuid,
+                display_name: if !participant.is_anonymous { participant.name } else { "Anonymous".into() },
+                institutions,
+                is_anonymous: participant.is_anonymous
+            })
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let teams = open_tab_entities::schema::team::Entity::find()
+    .find_with_related(open_tab_entities::schema::speaker::Entity)
+    .filter(
+        open_tab_entities::schema::team::Column::TournamentId.eq(tournament_id)
+    )
+    .order_by_asc(open_tab_entities::schema::team::Column::Name)
+    .all(&db).await.map_err(handle_error)?.into_iter().map(
+        |(team, speakers)| {
+            let members = speakers.into_iter().filter_map(|speaker| {
+                participants_by_id.remove(&speaker.uuid)
+            }).collect::<Vec<_>>();
+            TeamInfo {
+                uuid: team.uuid,
+                name: team.name,
+                members
+            }
+        }
+    ).collect::<Vec<_>>();
+
+    let adjudicators = open_tab_entities::schema::adjudicator::Entity::find()
+    .inner_join(open_tab_entities::schema::participant::Entity)
+    .filter(open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id))
+    .all(&db).await.map_err(handle_error)?.into_iter().filter_map(
+        |adjudicator| {
+            participants_by_id.remove(&adjudicator.uuid)
+        }
+    ).collect::<Vec<_>>();
+
+    Ok(Json(ParticipantList {
+        teams,
+        adjudicators,
+        institutions: institutions_by_id
+    }))
+}
 
 pub fn router() -> Router<AppState> {
     Router::new()
+    .route("/tournament/:tournament_id/participants", get(list_participants))
     .route("/participant/:participant_id", get(get_participant_info))
     .route("/participant/:participant_id/info", get(get_participant_short_info))
     .route("/participant/:participant_id/settings", get(get_participant_settings))
