@@ -251,6 +251,8 @@ pub struct TournamentInfo {
     end_date: Option<NaiveDateTime>,
     image: Option<ImageInfo>,
     show_tab: bool,
+    show_participants: bool,
+    
     tournament_uuid: Option<Uuid>,
 }
 
@@ -268,10 +270,10 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
             _ => None
         };
 
-        let (show_tab,) = if let Some(_) = model.tournament_id {
-            (model.show_tab,)}
+        let (show_tab, show_participants,) = if let Some(_) = model.tournament_id {
+            (model.show_tab,model.show_participants)}
         else {
-            (false,)
+            (false,false)
         };
 
         Self {
@@ -280,6 +282,7 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
             end_date: model.end_date,
             image,
             show_tab,
+            show_participants,
             tournament_uuid: model.tournament_id
         }
     }

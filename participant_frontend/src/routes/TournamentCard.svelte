@@ -107,11 +107,11 @@
     </div>
 
     <div class="footer" slot="footer">
+        {#if tournament.show_participants}
+            <CardButton href={`/tournament/${tournament.tournament_uuid}/participants`} label="View Participants" />
+        {/if}
         {#if tournament.show_tab }
             <CardButton label="View Tab" href={`/tournament/${tournament.tournament_uuid}/tab`} />
-        {/if}
-        {#if tournament.show_motions }
-            <CardButton label="View Motions" />
         {/if}
     </div>
 </Card>
