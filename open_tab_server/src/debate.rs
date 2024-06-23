@@ -1,4 +1,4 @@
-use std::collections::hash_map::RandomState;
+
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -7,25 +7,25 @@ use axum::extract::{Path, State};
 use axum::routing::{post, get, patch};
 use chrono::Utc;
 use open_tab_entities::domain::ballot_speech_timing::BallotSpeechTiming;
-use std::sync::{Arc, RwLockReadGuard};
+use std::sync::{Arc};
 
-use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
+
 use open_tab_entities::domain::entity::LoadEntity;
 
 use open_tab_entities::{prelude::*, domain};
-use open_tab_entities::domain::ballot::{Ballot, BallotParseError};
+use open_tab_entities::domain::ballot::{BallotParseError};
 use open_tab_entities::schema::{self};
-use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
+use sea_orm::{prelude::*};
 use serde::{Serialize, Deserialize};
 
 use itertools::Itertools;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{RwLock};
 
 use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser};
 use crate::ballot::check_is_authorized_for_debate_result_submission;
 use crate::notify::{ParticipantNotificationManager, ParticipantEvent, ParticipantEventType, DebateCurrentSpeech};
 use crate::patch::PatchValue;
-use crate::tournament;
+
 
 use open_tab_entities::domain::round::check_release_date;
 

@@ -4,24 +4,24 @@ use std::collections::HashMap;
 
 use axum::{Router, Json};
 use axum::extract::{Path, State};
-use axum::routing::{post, get, patch};
+use axum::routing::{post, get};
 use chrono::Utc;
-use std::sync::Arc;
+
 
 use open_tab_entities::domain::debate_backup_ballot::DebateBackupBallot;
 use open_tab_entities::domain::entity::LoadEntity;
 
-use open_tab_entities::{prelude::*, domain};
+use open_tab_entities::{prelude::*};
 use open_tab_entities::domain::ballot::Ballot;
 use open_tab_entities::schema::{self};
 use sea_orm::{prelude::*, JoinType, QuerySelect, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
 use itertools::Itertools;
-use tokio::sync::Mutex;
+
 
 use crate::auth::{AuthenticatedUser, ExtractAuthenticatedUser};
-use crate::notify::ParticipantNotificationManager;
+
 
 use open_tab_entities::domain::round::check_release_date;
 

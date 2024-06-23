@@ -5,7 +5,7 @@ mod common;
 use open_tab_entities::{EntityGroup, EntityGroupTrait, domain::entity::LoadEntity, Entity};
 use open_tab_server::participants::{ParticipantInfoResponse, Motion};
 use sea_orm::{prelude::Uuid, DatabaseConnection};
-use tracing_test::traced_test;
+
 
 use crate::common::FixtureOptions;
 

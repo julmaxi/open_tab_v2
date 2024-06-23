@@ -1,4 +1,4 @@
-use std::fmt::format;
+
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -9,7 +9,7 @@ use base64::Engine;
 
 use chrono::{NaiveDateTime, Utc};
 use open_tab_entities::domain::round::check_release_date;
-use open_tab_entities::schema::published_tournament;
+
 use open_tab_entities::{EntityGroup, EntityGroupTrait};
 use rand::{thread_rng, Rng};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};

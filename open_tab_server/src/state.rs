@@ -2,7 +2,7 @@ use std::sync::Arc;
 use axum::extract::FromRef;
 use db::DatabaseConfig;
 use migration::MigratorTrait;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{RwLock};
 
 use crate::{db, notify::ParticipantNotificationManager};
 use sea_orm::{prelude::*, Statement};

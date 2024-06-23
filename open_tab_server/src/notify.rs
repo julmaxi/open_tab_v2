@@ -1,16 +1,16 @@
 use std::{collections::{HashMap, HashSet}, sync::{Weak, Arc}, convert::Infallible, pin::Pin, time::Duration};
 
-use open_tab_entities::{EntityGroup, schema, domain::{tournament, self, entity::LoadEntity, ballot::SpeechRole}};
+use open_tab_entities::{EntityGroup, schema, domain::{self, entity::LoadEntity, ballot::SpeechRole}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ConnectionTrait};
-use tokio::{pin, sync::{broadcast::{Receiver, Sender}, Mutex, RwLock}};
-use tokio_stream::{Stream, StreamMap, wrappers::BroadcastStream, StreamExt};
+use tokio::{sync::{broadcast::{Sender}, Mutex, RwLock}};
+use tokio_stream::{Stream, wrappers::BroadcastStream, StreamExt};
 
-use axum::{extract::{Path, State}, response::{Sse, sse::Event}, Json, Router, routing::get};
+use axum::{extract::{Path, State}, response::{Sse, sse::Event}, Router, routing::get};
 use serde::{Serialize, Deserialize};
 use tracing::Subscriber;
 use weak_table::WeakValueHashMap;
 
-use crate::{state::AppState, response::{handle_error, APIError}, auth::ExtractAuthenticatedUser};
+use crate::{state::AppState, response::{handle_error, APIError}};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -181,7 +181,7 @@ impl ParticipantNotificationManager {
             for participant_id in all_participants {
                 if let Some(sender) = self.participant_broadcast_senders.get(&participant_id) {
                     //We ignore the send error
-                    let r = sender.send(event.clone());
+                    let _r = sender.send(event.clone());
                 }
             }
         }

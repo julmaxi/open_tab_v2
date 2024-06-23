@@ -3,11 +3,11 @@ use std::{collections::HashMap, vec};
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}}, schema::{self, adjudicator, published_tournament}, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackSourceRole, FeedbackTargetRole}}, schema::{self}, EntityGroup, EntityGroupTrait};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
-use crate::{auth::{ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser}, response::{handle_error, APIError}, state::AppState, tournament};
+use crate::{auth::{ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser}, response::{handle_error, APIError}, state::AppState};
 
 use open_tab_entities::domain::round::check_release_date;
 
@@ -449,7 +449,7 @@ async fn get_participant_info(
                 ParticipantRoundRoleInfo::Adjudicator{..} | ParticipantRoundRoleInfo::TeamSpeaker{..} | ParticipantRoundRoleInfo::President {..} => {
                     vec![round.draw_release_time, round.team_motion_release_time, round.debate_start_time, round.round_close_time]
                 }
-                ParticipantRoundRoleInfo::NonAlignedSpeaker{debate, ..} => {
+                ParticipantRoundRoleInfo::NonAlignedSpeaker{ ..} => {
                     vec![round.draw_release_time, round.full_motion_release_time, round.debate_start_time, round.round_close_time]
                 }
                 ParticipantRoundRoleInfo::NotDrawn | ParticipantRoundRoleInfo::Multiple => vec![]
