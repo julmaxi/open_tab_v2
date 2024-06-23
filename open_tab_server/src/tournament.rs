@@ -304,6 +304,8 @@ pub async fn get_active_tournaments_handler(
 ) -> Result<Json<PublicTournamentsInfo>, APIError> {
     let now = Utc::now().naive_utc();
 
+    //We check for both start and end date to prevent any tournament from being listed
+    //in perpetuity by accident. 
     let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
             open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
@@ -326,7 +328,9 @@ pub async fn get_active_tournaments_handler(
         .map_err(handle_error)?;
 
     let upcoming_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
-        .filter(open_tab_entities::schema::published_tournament::Column::StartDate.gt(now))
+        .filter(
+            open_tab_entities::schema::published_tournament::Column::StartDate.gt(now)
+        )
         .limit(10)
         .all(&db)
         .await
