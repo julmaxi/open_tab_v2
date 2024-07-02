@@ -131,12 +131,12 @@ export async function makeRequest(
     const res = await fetch(
         `${env.PUBLIC_API_URL}/${url}`,
         {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            method: "POST",
             ...options,
         }
     );
-    if (res.status != 200) {
-        console.log(Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`));
-        throw Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`);
-    }
     return res
 }

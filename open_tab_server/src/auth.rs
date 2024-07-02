@@ -320,11 +320,13 @@ pub fn hash_password(pwd: String) -> Result<String, anyhow::Error> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(tag="error")]
 pub enum CreateUserRequestError {
     UserExists,
     PasswordTooShort,
     Other(String)
 }
+
 
 impl From<String> for CreateUserRequestError {
     fn from(s: String) -> Self {

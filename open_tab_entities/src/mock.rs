@@ -149,7 +149,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                 role: ParticipantRole::Speaker(Speaker { team_id: Some(team.uuid) }),
                 institutions,
                 registration_key: Some(registration_key.to_vec()),
-                is_anonymous: false
+                is_anonymous: false,
+                user_id: None
             }
         }).collect_vec();
 
@@ -185,7 +186,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
             institutions,
             registration_key: Some(registration_key.to_vec()),
-            is_anonymous: false
+            is_anonymous: false,
+            user_id: None
         }
     }).collect_vec();
 
