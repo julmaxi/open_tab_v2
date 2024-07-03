@@ -103,7 +103,14 @@ impl AuthenticatedUser {
                     })?;
             let key = base64::engine::general_purpose::STANDARD_NO_PAD
                 .decode(&bearer_header.0.token())
-                .unwrap();
+                .map_err(
+                    |e| {
+                        (
+                            StatusCode::UNAUTHORIZED,
+                            format!("Bearer token invalid: {}", e),
+                        )
+                    },
+                )?;
             let salt = SaltString::from_b64("bXlzYWx0bXlzYWx0").unwrap();
             let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
                 (
