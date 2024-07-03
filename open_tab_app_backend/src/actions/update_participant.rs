@@ -102,9 +102,9 @@ impl ActionTrait for UpdateParticipantsAction {
 
             let new_clashes = participant.clashes.into_iter().filter(
                 |c| c.clash_direction == crate::participants_list_view::ClashDirection::Outgoing
-            ).map(|c| (c.participant_uuid, c.clash_severity)).collect::<Vec<_>>();
+            ).map(|c| (Uuid::new_v4(), c.participant_uuid, c.clash_severity)).collect::<Vec<_>>();
 
-            let new_uuids = new_clashes.iter().map(|(uuid, _)| uuid.clone()).collect::<Vec<_>>();
+            let new_uuids = new_clashes.iter().map(|(uuid, _, _)| uuid.clone()).collect::<Vec<_>>();
 
             let to_delete_ids = existing_clashes.iter().filter(|c| !new_uuids.contains(&c.uuid)).map(|c| c.uuid).collect::<Vec<_>>();
             to_delete_ids.iter().for_each(|id| {
@@ -112,12 +112,12 @@ impl ActionTrait for UpdateParticipantsAction {
             });
 
             new_clashes.into_iter().for_each(
-                |(uuid, clash_severity)| {
+                |(uuid, target_uuid, clash_severity)| {
                     groups.add(Entity::ParticipantClash(
                         ParticipantClash {
-                            uuid: uuid.clone(),
+                            uuid: uuid,
                             declaring_participant_id: participant.uuid,
-                            target_participant_id: uuid,
+                            target_participant_id: target_uuid,
                             clash_severity: clash_severity as u16
                         }
                     ));

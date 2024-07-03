@@ -160,10 +160,26 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
 
         <Section title="Clashes">
             <div className="h-36">
-                <SortableTable rowId={"participant_uuid"} data={modifiedParticipant.clashes} columns={[
+                <SortableTable
+                    rowId={"clash_id"}
+                    data={modifiedParticipant.clashes.map(
+                        (c) => {
+                            return {
+                                ...c,
+                                clash_id: c.participant_uuid + c.direction
+                            };
+                        }
+                    )}
+                    
+                    columns={[
                     {
                         "key": "participant_name",
                         "header": "Name",
+                        cellFactory: (val, rowIdx, colIdx, row) => {
+                            return <td key={colIdx}>
+                                {row["direction"] == "Incoming" ? "⬅️" : []} {val}
+                            </td>
+                        }
                     },
                     {
                         "key": "clash_severity",
@@ -173,13 +189,16 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                         "key": "delete",
                         "header": "",
                         cellFactory: (_val, rowIdx, colIdx, row) => {
-                            return <td key={colIdx} className="w-4"><button
-                                className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
-                                onClick={() => {
-                                    let toDelete = modifiedParticipant.clashes.findIndex(r => r.participant_uuid === row.participant_uuid);
-                                    setModifiedParticipant({ ...modifiedParticipant, clashes: [...modifiedParticipant.clashes.slice(0, toDelete), ...modifiedParticipant.clashes.slice(toDelete + 1)] });
-                                }}
-                            >&times;</button></td>;
+                            return <td key={colIdx} className="w-4">
+                                {row["direction"] !== "Incoming" &&
+                                <button
+                                    className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
+                                    onClick={() => {
+                                        let toDelete = modifiedParticipant.clashes.findIndex(r => r.participant_uuid === row.participant_uuid);
+                                        setModifiedParticipant({ ...modifiedParticipant, clashes: [...modifiedParticipant.clashes.slice(0, toDelete), ...modifiedParticipant.clashes.slice(toDelete + 1)] });
+                                }}>
+                                    &times;
+                                </button>}</td>;
                         }
                     }
                 ]} />
@@ -191,7 +210,34 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                     direction: "Outgoing",
                     clash_severity: 100
                 };
-                setModifiedParticipant({ ...modifiedParticipant, clashes: [...modifiedParticipant.clashes, clashEntry] });
+                let newClashes = [...modifiedParticipant.clashes, clashEntry];
+
+                newClashes.sort(
+                    (a, b) => {
+                        if (a.participant_name < b.participant_name) {
+                            return -1;
+                        }
+                        if (a.participant_name > b.participant_name) {
+                            return 1;
+                        }
+                        if (a.participant_uuid < b.participant_uuid) {
+                            return -1;
+                        }
+                        if (a.participant_uuid > b.participant_uuid) {
+                            return 1;
+                        }
+                        if (a.direction == "Outgoing" && b.direction == "Incoming") {
+                            return -1;
+                        }
+                        if (a.direction == "Incoming" && b.direction == "Outgoing") {
+                            return 1;
+                        }
+                        return 0;
+                    }
+                )
+
+                setModifiedParticipant(
+                    { ...modifiedParticipant, clashes: newClashes });
 
             }} />
         </Section>

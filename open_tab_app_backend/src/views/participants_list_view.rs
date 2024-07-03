@@ -100,7 +100,7 @@ pub struct Clash {
 #[serde(tag = "direction")]
 pub enum ClashDirection {
     Incoming,
-    Outgoing
+    Outgoing,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,7 +185,12 @@ impl ParticipantsListView {
                 participant_name: participant_names.get(&match dir {ClashDirection::Incoming => c.declaring_participant_id, ClashDirection::Outgoing => c.target_participant_id } ).unwrap_or(&"Unknown Participant".to_string()).clone(),
                 clash_severity: c.clash_severity,
                 clash_direction: dir
-            }).collect_vec();
+            })
+            .sorted_by_cached_key(|c| (c.participant_name.clone(), c.participant_uuid, match c.clash_direction {
+                ClashDirection::Incoming => 1,
+                ClashDirection::Outgoing => 0,
+            }))
+            .collect_vec();
             let institutions = institutions.into_iter().map(
                 |i| Institution {
                     uuid: i.institution_id,

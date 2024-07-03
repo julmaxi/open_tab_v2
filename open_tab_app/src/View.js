@@ -26,7 +26,6 @@ export function useView(viewDef, defaultVal) {
             let relevant_changes = event.payload.changes.filter((change) => _.isEqual(change.view, viewDef));
 
             if (relevant_changes.length > 0) {
-                console.log(relevant_changes);
                 let updatedPaths = relevant_changes[0].updated_paths;
                 let new_view = {...view};
                 for (var change_path in updatedPaths) {

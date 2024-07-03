@@ -78,7 +78,24 @@ function ParticipantTable(props) {
     flatTable = flatTable.map((r) => {
         let row = { ...r };
         row.institutions = row.institutions.map((i) => i.name).join(", ");
-        row.clashes = row.clashes.map((i) => i.participant_name).join(", ");
+        let clashes = [];
+        // Assumes clashes are sorted by id, with outgoing clashes first
+        for (let idx = 0; idx < r.clashes.length; idx++) {
+            let clash = r.clashes[idx];
+            if (idx > 0) {
+                if (r.clashes[idx - 1].participant_uuid == clash.participant_uuid) {
+                    clashes[clashes.length - 1] += "⇔"
+                    continue;
+                }
+            }
+            if (clash.direction == "Incoming") {
+                clashes.push(clash.participant_name + "⇐");
+            }
+            else {
+                clashes.push(clash.participant_name);
+            }
+        }
+        row.clashes = clashes.join(", ")
         return row;
     });
 
@@ -221,8 +238,6 @@ export function ParticipantOverview() {
 
     let [importDialogState, setImportDialogState] = useState(null);
     let [addParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
-
-    console.log(participants);
 
     return <div className="flex flex-col h-full w-full" onKeyDown={(e) => {
         if (e.nativeEvent.key == "Escape") {

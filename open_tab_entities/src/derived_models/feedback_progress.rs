@@ -74,8 +74,6 @@ impl FeedbackProgressMatrix {
             })
         }).collect_vec();
 
-        dbg!(&all_requests);
-
         let submissions = feedback_requests_to_submissions(db, all_requests).await?;
         
         let mut submissions_by_participant = HashMap::new();
