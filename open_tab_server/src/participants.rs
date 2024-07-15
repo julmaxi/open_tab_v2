@@ -550,7 +550,7 @@ async fn get_participant_info(
 
             let mut out = vec![];
 
-            if feedback_directions.contains(&(*request_source_role, FeedbackTargetRole::Chair)) {
+            if feedback_directions.contains(&(*request_source_role, FeedbackTargetRole::Chair)) && ballot.adjudicators.len() > 0 {
                 out.push(ballot.adjudicators[0]);
             }
             if feedback_directions.contains(&(*request_source_role, FeedbackTargetRole::Wing)) {
@@ -591,7 +591,7 @@ async fn get_participant_info(
                 }
             };
 
-            if feedback_directions.contains(&(request_source_role, FeedbackTargetRole::Chair)) {
+            if feedback_directions.contains(&(request_source_role, FeedbackTargetRole::Chair)) && ballot.adjudicators.len() > 0 {
                 let submissions = relevant_submission_map.get(
                     &(
                         debate_info.uuid,

@@ -16,6 +16,13 @@
         line-height: 1rem;
     }
 
+    @media (pointer:coarse) {
+        a {
+            padding-top: 9px;
+            padding-bottom: 9px;
+        }
+    }
+
     a > svg {
         display: inline-block;
     }
