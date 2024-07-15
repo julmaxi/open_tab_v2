@@ -863,8 +863,9 @@ pub async fn list_participants(
                 return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
             }
         }
-
-        return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+        else {
+            return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+        }
     }
 
     let institutions_by_id = open_tab_entities::schema::tournament_institution::Entity::find()
