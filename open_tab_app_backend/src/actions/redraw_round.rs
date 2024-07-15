@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge, self, ballot}, EntityType, tab::TeamRoundRole, derived_models::{BreakNodeBackgroundInfo, NodeExecutionError}};
+use open_tab_entities::{prelude::*, domain::{tournament_break::TournamentBreak, tournament_venue::TournamentVenue, tournament_plan_node::{TournamentPlanNode, RoundGroupConfig, PlanNodeType, BreakConfig}, entity::LoadEntity, tournament_plan_edge::TournamentPlanEdge, self, ballot}, EntityTypeId, tab::TeamRoundRole, derived_models::{BreakNodeBackgroundInfo, NodeExecutionError}};
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use sea_orm::{prelude::*, QueryOrder};
@@ -59,7 +59,9 @@ impl ActionTrait for RedrawRoundAction {
                     )
                     .all(db)
                     .await?;
-                let mut g = EntityGroup::new();
+                let mut g = EntityGroup::new(
+                    round.tournament_id
+                );
                 let mut venue_iter = venues.into_iter();
                 for mut debate in debates.into_iter() {
                     debate.venue_id = venue_iter.next().map(|v| v.uuid);
@@ -86,7 +88,9 @@ impl ActionTrait for RedrawRoundAction {
 
                 let info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 
-                let mut g = EntityGroup::new();
+                let mut g = EntityGroup::new(
+                    round.tournament_id
+                );
 
                 for ballot in &ballots {
                     for speech in &ballot.speeches {

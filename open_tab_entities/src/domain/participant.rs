@@ -10,7 +10,7 @@ use sea_query::ValueTuple;
 
 use crate::{schema::{self, adjudicator, speaker, participant_tournament_institution, adjudicator_availability_override}, utilities::BatchLoad};
 
-use super::{TournamentEntity, entity::LoadEntity};
+use super::{entity::{LoadEntity, TournamentEntityTrait}, tournament::Tournament, BoundTournamentEntityTrait};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Participant {
@@ -208,8 +208,8 @@ impl<A, C, E, P> ChangeSet<A, C> where A: ActiveModelTrait<Entity = E> + IntoAct
 
 
 #[async_trait]
-impl TournamentEntity for Participant {
-    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for Participant where C: sea_orm::ConnectionTrait {
+    async fn save_many(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let (existing, adjudicator_overrides) = if guarantee_insert {
             ((vec![], vec![], vec![], vec![]), HashMap::new())
         }
@@ -398,13 +398,34 @@ impl TournamentEntity for Participant {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_tournament(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(Some(self.tournament_id))
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::participant::Entity::delete_many().filter(schema::participant::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
+    }
+}
+
+impl TournamentEntityTrait for Participant {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut out = vec![self.uuid, self.tournament_id];
+
+        match &self.role {
+            ParticipantRole::Speaker(s) => {
+                if let Some(team_id) = s.team_id {
+                    out.push(team_id);
+                }
+            },
+            ParticipantRole::Adjudicator(a) => {
+                out.extend(a.unavailable_rounds.clone());
+            }
+        }
+
+        out.extend(self.institutions.iter().map(|x| x.uuid));
+
+        out
     }
 }
 

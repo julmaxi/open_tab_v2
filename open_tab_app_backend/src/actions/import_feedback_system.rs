@@ -1,7 +1,7 @@
 use std::fs::File;
 
-use open_tab_entities::{schema, EntityType};
-use open_tab_entities::{EntityGroup, EntityGroupTrait, Entity};
+use open_tab_entities::{schema, EntityTypeId};
+use open_tab_entities::{EntityGroup, Entity};
 use sea_orm::prelude::*;
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
@@ -21,7 +21,7 @@ pub struct ImportFeedbackSystemAction {
 #[async_trait]
 impl ActionTrait for ImportFeedbackSystemAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut g = EntityGroup::new();
+        let mut g = EntityGroup::new(self.tournament_uuid);
 
         let reader = File::open(self.template_path)?;
 
@@ -29,11 +29,11 @@ impl ActionTrait for ImportFeedbackSystemAction {
         let existing_questions = schema::feedback_question::Entity::find().filter(schema::feedback_question::Column::TournamentId.eq(self.tournament_uuid)).all(_db).await?;
 
         for form in existing_forms {
-            g.delete(EntityType::FeedbackForm, form.uuid);
+            g.delete(EntityTypeId::FeedbackForm, form.uuid);
         }
 
         for question in existing_questions {
-            g.delete(EntityType::FeedbackQuestion, question.uuid);
+            g.delete(EntityTypeId::FeedbackQuestion, question.uuid);
         }
 
         let result : FormTemplate = FormTemplate::from_reader(reader)?;

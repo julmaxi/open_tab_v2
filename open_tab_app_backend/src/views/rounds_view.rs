@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::{prelude::*, QueryOrder};
-use open_tab_entities::{prelude::*, domain, EntityType};
+use open_tab_entities::{prelude::*, domain, EntityTypeId};
 
 use open_tab_entities::schema::{self, tournament_round};
 
@@ -36,7 +36,11 @@ impl LoadedRoundsView {
 #[async_trait]
 impl LoadedView for LoadedRoundsView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_rounds.len() > 0 || changes.tournament_plan_nodes.len() > 0 || changes.tournament_plan_edges.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentPlanNode || d.0 == EntityType::TournamentPlanEdge || d.0 == EntityType::TournamentRound) {
+        if changes.has_changes_for_types(vec![
+            EntityTypeId::TournamentPlanNode,
+            EntityTypeId::TournamentPlanEdge,
+            EntityTypeId::TournamentRound
+        ]) {
             self.view = RoundsView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out = HashMap::new();

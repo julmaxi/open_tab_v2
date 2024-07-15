@@ -1,7 +1,7 @@
 mod common;
 use std::collections::HashMap;
 
-use open_tab_entities::{prelude::Participant, Entity, EntityType, EntityState, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{prelude::Participant, Entity, EntityGroup, EntityState, EntityTypeId};
 use open_tab_server::{sync::{FatLog, SyncRequest, LogEntry, EntityEntry}, participants::ParticipantInfoResponse};
 use sea_orm::{prelude::Uuid, DatabaseConnection, IntoActiveModel, ActiveModelTrait};
 use tracing_test::traced_test;
@@ -41,20 +41,20 @@ async fn test_add_participant() {
 
     let mut response = fixture.get(&format!("/api/tournament/{}/log", default_tournament_uuid)).await;
     assert_eq!(response.status(), 200);
-    let version = response.json::<FatLog<Entity, EntityType>>().await;
+    let version = response.json::<FatLog<Entity, EntityTypeId>>().await;
     let last_log = version.log.last().unwrap().uuid;
 
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant.uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
@@ -87,7 +87,7 @@ async fn test_add_participant() {
 
 async fn create_second_tournament(db: DatabaseConnection) {
     let tournament_2_uuid = Uuid::from_u128(2);
-    let mut changes = EntityGroup::new();
+    let mut changes = EntityGroup::new(tournament_2_uuid);
     let tournament: open_tab_entities::prelude::Tournament = open_tab_entities::domain::tournament::Tournament {
         uuid: tournament_2_uuid,
         annoucements_password: Some("password".into()),
@@ -138,14 +138,14 @@ async fn test_can_add_participant_to_empty_tournament() {
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant.uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
@@ -207,14 +207,14 @@ async fn test_can_not_add_participant_to_other_tournament() {
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant.uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
@@ -265,24 +265,24 @@ async fn test_can_delete_participant() {
 
     let mut response = fixture.get(&format!("/api/tournament/{}/log", default_tournament_uuid)).await;
     assert_eq!(response.status(), 200);
-    let version = response.json::<FatLog<Entity, EntityType>>().await;
+    let version = response.json::<FatLog<Entity, EntityTypeId>>().await;
     let last_log = version.log.last().unwrap().uuid;
 
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant_uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
-                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityType::Participant }
+                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityTypeId::Participant }
                 }])
             )
         ].into_iter()
@@ -329,24 +329,24 @@ async fn test_can_delete_non_existant_participant() {
 
     let mut response = fixture.get(&format!("/api/tournament/{}/log", default_tournament_uuid)).await;
     assert_eq!(response.status(), 200);
-    let version = response.json::<FatLog<Entity, EntityType>>().await;
+    let version = response.json::<FatLog<Entity, EntityTypeId>>().await;
     let last_log = version.log.last().unwrap().uuid;
 
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant_uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
-                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityType::Participant }
+                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityTypeId::Participant }
                 }])
             )
         ].into_iter()
@@ -387,18 +387,18 @@ async fn test_can_not_delete_participant_to_other_tournament() {
     let log = FatLog { log: vec![
         LogEntry {
             uuid: fake_version,
-            target_type: EntityType::Participant,
+            target_type: EntityTypeId::Participant,
             target_uuid: participant_uuid,
             timestamp: chrono::offset::Local::now().naive_utc(),
         }
     ], entities: HashMap::from_iter(
         vec![
             (
-                (EntityType::Participant, vec![EntityEntry {
+                (EntityTypeId::Participant, vec![EntityEntry {
                     uuid: participant_uuid,
                     old_versions: vec![],
                     current_version: fake_version,
-                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityType::Participant }
+                    current_value: EntityState::<Entity, _>::Deleted { uuid: participant_uuid, type_: EntityTypeId::Participant }
                 }])
             )
         ].into_iter()

@@ -2,7 +2,7 @@ use std::collections::{HashMap, self};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityType};
+use open_tab_entities::{prelude::*, domain::{tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityTypeId};
 
 use sea_orm::prelude::*;
 
@@ -85,7 +85,7 @@ pub fn reindex_rounds(
 #[async_trait]
 impl ActionTrait for EditTreeAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
+        let mut groups = EntityGroup::new(self.tournament_id);
 
         //let all_existing_rounds = TournamentRound::get_all_in_tournament(db, self.tournament_id).await?;
 
@@ -101,7 +101,7 @@ impl ActionTrait for EditTreeAction {
                 if let Some(parent_node) = parent_node {
                     let current_edges = TournamentPlanEdge::get_all_for_sources(db, vec![parent_node]).await?;
                     if let Some(first_child) = current_edges.first() {
-                        groups.delete(EntityType::TournamentPlanEdge, first_child.uuid);
+                        groups.delete(EntityTypeId::TournamentPlanEdge, first_child.uuid);
                         let edge = all_edges.iter_mut().find_position(|e| e.uuid == first_child.uuid).unwrap().0;
                         all_edges.remove(edge);
                         groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(node.uuid, first_child.target_id)));
@@ -227,8 +227,10 @@ impl ActionTrait for EditTreeAction {
             }
         }
 
-        all_edges.extend(groups.tournament_plan_edges.iter().map(|e| e.clone()));
-        all_nodes.extend(groups.tournament_plan_nodes.iter().map(|n| n.clone()));
+        let entities = groups.as_group_map();
+
+        all_edges.extend(entities.tournament_plan_edges.iter().map(|e| e.clone()));
+        all_nodes.extend(entities.tournament_plan_nodes.iter().map(|n| n.clone()));
 
         let all_rounds = domain::round::TournamentRound::get_all_in_tournament(
             db,

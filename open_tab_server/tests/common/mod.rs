@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, future::Future};
 
 use axum::{response::Response, http::{Request, request::Builder}, body::Body};
 use http_body::{combinators::UnsyncBoxBody, Body as _};
-use open_tab_entities::{mock::{self, MockOption}, EntityGroupTrait};
+use open_tab_entities::{mock::{self, MockOption}, EntityTypeId};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserResponse, GetTokenRequest, GetTokenResponse, create_key, hash_password}, state::AppState};
 use sea_orm::{prelude::Uuid, IntoActiveModel, ActiveModelTrait, DatabaseConnection};
 use tower::Service;
@@ -89,7 +89,8 @@ impl Fixture {
                 deterministic_uuids: true,
                 ..Default::default()
             });
-            group.save_all_and_log_for_tournament(&state.db, group.tournaments[0].uuid).await.unwrap();
+            let tournaments = group.as_group_map().tournaments;
+            group.save_all_and_log(&state.db).await.unwrap();
             let pwd = hash_password("test".to_string()).unwrap();
             let new_user_uuid = Uuid::from_u128(900_000);
             let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
@@ -115,7 +116,7 @@ impl Fixture {
             else {
                 let user_tournament = open_tab_entities::schema::user_tournament::Model {
                     user_id: new_user_uuid,
-                    tournament_id: group.tournaments[0].uuid,
+                    tournament_id: tournaments[0].uuid,
                 };
                 user_tournament.into_active_model().insert(&state.db).await.unwrap();    
             }

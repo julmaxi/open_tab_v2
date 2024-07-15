@@ -5,7 +5,7 @@ use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, 
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
-use open_tab_entities::{EntityGroup, domain::{ballot::{SpeechRole, BallotParseError}, entity::LoadEntity, self}, schema::{self}, utilities::BatchLoadError, EntityType, derived_models::{DrawPresentationInfo, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
@@ -157,11 +157,8 @@ struct ActionResponse {
 async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache: &mut ViewCache) -> Result<Vec<ChangeNotification>, anyhow::Error> {
     let transaction = db.begin().await?;
     let changes: EntityGroup = action.execute(&transaction).await?;
-    let deleted_tournaments = changes.get_all_deletion_tournaments(&transaction).await?;
-    changes.save_all(&transaction).await?;
-    let tournament = changes.get_all_tournaments(&transaction).await?.into_iter().chain(deleted_tournaments.into_iter()).filter_map(|s| s).next();
-    if let Some(tournament) = tournament {
-        changes.save_log_with_tournament_id(&transaction, tournament).await?;
+
+    changes.save_all_and_log(&transaction).await?;
 
         transaction.commit().await?;
         let transaction = db.begin().await?;
@@ -169,10 +166,6 @@ async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache
         let notifications = view_cache.update_and_get_changes(&transaction, &changes).await?;
         transaction.commit().await?;    
         Ok(notifications)
-    }
-    else {
-        anyhow::bail!("No tournament found in changes");
-    }
 }
 
 
@@ -321,11 +314,12 @@ impl std::fmt::Display for SyncError {
 impl std::error::Error for SyncError {}
 
 async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<EntityGroup>, SyncError> where C: sea_orm::ConnectionTrait {
-    if changes.debate_backup_ballots.is_empty() {
+    let groups = changes.as_group_map();
+    if groups.debate_backup_ballots.is_empty() {
         return Ok(None);
     }
-    println!("Accepting {} new ballots", changes.debate_backup_ballots.len());
-    let debates_by_id = TournamentDebate::get_many(db, changes.debate_backup_ballots.iter().map(|b| b.debate_id).collect_vec()).await?.into_iter().map(|debate| (debate.uuid, debate)).collect::<HashMap<_, _>>();
+    println!("Accepting {} new ballots", groups.debate_backup_ballots.len());
+    let debates_by_id = TournamentDebate::get_many(db, groups.debate_backup_ballots.iter().map(|b| b.debate_id).collect_vec()).await?.into_iter().map(|debate| (debate.uuid, debate)).collect::<HashMap<_, _>>();
     println!("Loaded {} debates", debates_by_id.len());
     let current_debate_ballots_by_id = Ballot::get_many(
         db,
@@ -333,11 +327,11 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
     ).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
     println!("Loaded {} debate ballots", current_debate_ballots_by_id.len());
 
-    let new_ballots_by_id = Ballot::get_many(db, changes.debate_backup_ballots.iter().map(|b| b.ballot_id).collect_vec()).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
+    let new_ballots_by_id = Ballot::get_many(db, groups.debate_backup_ballots.iter().map(|b| b.ballot_id).collect_vec()).await?.into_iter().map(|ballot| (ballot.uuid, ballot)).collect::<HashMap<_, _>>();
     println!("Loaded {} backup ballots", current_debate_ballots_by_id.len());    
 
-    let mut new_changes = EntityGroup::new();
-    for new_backup_ballot in changes.debate_backup_ballots.iter() {
+    let mut new_changes = EntityGroup::new(changes.tournament_id);
+    for new_backup_ballot in groups.debate_backup_ballots.iter() {
         let old_debate = debates_by_id.get(&new_backup_ballot.debate_id).unwrap();
         let old_ballot = current_debate_ballots_by_id.get(&old_debate.ballot_id).unwrap();
         let new_ballot = new_ballots_by_id.get(&new_backup_ballot.ballot_id).unwrap();
@@ -357,7 +351,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
                 ballot_id: new_ballot.uuid,
                 ..old_debate.clone()
             }));
-            new_changes.delete(EntityType::Ballot, old_ballot.uuid);
+            new_changes.delete(EntityTypeId::Ballot, old_ballot.uuid);
         }
     };
 
@@ -395,7 +389,7 @@ async fn pull_remote_changes<C>(
         }
         return Err(SyncError::Other(format!("Server error: {}", error_response.message)));
     }
-    let remote_changes : FatLog<Entity, EntityType> = response.json().await?;
+    let remote_changes : FatLog<Entity, EntityTypeId> = response.json().await?;
 
     if remote_changes.log.len() > 0 {
         dbg!("Integrating remote changes", remote_changes.log.len());
@@ -423,7 +417,7 @@ async fn pull_remote_changes<C>(
                     let transaction = db.begin().await?;
                     let new_changes = auto_accept_ballots(&entity_group, &transaction).await?;
                     if let Some(new_changes) = new_changes {
-                        new_changes.save_all_and_log_for_tournament(&transaction, target_tournament_remote.tournament_id).await?;
+                        new_changes.save_all_and_log(&transaction).await?;
                         transaction.commit().await?;
                         let transaction = db.begin().await?;
                         let notifications = view_cache.update_and_get_changes(&transaction, &new_changes).await?;
@@ -1248,7 +1242,7 @@ async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, co
     let mut tournament = open_tab_entities::domain::tournament::Tournament::new();
     let (all_nodes, all_edges) = config.get_tournament_graph(tournament.uuid);
     tournament.name = config.name;
-    let mut changes = EntityGroup::new();
+    let mut changes = EntityGroup::new(tournament.uuid);
 
     if config.use_default_feedback_system {
         let template_path = app.path_resolver().resolve_resource("resources/default_feedback_form.yml");
@@ -1287,7 +1281,7 @@ async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, co
         |e| changes.add(Entity::TournamentPlanEdge(e))
     );
 
-    changes.save_all_and_log_for_tournament(db.inner(), tournament.uuid).await.map_err(handle_error)?;
+    changes.save_all_and_log(db.inner()).await.map_err(handle_error)?;
 
     Ok(tournament)
 }

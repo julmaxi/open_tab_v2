@@ -18,10 +18,14 @@ pub enum Relation {
     FeedbackForm,
     #[sea_orm(has_many = "super::feedback_question::Entity")]
     FeedbackQuestion,
+    #[sea_orm(has_many = "super::published_tournament::Entity")]
+    PublishedTournament,
     #[sea_orm(has_many = "super::team::Entity")]
     Team,
     #[sea_orm(has_many = "super::tournament_break::Entity")]
     TournamentBreak,
+    #[sea_orm(has_many = "super::tournament_entity::Entity")]
+    TournamentEntity,
     #[sea_orm(has_many = "super::tournament_institution::Entity")]
     TournamentInstitution,
     #[sea_orm(has_many = "super::tournament_log::Entity")]
@@ -50,6 +54,12 @@ impl Related<super::feedback_question::Entity> for Entity {
     }
 }
 
+impl Related<super::published_tournament::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PublishedTournament.def()
+    }
+}
+
 impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Team.def()
@@ -59,6 +69,12 @@ impl Related<super::team::Entity> for Entity {
 impl Related<super::tournament_break::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TournamentBreak.def()
+    }
+}
+
+impl Related<super::tournament_entity::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentEntity.def()
     }
 }
 

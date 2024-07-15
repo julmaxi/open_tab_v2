@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, tab::TeamRoundRole, EntityType};
+use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, tab::TeamRoundRole, EntityTypeId};
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
@@ -81,7 +81,7 @@ fn get_gov_opp_assignments_from_ballots(ballots: &Vec<Ballot>) -> HashMap<Uuid, 
 
 
 async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &RoundGroupConfig, existing_rounds: &Vec<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-    let mut changes = EntityGroup::new();
+    let mut changes = EntityGroup::new(tournament_id);
 
     let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_id).await?;
     let edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect()).await?;
@@ -189,7 +189,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
 
     if rounds.len() > config.num_rounds() as usize {
         for round in rounds.drain((config.num_rounds() as usize)..) {
-            changes.delete(EntityType::TournamentRound, round.uuid);
+            changes.delete(EntityTypeId::TournamentRound, round.uuid);
         }
     }
     else if rounds.len() < config.num_rounds() as usize {
@@ -301,12 +301,12 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
         else if round_existing_debates.len() > round_new_ballots.len() {
             for debate in round_existing_debates.iter().skip(round_new_ballots.len()) {
                 changes.delete(
-                    EntityType::TournamentDebate,
+                    EntityTypeId::TournamentDebate,
                     debate.uuid
                 );
 
                 changes.delete(
-                    EntityType::Ballot,
+                    EntityTypeId::Ballot,
                     debate.ballot_id
                 );
 
@@ -314,7 +314,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
 
                 for backup_ballot in backup_ballots {
                     changes.delete(
-                        EntityType::DebateBackupBallot,
+                        EntityTypeId::DebateBackupBallot,
                         backup_ballot.uuid
                     );
                 }
@@ -406,7 +406,7 @@ pub enum MakeBreakError {
 
 
 async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(tournament_id);
 
     let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
 

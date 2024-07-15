@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackSourceRole, FeedbackTargetRole}}, schema::{self}, EntityGroup, EntityGroupTrait};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackSourceRole, FeedbackTargetRole}}, schema::{self}, EntityGroup};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
@@ -791,12 +791,14 @@ pub async fn update_participant_settings(
     let participant = domain::participant::Participant::try_get(&db, participant_id).await?;
     if let Some(mut participant) = participant {
         let tournament_id = participant.tournament_id;
-        let mut entity_group = EntityGroup::new();
+        let mut entity_group = EntityGroup::new(
+            participant.tournament_id
+        );
         participant.is_anonymous = new_settings.is_anonymous;
         entity_group.add(
             open_tab_entities::Entity::Participant(participant)
         );
-        entity_group.save_all_and_log_for_tournament(&db, tournament_id).await?;
+        entity_group.save_all_and_log(&db).await?;
         Ok(())
     }
     else {

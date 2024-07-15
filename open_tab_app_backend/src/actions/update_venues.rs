@@ -3,7 +3,7 @@
 use crate::{venue_list_view::VenueOverview, ActionTrait};
 
 use async_trait::async_trait;
-use open_tab_entities::{EntityGroup, domain::tournament_venue::TournamentVenue, Entity, EntityGroupTrait};
+use open_tab_entities::{EntityGroup, domain::tournament_venue::TournamentVenue, Entity};
 use sea_orm::prelude::Uuid;
 use serde::{Serialize, Deserialize};
 
@@ -19,7 +19,9 @@ pub struct UpdateVenuesAction {
 #[async_trait]
 impl ActionTrait for UpdateVenuesAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut g = EntityGroup::new();
+        let mut g = EntityGroup::new(
+            self.tournament_id
+        );
 
         for venue in self.updated_venues.into_iter().chain(self.added_venues.into_iter().map(
             |v| VenueOverview {

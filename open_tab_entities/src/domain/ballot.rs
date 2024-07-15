@@ -10,7 +10,7 @@ use crate::schema::{self};
 
 use itertools::{izip, Itertools};
 
-use super::{TournamentEntity, entity::LoadEntity};
+use super::{entity::{LoadEntity, TournamentEntityTrait}, BoundTournamentEntityTrait};
 use crate::utilities::BatchLoad;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -841,23 +841,48 @@ pub fn order_speeches(s1: &Speech, s2: &Speech) -> Ordering {
 
 
 #[async_trait]
-impl TournamentEntity for Ballot {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for Ballot where C: sea_orm::ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
         self.save(db, guarantee_insert).await?;
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_many_tournaments(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> {
         let ballot_ids = entities.iter().map(|e| e.uuid).collect_vec();
         Self::get_tournaments_from_ids(db, ballot_ids).await
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> {
         schema::ballot::Entity::delete_many().filter(schema::ballot::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }
 }
 
+
+impl TournamentEntityTrait for Ballot {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut related = vec![
+            self.uuid,
+        ];
+
+        related.extend(self.speeches.iter().filter_map(|s| s.speaker));
+        related.extend(self.adjudicators.iter());
+
+        if let Some(president) = self.president {
+            related.push(president);
+        }
+
+        if let Some(team) = self.government.team {
+            related.push(team);
+        }
+
+        if let Some(team) = self.opposition.team {
+            related.push(team);
+        }
+
+        related
+    }
+}
 
 #[cfg(test)]
 mod test {

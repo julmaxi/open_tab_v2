@@ -6,7 +6,7 @@ use sea_orm::{prelude::*, Database, Statement};
 use migration::MigratorTrait;
 
 use open_tab_entities::domain::tournament_break::TournamentBreak;
-use open_tab_entities::domain::TournamentEntity;
+use open_tab_entities::domain::BoundTournamentEntityTrait;
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
     let db = Database::connect("sqlite::memory:").await?;
@@ -23,7 +23,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                 deterministic_uuids: true,
                 ..Default::default()
             }
-        ).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await?;
+        ).save_all_and_log(&db).await?;
     }
     Ok(db)
 }

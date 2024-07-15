@@ -15,7 +15,7 @@ pub fn simple_entity_derive(input: TokenStream) -> TokenStream {
     simple_entity_derive_impl(input)
 }
 
-#[proc_macro_derive(EntityGroup)]
+#[proc_macro_derive(EntityCollection)]
 pub fn entity_group_derive(input: TokenStream) -> TokenStream {
     entity_group_derive_impl(input)
 }

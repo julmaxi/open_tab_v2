@@ -9,8 +9,6 @@ use itertools::Itertools;
 
 use faker_rand::en_us::{names::FullName, company::CompanyName};
 
-use crate::group::EntityGroupTrait;
-
 
 #[derive(Debug)]
 pub struct MockOption {
@@ -53,14 +51,15 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     Feedback Questions: 600
     Feedback Forms: 700
     Plan Nodes: 800
+    Institutions: 900
     Plan Edges: 80000
     */
 
     assert!(options.num_teams % 3 == 0);
     assert!(options.num_teams >= 3);
-    let mut groups = EntityGroup::new();
 
     let tournament_uuid = if options.deterministic_uuids {Uuid::from_u128(1)} else {Uuid::new_v4()};
+    let mut groups = EntityGroup::new(tournament_uuid);
     groups.add(Entity::Tournament(Tournament {
         uuid: tournament_uuid,
         annoucements_password: Some("password".into()),

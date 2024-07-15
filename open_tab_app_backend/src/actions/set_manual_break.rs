@@ -24,9 +24,10 @@ pub struct SetManualBreakAction {
 #[async_trait]
 impl ActionTrait for SetManualBreakAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
-
         let mut node = TournamentPlanNode::get(db, self.node_id).await?;
+        let mut groups = EntityGroup::new(
+            node.tournament_id
+        );
 
         let tournament_id = node.tournament_id;
 

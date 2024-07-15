@@ -1,7 +1,7 @@
 use std::{collections::HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, derived_models::BreakNodeBackgroundInfo, domain::entity::LoadEntity, EntityType};
+use open_tab_entities::{EntityGroup, derived_models::BreakNodeBackgroundInfo, domain::entity::LoadEntity, EntityTypeId};
 use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, ColumnTrait};
 use serde::Serialize;
 
@@ -28,9 +28,7 @@ impl LoadedAdjudicatorBreakCandidatesView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedAdjudicatorBreakCandidatesView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.participant_clashs.len() > 0 || changes.deletions.iter().any(
-            |d| d.0 == EntityType::ParticipantClash
-        ) ||  changes.tournament_plan_nodes.len() > 0 || changes.participants.len() > 0 || changes.tournament_breaks.len() > 0 {
+        if changes.has_changes_for_types(vec![EntityTypeId::ParticipantClash, EntityTypeId::TournamentPlanNode, EntityTypeId::Participant]) {
             self.view = AdjudicatorBreakCandidatesView::load_from_node(db, self.node_uuid).await?;
 
             let mut out = HashMap::new();

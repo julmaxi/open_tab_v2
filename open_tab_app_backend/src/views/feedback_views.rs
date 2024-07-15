@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup, derived_models::compute_question_summary_values};
+use open_tab_entities::{derived_models::compute_question_summary_values, domain::{feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup, EntityTypeId};
 use sea_orm::{prelude::*, QueryOrder, JoinType, QuerySelect, DatabaseTransaction};
 use serde::{Serialize, Deserialize};
 
@@ -31,7 +31,14 @@ impl LoadedFeedbackOverviewView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedFeedbackOverviewView {
     async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.participants.len() > 0 || changes.feedback_responses.len() > 0 || changes.feedback_forms.len() > 0 || changes.feedback_questions.len() > 0 {
+        if changes.has_changes_for_types(
+            vec![
+                EntityTypeId::FeedbackResponse,
+                EntityTypeId::FeedbackForm,
+                EntityTypeId::FeedbackQuestion,
+                EntityTypeId::Participant
+            ]
+        ) {
             self.view = FeedbackOverviewView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out: HashMap<String, Json> = HashMap::new();
@@ -238,7 +245,12 @@ pub struct FeedbackResponseValueEntry {
 #[async_trait::async_trait]
 impl LoadedView for LoadedFeedbackDetailView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.feedback_responses.len() > 0 || changes.feedback_questions.len() > 0 {
+        if changes.has_changes_for_types(
+            vec![
+                EntityTypeId::FeedbackResponse,
+                EntityTypeId::FeedbackQuestion
+            ]
+        ) {
             self.view = FeedbackDetailView::load_from_participant(db, self.participant_id).await?;
 
             let mut out: HashMap<String, Json> = HashMap::new();

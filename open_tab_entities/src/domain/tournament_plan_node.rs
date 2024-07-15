@@ -10,8 +10,8 @@ use serde::{Serialize, Deserialize};
 use crate::schema;
 use crate::utilities::BatchLoad;
 
-use super::{TournamentEntity, utils};
-use super::entity::LoadEntity;
+use super::{BoundTournamentEntityTrait, utils};
+use super::entity::{LoadEntity, TournamentEntityTrait};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum MinorDrawConfig {
@@ -228,8 +228,8 @@ impl LoadEntity for TournamentPlanNode {
 }
 
 #[async_trait]
-impl TournamentEntity for TournamentPlanNode {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let empty_vec = vec![];
         let (model, rounds) = match &self.config {
             PlanNodeType::Break { config, break_id } => {
@@ -321,14 +321,27 @@ impl TournamentEntity for TournamentPlanNode {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         return Ok(entities.iter().map(|team| {
             Some(team.tournament_id)
         }).collect());
     }
     
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
+    }
+}
+
+impl TournamentEntityTrait for TournamentPlanNode {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut out = match &self.config {
+            PlanNodeType::Round { rounds, .. } => rounds.clone(),
+            PlanNodeType::Break { break_id, .. } => break_id.clone().into_iter().collect(),
+        };
+
+        out.push(self.tournament_id);
+
+        out
     }
 }

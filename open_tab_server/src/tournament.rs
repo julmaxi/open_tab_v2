@@ -10,7 +10,7 @@ use base64::Engine;
 use chrono::{NaiveDateTime, Utc};
 use open_tab_entities::domain::round::check_release_date;
 
-use open_tab_entities::{EntityGroup, EntityGroupTrait};
+use open_tab_entities::{EntityGroup};
 use rand::{thread_rng, Rng};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
 use sea_orm::prelude::*;
@@ -35,8 +35,8 @@ pub struct CreateTournamentResponse {
 
 
 pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, ExtractAuthenticatedUser(user) : ExtractAuthenticatedUser, Json(request): Json<CreateTournamentRequest>) -> Result<Json<CreateTournamentResponse>, APIError> {
-    let mut changes = EntityGroup::new();
     let uuid = request.uuid;
+    let mut changes = EntityGroup::new(uuid);
     let tournament = open_tab_entities::domain::tournament::Tournament {
         uuid,
         annoucements_password: Some("password".into()),

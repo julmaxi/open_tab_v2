@@ -37,7 +37,9 @@ async fn test_view_updates_when_ballot_updates() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut changes = EntityGroup::new();
+    let mut changes = EntityGroup::new(
+        Uuid::from_u128(1)
+    );
     changes.add(Entity::Ballot(changed_ballot));
 
     let transaction = db.begin().await?;

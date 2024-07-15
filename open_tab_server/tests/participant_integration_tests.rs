@@ -2,7 +2,7 @@ mod common;
 
 
 
-use open_tab_entities::{EntityGroup, EntityGroupTrait, domain::entity::LoadEntity, Entity};
+use open_tab_entities::{EntityGroup, domain::entity::LoadEntity, Entity};
 use open_tab_server::participants::{ParticipantInfoResponse, Motion};
 use sea_orm::{prelude::Uuid, DatabaseConnection};
 
@@ -61,9 +61,11 @@ async fn test_get_adjudicator_info_without_release_does_not_show_motion() {
 async fn set_future_draw_release(db: DatabaseConnection) {
     let mut round_1 = open_tab_entities::domain::round::TournamentRound::get(&db, Uuid::from_u128(100)).await.unwrap();
     round_1.team_motion_release_time = Some(chrono::Utc::now().naive_utc() + chrono::Duration::minutes(5));
-    EntityGroup::from(vec![
+    EntityGroup::new_from_entities(
+        Uuid::from_u128(1),
+        vec![
         Entity::TournamentRound(round_1)
-    ]).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await.unwrap();
+    ]).save_all_and_log(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -95,9 +97,11 @@ async fn set_past_draw_release(db: DatabaseConnection) {
     let mut round_1 = open_tab_entities::domain::round::TournamentRound::get(&db, Uuid::from_u128(100)).await.unwrap();
     round_1.debate_start_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     round_1.team_motion_release_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
-    EntityGroup::from(vec![
+    EntityGroup::new_from_entities(
+        Uuid::from_u128(1),
+        vec![
         Entity::TournamentRound(round_1)
-    ]).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await.unwrap();
+    ]).save_all_and_log(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -223,9 +227,11 @@ async fn set_past_draw_release_and_make_round_1_silent(db: DatabaseConnection) {
     round_1.team_motion_release_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     round_1.debate_start_time = Some(chrono::Utc::now().naive_utc() - chrono::Duration::seconds(1));
     round_1.is_silent = true;
-    EntityGroup::from(vec![
+    EntityGroup::new_from_entities(
+        Uuid::from_u128(1),
+        vec![
         Entity::TournamentRound(round_1)
-    ]).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await.unwrap();
+    ]).save_all_and_log(&db).await.unwrap();
 
 }
 

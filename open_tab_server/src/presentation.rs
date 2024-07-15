@@ -4,7 +4,7 @@ use axum::{extract::{State, Path}, Json, Router, routing::{post, get}};
 use chrono::Duration;
 use axum::http::StatusCode;
 
-use open_tab_entities::{domain::{self, entity::LoadEntity}, EntityGroup, EntityGroupTrait, derived_models::{DrawPresentationInfo, LoadDrawError}};
+use open_tab_entities::{domain::{self, entity::LoadEntity}, EntityGroup, derived_models::{DrawPresentationInfo, LoadDrawError}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
@@ -73,13 +73,15 @@ async fn set_motion_release(
     let full_motion_release_time = round.full_motion_release_time.unwrap_or(now + Duration::minutes(20));
     round.full_motion_release_time = Some(full_motion_release_time);
 
-    let mut entity_group = EntityGroup::new();
+    let mut entity_group = EntityGroup::new(
+        tournament_id
+    );
 
     entity_group.add(
         open_tab_entities::Entity::TournamentRound(round)
     );
 
-    entity_group.save_all_and_log_for_tournament(&db, tournament_id).await?;
+    entity_group.save_all_and_log(&db).await?;
     db.commit().await.map_err(handle_error)?;
 
     Ok(Json(

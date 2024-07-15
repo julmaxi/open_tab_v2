@@ -21,6 +21,7 @@ pub use super::tournament_break_adjudicator::Entity as TournamentBreakAdjudicato
 pub use super::tournament_break_speaker::Entity as TournamentBreakSpeaker;
 pub use super::tournament_break_team::Entity as TournamentBreakTeam;
 pub use super::tournament_debate::Entity as TournamentDebate;
+pub use super::tournament_entity::Entity as TournamentEntity;
 pub use super::tournament_institution::Entity as TournamentInstitution;
 pub use super::tournament_log::Entity as TournamentLog;
 pub use super::tournament_plan_edge::Entity as TournamentPlanEdge;

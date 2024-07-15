@@ -1,7 +1,7 @@
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-use open_tab_entities::domain::entity::LoadEntity;
+use open_tab_entities::{domain::entity::LoadEntity, EntityTypeId};
 use open_tab_entities::schema::tournament_remote;
 
 
@@ -41,7 +41,7 @@ impl LoadedTournamentStatusView {
 #[async_trait]
 impl LoadedView for LoadedTournamentStatusView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournaments.len() > 0 {
+        if changes.has_changes_for_type(EntityTypeId::Tournament) {
             self.view = TournamentStatusView::load(db, self.tournament_uuid).await?;
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use itertools::{Itertools, izip};
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::entity::LoadEntity};
+use open_tab_entities::{domain::entity::LoadEntity, prelude::*, schema};
 
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, JoinType, QuerySelect, RelationBuilder};
 use thiserror::Error;
 
 use crate::draw_view::{DrawBallot, DrawDebate};
@@ -14,6 +14,7 @@ use super::ActionTrait;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UpdateDrawAction {
+    pub tournament_id: Uuid,
     #[serde(default)]
     pub updated_ballots: Vec<DrawBallot>,
     #[serde(default)]
@@ -30,8 +31,6 @@ pub enum UpdateDrawError {
 #[async_trait]
 impl ActionTrait for UpdateDrawAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
-
         let values = self.updated_ballots.iter().map(|d| d.uuid).collect_vec();
 
         let ballots = open_tab_entities::domain::ballot::Ballot::try_get_many(
@@ -44,6 +43,8 @@ impl ActionTrait for UpdateDrawAction {
                 Ballot{ uuid: values[idx], ..Default::default() }
             }
         });
+
+        let mut groups = EntityGroup::new(self.tournament_id);
 
         for (ballot, debate) in izip![ballots, self.updated_ballots.iter()] {
             let mut new_ballot = ballot.clone();

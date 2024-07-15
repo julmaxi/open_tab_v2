@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use open_tab_entities::EntityGroup;
+use open_tab_entities::{EntityGroup, EntityTypeId};
 use sea_orm::prelude::Uuid;
 
 
@@ -28,7 +28,14 @@ impl LoadedBreakRelevantTabView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedBreakRelevantTabView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_plan_nodes.len() > 0 || changes.tournament_debates.len() > 0 || changes.tournament_rounds.len() > 0 || changes.participants.len() > 0 || changes.ballots.len() > 0 || changes.tournament_breaks.len() > 0 {
+        if changes.has_changes_for_types(vec![
+            EntityTypeId::TournamentPlanNode,
+            EntityTypeId::TournamentDebate,
+            EntityTypeId::TournamentRound,
+            EntityTypeId::Participant,
+            EntityTypeId::Ballot,
+            EntityTypeId::TournamentBreak
+        ]) {
             self.view = BreakRelevantTabView::load_from_node(db, self.node_uuid).await?;
 
             let mut out = HashMap::new();

@@ -44,9 +44,10 @@ pub struct UpdateRoundAction {
 #[async_trait]
 impl ActionTrait for UpdateRoundAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
-
         let mut existing_round = open_tab_entities::domain::round::TournamentRound::get(db, self.round_id).await?;
+        let mut groups = EntityGroup::new(
+            existing_round.tournament_id
+        );
 
         if let PatchValue::Set(motion) = self.update.motion {
             existing_round.motion = motion;

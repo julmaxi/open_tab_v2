@@ -43,7 +43,9 @@ async fn test_insert_new_empty_ballot() -> Result<(), anyhow::Error> {
 
     let changes = action.get_changes(&db).await?;
 
-    assert_eq!(changes.ballots.len(), 1);
+    let groups = changes.as_group_map();
+
+    assert_eq!(groups.ballots.len(), 1);
 
     changes.save_all(&db).await?;
 
@@ -83,7 +85,9 @@ async fn test_update_ballot_saves_team() -> Result<(), anyhow::Error> {
 
     let changes = action.get_changes(&db).await?;
 
-    assert_eq!(changes.ballots.len(), 1);
+    let groups = changes.as_group_map();
+
+    assert_eq!(groups.ballots.len(), 1);
 
     changes.save_all(&db).await?;
 
@@ -121,7 +125,8 @@ async fn test_update_ballot_saves_adjudicators() -> Result<(), anyhow::Error> {
 
     let changes = action.get_changes(&db).await?;
 
-    assert_eq!(changes.ballots.len(), 1);
+    let groups = changes.as_group_map();
+    assert_eq!(groups.ballots.len(), 1);
 
     changes.save_all(&db).await?;
 
@@ -167,8 +172,9 @@ async fn test_update_ballot_saves_non_aligned() -> Result<(), anyhow::Error> {
     };
 
     let changes = action.get_changes(&db).await?;
+    let groups = changes.as_group_map();
 
-    assert_eq!(changes.ballots.len(), 1);
+    assert_eq!(groups.ballots.len(), 1);
 
     changes.save_all(&db).await?;
 

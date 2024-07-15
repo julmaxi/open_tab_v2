@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::{Add, AddAssign}};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{self, tournament_plan_node::PlanNodeType}, info::TournamentParticipantsInfo, schema, EntityGroup, EntityType};
+use open_tab_entities::{domain::{self, tournament_plan_node::PlanNodeType}, info::TournamentParticipantsInfo, schema, EntityGroup, EntityTypeId};
 use sea_orm::{prelude::Uuid, EntityOrSelect, EntityTrait, QueryFilter, QuerySelect, ColumnTrait};
 use serde::Serialize;
 
@@ -28,7 +28,16 @@ impl LoadedFeedbackProgressView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedFeedbackProgressView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.feedback_forms.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::FeedbackForm) || changes.feedback_responses.len() > 0 || changes.tournament_debates.len() > 0 || changes.ballots.len() > 0 || changes.teams.len() > 0 || changes.participants.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::Participant) || changes.deletions.iter().any(|d| d.0 == EntityType::Team)  {
+        if changes.has_changes_for_types(
+            vec![
+                EntityTypeId::FeedbackForm,
+                EntityTypeId::FeedbackResponse,
+                EntityTypeId::TournamentDebate,
+                EntityTypeId::Ballot,
+                EntityTypeId::Team,
+                EntityTypeId::Participant,
+            ]
+        ) {
             self.view = FeedbackProgressView::load(db, self.tournament_uuid).await?;
 
             let mut out = HashMap::new();

@@ -9,8 +9,8 @@ use serde::{Serialize, Deserialize};
 use crate::schema;
 use crate::utilities::BatchLoad;
 
-use super::TournamentEntity;
-use super::entity::LoadEntity;
+use super::BoundTournamentEntityTrait;
+use super::entity::{LoadEntity, TournamentEntityTrait};
 
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -155,8 +155,8 @@ impl LoadEntity for TournamentBreak {
 }
 
 #[async_trait]
-impl TournamentEntity for TournamentBreak {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for TournamentBreak where C: sea_orm::ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
         let model = schema::tournament_break::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
             tournament_id: ActiveValue::Set(self.tournament_id),
@@ -316,14 +316,24 @@ impl TournamentEntity for TournamentBreak {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> {
         return Ok(entities.iter().map(|team| {
             Some(team.tournament_id)
         }).collect());
     }
     
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> {
         schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
+    }
+}
+
+impl TournamentEntityTrait for TournamentBreak {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut out = vec![self.tournament_id];
+        out.extend(self.breaking_teams.iter());
+        out.extend(self.breaking_speakers.iter());
+        out.extend(self.breaking_adjudicators.iter());
+        out
     }
 }

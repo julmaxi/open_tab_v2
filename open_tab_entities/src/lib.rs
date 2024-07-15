@@ -11,4 +11,3 @@ pub mod info;
 pub mod derived_models;
 
 pub use group::*;
-pub use group::EntityGroupTrait;

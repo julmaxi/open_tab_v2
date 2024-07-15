@@ -17,6 +17,6 @@ pub mod tournament_plan_edge;
 pub mod tournament_plan_node;
 pub mod ballot_speech_timing;
 
-pub use entity::TournamentEntity;
+pub use entity::BoundTournamentEntityTrait;
 
 mod utils;

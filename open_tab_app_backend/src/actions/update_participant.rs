@@ -15,7 +15,7 @@ use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
 
-use open_tab_entities::group::EntityType;
+use open_tab_entities::group::EntityTypeId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateParticipantsAction {
@@ -31,7 +31,7 @@ pub struct UpdateParticipantsAction {
 #[async_trait]
 impl ActionTrait for UpdateParticipantsAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
+        let mut groups = EntityGroup::new(self.tournament_id);
 
         let mut team_member_count_changes : HashMap<Uuid, i32> = HashMap::new();
 
@@ -108,7 +108,7 @@ impl ActionTrait for UpdateParticipantsAction {
 
             let to_delete_ids = existing_clashes.iter().filter(|c| !new_uuids.contains(&c.uuid)).map(|c| c.uuid).collect::<Vec<_>>();
             to_delete_ids.iter().for_each(|id| {
-                groups.delete(EntityType::ParticipantClash, id.clone());
+                groups.delete(EntityTypeId::ParticipantClash, id.clone());
             });
 
             new_clashes.into_iter().for_each(
@@ -191,7 +191,7 @@ impl ActionTrait for UpdateParticipantsAction {
 
         let deleted_participant_models = open_tab_entities::domain::participant::Participant::get_many(_db, self.deleted_participants.clone()).await?;     
         for participant in deleted_participant_models {
-            groups.delete(EntityType::Participant, participant.uuid);
+            groups.delete(EntityTypeId::Participant, participant.uuid);
             match participant.role {
                 ParticipantRole::Speaker(speaker) => {
                     if let Some(team_id) = speaker.team_id {
@@ -223,7 +223,7 @@ impl ActionTrait for UpdateParticipantsAction {
         let deleted_teams = changed_team_member_count.iter().filter(|c| c.count + team_member_count_changes.get(&c.team_id).copied().unwrap_or(0) <= 0).map(|c| c.team_id).collect::<Vec<_>>();
 
         for team_id in deleted_teams {
-            groups.delete(EntityType::Team, team_id);
+            groups.delete(EntityTypeId::Team, team_id);
         }
 
         Ok(groups)

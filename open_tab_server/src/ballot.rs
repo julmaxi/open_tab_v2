@@ -343,14 +343,15 @@ async fn submit_ballot(
         timestamp: Utc::now().naive_utc(),
     };
 
-    let group = EntityGroup::new_with_entities(
+    let group = EntityGroup::new_from_entities(
+        tournament_id,
         vec![
             Entity::Ballot(ballot),
             Entity::DebateBackupBallot(submission)
         ]
     );
 
-    group.save_all_and_log_for_tournament(&transaction, tournament_id).await?;
+    group.save_all_and_log(&transaction).await?;
 
     transaction.commit().await.map_err(
         |e| {

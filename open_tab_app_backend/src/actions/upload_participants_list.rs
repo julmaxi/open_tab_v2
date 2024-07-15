@@ -26,7 +26,9 @@ pub struct UploadParticipantsListAction {
 #[async_trait]
 impl ActionTrait for UploadParticipantsListAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut groups = EntityGroup::new();
+        let mut groups = EntityGroup::new(
+            self.tournament_id
+        );
         let file = std::fs::File::open(self.path.clone())?;
         let parse_result = self.parser_config.parse(&file)?;
 

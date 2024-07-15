@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use open_tab_entities::domain::entity::LoadEntity;
+use open_tab_entities::{domain::entity::LoadEntity, EntityTypeId};
 
 
 use sea_orm::prelude::*;
@@ -36,7 +36,7 @@ impl LoadedRoundPublicationView {
 #[async_trait]
 impl LoadedView for LoadedRoundPublicationView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_rounds.len() > 0 {
+        if changes.has_changes_for_type(EntityTypeId::TournamentRound) {
             self.round = TournamentRound::get(db, self.round.uuid).await?;
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.round)?);

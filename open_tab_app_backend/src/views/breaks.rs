@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{tournament_plan_node::PlanNodeType, self}, EntityGroup};
+use open_tab_entities::{domain::{self, tournament_plan_node::PlanNodeType}, EntityGroup, EntityTypeId};
 use sea_orm::{prelude::Uuid};
 use serde::Serialize;
 
@@ -28,7 +28,7 @@ impl LoadedBreaksView {
 #[async_trait::async_trait]
 impl LoadedView for LoadedBreaksView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_breaks.len() > 0 {
+        if changes.has_changes_for_type(EntityTypeId::TournamentBreak) {
             self.view = BreaksView::load(db, self.tournament_uuid).await?;
 
             let mut out = HashMap::new();

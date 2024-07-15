@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque, HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{participant::Participant, tournament_plan_node::TournamentPlanNode, tournament_plan_edge::TournamentPlanEdge, round::TournamentRound, debate::TournamentDebate, self}, EntityGroup, EntityType};
+use open_tab_entities::{domain::{participant::Participant, tournament_plan_node::TournamentPlanNode, tournament_plan_edge::TournamentPlanEdge, round::TournamentRound, debate::TournamentDebate, self}, EntityGroup, EntityTypeId};
 use sea_orm::prelude::*;
 use serde::Serialize;
 
@@ -28,13 +28,14 @@ impl LoadedProgressView {
 impl LoadedView for LoadedProgressView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         let mut partial_changes = HashMap::new();
-        if  changes.participants.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::Participant)
-            || changes.tournament_debates.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentDebate)
-            || changes.tournament_rounds.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentRound)
-            || changes.tournament_plan_nodes.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentPlanNode)
-            || changes.tournament_plan_edges.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::TournamentPlanEdge)
-            || changes.ballots.len() > 0 || changes.deletions.iter().any(|d| d.0 == EntityType::Ballot)
-         {
+        if changes.has_changes_for_types(vec![
+            EntityTypeId::Participant,
+            EntityTypeId::TournamentDebate,
+            EntityTypeId::TournamentRound,
+            EntityTypeId::TournamentPlanNode,
+            EntityTypeId::TournamentPlanEdge,
+            EntityTypeId::Ballot,
+        ]) {
             let view = ProgressView::load_from_tournament(db, self.tournament_id).await?;
             self.view = view;
             partial_changes.insert(".".to_string(), serde_json::to_value(&self.view)?);

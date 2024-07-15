@@ -2,7 +2,7 @@ mod common;
 use std::collections::HashMap;
 
 use base64::Engine;
-use open_tab_entities::{EntityGroup, EntityGroupTrait, domain::entity::LoadEntity, Entity, prelude::{Ballot, BallotTeam, TeamScore, Speech, SpeakerScore}};
+use open_tab_entities::{EntityGroup, domain::entity::LoadEntity, Entity, prelude::{Ballot, BallotTeam, TeamScore, Speech, SpeakerScore}};
 use open_tab_server::{auth::create_key, ballot::{GetDebateResponse, GetBallotSubmissionResponse, SubmitBallotRequest, SubmitBallotResponse}};
 use sea_orm::{prelude::Uuid, DatabaseConnection, IntoActiveModel, ActiveModelTrait};
 use tracing_test::traced_test;
@@ -235,7 +235,10 @@ async fn create_test_user_and_open_r1(db: DatabaseConnection) {
         Uuid::from_u128(100),
     ).await.unwrap();
     round_1.draw_release_time = Some(chrono::Utc::now().naive_utc());
-    EntityGroup::new_with_entities(vec![Entity::TournamentRound(round_1)]).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await.unwrap();
+    EntityGroup::new_from_entities(
+        Uuid::from_u128(1),
+        vec![Entity::TournamentRound(round_1)]
+    ).save_all_and_log(&db).await.unwrap();
 }
 
 /*

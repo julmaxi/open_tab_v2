@@ -1,6 +1,6 @@
 
 
-use open_tab_entities::{EntityGroup, EntityGroupTrait, Entity, domain::team::Team};
+use open_tab_entities::{EntityGroup, Entity, domain::team::Team};
 use sea_orm::prelude::Uuid;
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
@@ -26,7 +26,9 @@ pub struct TeamUpdateRequest {
 #[async_trait]
 impl ActionTrait for UpdateTeamsAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut g = EntityGroup::new();
+        let mut g = EntityGroup::new(
+            self.tournament_id
+        );
 
         for request in self.updates {
             g.add(

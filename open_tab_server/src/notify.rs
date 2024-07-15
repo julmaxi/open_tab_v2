@@ -192,7 +192,7 @@ impl ParticipantNotificationManager {
         //We only process the round notifications here. All other notifications are handled by
         //the individual server endpoint directly, since the associated values will typically never
         //be updated in a sync from the frontend.
-        for round in &entities.tournament_rounds {
+        for round in &entities.as_group_map().tournament_rounds {
             if let Some(sender) = self.tournament_broadcast_senders.get(&round.tournament_id) {
                 let prev_state = self.tournament_broadcast_states.get(&round.tournament_id);
 
@@ -207,19 +207,23 @@ impl ParticipantNotificationManager {
                     ];
 
                     for (release_time, new_time) in states {
-                        let prev_time = prev_state.round_times.get(&round.uuid).unwrap().get(&release_time).unwrap();
-                        if prev_time != &new_time {
-                            let entry = prev_state.round_times.entry(round.uuid).or_insert_with(|| HashMap::new());
-                            entry.insert(release_time.clone(), new_time.clone());
-                            
-                            //TODO: Temporary fix
-                            let _ = sender.send(ParticipantEvent {
-                                event: ParticipantEventType::ReleaseTimeUpdated {
-                                    round_id: round.uuid,
-                                    new_time: new_time.clone(),
-                                    time: release_time.clone(),
-                                }
-                            });
+                        let prev_times = prev_state.round_times.get(&round.uuid);
+                        
+                        if let Some(prev_time) = prev_times {
+                            let prev_time = prev_time.get(&release_time).unwrap();
+                            if prev_time != &new_time {
+                                let entry = prev_state.round_times.entry(round.uuid).or_insert_with(|| HashMap::new());
+                                entry.insert(release_time.clone(), new_time.clone());
+                                
+                                //TODO: Temporary fix
+                                let _ = sender.send(ParticipantEvent {
+                                    event: ParticipantEventType::ReleaseTimeUpdated {
+                                        round_id: round.uuid,
+                                        new_time: new_time.clone(),
+                                        time: release_time.clone(),
+                                    }
+                                });
+                            }
                         }
                     }
                 }

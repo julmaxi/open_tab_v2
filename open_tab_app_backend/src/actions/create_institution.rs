@@ -1,6 +1,6 @@
 
 
-use open_tab_entities::{EntityGroup, EntityGroupTrait, Entity};
+use open_tab_entities::{EntityGroup, Entity};
 use sea_orm::prelude::Uuid;
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
@@ -20,7 +20,7 @@ pub struct CreateInstitutionAction {
 #[async_trait]
 impl ActionTrait for CreateInstitutionAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let mut g = EntityGroup::new();
+        let mut g = EntityGroup::new(self.tournament_uuid);
 
         g.add(
             Entity::TournamentInstitution(TournamentInstitution {

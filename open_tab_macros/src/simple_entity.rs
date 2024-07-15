@@ -47,7 +47,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
             let (_, tournament_type, _) = field_names_and_types.iter().find(|(f, _, _)| f.to_string() == tournament_id.segments.last().unwrap().into_token_stream().to_string()).expect("tournament_id not found in fields");
             if tournament_type.into_token_stream().to_string().starts_with("Option") {
                 quote! {
-                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+                    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                         return Ok(entities.iter().map(|tournament| {
                             tournament.#tournament_id
                         }).collect());
@@ -56,7 +56,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
             }
             else {
                 quote! {
-                    async fn get_many_tournaments<C>(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+                    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                         return Ok(entities.iter().map(|tournament| {
                             Some(tournament.#tournament_id)
                         }).collect());
@@ -66,7 +66,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         },
         (None, Some(get_many_tournaments_func)) => {
             quote! {
-                async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+                async fn get_many_tournaments(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
                     Self::#get_many_tournaments_func(db, entities).await
                 }
             }
@@ -130,6 +130,10 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         #sea_orm_mod_path::Column::Uuid
     };
 
+    let get_related_uuid_fields = field_names_and_types.iter().filter(
+        |(_, t, _)| t.into_token_stream().to_string() == "Uuid"
+    ).map(|(f, _, _)| f).collect::<Vec<_>>();
+
     // Generate the output
     let expanded = quote! {
         impl #name {
@@ -143,12 +147,12 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 Self {
                     #(#raw_attr_assignment),*
                 }
-            }    
+            }
         }
 
         #[async_trait]
-        impl crate::domain::entity::TournamentEntity for #name {
-            async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+        impl<C> crate::domain::entity::BoundTournamentEntityTrait<C> for #name  where C: sea_orm::ConnectionTrait {
+            async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
                 let model = self.into_active_model();
                 if guarantee_insert {
                     model.insert(db).await?;
@@ -166,7 +170,7 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 Ok(())
             }
 
-            async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+            async fn delete_many(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> {
                 #entity_path::delete_many().filter(
                     #uuid_col_path.is_in(uuids)
                 ).exec(db).await?;
@@ -174,6 +178,12 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
             }
 
             #get_tournaments_func
+        }
+
+        impl crate::domain::entity::TournamentEntityTrait for #name {
+            fn get_related_uuids(&self) -> Vec<Uuid> {
+                vec![#(self.#get_related_uuid_fields),*]
+            }
         }
 
         #[async_trait]

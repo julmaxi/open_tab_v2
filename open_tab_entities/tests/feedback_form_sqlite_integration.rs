@@ -2,7 +2,7 @@ mod common;
 
 
 use common::set_up_db;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackFormVisibility}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType, RangeQuestionConfig}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::TournamentEntity};
+use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackFormVisibility}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType, RangeQuestionConfig}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::BoundTournamentEntityTrait};
 use uuid::Uuid;
 
 

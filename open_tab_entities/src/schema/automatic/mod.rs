@@ -23,6 +23,7 @@ pub mod tournament_break_adjudicator;
 pub mod tournament_break_speaker;
 pub mod tournament_break_team;
 pub mod tournament_debate;
+pub mod tournament_entity;
 pub mod tournament_institution;
 pub mod tournament_log;
 pub mod tournament_plan_edge;

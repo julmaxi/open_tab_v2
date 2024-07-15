@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 
 use sea_orm::prelude::*;
-use open_tab_entities::prelude::*;
+use open_tab_entities::{prelude::*, EntityTypeId};
 
 
 
@@ -44,7 +44,7 @@ impl LoadedTabView {
 #[async_trait]
 impl LoadedView for LoadedTabView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.ballots.len() > 0 {
+        if changes.has_changes_for_type(EntityTypeId::Ballot) {
             self.view = TabView::load_from_tournament(db, self.tournament_uuid).await?;
 
             let mut out = HashMap::new();

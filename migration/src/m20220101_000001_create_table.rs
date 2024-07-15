@@ -379,6 +379,7 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 IndexCreateStatement::new()
+                    .if_not_exists()
                     .name("idx-log_tournament")
                     .table(TournamentLog::Table)
                     .col(TournamentLog::TournamentId)

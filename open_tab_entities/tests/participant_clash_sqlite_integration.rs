@@ -2,7 +2,7 @@
 
 use migration::MigratorTrait;
 use sea_orm::{DbErr, Database, Statement, ActiveValue};
-use open_tab_entities::domain::{participant::Participant, TournamentEntity, participant_clash::ParticipantClash, entity::LoadEntity};
+use open_tab_entities::domain::{participant::Participant, BoundTournamentEntityTrait, participant_clash::ParticipantClash, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 

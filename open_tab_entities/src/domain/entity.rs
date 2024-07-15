@@ -5,42 +5,51 @@ use std::iter::zip;
 use sea_orm::{prelude::Uuid};
 
 #[async_trait]
-pub trait TournamentEntity: Send + Sync {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+pub trait BoundTournamentEntityTrait<C>: Send + Sync where C: sea_orm::ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
         Self::save_many(db, guarantee_insert, &vec![self]).await
     }
     
-    async fn save_many<C>(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn save_many(db: &C, guarantee_insert: bool, entities: &Vec<&Self>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         for entity in entities.iter() {
             entity.save(db, guarantee_insert).await?;
         }
         Ok(())
     }
 
-    async fn delete<C>(db: &C, uuid: Uuid) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete(db: &C, uuid: Uuid) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         Self::delete_many(db, vec![uuid]).await
     }
     
-    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait;
-    /*
-     where C: sea_orm::ConnectionTrait {
-        for uuid in uuids.iter() {
-            Self::delete(db, *uuid).await?;
-        }
-        Ok(())
-    } */
+    async fn delete_many(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait;
 
-    async fn get_tournament<C>(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_tournament(&self, db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         Ok(Self::get_many_tournaments(db, &vec![self]).await?[0])
     }
 
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_many_tournaments(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut out = vec![];
 
         for entity in entities {
             out.push(entity.get_tournament(db).await?);
         }
         Ok(out)
+    }
+}
+
+pub trait TournamentEntityTrait {
+    fn get_related_uuids(&self) -> Vec<Uuid>;
+}
+
+#[async_trait]
+pub trait BatchBoundTournamentEntityTrait<C>: Send + Sync where C: sea_orm::ConnectionTrait {
+    async fn save_many(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error>;
+}
+
+#[async_trait]
+impl<C, T> BatchBoundTournamentEntityTrait<C> for Vec<T> where C: sea_orm::ConnectionTrait, T: BoundTournamentEntityTrait<C> {
+    async fn save_many(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
+        T::save_many(db, guarantee_insert, &self.iter().collect()).await
     }
 }
 

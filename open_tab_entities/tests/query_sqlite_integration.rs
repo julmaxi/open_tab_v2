@@ -20,7 +20,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
             deterministic_uuids: true,
             draw_debates: false,
             ..Default::default()
-        }).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await?;
+        }).save_all_and_log(&db).await?;
     }
     Ok(db)
 }
@@ -63,7 +63,7 @@ async fn test_find_team_roles() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(Uuid::from_u128(1));
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -127,7 +127,7 @@ async fn test_find_non_aligned_roles() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(Uuid::from_u128(1));
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -177,7 +177,7 @@ async fn test_find_adjudicator_roles() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(Uuid::from_u128(1));
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -225,7 +225,7 @@ async fn test_find_no_role() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(Uuid::from_u128(1));
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::TournamentDebate(debate_2));
     groups.add(Entity::Ballot(ballot_1));
@@ -270,7 +270,7 @@ async fn test_multiple_roles() -> Result<(), anyhow::Error> {
         ..Default::default()
     };
 
-    let mut groups = EntityGroup::new();
+    let mut groups = EntityGroup::new(Uuid::from_u128(1));
     groups.add(Entity::TournamentDebate(debate_1));
     groups.add(Entity::Ballot(ballot_1));
 

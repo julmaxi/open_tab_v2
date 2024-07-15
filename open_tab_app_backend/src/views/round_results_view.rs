@@ -1,5 +1,5 @@
 
-use open_tab_entities::derived_models::ResultDebate;
+use open_tab_entities::{derived_models::ResultDebate, EntityTypeId};
 
 
 
@@ -41,7 +41,13 @@ impl LoadedRoundResultsView {
 #[async_trait]
 impl LoadedView for LoadedRoundResultsView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_debates.len() > 0 || changes.ballots.len() > 0 || changes.teams.len() > 0 || changes.participants.len() > 0 || changes.debate_backup_ballots.len() > 0 {
+        if changes.has_changes_for_types(vec![
+            EntityTypeId::TournamentDebate,
+            EntityTypeId::Ballot,
+            EntityTypeId::Team,
+            EntityTypeId::Participant,
+            EntityTypeId::DebateBackupBallot
+        ]) {
             println!("Refreshing round results view {}", self.round_id);
             self.view = RoundResultsView::load(db, self.round_id).await?;
 

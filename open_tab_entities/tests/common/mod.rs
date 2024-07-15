@@ -1,7 +1,7 @@
 
 
 use migration::MigratorTrait;
-use open_tab_entities::{mock, EntityGroupTrait};
+use open_tab_entities::mock;
 use sea_orm::{prelude::*, Database, Statement};
 
 pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow::Error> {
@@ -14,7 +14,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
     ).await?;
 
     if with_mock_env {
-        mock::make_mock_tournament_with_options(mock::MockOption { deterministic_uuids: true, ..Default::default() }).save_all_and_log_for_tournament(&db, Uuid::from_u128(1)).await?;
+        mock::make_mock_tournament_with_options(mock::MockOption { deterministic_uuids: true, ..Default::default() }).save_all_and_log(&db).await?;
     }
     Ok(db)
 }

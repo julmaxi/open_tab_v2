@@ -960,6 +960,7 @@ function DrawEditor(props) {
 
 
     executeAction("UpdateDraw", {
+      tournament_id: tournament.uuid,
       updated_ballots: Object.keys(changedDebates).map(key => changedDebates[key].ballot)
     }, errorContext.handleError);
   }
@@ -1152,7 +1153,7 @@ function DrawEditor(props) {
                 dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
                 dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
                 onVenueChange={(venue) => {
-                  executeAction("UpdateDraw", { updated_debates: [{ ...debate, venue: venue }] }, errorContext.handleError);
+                  executeAction("UpdateDraw", {tournament_id: tournament.uuid, updated_debates: [{ ...debate, venue: venue }] }, errorContext.handleError);
                 }
                 }
               />)}

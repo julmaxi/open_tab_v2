@@ -2,7 +2,7 @@
 
 use migration::MigratorTrait;
 use sea_orm::{Database, Statement, ActiveValue, TransactionTrait};
-use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, TournamentEntity, entity::LoadEntity};
+use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, BoundTournamentEntityTrait, entity::LoadEntity};
 use sea_orm::prelude::*;
 
 

@@ -5,7 +5,7 @@ use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{EntityGroup, Entity, EntityType, get_changed_entities_from_log, EntityGroupTrait, EntityState, EntityTypeId};
+use open_tab_entities::{get_changed_entities_from_log, Entity, EntityGroup, EntityState, EntityTypeId, EntityTypeIdTrait, NewEntityState};
 use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +34,7 @@ pub struct LogEntry<T> {
     pub timestamp: DateTime,
 }
 
-impl <T>From<&open_tab_entities::schema::tournament_log::Model> for LogEntry<T> where T: EntityTypeId {
+impl <T>From<&open_tab_entities::schema::tournament_log::Model> for LogEntry<T> where T: EntityTypeIdTrait {
     fn from(model: &open_tab_entities::schema::tournament_log::Model) -> Self {
         LogEntry {
             uuid: model.uuid,
@@ -47,7 +47,7 @@ impl <T>From<&open_tab_entities::schema::tournament_log::Model> for LogEntry<T> 
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FatLog<E, T> where T: EntityTypeId {
+pub struct FatLog<E, T> where T: EntityTypeIdTrait {
     pub log: Vec<LogEntry<T>>,
     pub entities: HashMap<
         T,
@@ -77,13 +77,13 @@ pub async fn get_log_since<C>(transaction: &C, tournament_id: Uuid, since: Optio
 }
 
 
-pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityType>, anyhow::Error>
+pub async fn get_entity_changes_since<C>(transaction: &C, tournament_id: Uuid, since: Option<Uuid>) -> Result<FatLog<Entity, EntityTypeId>, anyhow::Error>
     where C: sea_orm::ConnectionTrait  {
     let log = get_log_since(transaction, tournament_id, since).await?;
     let flat_log = log.iter().map(
         LogEntry::from
-    ).collect::<Vec<LogEntry<EntityType>>>();
-    let mut entity_entries : HashMap<(EntityType, _), _> = log
+    ).collect::<Vec<LogEntry<EntityTypeId>>>();
+    let mut entity_entries : HashMap<(EntityTypeId, _), _> = log
         .into_iter()
         .into_grouping_map_by(|entry| (entry.target_type.clone().into(), entry.target_uuid)
     ).collect::<Vec<_>>();
@@ -120,7 +120,7 @@ async fn get_log(
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>
-) -> Result<Json<FatLog<Entity, EntityType>>, APIError> {
+) -> Result<Json<FatLog<Entity, EntityTypeId>>, APIError> {
     let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
     if tournament.is_none() {
         return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
@@ -187,7 +187,7 @@ impl From<ReconciliationOutcome> for APIReconciliationOutcome {
 pub async fn reconcile_changes<C>(
     db: &C,
     tournament_id: Uuid,
-    changes: FatLog<Entity, EntityType>,
+    changes: FatLog<Entity, EntityTypeId>,
     last_common_ancestor: Option<Uuid>,
     merge_strategy: MergeStrategy,
     return_entity_group: bool
@@ -274,8 +274,82 @@ pub async fn reconcile_changes<C>(
         }
     }
 
-    let group = EntityGroup::from(entities_to_save);
+    //let group = EntityGroup::from(entities_to_save.into_iter());
+    let mut group = EntityGroup::new(tournament_id);
 
+    for entity in entities_to_save {
+        match entity {
+            EntityState::Exists(e) => {
+                group.add(e);
+            },
+            EntityState::Deleted {uuid, type_} => {
+                group.delete(type_, uuid);
+            }
+        }
+    }
+    group.save_all(db).await?;
+
+    let existing_entities = open_tab_entities::schema::tournament_entity::Entity::find()
+        .filter(open_tab_entities::schema::tournament_entity::Column::Uuid.is_in(group.get_all_related_uuids()))
+        .all(db).await?;
+
+    for e in existing_entities.iter() {
+        if e.tournament_id != tournament_id {
+            return Ok(
+                ReconciliationOutcome::InvalidTournament
+            );
+        }
+    }
+
+    let existing_entity_map = existing_entities.into_iter().map(|e| (e.uuid, e)).collect::<HashMap<_, _>>();
+
+    let mut new_entities = vec![];
+
+    let mut altered_entities = vec![];
+
+    for ((entity_type, uuid), entity) in group.entity_states.iter() {
+        let e = existing_entity_map.get(&uuid);
+        let mut did_exist = false;
+
+        let mut e = if let Some(e) = e {
+            did_exist = true;
+            e.clone().into_active_model()
+        } else {
+            open_tab_entities::schema::tournament_entity::ActiveModel {
+                uuid: sea_orm::ActiveValue::Set(*uuid),
+                entity_type: sea_orm::ActiveValue::Set(entity_type.as_str().into()),
+                tournament_id: sea_orm::ActiveValue::Set(tournament_id),
+                is_deleted: sea_orm::ActiveValue::Set(false)
+            }
+        };
+
+        match entity {
+            NewEntityState::Exists(_) => {
+                if !did_exist {
+                    new_entities.push(e);
+                }
+            },
+            NewEntityState::Deleted => {
+                e.is_deleted = sea_orm::ActiveValue::Set(true);
+                if did_exist {
+                    altered_entities.push(e);
+                }
+                else {
+                    new_entities.push(e);
+                }
+            }
+        }
+    }
+
+    if new_entities.len() > 0 {
+        open_tab_entities::schema::tournament_entity::Entity::insert_many(new_entities).exec(db).await?;
+    }
+
+    for e in altered_entities {
+        e.update(db).await?;
+    }
+
+    /*
     let deleted_tournamet_uuids = group.get_all_deletion_tournaments(db).await?;
     if !deleted_tournamet_uuids.into_iter().all(|t| t == Some(tournament_id)) {
         println!("Rejecting push trying to delete in other tournaments");
@@ -293,6 +367,7 @@ pub async fn reconcile_changes<C>(
             ReconciliationOutcome::InvalidTournament
         );
     }
+     */
 
     Ok(
         ReconciliationOutcome::Success {
@@ -304,7 +379,7 @@ pub async fn reconcile_changes<C>(
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncRequest<E, T> where T: EntityTypeId {
+pub struct SyncRequest<E, T> where T: EntityTypeIdTrait {
     pub log: FatLog<E, T>,
     pub last_common_ancestor: Option<Uuid>,
 }
@@ -320,7 +395,7 @@ async fn handle_sync_push_request(
     State(notifications): State<Arc<RwLock<crate::notify::ParticipantNotificationManager>>>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
-    Json(request_body): Json<SyncRequest<Entity, EntityType>>
+    Json(request_body): Json<SyncRequest<Entity, EntityTypeId>>
 ) -> Result<Json<SyncRequestResponse>, APIError> {
     let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
     if tournament.is_none() {

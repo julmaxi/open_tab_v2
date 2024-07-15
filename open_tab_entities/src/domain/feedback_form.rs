@@ -9,7 +9,7 @@ use crate::{utilities::BatchLoad, schema};
 
 use sea_orm::{prelude::*, ColumnTrait, EntityTrait, ActiveValue, QueryOrder};
 
-use super::{entity::LoadEntity, TournamentEntity};
+use super::{entity::{LoadEntity, TournamentEntityTrait}, BoundTournamentEntityTrait};
 
 
 
@@ -246,8 +246,8 @@ impl LoadEntity for FeedbackForm {
 }
 
 #[async_trait]
-impl TournamentEntity for FeedbackForm {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for FeedbackForm where C: sea_orm::ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
         let existing_form = if guarantee_insert {
             None
         }
@@ -319,13 +319,22 @@ impl TournamentEntity for FeedbackForm {
         Ok(())
     }
 
-    async fn get_tournament<C>(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_tournament(&self, _db: &C) -> Result<Option<Uuid>, anyhow::Error> {
         Ok(self.tournament_id)
     }
 
-    async fn delete_many<C>(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> {
         schema::feedback_form::Entity::delete_many().filter(schema::feedback_form::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
+    }
+}
+
+impl TournamentEntityTrait for FeedbackForm {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut out = vec![self.uuid];
+        out.extend(self.questions.clone());
+
+        out
     }
 }
 

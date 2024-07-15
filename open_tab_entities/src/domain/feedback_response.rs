@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{schema, utilities::BatchLoad};
 
-use super::{entity::LoadEntity, TournamentEntity};
+use super::{entity::{LoadEntity, TournamentEntityTrait}, tournament::Tournament, BoundTournamentEntityTrait};
 
 
 
@@ -58,8 +58,8 @@ enum LoadFeedbackError {
 }
 
 #[async_trait]
-impl TournamentEntity for FeedbackResponse {
-    async fn save<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+impl<C> BoundTournamentEntityTrait<C> for FeedbackResponse where C: sea_orm::ConnectionTrait {
+    async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> {
         let existing_response = if guarantee_insert {
             None
         } else {
@@ -130,7 +130,7 @@ impl TournamentEntity for FeedbackResponse {
         Ok(())
     }
 
-    async fn get_many_tournaments<C>(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn get_many_tournaments(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> {
         let form_tournament_ids = schema::tournament_debate::Entity::find()
             .inner_join(schema::tournament_round::Entity)
             .select_also(schema::tournament_round::Entity)
@@ -142,13 +142,34 @@ impl TournamentEntity for FeedbackResponse {
         out
     }
 
-    async fn delete_many<C>(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn delete_many(db: &C, uuids: Vec<Uuid>) -> Result<(), anyhow::Error> {
         schema::feedback_response::Entity::delete_many().filter(
             schema::feedback_response::Column::Uuid.is_in(uuids)
         ).exec(db).await?;
         Ok(())
     }
+}
 
+impl TournamentEntityTrait for FeedbackResponse {
+    fn get_related_uuids(&self) -> Vec<Uuid> {
+        let mut out = vec![];
+        out.push(self.uuid);
+        out.push(self.author_participant_id.clone());
+        out.push(self.target_participant_id.clone());
+        if let Some(x) = self.source_team_id.clone() {
+            out.push(x);
+        }
+        if let Some(x) = self.source_participant_id.clone() {
+            out.push(x);
+        }
+        out.push(self.source_debate_id.clone());
+
+        for (question_id, _) in self.values.iter() {
+            out.push(question_id.clone());
+        }
+
+        out
+    }
 }
 
 #[async_trait]

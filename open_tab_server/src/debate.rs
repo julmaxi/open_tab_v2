@@ -73,7 +73,9 @@ async fn update_debate_state(
 
     let debate = domain::debate::TournamentDebate::from_model(debate);
 
-    let mut entities = EntityGroup::new();
+    let mut entities = EntityGroup::new(
+        round.tournament_id
+    );
 
     match request {
         UpdateDebateStateRequest::NonAlignedMotionRelease{release} => {
@@ -84,7 +86,7 @@ async fn update_debate_state(
         }
     }
 
-    entities.save_all_and_log_for_tournament(&db, round.tournament_id).await?;
+    entities.save_all_and_log(&db).await?;
 
     notifications.as_ref().read().await.notify_debate_non_aligned_motion_release_state(&db, debate_id).await?;
 
@@ -327,9 +329,9 @@ async fn set_debate_timing(
     }
 
 
-    let mut group = EntityGroup::new();
+    let mut group = EntityGroup::new(tournament_id);
     group.add(Entity::BallotSpeechTiming(timing));
-    group.save_all_and_log_for_tournament(&db, tournament_id).await?;
+    group.save_all_and_log(&db).await?;
 
 
     for event in events {

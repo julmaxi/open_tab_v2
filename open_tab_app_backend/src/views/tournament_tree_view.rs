@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
-use open_tab_entities::prelude::*;
+use open_tab_entities::{prelude::*, EntityTypeId};
 
 use open_tab_entities::domain;
 
@@ -41,7 +41,7 @@ impl LoadedTournamentTreeView {
 #[async_trait]
 impl LoadedView for LoadedTournamentTreeView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.tournament_rounds.len() > 0 || changes.tournament_breaks.len() > 0 || changes.tournament_plan_nodes.len() > 0 || changes.tournament_plan_edges.len() > 0 {
+        if changes.has_changes_for_types(vec![EntityTypeId::Ballot, EntityTypeId::TournamentBreak, EntityTypeId::TournamentPlanNode, EntityTypeId::TournamentPlanEdge]) {
             self.view = TournamentTreeView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out = HashMap::new();

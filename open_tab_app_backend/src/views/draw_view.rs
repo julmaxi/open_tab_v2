@@ -6,7 +6,7 @@ use open_tab_entities::domain::tournament_venue::TournamentVenue;
 use serde::{Serialize, Deserialize};
 
 use sea_orm::prelude::*;
-use open_tab_entities::{prelude::*, EntityType};
+use open_tab_entities::{prelude::*, EntityTypeId};
 
 use open_tab_entities::schema::{self, tournament_round};
 
@@ -47,8 +47,10 @@ impl LoadedDrawView {
 impl LoadedView for LoadedDrawView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         // TODO: We assume, the debate index never changes, even though it could in theory
-        let changed_debates_by_id : HashMap<_, _> = changes.tournament_debates.iter().map(|d| (d.uuid, d)).collect();
-        let changed_ballots_by_id : HashMap<_, _> = changes.ballots.iter().map(|b| (b.uuid, b)).collect();
+        let entities = changes.as_group_map();
+
+        let changed_debates_by_id : HashMap<_, _> = entities.tournament_debates.iter().map(|d| (d.uuid, d)).collect();
+        let changed_ballots_by_id : HashMap<_, _> = entities.ballots.iter().map(|b| (b.uuid, b)).collect();
         let mut indices_to_reload : Vec<usize> = vec![];
 
         let know_debate_uuids = self.view.debates.iter().map(|d| d.uuid).collect::<HashSet<_>>();
@@ -57,12 +59,13 @@ impl LoadedView for LoadedDrawView {
         );
 
         // TODO: Reloads could be much more efficient
-        if has_new_debate 
-            || changes.tournament_venues.len() > 0
-            || changes.participants.len() > 0
-            || changes.participant_clashs.len() > 0
-            || changes.teams.len() > 0
-            || changes.deletions.iter().any(|d| vec![EntityType::Team, EntityType::TournamentVenue, EntityType::Participant, EntityType::ParticipantClash].contains(&d.0))
+        if has_new_debate || changes.has_changes_for_types(vec![
+                EntityTypeId::TournamentVenue,
+                EntityTypeId::TournamentDebate,
+                EntityTypeId::Participant,
+                EntityTypeId::ParticipantClash,
+                EntityTypeId::Team
+            ])
         {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
