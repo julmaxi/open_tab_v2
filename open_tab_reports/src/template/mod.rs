@@ -280,11 +280,11 @@ pub fn make_pdf_registration_items<W>(
             RowInfo {
                 cells: vec![
                     CellInfo {
-                        width: CellWidth::Fixed(45.0),
+                        width: CellWidth::Fixed(65.0),
                         content: Box::new(
                             QRCodeLayouter {
                                 content: p.registration_url.unwrap_or("".into()),
-                                size: 35.0,
+                                size: 55.0,
                             }
                         )
                     },
