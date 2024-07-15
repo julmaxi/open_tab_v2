@@ -8,6 +8,7 @@
 <style>
     .card-content {
         padding: 0.5rem;
+        max-width: 100vw;
     }
 
     .container {
@@ -28,10 +29,14 @@
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        max-width: 100%;
     }
 
     .team-container p {
         flex: 1 1 0px;
+        width: 0;
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
 
     .team-container p:last-child {
@@ -42,11 +47,15 @@
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        flex-wrap: wrap;
     }
 
     .participants-container p {
         flex: 1 1 0px;
         text-align: center;
+        width: 0;
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
 
     .participants-container p:last-child {
