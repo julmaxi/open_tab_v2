@@ -181,7 +181,7 @@
                                     {% endif %}
                                 </text:span>
                             </text:p>
-                            <text:p text:style-name="P6">{{entry.member_ranks|sort|join(sep="+")}}</text:p>
+                            <text:p text:style-name="P6">{%- for rank in entry.member_ranks|sort -%}{%- if loop.index0 != 0 %}+{% endif %}{{rank + 1}}{%- endfor -%}</text:p>
                             <text:p text:style-name="P6">
                 {% for detailed_score in entry.detailed_scores%}
                     {% if detailed_score %}
