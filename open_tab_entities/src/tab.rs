@@ -211,7 +211,13 @@ impl TabView {
                             0.0
                         }
                         else {
-                            speech.speaker_score().unwrap_or(0.0)
+                            let score = speech.speaker_score();
+                            if let Some(score) = score {
+                                score
+                            }
+                            else {
+                                continue;
+                            }
                         };
     
                         match speech.role {
