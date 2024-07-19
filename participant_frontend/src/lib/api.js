@@ -1,5 +1,6 @@
 import { browser } from "$app/environment";
 import { env } from "$env/dynamic/public";
+import { error } from "@sveltejs/kit";
 
 export async function makeAuthenticatedRequestServerOnly(
     url,
@@ -24,8 +25,9 @@ export async function makeAuthenticatedRequestServerOnly(
         }
     );
     if (res.status != 200) {
-        console.log(Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`));
-        throw Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`);
+        let err = await res.text();
+        console.log(Error(`Request to ${url} failed with status ${res.status}: ${err}`));
+        throw error(res.status, `Request to ${url} failed with status ${res.status}: ${err}`);
     }
     return res   
 }

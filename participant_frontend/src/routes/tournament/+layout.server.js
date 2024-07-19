@@ -13,7 +13,7 @@ export async function load({ params, fetch, cookies }) {
             `api/participant/${participantId}/info`,
             cookies,
             {}
-        )
+        );
         const participantInfo = await res.json();
 
         additionalLinks.push(
