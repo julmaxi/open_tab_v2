@@ -2,7 +2,6 @@ import { makeAuthenticatedRequestServerOnly } from "$lib/api";
 
 
 export async function POST({ cookies }) {
-    console.log(cookies.getAll());
     let response = await makeAuthenticatedRequestServerOnly(
         "api/tokens",
         cookies,

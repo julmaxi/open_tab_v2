@@ -1,9 +1,53 @@
+import { invalidateAll } from '$app/navigation';
 import { env } from '$env/dynamic/public'
 import { getParticipantIdInTournamentServerOnly, makeAuthenticatedRequestServerOnly } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
+
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params, fetch, cookies }) {
+export async function load({ params, fetch, cookies, url }) {
+    let path = url.pathname;
+    let layoutInfo = {};
+    let userInfo = null;
+    try {
+        let userInfoRequest = await makeAuthenticatedRequestServerOnly(
+            "api/user",
+            cookies,
+            {}
+        );
+        userInfo = await userInfoRequest.json().catch(() => null);    
+    }
+    catch (e) {
+        
+    }
+
+    if (userInfo === null) {
+        layoutInfo["isAuthenticated"] = false;
+    }
+    else {
+        layoutInfo["isAuthenticated"] = true;
+        layoutInfo["userIdentifier"] = userInfo.identifier;
+    }
+
+    if (path.startsWith("/tournament/")) {
+        layoutInfo = {
+            ...layoutInfo,
+            ...await loadTournamentInfo({ params, fetch, cookies, url }),
+        };
+    }
+    else {
+        layoutInfo = {
+            ...layoutInfo,
+            pageTitle: "OpenTab",
+            titleLink: "/",
+            additionalLinks: []
+        };
+    }
+
+    return layoutInfo;
+}
+
+async function loadTournamentInfo({ params, fetch, cookies, url }) {
     let participantId = getParticipantIdInTournamentServerOnly(cookies, params.tournament_id);
     let additionalLinks = [];
 
@@ -89,10 +133,10 @@ export async function load({ params, fetch, cookies }) {
         tournamentName = public_info.tournament_name;
     }
 
-
     return {
         additionalLinks,
         tournamentId: params.tournament_id,
-        tournamentName,
+        titleLink: `/tournament/${params.tournament_id}`,
+        pageTitle: tournamentName,
     };
 }

@@ -14,6 +14,7 @@
         font-weight: bold;
         align-items: center;
         line-height: 1rem;
+        text-decoration: none;
     }
 
     @media (pointer:coarse) {

@@ -29,6 +29,7 @@
 
     .error-card {
         background: linear-gradient(0deg, rgba(184,6,6,1) 0%, rgba(177,0,0,1) 100%);
+        color: white;
     }
 
     .disabled-card {

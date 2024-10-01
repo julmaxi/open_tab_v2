@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use argon2::Argon2;
-use axum::routing::get;
+use axum::routing::{delete, get};
 use axum::{extract::State, headers::authorization::Bearer, routing::post, Json, Router};
 use base64::Engine;
 use chrono::Duration;
@@ -16,8 +16,8 @@ use axum::TypedHeader;
 
 use axum::extract::{FromRequestParts, Path};
 use axum::headers::authorization::Basic;
-use axum::headers::Authorization;
-use axum::http::StatusCode;
+use axum::headers::{Authorization, HeaderMapExt};
+use axum::http::{HeaderMap, StatusCode};
 
 use axum::http::request::Parts;
 // for `call`
@@ -30,12 +30,17 @@ use crate::{
 
 use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 
+// A salt is mandatory for the hashing algorithm we use for tokens.
+// However, since the tokens are already randomly generated, the salt is not
+// needed for security purposes. We keep a constant salt.
+const TOKEN_SALT : &'static str = "bXlzYWx0bXlzYWx0";
+
 #[derive(Debug)]
 pub struct AuthenticatedUser {
     pub uuid: Uuid,
     pub authorized_only_for_tournament: Option<Uuid>,
     pub is_password_authorized: bool,
-    pub is_access_only: bool
+    pub is_access_only: bool,
 }
 
 impl AuthenticatedUser {
@@ -111,7 +116,7 @@ impl AuthenticatedUser {
                         )
                     },
                 )?;
-            let salt = SaltString::from_b64("bXlzYWx0bXlzYWx0").unwrap();
+            let salt: SaltString = SaltString::from_b64(&TOKEN_SALT).unwrap();
             let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
                 (
                     StatusCode::UNAUTHORIZED,
@@ -277,7 +282,14 @@ impl FromRequestParts<AppState> for MaybeExtractAuthenticatedUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        Ok(MaybeExtractAuthenticatedUser(AuthenticatedUser::try_from_request_parts(parts, state).await.ok()))
+        Ok(
+            MaybeExtractAuthenticatedUser(
+                AuthenticatedUser::try_from_request_parts(
+                    parts,
+                    state
+                ).await.ok()
+            )
+        )
     }
 }
 
@@ -302,6 +314,7 @@ pub struct GetTokenRequest {
 pub struct GetTokenResponse {
     pub token: String,
     pub expires: Option<i64>,
+    pub user_id: Uuid,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -436,6 +449,7 @@ pub async fn create_token_handler(
     return Ok(GetTokenResponse {
         token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
         expires: expiration.map(|d| (chrono::Utc::now() + d).timestamp_millis()),
+        user_id: user.uuid,
     }
     .into());
 }
@@ -576,10 +590,56 @@ pub async fn get_registration_info(
     }))
 }
 
+pub async fn invalidate_token_handler(
+    State(db): State<DatabaseConnection>,
+    headers: HeaderMap
+) -> Result<Json<()>, APIError> {
+    let db = db.begin().await.map_err(handle_error)?;
+
+    let auth_header: Option<Authorization<Bearer>> = headers.typed_get();
+    if let Some(auth_string) = auth_header {
+        let key = base64::engine::general_purpose::STANDARD_NO_PAD
+            .decode(&auth_string.0.token())
+            .map_err(
+                |e| {
+                    (
+                        StatusCode::UNAUTHORIZED,
+                        format!("Bearer token invalid: {}", e),
+                    )
+                },
+            )?;
+        let salt: SaltString = SaltString::from_b64(&TOKEN_SALT).unwrap();
+        let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "No valid bearer authorization header found",
+            )
+        })?;
+
+        let key = open_tab_entities::schema::user_access_key::Entity::find_by_id(
+            hashed_key.to_string(),
+        )
+        .one(&db)
+        .await
+        .map_err(handle_error)?;
+
+        if let Some(key) = key {
+            key.delete(&db).await.map_err(handle_error)?;
+        }
+        db.commit().await.map_err(handle_error)?;
+
+        return Ok(Json(()));
+    }
+    else {
+        return Err((StatusCode::UNAUTHORIZED, "No valid bearer authorization header found").into());
+    }
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/users", post(create_user_handler))
         .route("/tokens", post(create_token_handler))
+        .route("/token", delete(invalidate_token_handler))
         .route("/register", post(register_user_handler))
         .route("/register/:secret", get(get_registration_info))
 }

@@ -107,11 +107,6 @@
     }
 </style>
 
-<nav>
-    <span>Open Tab</span>
-</nav>
-
-<div class="back">
 <div class="container">
     <div class="section">
     <h2>In Progress</h2>
@@ -138,5 +133,4 @@
         </div>
     {/if}
     </div>
-</div>
 </div>

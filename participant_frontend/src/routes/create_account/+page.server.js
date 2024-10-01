@@ -47,7 +47,7 @@ export const actions = {
 			let response = await res.json();
 			errors.push({
 				"UserExists": "This user is already registered. Perhaps you meant to log in?",
-				"PasswordTooShort": "Your password is too short. It must be at least eight tokens long.",
+				"PasswordTooShort": "Your password is too short. It must be at least eight characters long.",
 				"Other": "Unknown Error"
 			}[response.message.error] || response.message.error);
 			return fail(422, {
