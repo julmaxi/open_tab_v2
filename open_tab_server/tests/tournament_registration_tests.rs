@@ -136,7 +136,7 @@ async fn test_tournament_token_can_not_create_generic_token() {
     let mut response = fixture
         .post_json("/api/tournaments", CreateTournamentRequest {
             name: "testtest".to_string(),
-            uuid: Uuid::from_u128(5)
+            uuid: Uuid::from_u128(10)
         })
         .await;
     assert_eq!(response.status(), 200);
@@ -171,7 +171,7 @@ async fn test_can_register_paricipant_via_key() {
 
     let encoded_key = Participant::encode_registration_key(Uuid::from_u128(3000), &registration_secret);
 
-    let response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key}).await;
+    let response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key, link_current_user: false}).await;
     assert_eq!(response.status(), 200);
 }
 
@@ -191,7 +191,7 @@ async fn test_can_not_register_paricipant_via_incorrect_key() {
 
     let encoded_key = Participant::encode_registration_key(Uuid::from_u128(3000), &registration_secret);
 
-    let response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key}).await;
+    let response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key, link_current_user: false}).await;
     assert_eq!(response.status(), 400);
 }
 
@@ -211,11 +211,11 @@ async fn test_registering_twice_returns_same_user() {
 
     let encoded_key = Participant::encode_registration_key(Uuid::from_u128(3000), &registration_secret);
 
-    let mut response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key.clone() }).await;
+    let mut response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key.clone(), link_current_user: false }).await;
     assert_eq!(response.status(), 200);
     let user_id_1 = response.json::<RegisterUserResponse>().await.user_id;
 
-    let mut response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key }).await;
+    let mut response = fixture.post_json(&format!("/api/register"), RegisterParticipantRequest {secret: encoded_key, link_current_user: false }).await;
     assert_eq!(response.status(), 200);
     let user_id_2 = response.json::<RegisterUserResponse>().await.user_id;
 

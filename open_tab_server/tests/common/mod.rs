@@ -110,6 +110,7 @@ impl Fixture {
                 let user_participant = open_tab_entities::schema::user_participant::Model {
                     user_id: new_user_uuid,
                     participant_id: part_id,
+                    claim_time: chrono::Utc::now().naive_utc(),
                 };
                 user_participant.into_active_model().insert(&state.db).await.unwrap();
             }

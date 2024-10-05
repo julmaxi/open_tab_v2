@@ -11,7 +11,6 @@ pub struct Model {
     pub name: String,
     pub registration_key: Option<Vec<u8>>,
     pub is_anonymous: bool,
-    pub user_id: Option<Uuid>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

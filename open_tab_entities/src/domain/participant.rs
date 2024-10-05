@@ -21,7 +21,6 @@ pub struct Participant {
     pub institutions: Vec<ParticipantInstitution>,
     pub registration_key: Option<Vec<u8>>,
     pub is_anonymous: bool,
-    pub user_id: Option<Uuid>
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -163,7 +162,6 @@ impl Participant {
             tournament_id: participant.tournament_id,
             institutions: institutions,
             is_anonymous: participant.is_anonymous,
-            user_id: participant.user_id
         })
     }
 }
@@ -253,7 +251,6 @@ impl<C> BoundTournamentEntityTrait<C> for Participant where C: sea_orm::Connecti
                 name: ActiveValue::Set(ent.name.clone()),
                 registration_key: ActiveValue::Set(ent.registration_key.clone()),
                 is_anonymous: ActiveValue::Set(ent.is_anonymous),
-                user_id: ActiveValue::Set(ent.user_id)
             };
 
             if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
@@ -442,7 +439,6 @@ fn test_get_speaker() -> Result<(), ParticipantParseError> {
             name: "Test".into(),
             registration_key: None,
             is_anonymous: false,
-            user_id: None,
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),
@@ -474,7 +470,6 @@ fn test_get_adjudicator() -> Result<(), ParticipantParseError> {
             name: "Test".into(),
             registration_key: None,
             is_anonymous: false,
-            user_id: None
         },
         None,
         Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
@@ -506,7 +501,6 @@ mod test {
                 name: "Test".into(),
                 registration_key: None,
                 is_anonymous: false,
-                user_id: None
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),
@@ -531,7 +525,6 @@ mod test {
                 name: "Test".into(),
                 registration_key: None,
                 is_anonymous: false,
-                user_id: None
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),

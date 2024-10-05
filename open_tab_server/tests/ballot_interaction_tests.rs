@@ -220,6 +220,7 @@ async fn create_test_user(db: DatabaseConnection) {
     let user_participant = open_tab_entities::schema::user_participant::Model {
         user_id: Uuid::from_u128(13000),
         participant_id: Uuid::from_u128(3000),
+        claim_time: chrono::Utc::now().naive_utc(),
     };
 
     user.into_active_model().insert(&db).await.unwrap();
