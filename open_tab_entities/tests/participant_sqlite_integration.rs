@@ -21,6 +21,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
             annoucements_password: Some("test".into()),
             name: "Test Tournament".into(),
             feedback_release_time: None,
+            last_modified: chrono::DateTime::from_timestamp_millis(786910980).map(|t| t.naive_utc()).unwrap(),
         }.into();
         tournament.insert(&db).await?;
 

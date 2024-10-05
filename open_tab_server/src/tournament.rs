@@ -1,6 +1,6 @@
 
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -10,14 +10,16 @@ use base64::Engine;
 
 
 use chrono::{NaiveDateTime, Utc};
+use itertools::Itertools;
 use open_tab_entities::domain::round::check_release_date;
 
-use open_tab_entities::schema::{self, user_participant};
+use open_tab_entities::schema::{self, published_tournament, user_participant, user_tournament};
 use open_tab_entities::{EntityGroup};
 use rand::{thread_rng, Rng};
-use sea_orm::{ActiveModelTrait, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
+use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
 use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
+use tokio::join;
 
 use crate::auth::{create_key, ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser};
 use crate::response::{APIError, handle_error_dyn, handle_error};
@@ -38,7 +40,16 @@ pub struct CreateTournamentResponse {
 
 
 pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, ExtractAuthenticatedUser(user) : ExtractAuthenticatedUser, Json(request): Json<CreateTournamentRequest>) -> Result<Json<CreateTournamentResponse>, APIError> {
-    let uuid = request.uuid;
+    // We need to create the tournament first, to set the first last_modified time
+    let uuid: Uuid = request.uuid;
+    let tournament = schema::tournament::ActiveModel {
+        uuid: ActiveValue::Set(uuid),
+        name: ActiveValue::Set(request.name.clone()),
+        last_modified: ActiveValue::Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    tournament.insert(&db).await.map_err(handle_error)?;
+
     let mut changes = EntityGroup::new(uuid);
     let tournament = open_tab_entities::domain::tournament::Tournament {
         uuid,
@@ -299,6 +310,7 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
 
 #[derive(Serialize)]
 pub struct PublicTournamentsInfo {
+    active_user: Vec<TournamentInfo>,
     active: Vec<TournamentInfo>,
     concluded: Vec<TournamentInfo>,
     upcoming: Vec<TournamentInfo>,
@@ -310,28 +322,29 @@ pub async fn get_active_tournaments_handler(
 ) -> Result<Json<PublicTournamentsInfo>, APIError> {
     let now = Utc::now().naive_utc();
 
-    //We check for both start and end date to prevent any tournament from being listed
-    //in perpetuity by accident. 
     let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
             open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
                 open_tab_entities::schema::published_tournament::Column::EndDate.is_null().not()
             )
         ))
+        .order_by_desc(open_tab_entities::schema::published_tournament::Column::StartDate)
         .all(&db)
         .await
         .map_err(handle_error)?;
 
-
-    let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
-        .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
-            open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
-                open_tab_entities::schema::published_tournament::Column::EndDate.is_null().not()
-            )
-        ))
-        .all(&db)
-        .await
-        .map_err(handle_error)?;
+    let user_tournaments = if let Some(user) = user.as_ref() {
+        open_tab_entities::schema::tournament::Entity::find()
+            .join(sea_orm::JoinType::InnerJoin, user_participant::Relation::Participant.def().rev())
+            .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::participant::Relation::Tournament.def().rev())
+            .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid))
+            .order_by_desc(open_tab_entities::schema::tournament::Column::LastModified)
+            .limit(10)
+            .all(&db).await.map_err(handle_error)?.into_iter().collect()
+        }
+    else {
+        Vec::new()
+    };
 
     let concluded_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(
@@ -339,6 +352,7 @@ pub async fn get_active_tournaments_handler(
                 open_tab_entities::schema::published_tournament::Column::EndDate.gt(now.checked_sub_signed(chrono::Duration::days(30)).unwrap()
             ))
         )    
+        .order_by_desc(open_tab_entities::schema::published_tournament::Column::EndDate)
         .limit(10)
         .all(&db)
         .await
@@ -348,50 +362,54 @@ pub async fn get_active_tournaments_handler(
         .filter(
             open_tab_entities::schema::published_tournament::Column::StartDate.gt(now)
         )
+        .order_by_desc(open_tab_entities::schema::published_tournament::Column::StartDate)
         .limit(10)
         .all(&db)
         .await
         .map_err(handle_error)?;
 
-    let tournament_ids = active_tournaments.iter().filter_map(|t| t.tournament_id).collect::<Vec<_>>();
+    let concluded_ids = concluded_tournaments.iter().filter_map(|t| t.tournament_id).collect::<Vec<_>>();
 
-    let user_tournaments : HashSet<_> = if let Some(user) = user {
-        open_tab_entities::schema::participant::Entity::find()
-            .join(sea_orm::JoinType::InnerJoin, schema::user_participant::Relation::Participant.def().rev())
+    let active_tournaments_by_id = active_tournaments.iter().filter_map(|t| t.tournament_id.map(|uuid| (uuid, t))).collect::<HashMap<_, _>>();
+    let user_tournaments = user_tournaments.into_iter().filter_map(|tournament| {
+        if concluded_ids.contains(&tournament.uuid) {
+            None
+        }
+        else {
+            let published_tournament = active_tournaments_by_id.get(&tournament.uuid);
 
-            .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid))
-            .filter(open_tab_entities::schema::participant::Column::TournamentId.is_in(tournament_ids))
-            .all(&db)
-            .await
-            .map_err(handle_error)?
-            .into_iter().map(
-                |m| m.tournament_id
-            ).collect()
-    } else {
-        HashSet::new()
-    };
+            if let Some(published_tournament) = published_tournament {
+                let mut info = TournamentInfo::from((**published_tournament).clone());
+                info.user_is_participant = true;
+                Some(info)
+            }
+            else {
+                let info = TournamentInfo {
+                    name: tournament.name,
+                    start_date: None,
+                    end_date: None,
+                    image: None,
+                    show_tab: false,
+                    show_participants: false,
+                    user_is_participant: true,
+                    tournament_uuid: Some(tournament.uuid),
+                };
+
+                Some(info)
+            }
+        }
+    }).collect_vec();
+
+    let user_tournament_ids = user_tournaments.iter().filter_map(|t| t.tournament_uuid).collect::<HashSet<_>>();
 
     Ok(Json(
         PublicTournamentsInfo {
-            active: active_tournaments.into_iter().map(|t| {
-                if let Some(u) = t.tournament_id {
-                    let is_part = user_tournaments.contains(&u);
-                    let mut t : TournamentInfo = t.into();
-                    t.user_is_participant = is_part;
-                    t
-                } else {
-                    t.into()
-                }
+            active_user: user_tournaments,
+            active: active_tournaments.into_iter().filter(|p| p.tournament_id.map(|uuid| !user_tournament_ids.contains(&uuid)).unwrap_or(true)).map(|t| {
+                t.into()
             }).collect(),
             concluded: concluded_tournaments.into_iter().map(|t| {
-                if let Some(u) = t.tournament_id {
-                    let is_part = user_tournaments.contains(&u);
-                    let mut t : TournamentInfo = t.into();
-                    t.user_is_participant = is_part;
-                    t
-                } else {
-                    t.into()
-                }
+                t.into()
             }).collect(),
             upcoming: upcoming_tournaments.into_iter().map(|t| t.into()).collect(),
         }

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, default};
 
+use chrono::TimeZone;
 use itertools::Itertools;
 use open_tab_entities::domain::{ballot::{Ballot, self, BallotTeam, Speech, SpeakerScore, TeamScore}, tournament::Tournament, round::TournamentRound, debate::TournamentDebate, entity::{LoadEntity, LoadError}, debate_backup_ballot::DebateBackupBallot};
 use sea_orm::{prelude::*, Database, Statement, ActiveValue};
@@ -22,6 +23,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
             annoucements_password: Some("password".into()),
             name: "Test Tournament".into(),
             feedback_release_time: None,
+            last_modified: chrono::DateTime::from_timestamp_millis(786910980).map(|t| t.naive_utc()).unwrap(),
         }.into();
         a.insert(&db).await?;
          open_tab_entities::schema::team::Entity::insert_many(vec![

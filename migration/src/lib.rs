@@ -17,6 +17,7 @@ mod m20240224_191827_add_speech_pause;
 mod m20240611_200708_add_publication_settings;
 mod m20240714_094639_add_entity_table;
 mod m20241005_142323_add_user_claim_date;
+mod m20241005_185444_add_tournament_last_modified;
 
 pub struct Migrator;
 
@@ -40,6 +41,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240611_200708_add_publication_settings::Migration),
             Box::new(m20240714_094639_add_entity_table::Migration),
             Box::new(m20241005_142323_add_user_claim_date::Migration),
+            Box::new(m20241005_185444_add_tournament_last_modified::Migration),
         ]
     }
 }

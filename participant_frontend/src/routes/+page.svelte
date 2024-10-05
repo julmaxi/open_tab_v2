@@ -11,6 +11,8 @@
     let tournamentsInProgress = data.tournamentsInfo.active;
 
     let tournamentsUpcoming = data.tournamentsInfo.upcoming;
+
+    let userTournamentsInProgress = data.tournamentsInfo.active_user;
 </script>
 
 
@@ -108,6 +110,17 @@
 </style>
 
 <div class="container">
+    {#if userTournamentsInProgress.length > 0}
+        <div class="section">
+            <h2>My Current Tournaments</h2>
+            <div class="list">
+                {#each userTournamentsInProgress as tournament}
+                    <TournamentCard tournament={tournament} />
+                {/each}
+            </div>
+        </div>
+    {/if}
+    
     <div class="section">
     <h2>In Progress</h2>
     {#if tournamentsInProgress.length === 0}

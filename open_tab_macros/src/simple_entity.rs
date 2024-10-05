@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use crate::utilities::find_path_name_value_attr;
+use crate::utilities::{find_path_name_value_attr, find_skip_values};
 use core::panic;
 
 use proc_macro::TokenStream;
@@ -36,6 +36,9 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
         }
         _ => panic!("Only structs are supported")
     };
+
+    let skip_fields = find_skip_values(&input.attrs);
+
     let name = input.ident;
     let sea_orm_mod_path: Path = find_path_name_value_attr(&input.attrs, "module_path").expect("No module_path attribute found");
     let get_many_tournaments_func : Option<Path> = find_path_name_value_attr(&input.attrs, "get_many_tournaments_func");
@@ -92,7 +95,15 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 #f: sea_orm::ActiveValue::Set(self.#f.clone().try_into().unwrap())
             }    
         }
-    }).collect::<Vec<_>>();
+    })
+    .chain(
+        skip_fields.iter().map(|f| {
+            quote! {
+                #f: sea_orm::ActiveValue::NotSet
+            }
+        })
+    )
+    .collect::<Vec<_>>();
 
     let raw_attr_assignment = field_names_and_types.iter().map(|(f, ty, serialize)| {
         if *serialize {

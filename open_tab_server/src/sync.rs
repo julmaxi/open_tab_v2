@@ -349,6 +349,13 @@ pub async fn reconcile_changes<C>(
         e.update(db).await?;
     }
 
+    let tournament = open_tab_entities::schema::tournament::ActiveModel {
+        uuid: sea_orm::ActiveValue::Unchanged(tournament_id),
+        last_modified: sea_orm::ActiveValue::Set(Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    tournament.update(db).await?;
+
     /*
     let deleted_tournamet_uuids = group.get_all_deletion_tournaments(db).await?;
     if !deleted_tournamet_uuids.into_iter().all(|t| t == Some(tournament_id)) {

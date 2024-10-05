@@ -10,6 +10,7 @@ pub struct Model {
     pub annoucements_password: Option<String>,
     pub name: String,
     pub feedback_release_time: Option<DateTime>,
+    pub last_modified: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

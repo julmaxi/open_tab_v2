@@ -59,6 +59,10 @@ export async function load({ params, fetch, cookies }) {
     }
     let data = await result.json();
 
+    if (data.is_accessible_by_current_user) {
+        throw redirect(302, `/tournament/${data.tournament_id}/home/${data.participant_id}`);
+    }
+
     return {
         key: params.key,
         participant_name: data.participant_name,

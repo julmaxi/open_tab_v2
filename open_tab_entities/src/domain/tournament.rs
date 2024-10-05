@@ -7,6 +7,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default, SimpleEntity)]
 #[module_path = "crate::schema::tournament"]
 #[tournament_id = "uuid"]
+#[skip_field = "last_modified"]
 pub struct Tournament {
     pub uuid: Uuid,
     pub annoucements_password: Option<String>,

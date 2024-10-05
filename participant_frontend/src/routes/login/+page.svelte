@@ -51,6 +51,13 @@
         font-weight: bold;
         font-size: large;
     }
+
+    a.register {
+        margin-top: 1rem;
+        cursor: pointer;
+        text-decoration: underline;
+        color: blue;
+    }
 </style>
 
 <div class="container">
@@ -65,4 +72,6 @@
         <input type="password" placeholder="Password" name="password" />
         <button type="submit">Login</button>
     </form>
+
+    <a class="register" href="/create_account">Create New Account</a>
 </div>

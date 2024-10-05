@@ -16,6 +16,6 @@ export async function load({ params, fetch, cookies }) {
     let tournamentsInfo = await request.json();
 
     return {
-        tournamentsInfo
+        tournamentsInfo,
     };
 }

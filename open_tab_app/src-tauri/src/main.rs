@@ -10,7 +10,7 @@ use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{mak
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
-use sea_orm::{prelude::*, Statement, Database, DatabaseTransaction, TransactionTrait, ActiveValue};
+use sea_orm::{prelude::*, ActiveValue, Database, DatabaseTransaction, QueryOrder, Statement, TransactionTrait};
 use tauri::{async_runtime::block_on, State, AppHandle, Manager, api::dialog::MessageDialogBuilder};
 use open_tab_entities::prelude::*;
 use itertools::Itertools;
@@ -160,12 +160,21 @@ async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache
 
     changes.save_all_and_log(&transaction).await?;
 
-        transaction.commit().await?;
-        let transaction = db.begin().await?;
-    
-        let notifications = view_cache.update_and_get_changes(&transaction, &changes).await?;
-        transaction.commit().await?;    
-        Ok(notifications)
+    let tournament = schema::tournament::ActiveModel {
+        uuid: ActiveValue::Unchanged(changes.tournament_id),
+        last_modified: ActiveValue::Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    tournament.update(&transaction).await?;
+    dbg!("Updated tournament");
+
+    transaction.commit().await?;
+    let transaction = db.begin().await?;
+
+    let notifications = view_cache.update_and_get_changes(&transaction, &changes).await?;
+    transaction.commit().await?;    
+    Ok(notifications)
 }
 
 
@@ -233,7 +242,9 @@ impl From<schema::tournament::Model> for TournamentListEntry {
 
 #[tauri::command]
 async fn get_tournament_list(db: State<'_, DatabaseConnection>) -> Result<Vec<TournamentListEntry>, ()> {
-    let tournaments = schema::tournament::Entity::find().all(db.inner()).await.map_err(|_| ())?;
+    let tournaments = schema::tournament::Entity::find()
+    .order_by_desc(schema::tournament::Column::LastModified)
+    .all(db.inner()).await.map_err(|_| ())?;
 
     Ok(tournaments.into_iter().map(TournamentListEntry::from).collect())
 }
@@ -1239,7 +1250,22 @@ async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_,
 
 #[tauri::command]
 async fn create_tournament(app: AppHandle, db: State<'_, DatabaseConnection>, config: tournament_creation::TournamentCreationConfig) -> Result<open_tab_entities::domain::tournament::Tournament, ()> {
-    let mut tournament = open_tab_entities::domain::tournament::Tournament::new();
+    // We need to initialize the tournament first, since the last_modified row is not part of the entity.
+    // We then insert the tournament into the changeset, so that it gets properly synced.
+    // TODO: There might be a more elegant way to do this.
+    let tournament_id = Uuid::new_v4();
+    let tournament = schema::tournament::ActiveModel {
+        uuid: ActiveValue::Set(tournament_id),
+        name: ActiveValue::Set(config.name.clone()),
+        last_modified: ActiveValue::Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    tournament.insert(&*db).await.map_err(handle_error)?;
+    let mut tournament = open_tab_entities::domain::tournament::Tournament {
+        uuid: tournament_id,
+        name: config.name.clone(),
+        ..Default::default()
+    };
     let (all_nodes, all_edges) = config.get_tournament_graph(tournament.uuid);
     tournament.name = config.name;
     let mut changes = EntityGroup::new(tournament.uuid);

@@ -23,6 +23,7 @@ use axum::http::request::Parts;
 // for `call`
 
 use crate::response::{TypedAPIError, handle_typed_error};
+use crate::tournament;
 use crate::{
     response::{handle_error, handle_error_dyn, APIError},
     state::AppState,
@@ -493,10 +494,10 @@ pub async fn register_user_handler(
 
     let db = db.begin().await.map_err(handle_error)?;
 
-    match participant.registration_key {
+    match &participant.registration_key {
         None => Err((StatusCode::BAD_REQUEST, "Participant can not be claimed").into()),
         Some(registration_key) => {
-            if registration_key == submitted_key {
+            if *registration_key == submitted_key {
                 let existing_user = open_tab_entities::schema::user_participant::Entity::find()
                     .find_also_related(open_tab_entities::schema::user::Entity)
                     .filter(
@@ -518,33 +519,11 @@ pub async fn register_user_handler(
                     else {
                         if link_current_user {
                             schema::user::Entity::delete_by_id(existing_user.user_id)
-                                .exec(&db)
-                                .await
-                                .map_err(handle_error)?;
-                            if let Some(user) = user {
-                                let user_participant = open_tab_entities::schema::user_participant::Model {
-                                    user_id: user.uuid,
-                                    participant_id,
-                                    claim_time: chrono::Utc::now().naive_utc(),
-                                };
-                                user_participant
-                                    .into_active_model()
-                                    .insert(&db)
-                                    .await
-                                    .map_err(handle_error)?;                        
+                            .exec(&db)
+                            .await
+                            .map_err(handle_error)?;
 
-                                db.commit().await.map_err(handle_error)?;
-    
-                                return Ok(RegisterUserResponse {
-                                    user_id: user.uuid,
-                                    participant_id,
-                                    tournament_id: participant.tournament_id,
-                                    token: None,
-                                }.into())
-                            }
-                            else {
-                                return Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
-                            }
+                            return handle_register_existing_user(db, user, participant_id, participant).await;
                         }
                         let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
                         let token =
@@ -565,30 +544,7 @@ pub async fn register_user_handler(
                     }
                 } else {
                     if link_current_user {
-                        if let Some(user) = user {
-                            let user_participant = open_tab_entities::schema::user_participant::Model {
-                                user_id: user.uuid,
-                                participant_id,
-                                claim_time: chrono::Utc::now().naive_utc(),
-                            };
-                            user_participant
-                                .into_active_model()
-                                .insert(&db)
-                                .await
-                                .map_err(handle_error)?;
-
-                            db.commit().await.map_err(handle_error)?;
-
-                            Ok(RegisterUserResponse {
-                                user_id: user.uuid,
-                                participant_id,
-                                tournament_id: participant.tournament_id,
-                                token: None,
-                            }.into())
-                        }
-                        else {
-                            Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
-                        }
+                        return handle_register_existing_user(db, user, participant_id, participant).await;
                     }
                     else {
                         let (new_user_id, key) = make_new_anonymous_user(&db, participant_id).await?;
@@ -608,6 +564,57 @@ pub async fn register_user_handler(
                 Err((StatusCode::BAD_REQUEST, "Incorrect key or participant id").into())
             }
         }
+    }
+}
+
+async fn handle_register_existing_user(db: sea_orm::DatabaseTransaction, user: Option<AuthenticatedUser>, participant_id: Uuid, participant: schema::participant::Model) -> Result<Json<RegisterUserResponse>, APIError> {
+    if let Some(user) = user {
+        let previously_linked_participants = open_tab_entities::schema::user_participant::Entity::find()
+            .inner_join(open_tab_entities::schema::participant::Entity)
+            .filter(
+                open_tab_entities::schema::user_participant::Column::UserId
+                    .eq(user.uuid)
+                    .and(
+                        open_tab_entities::schema::participant::Column::TournamentId
+                            .eq(participant.tournament_id),
+                    ),
+            )
+            .all(&db)
+            .await
+            .map_err(handle_error)?;
+
+        open_tab_entities::schema::user_participant::Entity::delete_many()
+        .filter(
+            open_tab_entities::schema::user_participant::Column::UserId
+                .eq(user.uuid)
+                .and(
+                    open_tab_entities::schema::user_participant::Column::ParticipantId
+                        .is_in(previously_linked_participants.iter().map(|up| up.participant_id).collect::<Vec<_>>()),
+                ),
+        ).exec(&db).await.map_err(handle_error)?;
+        
+        let user_participant = open_tab_entities::schema::user_participant::Model {
+            user_id: user.uuid,
+            participant_id,
+            claim_time: chrono::Utc::now().naive_utc(),
+        };
+        user_participant
+            .into_active_model()
+            .insert(&db)
+            .await
+            .map_err(handle_error)?;                        
+
+        db.commit().await.map_err(handle_error)?;
+    
+        return Ok(RegisterUserResponse {
+            user_id: user.uuid,
+            participant_id,
+            tournament_id: participant.tournament_id,
+            token: None,
+        }.into())
+    }
+    else {
+        return Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
     }
 }
 
@@ -647,7 +654,10 @@ async fn make_new_anonymous_user(db: &sea_orm::DatabaseTransaction, participant_
 pub struct RegistrationKeyInfo {
     participant_name: String,
     tournament_name: String,
+    tournament_id: Uuid,
+    participant_id: Uuid,
     user_can_claim_participant: bool,
+    is_accessible_by_current_user: bool,
 }
 
 pub async fn get_registration_info(
@@ -675,14 +685,23 @@ pub async fn get_registration_info(
             .into());
     }
 
+    let tournament = tournament.unwrap();
+
     Ok(Json(RegistrationKeyInfo {
         participant_name: participant.name,
-        tournament_name: tournament.unwrap().name,
-        user_can_claim_participant: if let Some(user) = user {
+        tournament_name: tournament.name,
+        user_can_claim_participant: if let Some(user) = user.as_ref() {
             !user.check_is_anonymous(&db).await?
         } else {
             false
         },
+        is_accessible_by_current_user: if let Some(user) = user {
+            user.check_is_authorized_as_participant(&db, participant_id).await?
+        } else {
+            false
+        },
+        tournament_id: tournament.uuid,
+        participant_id,
     }))
 }
 
