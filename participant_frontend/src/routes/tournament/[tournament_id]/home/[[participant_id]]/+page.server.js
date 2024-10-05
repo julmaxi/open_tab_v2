@@ -1,17 +1,32 @@
 import { env } from '$env/dynamic/public'
-import { getParticipantIdInTournamentServerOnly, getParticipantIdInTournament, makeAuthenticatedRequestServerOnly } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ params, fetch, cookies }) {    
     if (params.participant_id === undefined) {
-        throw redirect(302, `/tournament/${params.tournament_id}/home/${getParticipantIdInTournamentServerOnly(cookies, params.tournament_id) }`);
+        let userInfo = await makeAuthenticatedRequestServerOnly(
+            `api/user/tournament/${params.tournament_id}`,
+            cookies,
+            {}
+        );
+        let participantId = (await userInfo.json()).participant_id;            
+        throw redirect(302, `/tournament/${params.tournament_id}/home/${participantId}`);
     }  
-    let res = await makeAuthenticatedRequestServerOnly(
-        `api/participant/${params.participant_id}`,
-        cookies,
-        {}
-    );
+    let res = null;
+    try {
+        res = await makeAuthenticatedRequestServerOnly(
+            `api/participant/${params.participant_id}`,
+            cookies,
+            {}
+        );    
+    }
+    catch (e) {
+        if (e.status === 401) {
+            throw redirect(302, `/tournament/${params.tournament_id}/public`);
+        }
+        throw e;
+    }
 
     const participant_info = await res.json();
 

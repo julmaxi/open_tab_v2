@@ -30,6 +30,10 @@
         margin: 0.5rem;
     }
 
+    button.secondary {
+        background-color: rgb(211, 35, 35);
+    }
+
     .warning {
         color: red;
         font-weight: bold;
@@ -50,20 +54,47 @@
     <h1>{data.participant_name}</h1>
     <h2>{data.tournament_name}</h2>
 
-    <p>
-        You are about to log in to your personal page for {data.tournament_name}. This will allow you
-    to access your scores and submit ballots. If you ever get logged out, return to this page.
-    </p>
+    {#if data.canClaimAsUser}
+        <p>
+            Do you want to claim this page for your account?
+            You will then be able to access this page while logged in and the tournament will
+            appear in your personal statistics.
+            Alternatively, you can also access this tournament anonymously. This will log you out
+            of your account.
+        </p>
 
-    <p>
-        If you are not {data.participant_name}, please let your tabmaster know.
-    </p>
-    <form method="POST">
-        <input name="key" type="hidden" value="{data.key}" />
-        <button>Login</button>
-    </form>
+        <p>
+            If you are not {data.participant_name}, please let your tabmaster know.
+        </p>
+        <form method="POST" action="?/registerAsUser">
+            <input name="key" type="hidden" value="{data.key}" />
+            <button>Claim</button>
+        </form>
 
-    <p class="warning">
-        Anyone with this url can log in to your account! Be sure to keep it secret.
-    </p>
+        <form method="POST" action="?/register">
+            <input name="key" type="hidden" value="{data.key}" />
+            <button class="secondary">Claim anonymously</button>
+        </form>
+
+        <p class="warning">
+            If you claim this page anonymously, anyone with this url can log in to your account! Be sure to keep it secret.
+        </p>
+    {:else}
+        <p>
+            You are about to log in to your personal page for {data.tournament_name}. This will allow you
+        to access your scores and submit ballots. If you ever get logged out, return to this page.
+        </p>
+
+        <p>
+            If you are not {data.participant_name}, please let your tabmaster know.
+        </p>
+        <form method="POST" action="?/register">
+            <input name="key" type="hidden" value="{data.key}" />
+            <button>Login</button>
+        </form>
+
+        <p class="warning">
+            Anyone with this url can log in to your account! Be sure to keep it secret.
+        </p>
+    {/if}
 </div>

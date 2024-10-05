@@ -17,6 +17,7 @@ mod m20240224_191827_add_speech_pause;
 mod m20240611_200708_add_publication_settings;
 mod m20240623_190954_add_participant_user_id;
 mod m20240714_094639_add_entity_table;
+mod m20241005_142323_add_user_claim_date;
 
 pub struct Migrator;
 
@@ -38,8 +39,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20240128_123739_update_speech_fk::Migration),
             Box::new(m20240224_191827_add_speech_pause::Migration),
             Box::new(m20240611_200708_add_publication_settings::Migration),
-            Box::new(m20240714_094639_add_entity_table::Migration),
             Box::new(m20240623_190954_add_participant_user_id::Migration),
+            Box::new(m20240714_094639_add_entity_table::Migration),
+            Box::new(m20241005_142323_add_user_claim_date::Migration),
         ]
     }
 }

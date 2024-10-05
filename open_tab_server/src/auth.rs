@@ -256,6 +256,20 @@ impl AuthenticatedUser {
             .await?
             .is_some())
     }
+
+    pub async fn check_is_anonymous<C>(
+        &self,
+        db: &C,
+    ) -> Result<bool, anyhow::Error>
+    where
+        C: sea_orm::ConnectionTrait,
+    {
+        let user = open_tab_entities::schema::user::Entity::find_by_id(self.uuid)
+            .one(db)
+            .await?;
+
+        Ok(user.unwrap().user_email.is_none())
+    }
 }
 
 pub struct ExtractAuthenticatedUser(pub AuthenticatedUser);
@@ -322,7 +336,7 @@ pub struct RegisterUserResponse {
     pub user_id: Uuid,
     pub participant_id: Uuid,
     pub tournament_id: Uuid,
-    pub token: String,
+    pub token: Option<String>,
 }
 
 pub fn hash_password(pwd: String) -> Result<String, anyhow::Error> {
@@ -457,11 +471,14 @@ pub async fn create_token_handler(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterParticipantRequest {
     pub secret: String,
+    #[serde(default)]
+    pub link_current_user: bool,
 }
 
 pub async fn register_user_handler(
     State(db): State<DatabaseConnection>,
-    Json(RegisterParticipantRequest { secret }): Json<RegisterParticipantRequest>,
+    MaybeExtractAuthenticatedUser(user): MaybeExtractAuthenticatedUser,
+    Json(RegisterParticipantRequest { secret, link_current_user }): Json<RegisterParticipantRequest>,
 ) -> Result<Json<RegisterUserResponse>, APIError> {
     let (participant_id, submitted_key) = Participant::decode_registration_key(secret)?;
 
@@ -481,6 +498,7 @@ pub async fn register_user_handler(
         Some(registration_key) => {
             if registration_key == submitted_key {
                 let existing_user = open_tab_entities::schema::user_participant::Entity::find()
+                    .find_also_related(open_tab_entities::schema::user::Entity)
                     .filter(
                         open_tab_entities::schema::user_participant::Column::ParticipantId
                             .eq(participant_id),
@@ -489,62 +507,101 @@ pub async fn register_user_handler(
                     .await
                     .map_err(handle_error)?;
 
-                if let Some(existing_user) = existing_user {
-                    let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
-                    let token =
-                        create_key(&key, existing_user.user_id, None, None, false).map_err(handle_error_dyn)?;
-                    token
-                        .into_active_model()
-                        .insert(&db)
-                        .await
-                        .map_err(handle_error)?;
-                    db.commit().await.map_err(handle_error)?;
-                    Ok(RegisterUserResponse {
-                        user_id: existing_user.user_id,
-                        participant_id: participant_id,
-                        tournament_id: participant.tournament_id,
-                        token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
+                if let Some((existing_user, Some(existing_user_model))) = existing_user {
+                    if existing_user_model.user_email.is_some() {
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            "Participant already claimed by user",
+                        )
+                            .into());
                     }
-                    .into())
+                    else {
+                        if link_current_user {
+                            schema::user::Entity::delete_by_id(existing_user.user_id)
+                                .exec(&db)
+                                .await
+                                .map_err(handle_error)?;
+                            if let Some(user) = user {
+                                let user_participant = open_tab_entities::schema::user_participant::Model {
+                                    user_id: user.uuid,
+                                    participant_id,
+                                    claim_time: chrono::Utc::now().naive_utc(),
+                                };
+                                user_participant
+                                    .into_active_model()
+                                    .insert(&db)
+                                    .await
+                                    .map_err(handle_error)?;                        
+
+                                db.commit().await.map_err(handle_error)?;
+    
+                                return Ok(RegisterUserResponse {
+                                    user_id: user.uuid,
+                                    participant_id,
+                                    tournament_id: participant.tournament_id,
+                                    token: None,
+                                }.into())
+                            }
+                            else {
+                                return Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
+                            }
+                        }
+                        let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
+                        let token =
+                            create_key(&key, existing_user.user_id, None, None, false).map_err(handle_error_dyn)?;
+                        token
+                            .into_active_model()
+                            .insert(&db)
+                            .await
+                            .map_err(handle_error)?;
+                        db.commit().await.map_err(handle_error)?;
+                        Ok(RegisterUserResponse {
+                            user_id: existing_user.user_id,
+                            participant_id: participant_id,
+                            tournament_id: participant.tournament_id,
+                            token: Some(base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)),
+                        }
+                        .into())    
+                    }
                 } else {
-                    let new_user_id = Uuid::new_v4();
-                    let new_user = open_tab_entities::schema::user::Model {
-                        uuid: new_user_id,
-                        password_hash: "".to_string(),
-                        user_email: None,
-                    };
+                    if link_current_user {
+                        if let Some(user) = user {
+                            let user_participant = open_tab_entities::schema::user_participant::Model {
+                                user_id: user.uuid,
+                                participant_id,
+                                claim_time: chrono::Utc::now().naive_utc(),
+                            };
+                            user_participant
+                                .into_active_model()
+                                .insert(&db)
+                                .await
+                                .map_err(handle_error)?;
 
-                    new_user
-                        .into_active_model()
-                        .insert(&db)
-                        .await
-                        .map_err(handle_error)?;
-                    let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
-                    let user_key = create_key(&key, new_user_id, None, None, false).map_err(handle_error_dyn)?;
-                    user_key
-                        .into_active_model()
-                        .insert(&db)
-                        .await
-                        .map_err(handle_error)?;
+                            db.commit().await.map_err(handle_error)?;
 
-                    let user_participant = open_tab_entities::schema::user_participant::Model {
-                        user_id: new_user_id,
-                        participant_id,
-                    };
-                    user_participant
-                        .into_active_model()
-                        .insert(&db)
-                        .await
-                        .map_err(handle_error)?;
-
-                    db.commit().await.map_err(handle_error)?;
-                    Ok(RegisterUserResponse {
-                        user_id: new_user_id,
-                        participant_id,
-                        tournament_id: participant.tournament_id,
-                        token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
+                            Ok(RegisterUserResponse {
+                                user_id: user.uuid,
+                                participant_id,
+                                tournament_id: participant.tournament_id,
+                                token: None,
+                            }.into())
+                        }
+                        else {
+                            Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
+                        }
                     }
-                    .into())
+                    else {
+                        let (new_user_id, key) = make_new_anonymous_user(&db, participant_id).await?;
+
+                        db.commit().await.map_err(handle_error)?;
+                        Ok(RegisterUserResponse {
+                            user_id: new_user_id,
+                            participant_id,
+                            tournament_id: participant.tournament_id,
+                            token: Some(base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)),
+                        }
+                        .into())    
+                    }
                 }
             } else {
                 db.rollback().await.map_err(handle_error)?;
@@ -554,15 +611,49 @@ pub async fn register_user_handler(
     }
 }
 
+async fn make_new_anonymous_user(db: &sea_orm::DatabaseTransaction, participant_id: Uuid) -> Result<(Uuid, [u8; 32]), TypedAPIError<String>> {
+    let new_user_id = Uuid::new_v4();
+    let new_user = open_tab_entities::schema::user::Model {
+        uuid: new_user_id,
+        password_hash: "".to_string(),
+        user_email: None,
+    };
+    new_user
+        .into_active_model()
+        .insert(db)
+        .await
+        .map_err(handle_error)?;
+    let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
+    let user_key = create_key(&key, new_user_id, None, None, false).map_err(handle_error_dyn)?;
+    user_key
+        .into_active_model()
+        .insert(db)
+        .await
+        .map_err(handle_error)?;
+    let user_participant = open_tab_entities::schema::user_participant::Model {
+        user_id: new_user_id,
+        participant_id,
+        claim_time: chrono::Utc::now().naive_utc(),
+    };
+    user_participant
+        .into_active_model()
+        .insert(db)
+        .await
+        .map_err(handle_error)?;
+    Ok((new_user_id, key))
+}
+
 #[derive(Debug, Serialize)]
 pub struct RegistrationKeyInfo {
     participant_name: String,
     tournament_name: String,
+    user_can_claim_participant: bool,
 }
 
 pub async fn get_registration_info(
     State(db): State<DatabaseConnection>,
     Path(secret): Path<String>,
+    MaybeExtractAuthenticatedUser(user): MaybeExtractAuthenticatedUser,
 ) -> Result<Json<RegistrationKeyInfo>, APIError> {
     let (participant_id, _) = Participant::decode_registration_key(secret)?;
 
@@ -587,6 +678,11 @@ pub async fn get_registration_info(
     Ok(Json(RegistrationKeyInfo {
         participant_name: participant.name,
         tournament_name: tournament.unwrap().name,
+        user_can_claim_participant: if let Some(user) = user {
+            !user.check_is_anonymous(&db).await?
+        } else {
+            false
+        },
     }))
 }
 

@@ -1,4 +1,4 @@
-import { getParticipantIdInTournamentServerOnly, makeAuthenticatedRequestServerOnly } from "$lib/api";
+import { makeAuthenticatedRequestServerOnly } from "$lib/api";
 
 //Set no ssr
 export const ssr = false;
@@ -13,7 +13,7 @@ export async function load({ params, cookies }) {
 
     return {
         timingInfo,
-        participantId: getParticipantIdInTournamentServerOnly(cookies, params.tournament_id)
+        participantId: params.participant_id
     };
 }
 

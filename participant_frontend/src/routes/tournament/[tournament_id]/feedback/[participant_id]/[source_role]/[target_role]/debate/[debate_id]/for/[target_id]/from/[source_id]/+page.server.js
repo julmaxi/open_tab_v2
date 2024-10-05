@@ -1,4 +1,4 @@
-import { getParticipantCookieNameInTournament, getParticipantIdInTournamentServerOnly, makeAuthenticatedRequestServerOnly } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -49,10 +49,8 @@ export const actions = {
             headers: {"Content-Type": "application/json"},
         });
 
-        let participantId = getParticipantIdInTournamentServerOnly(cookies, params.tournament_id);
-
         if (res.status == 200) {
-            throw redirect(302, `/tournament/${params.tournament_id}/home/${participantId}`);
+            throw redirect(302, `/tournament/${params.tournament_id}/home/`);
         }
     }
 }

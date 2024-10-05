@@ -107,6 +107,9 @@
     </div>
 
     <div class="footer" slot="footer">
+        {#if tournament.user_is_participant}
+            <CardButton href={`/tournament/${tournament.tournament_uuid}`} label="View Your Page" />
+        {/if}
         {#if tournament.show_participants}
             <CardButton href={`/tournament/${tournament.tournament_uuid}/participants`} label="View Participants" />
         {/if}

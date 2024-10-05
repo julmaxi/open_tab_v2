@@ -17,5 +17,13 @@ export async function POST({ params, cookies }) {
     }
     cookies.delete("token");
     cookies.delete("user_id");
+
+    for (let item of cookies.getAll()) {
+        if (item.name.startsWith("participant_id:")) {
+            cookies.delete(item.name);
+        }
+        cookies.delete(item.name);
+    }
+
     throw redirect(301, "/");
 }

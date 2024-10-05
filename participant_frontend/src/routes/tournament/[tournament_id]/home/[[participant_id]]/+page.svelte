@@ -199,7 +199,7 @@
 
     {#each overdueFeedback as feedback}
         <CardButton href={
-            `/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`
+            `/tournament/${data.tournamentId}/feedback/${data.participantId}/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`
         } label={`${feedback.target_name} (${feedback.target_role.type}) in ${feedback.round_name}`} />
     {/each}
 </div>
@@ -271,7 +271,7 @@
             <CardButton href={`/tournament/${data.tournamentId}/round/${round.uuid}/draw`} label="View Full Draw" />
             {#if round.status === 'InProgress' && round.participant_role.role !== "NotDrawn" }
                 <CardButton
-                href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer`}
+                href={`/tournament/${data.tournamentId}/debate/${round.participant_role.debate.uuid}/timer/${data.participantId}`}
                 label="Go to Timer" />    
             {/if}
             {#if round.participant_role.role === "Adjudicator" || round.participant_role.role === "President" }
@@ -307,7 +307,7 @@
             {/if}
             {#each unsubmittedFeedbackForCurrentRounds[round.uuid] as missingFeedback}
                 <CardButton
-                    href={`/tournament/${data.tournamentId}/feedback/${missingFeedback.source_role.type.toLowerCase()}/${missingFeedback.target_role.type.toLowerCase()}/debate/${missingFeedback.debate_id}/for/${missingFeedback.target_id}/from/${missingFeedback.source_id.uuid}`}
+                    href={`/tournament/${data.tournamentId}/feedback/${data.participantId}/${missingFeedback.source_role.type.toLowerCase()}/${missingFeedback.target_role.type.toLowerCase()}/debate/${missingFeedback.debate_id}/for/${missingFeedback.target_id}/from/${missingFeedback.source_id.uuid}`}
                     label={`Submit feedback for ${missingFeedback.target_name}`} />
             {/each}
         </div>
@@ -332,7 +332,7 @@
                 <td>{feedback.target_name} ({feedback.target_role.type})</td>
                 <td>{feedback.round_name}</td>
                 <td>
-                    <a class="action" href={`/tournament/${data.tournamentId}/feedback/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`}>
+                    <a class="action" href={`/tournament/${data.tournamentId}/feedback/${data.participantId}/${feedback.source_role.type.toLowerCase()}/${feedback.target_role.type.toLowerCase()}/debate/${feedback.debate_id}/for/${feedback.target_id}/from/${feedback.source_id.uuid}`}>
                         Update
                     </a>
                 </td>

@@ -1,5 +1,7 @@
 
 
+use std::collections::HashSet;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::{Json, Router, routing::post, routing::patch, routing::get};
@@ -10,13 +12,14 @@ use base64::Engine;
 use chrono::{NaiveDateTime, Utc};
 use open_tab_entities::domain::round::check_release_date;
 
+use open_tab_entities::schema::{self, user_participant};
 use open_tab_entities::{EntityGroup};
 use rand::{thread_rng, Rng};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
 use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use crate::auth::{create_key, ExtractAuthenticatedUser};
+use crate::auth::{create_key, ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser};
 use crate::response::{APIError, handle_error_dyn, handle_error};
 use crate::state::AppState;
 
@@ -256,6 +259,7 @@ pub struct TournamentInfo {
     image: Option<ImageInfo>,
     show_tab: bool,
     show_participants: bool,
+    user_is_participant: bool,
     
     tournament_uuid: Option<Uuid>,
 }
@@ -287,7 +291,8 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
             image,
             show_tab,
             show_participants,
-            tournament_uuid: model.tournament_id
+            tournament_uuid: model.tournament_id,
+            user_is_participant: false,
         }
     }
 }
@@ -301,11 +306,23 @@ pub struct PublicTournamentsInfo {
 
 pub async fn get_active_tournaments_handler(
     State(db) : State<DatabaseConnection>,
+    MaybeExtractAuthenticatedUser(user) : MaybeExtractAuthenticatedUser,
 ) -> Result<Json<PublicTournamentsInfo>, APIError> {
     let now = Utc::now().naive_utc();
 
     //We check for both start and end date to prevent any tournament from being listed
     //in perpetuity by accident. 
+    let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
+        .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
+            open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
+                open_tab_entities::schema::published_tournament::Column::EndDate.is_null().not()
+            )
+        ))
+        .all(&db)
+        .await
+        .map_err(handle_error)?;
+
+
     let active_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::StartDate.lte(now).and(
             open_tab_entities::schema::published_tournament::Column::EndDate.gt(now).and(
@@ -336,10 +353,46 @@ pub async fn get_active_tournaments_handler(
         .await
         .map_err(handle_error)?;
 
+    let tournament_ids = active_tournaments.iter().filter_map(|t| t.tournament_id).collect::<Vec<_>>();
+
+    let user_tournaments : HashSet<_> = if let Some(user) = user {
+        open_tab_entities::schema::participant::Entity::find()
+            .join(sea_orm::JoinType::InnerJoin, schema::user_participant::Relation::Participant.def().rev())
+
+            .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid))
+            .filter(open_tab_entities::schema::participant::Column::TournamentId.is_in(tournament_ids))
+            .all(&db)
+            .await
+            .map_err(handle_error)?
+            .into_iter().map(
+                |m| m.tournament_id
+            ).collect()
+    } else {
+        HashSet::new()
+    };
+
     Ok(Json(
         PublicTournamentsInfo {
-            active: active_tournaments.into_iter().map(|t| t.into()).collect(),
-            concluded: concluded_tournaments.into_iter().map(|t| t.into()).collect(),
+            active: active_tournaments.into_iter().map(|t| {
+                if let Some(u) = t.tournament_id {
+                    let is_part = user_tournaments.contains(&u);
+                    let mut t : TournamentInfo = t.into();
+                    t.user_is_participant = is_part;
+                    t
+                } else {
+                    t.into()
+                }
+            }).collect(),
+            concluded: concluded_tournaments.into_iter().map(|t| {
+                if let Some(u) = t.tournament_id {
+                    let is_part = user_tournaments.contains(&u);
+                    let mut t : TournamentInfo = t.into();
+                    t.user_is_participant = is_part;
+                    t
+                } else {
+                    t.into()
+                }
+            }).collect(),
             upcoming: upcoming_tournaments.into_iter().map(|t| t.into()).collect(),
         }
     ))
@@ -442,7 +495,6 @@ pub async fn get_public_tournament_info_handler(
         }
     ))
 }
-
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()

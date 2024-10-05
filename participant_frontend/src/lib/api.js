@@ -2,6 +2,13 @@ import { browser } from "$app/environment";
 import { env } from "$env/dynamic/public";
 import { error } from "@sveltejs/kit";
 
+/**
+ * @param {string} url
+ * @param {import("@sveltejs/kit").Cookies} cookies
+ * @param {RequestInit} options
+ * 
+ * @returns {Promise<Response>}
+ */
 export async function makeAuthenticatedRequestServerOnly(
     url,
     cookies,

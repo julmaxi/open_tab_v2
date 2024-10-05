@@ -1,6 +1,6 @@
 import { invalidateAll } from '$app/navigation';
 import { env } from '$env/dynamic/public'
-import { getParticipantIdInTournamentServerOnly, makeAuthenticatedRequestServerOnly } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly, makeRequest } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
 
 
@@ -48,18 +48,36 @@ export async function load({ params, fetch, cookies, url }) {
 }
 
 async function loadTournamentInfo({ params, fetch, cookies, url }) {
-    let participantId = getParticipantIdInTournamentServerOnly(cookies, params.tournament_id);
+    let participantId = null;
+    try {
+        let userInfo = await makeAuthenticatedRequestServerOnly(
+            `api/user/tournament/${params.tournament_id}`,
+            cookies,
+            {}
+        );    
+        participantId = (await userInfo.json()).participant_id;
+    }
+    catch (e) {
+    }
+
     let additionalLinks = [];
 
     let tournamentName = "";
+    let participantInfo = null;
     if (participantId !== null) {
-        let res = await makeAuthenticatedRequestServerOnly(
-            `api/participant/${participantId}/info`,
-            cookies,
-            {}
-        );
-        const participantInfo = await res.json();
+        try {
+            let res = await makeAuthenticatedRequestServerOnly(
+                `api/participant/${participantId}/info`,
+                cookies,
+                {}
+            );
+            participantInfo = await res.json();    
+        }
+        catch (e) {
+        }
+    }
 
+    if (participantInfo !== null) {
         additionalLinks.push(
             {
                 name: "Overview",
@@ -77,7 +95,7 @@ async function loadTournamentInfo({ params, fetch, cookies, url }) {
         additionalLinks.push(
             {
                 name: "Settings",
-                url: `/tournament/${params.tournament_id}/settings`,
+                url: `/tournament/${params.tournament_id}/home/${participantId}/settings`,
             }
         )
 
@@ -98,9 +116,8 @@ async function loadTournamentInfo({ params, fetch, cookies, url }) {
         tournamentName = participantInfo.tournament_name;
     }
     else {
-        let public_info = await makeAuthenticatedRequestServerOnly(
-            `api/tournament/${params.tournament_id}/public`,
-            cookies,
+        let public_info = await fetch(
+            `${env.PUBLIC_API_URL}/api/tournament/${params.tournament_id}/public`,
             {}
         );
         public_info = await public_info.json();
