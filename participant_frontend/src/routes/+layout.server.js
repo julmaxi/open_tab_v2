@@ -49,17 +49,21 @@ export async function load({ params, fetch, cookies, url }) {
 
 async function loadTournamentInfo({ params, fetch, cookies, url }) {
     let participantId = null;
-    try {
-        let userInfo = await makeAuthenticatedRequestServerOnly(
-            `api/user/tournament/${params.tournament_id}`,
-            cookies,
-            {}
-        );    
-        participantId = (await userInfo.json()).participant_id;
+    if (params.participant_id !== undefined) {
+        participantId = params.participant_id;
     }
-    catch (e) {
+    else {
+        try {
+            let userInfo = await makeAuthenticatedRequestServerOnly(
+                `api/user/tournament/${params.tournament_id}`,
+                cookies,
+                {}
+            );    
+            participantId = (await userInfo.json()).participant_id;
+        }
+        catch (e) {
+        }    
     }
-
     let additionalLinks = [];
 
     let tournamentName = "";
