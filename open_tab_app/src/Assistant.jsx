@@ -265,6 +265,11 @@ function LoadParticipantsStep({ }) {
                 You can see if there are any new clashes in the <Link to="/clashes">clashes overview</Link>.
                 The side-bar will also show you if there are any new clashes.
             </p>
+            <p className='text-yellow-500'>
+                    When enabled, participants will be able to see every clash that is declared on their behalf, but not clashes that target them by other participants.
+                    If you are unsure which clashes will be visible, check the <Link to="/participants">participants overview table</Link>.
+                    Participants will be able to see every clash that is shown in their row that is <em>not</em> marked with an arrow (⇐).
+            </p>
             {
                 settings && statusView && <SelfDeclaredClashSettingsEditor statusView={statusView} />
             }
