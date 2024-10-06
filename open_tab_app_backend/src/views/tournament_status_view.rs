@@ -63,6 +63,7 @@ pub struct TournamentStatusView {
     annoucements_password: Option<String>,
     remote_url: Option<String>,
     allow_self_declared_clashes: bool,
+    allow_speaker_self_declared_clashes: bool
 }
 
 impl TournamentStatusView {
@@ -80,6 +81,7 @@ impl TournamentStatusView {
             annoucements_password: tournament.annoucements_password,
             remote_url: remote.map(|r| r.url),
             allow_self_declared_clashes: tournament.allow_self_declared_clashes,
+            allow_speaker_self_declared_clashes: tournament.allow_speaker_self_declared_clashes,
         })
     }
 }

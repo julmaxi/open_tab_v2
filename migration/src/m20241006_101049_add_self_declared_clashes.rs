@@ -17,6 +17,7 @@ enum ParticipantClash {
 enum Tournament {
     Table,
     AllowSelfDeclaredClashes,
+    AllowSpeakerSelfDeclaredClashes
 }
 
 #[async_trait::async_trait]
@@ -58,6 +59,14 @@ impl MigrationTrait for Migration {
         manager
         .alter_table(TableAlterStatement::new().table(Tournament::Table).add_column(
             ColumnDef::new(Tournament::AllowSelfDeclaredClashes)
+                .boolean()
+                .not_null()
+                .default(false),
+        ).to_owned()).await?;
+
+        manager
+        .alter_table(TableAlterStatement::new().table(Tournament::Table).add_column(
+            ColumnDef::new(Tournament::AllowSpeakerSelfDeclaredClashes)
                 .boolean()
                 .not_null()
                 .default(false),

@@ -12,9 +12,9 @@ function ClashList({clashes, canAccept, canReject, onUpdate, emptyText}) {
         { key: "target_participant_name", header: "Towards" },
         { key: "actions", header: "Actions", cellFactory: (val, rowIdx, idx, row) => {
             return <td className="w-52">
-                {(row.is_user_declared && canAccept) ? <Button onClick={() => onUpdate({"clash_id": row["clash_id"], "is_accepted": true})}>Accept</Button> : []}
-                {(row.is_user_declared && canReject) ? <Button onClick={() => onUpdate({"clash_id": row["clash_id"], "is_accepted": false})}>Reject</Button> : []}
-                {!row.is_user_declared ? <Button onClick={() => onUpdate({"clash_id": row["clash_id"], "delete_clash": true})}>Delete</Button> : []}
+                {(row.is_user_declared && canAccept) ? <Button role="approve" className={canReject ? "rounded-none rounded-l" : []} onClick={() => onUpdate({"clash_id": row["clash_id"], "is_accepted": true})}>Accept</Button> : []}
+                {(row.is_user_declared && canReject) ? <Button role="danger" className={canAccept ? "rounded-none rounded-r" : []} onClick={() => onUpdate({"clash_id": row["clash_id"], "is_accepted": false})}>Reject</Button> : []}
+                {!row.is_user_declared ? <Button role="danger" onClick={() => onUpdate({"clash_id": row["clash_id"], "delete_clash": true})}>Delete</Button> : []}
             </td>;
         }}
     ]} data={clashes} rowId={"uuid"} row_id={"clash_id"} selectedRowId={-1} emptyText={emptyText} />;

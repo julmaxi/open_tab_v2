@@ -748,8 +748,15 @@ async fn get_participant_short_info(
     Ok(Json(ParticipantShortInfoResponse {
         name: participant.name,
         tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
-        role,
-        can_edit_clashes: tournament.allow_self_declared_clashes
+        can_edit_clashes: match &role {
+            ParticipantRoleInfo::Speaker { .. } => {
+                tournament.allow_speaker_self_declared_clashes
+            },
+            _ => {
+                tournament.allow_self_declared_clashes
+            }
+        },
+        role
     }))
 }
 

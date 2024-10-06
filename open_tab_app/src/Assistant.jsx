@@ -17,6 +17,7 @@ import ModalOverlay from './UI/Modal';
 import { ErrorHandlingContext } from './Action';
 import { EditMotionForm } from './RoundPublicationView';
 import SettingsEditorButton from './Routes/TournamentSettings/SettingsEditor';
+import SelfDeclaredClashSettingsEditor from './Routes/TournamentSettings/SelfDeclaredClashSettingsEditor';
 
 
 const StepTypeRenderers = {
@@ -254,6 +255,18 @@ function LoadParticipantsStep({ }) {
                     <SettingsEditorButton />
                 </>
             
+            }
+        </div>
+
+        <div>
+            <p>
+                If you want, you can allow participants to self-declare clashes.
+                You will still be able to manually approve clashes before they have an effect.
+                You can see if there are any new clashes in the <Link to="/clashes">clashes overview</Link>.
+                The side-bar will also show you if there are any new clashes.
+            </p>
+            {
+                settings && statusView && <SelfDeclaredClashSettingsEditor statusView={statusView} />
             }
         </div>
 

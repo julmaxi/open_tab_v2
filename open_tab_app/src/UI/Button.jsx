@@ -13,6 +13,9 @@ const Button = React.forwardRef((props, ref) => {
     else if (props.role == "danger") {
         bgColor = "bg-red-500";
     }
+    else if (props.role == "approve") {
+        bgColor = "bg-green-500";
+    }
 
     if (props.disabled) {
         bgColor = "bg-gray-300";

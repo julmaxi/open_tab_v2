@@ -14,6 +14,7 @@ pub struct Tournament {
     pub name: String,
     pub feedback_release_time: Option<DateTime>,
     pub allow_self_declared_clashes: bool,
+    pub allow_speaker_self_declared_clashes: bool,
 }
 
 
@@ -25,6 +26,7 @@ impl Tournament {
             name: "New Tournament".into(),
             feedback_release_time: None,
             allow_self_declared_clashes: false,
+            allow_speaker_self_declared_clashes: false,
         }
     }
 }

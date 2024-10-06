@@ -6,15 +6,16 @@
     $: clashIds = new Set(data.declared_clashes.map(clash => clash.participant_id));
     $: tabMasterDeclaredClashIds = data.declared_clashes ? new Set(data.declared_clashes.filter(clash => !clash.is_self_declared).map(clash => clash.participant_id)) : new Set();
 
-    $: console.log(clashIds);
     $: targets = data.targets ? data.targets : [];
     $: targets.sort((a, b) => {
-        let cmp =  a.participant_role.localeCompare(b.participant_role);
+        let cmp =  -a.participant_role.localeCompare(b.participant_role);
         if (cmp == 0) {
             cmp = a.participant_name.localeCompare(b.participant_name);
         }
         return cmp;
     });
+
+    let filter = "";
 </script>
 
 <style>
@@ -79,6 +80,14 @@
         cursor: pointer;
         margin-bottom: 1rem;
     }
+
+    input[type="text"] {
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #aaa;
+        background-color: white;
+        margin-bottom: 1rem;
+    }
 </style>
 
 <div class="wrapper">
@@ -87,10 +96,11 @@
         This page only shows clashes you have declared, or that the tabmaster entered on your behalf. You can not see clashes other people have declared towards you.
     </p>
 
-
     {#if data.isEditing}
     <form method="POST" action="?/updateClashes">
         <button type="submit" class="button">Save</button>
+        <input type="text" placeholder="Filter" bind:value={filter} />
+
         <table>
             <thead>
                 <tr>
@@ -100,7 +110,9 @@
             </thead>
             <tbody>
                 {#each targets as clash}
-                    <tr>
+                    <tr class={
+                        !(filter == "" || clash.participant_name.toLowerCase().includes(filter.toLowerCase())) ? "hidden" : ""
+                    }>
                         <td>
                             {clash.participant_name}
                             <p class="note">{clash.participant_role == "adjudicator" ? "Adjudicator" : "Speaker"}</p>

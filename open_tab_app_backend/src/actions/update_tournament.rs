@@ -11,6 +11,7 @@ use serde::{Serialize, Deserialize};
 pub struct UpdateTournamentAction {
     tournament_id: Uuid,
     allow_self_declared_clashes: bool,
+    allow_speaker_self_declared_clashes: bool,
 }
 
 #[async_trait]
@@ -27,6 +28,7 @@ impl ActionTrait for UpdateTournamentAction {
                 Tournament {
                     uuid: self.tournament_id,
                     allow_self_declared_clashes: self.allow_self_declared_clashes,
+                    allow_speaker_self_declared_clashes: self.allow_speaker_self_declared_clashes,
                     ..tournament
                 }
             )
