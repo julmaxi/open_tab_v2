@@ -124,12 +124,6 @@
         background-color: #eee;
     }
 
-    .wrapper {
-        width: 100%;
-        overflow: auto;
-        padding: 1rem;
-    }
-
     h1 {
         font-size: 1.25rem;
     }

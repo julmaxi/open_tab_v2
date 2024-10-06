@@ -10,6 +10,9 @@ pub struct Model {
     pub declaring_participant_id: Uuid,
     pub target_participant_id: Uuid,
     pub clash_severity: i16,
+    pub is_user_declared: bool,
+    pub is_approved: bool,
+    pub was_seen: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

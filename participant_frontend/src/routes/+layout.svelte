@@ -25,6 +25,8 @@
       background-color: rgb(251, 250, 254);
       min-width: 100vw;
       min-height: calc(100vh - 3rem);
+
+      padding: 1rem;
     }
   
     a {

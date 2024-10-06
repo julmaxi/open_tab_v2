@@ -100,6 +100,9 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(400),
         clash_severity: 20,
+        is_approved: true,
+        is_user_declared: false,
+        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -108,6 +111,9 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(401),
         clash_severity: 20,
+        is_approved: true,
+        is_user_declared: false,
+        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -128,6 +134,9 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(401),
         clash_severity: 20,
+        is_approved: true,
+        is_user_declared: false,
+        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -137,6 +146,9 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(400),
         clash_severity: 20,
+        is_approved: true,
+        is_user_declared: false,
+        was_seen: true,
     };
     clash.save(&db, true).await?;
 

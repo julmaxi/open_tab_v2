@@ -118,7 +118,10 @@ impl ActionTrait for UpdateParticipantsAction {
                             uuid: uuid,
                             declaring_participant_id: participant.uuid,
                             target_participant_id: target_uuid,
-                            clash_severity: clash_severity as u16
+                            clash_severity: clash_severity as u16,
+                            is_user_declared: false,
+                            is_approved: true,
+                            was_seen: true,
                         }
                     ));
                 }

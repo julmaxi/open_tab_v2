@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::{collections::{HashMap, HashSet}, vec};
 
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
@@ -925,6 +925,134 @@ pub async fn list_participants(
     }))
 }
 
+#[derive(Serialize)]
+pub struct ParticipantDeclaredClashList {
+    pub declared_clashes: Vec<DeclaredClash>
+}
+
+#[derive(Serialize)]
+pub struct DeclaredClash {
+    pub uuid: Uuid,
+    pub participant_id: Uuid,
+    pub participant_name: String,
+    pub is_self_declared: bool
+}
+
+pub async fn get_participant_declared_clashes(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Path(participant_id): Path<Uuid>,
+) -> Result<Json<ParticipantDeclaredClashList>, APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
+
+    let clashes = open_tab_entities::schema::participant_clash::Entity::find()
+    .filter(
+        open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant_id)
+    ).all(&db).await.map_err(handle_error)?;
+
+    let clash_target_ids = clashes.iter().map(|clash| clash.target_participant_id).collect::<Vec<_>>();
+
+    let target_participants_by_id = open_tab_entities::schema::participant::Entity::find()
+    .filter(
+        open_tab_entities::schema::participant::Column::Uuid.is_in(clash_target_ids)
+    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+        |p| {
+            (p.uuid, p.name)
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let declared_clashes = clashes.into_iter().map(
+        |clash| {
+            DeclaredClash {
+                uuid: clash.uuid,
+                participant_id: clash.target_participant_id,
+                participant_name: target_participants_by_id.get(&clash.target_participant_id).expect("Missing name").clone(),
+                is_self_declared: clash.is_user_declared
+            }
+        }
+    ).collect::<Vec<_>>();
+
+    Ok(Json(ParticipantDeclaredClashList {
+        declared_clashes
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateParticipantClashesRequest {
+    #[serde(default)]
+    pub added_clashes: Vec<Uuid>,
+    #[serde(default)]
+    pub removed_clashes: Vec<Uuid>
+}
+
+pub async fn update_participant_clashes(
+    State(db): State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
+    Path(participant_id): Path<Uuid>,
+    Json(request): Json<UpdateParticipantClashesRequest>
+) -> Result<(), APIError> {
+    if !user.check_is_authorized_as_participant(&db, participant_id).await? {
+        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        return Err(err);
+    }
+
+    let db = db.begin().await.map_err(handle_error)?;
+
+    let participant = domain::participant::Participant::try_get(&db, participant_id).await?;
+    dbg!(&participant);
+    if let Some(participant) = participant {
+        let mut entity_group = EntityGroup::new(
+            participant.tournament_id
+        );
+        let existing_participant_clashes = open_tab_entities::schema::participant_clash::Entity::find()
+        .filter(
+            open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant_id)
+        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.target_participant_id, clash)).into_group_map();
+        dbg!(&request.added_clashes);
+
+        for added_clash in request.added_clashes {
+            if !existing_participant_clashes.contains_key(&added_clash) {
+                entity_group.add(
+                    open_tab_entities::Entity::ParticipantClash(open_tab_entities::domain::participant_clash::ParticipantClash {
+                        uuid: Uuid::new_v4(),
+                        declaring_participant_id: participant_id,
+                        target_participant_id: added_clash,
+                        clash_severity: 100,
+                        was_seen: false,
+                        is_approved: false,
+                        is_user_declared: true
+                    })
+                );
+            }
+        }
+
+
+        for removed_clash in request.removed_clashes {
+            if let Some(clashes) = existing_participant_clashes.get(&removed_clash) {
+                for clash in clashes {
+                    if clash.is_user_declared {
+                        entity_group.delete(
+                            open_tab_entities::EntityTypeId::ParticipantClash,
+                            clash.uuid
+                        );    
+                    }
+                }
+            }
+        }
+
+        entity_group.save_all_and_log(&db).await?;
+
+        db.commit().await.map_err(handle_error)?;
+        Ok(())
+    }
+    else {
+        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+    }
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/tournament/:tournament_id/participants", get(list_participants))
@@ -932,4 +1060,6 @@ pub fn router() -> Router<AppState> {
     .route("/participant/:participant_id/info", get(get_participant_short_info))
     .route("/participant/:participant_id/settings", get(get_participant_settings))
     .route("/participant/:participant_id/settings", post(update_participant_settings))
+    .route("/participant/:participant_id/clashes", get(get_participant_declared_clashes))
+    .route("/participant/:participant_id/clashes", post(update_participant_clashes))
 }
