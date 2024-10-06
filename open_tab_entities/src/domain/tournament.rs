@@ -13,6 +13,7 @@ pub struct Tournament {
     pub annoucements_password: Option<String>,
     pub name: String,
     pub feedback_release_time: Option<DateTime>,
+    pub allow_self_declared_clashes: bool,
 }
 
 
@@ -23,6 +24,7 @@ impl Tournament {
             annoucements_password: None,
             name: "New Tournament".into(),
             feedback_release_time: None,
+            allow_self_declared_clashes: false,
         }
     }
 }

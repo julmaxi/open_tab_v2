@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::{DrawPresentationInfo, name_to_initials, RegistrationInfo}, tab::{TabView, BreakRelevantTabView}};
+use open_tab_entities::{derived_models::{name_to_initials, DrawPresentationInfo, RegistrationInfo}, tab::{BreakRelevantTabView, TabView}};
 
 
 use std::io::Write;

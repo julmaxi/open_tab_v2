@@ -63,6 +63,9 @@ impl ClashMap {
         let all_participants_by_id = Participant::get_all_in_tournament(db, tournament_id).await?.into_iter().map(|p| (p.uuid, p)).collect::<HashMap<_, _>>();
 
         for clash in all_clashes.into_iter() {
+            if (clash.is_user_declared && !clash.is_approved) {
+                continue;
+            }
             let declaring_participant = all_participants_by_id.get(&clash.declaring_participant_id);
             let target_participant = all_participants_by_id.get(&clash.target_participant_id);
 

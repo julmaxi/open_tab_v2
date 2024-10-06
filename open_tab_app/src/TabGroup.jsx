@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 
-export function TabGroup({...props}) {
-  let [activeTab, setActiveTab] = useState(0);
+export function TabGroup({initialActiveTab, ...props}) {
+  let [activeTab, setActiveTab] = useState(undefined);
+
+  initialActiveTab = initialActiveTab !== undefined ? initialActiveTab : 0;
 
   let children = React.Children.toArray(props.children);
-  let displayChild = children[activeTab];
+  let reallyActiveTab = activeTab === undefined ? initialActiveTab : activeTab;
+  let displayChild = children[reallyActiveTab];
 
   return <div className="flex flex-col w-full h-full">
     <div className="flex">
-      {children.map((tab, i) => <button key={i} className={"flex-1 text-center p-2 font-semibold text-sm" + (i == activeTab ? " bg-blue-500 text-white" : " bg-gray-100")} onClick={() => setActiveTab(i)}>{tab.props.name}</button>)}
+      {children.map((tab, i) => <button key={i} className={"flex-1 text-center p-2 font-semibold text-sm" + (i == reallyActiveTab ? " bg-blue-500 text-white" : " bg-gray-100")} onClick={() => setActiveTab(i)}>{tab.props.name}</button>)}
     </div>
     {displayChild}
   </div>;

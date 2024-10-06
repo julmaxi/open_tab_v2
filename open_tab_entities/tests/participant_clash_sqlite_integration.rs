@@ -23,6 +23,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
                 name: "Tournament 1".into(),
                 feedback_release_time: None,
                 last_modified: chrono::DateTime::from_timestamp_millis(786910980).map(|t| t.naive_utc()).unwrap(),
+                allow_self_declared_clashes: false,
             }.into();
             tournament.insert(&db).await?;
 

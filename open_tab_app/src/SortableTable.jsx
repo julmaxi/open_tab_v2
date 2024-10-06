@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useMemo } from "react";
 
-export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowId, rowStyler, alternateRowColors: alternateRowColors = true, allowMultiSelect: allowMultiSelect = false, ...props }) {
+export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowId, rowStyler, alternateRowColors: alternateRowColors = true, allowMultiSelect: allowMultiSelect = false, emptyText, ...props }) {
     let [sortOrder, setSortOrder] = useState(null);
 
     let realSelectedRowIds;
@@ -124,6 +124,7 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
                 })}
             </tbody>
         </table>
+        {orderedRows.length == 0 && emptyText ? <p className="text-gray-500">{emptyText}</p> : []}
     </div>;
 }
 

@@ -1,12 +1,20 @@
 
 
 <script>
-    import { enhance } from '$app/forms';
-
     export let data;
 
     $: clashIds = new Set(data.declared_clashes.map(clash => clash.participant_id));
     $: tabMasterDeclaredClashIds = data.declared_clashes ? new Set(data.declared_clashes.filter(clash => !clash.is_self_declared).map(clash => clash.participant_id)) : new Set();
+
+    $: console.log(clashIds);
+    $: targets = data.targets ? data.targets : [];
+    $: targets.sort((a, b) => {
+        let cmp =  a.participant_role.localeCompare(b.participant_role);
+        if (cmp == 0) {
+            cmp = a.participant_name.localeCompare(b.participant_name);
+        }
+        return cmp;
+    });
 </script>
 
 <style>
@@ -39,8 +47,9 @@
     table {
         width: 100%;
     }
-    .delete {
+    .button_cell {
         width: 25px;
+        text-align: center;
     }
 
     h2 {
@@ -86,19 +95,21 @@
             <thead>
                 <tr>
                     <th class="clash_name">Participant</th>
-                    <th class="delete">Clash?</th>
+                    <th class="">Clash?</th>
                 </tr>
             </thead>
             <tbody>
-                {#each data.targets as clash}
+                {#each targets as clash}
                     <tr>
                         <td>
                             {clash.participant_name}
+                            <p class="note">{clash.participant_role == "adjudicator" ? "Adjudicator" : "Speaker"}</p>
+
                             {#if tabMasterDeclaredClashIds.has(clash.uuid)}
                                 <p class="note">Contact the tabmaster if you this clash is wrong.</p>
                             {/if}
                         </td>
-                        <td>
+                        <td class="button_cell">
                             <input type="checkbox" name="clashes[]" value={clash.uuid} checked={clashIds.has(clash.uuid)} disabled={tabMasterDeclaredClashIds.has(clash.uuid)} />
                         </td>
                     </tr>

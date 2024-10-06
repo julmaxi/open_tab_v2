@@ -11,6 +11,7 @@ pub struct Model {
     pub name: String,
     pub feedback_release_time: Option<DateTime>,
     pub last_modified: DateTime,
+    pub allow_self_declared_clashes: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

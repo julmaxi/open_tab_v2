@@ -96,6 +96,15 @@ async function loadTournamentInfo({ params, fetch, cookies, url }) {
             }
         )
 
+        if (participantInfo.can_edit_clashes) {
+            additionalLinks.push(
+                {
+                    name: "Clashes",
+                    url: `/tournament/${params.tournament_id}/home/${participantId}/clashes`,
+                }
+            )
+        }
+
         additionalLinks.push(
             {
                 name: "Settings",

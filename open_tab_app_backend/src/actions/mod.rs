@@ -22,6 +22,8 @@ mod set_adjudicator_break;
 mod update_teams;
 mod set_break_release;
 mod redraw_round;
+mod update_tournament;
+mod update_clashes_action;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -39,6 +41,8 @@ pub use self::set_adjudicator_break::SetAdjudicatorBreakAction;
 pub use self::update_teams::UpdateTeamsAction;
 pub use self::set_break_release::SetBreakReleaseAction;
 pub use self::redraw_round::RedrawRoundAction;
+pub use self::update_tournament::UpdateTournamentAction;
+pub use self::update_clashes_action::UpdateClashes;
 
 pub(crate) use self::edit_tree::EditTreeActionType;
 
@@ -60,6 +64,8 @@ pub enum Action {
     UpdateTeams { action: UpdateTeamsAction },
     SetBreakRelease { action: SetBreakReleaseAction },
     RedrawRound { action: RedrawRoundAction },
+    UpdateTournament { action: UpdateTournamentAction },
+    UpdateClashes { action: UpdateClashes },
 }
 
 impl Action {
@@ -80,6 +86,8 @@ impl Action {
             Action::UpdateTeams { action } => action.get_changes(db).await,
             Action::SetBreakRelease { action } => action.get_changes(db).await,
             Action::RedrawRound { action } => action.get_changes(db).await,
+            Action::UpdateTournament { action } => action.get_changes(db).await,
+            Action::UpdateClashes { action } => action.get_changes(db).await,
         }
     }
 }

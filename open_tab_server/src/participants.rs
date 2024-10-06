@@ -710,6 +710,7 @@ struct ParticipantShortInfoResponse {
     name: String,
     tournament_name: String,
     role: ParticipantRoleInfo,
+    can_edit_clashes: bool
 }
 
 async fn get_participant_short_info(
@@ -747,7 +748,8 @@ async fn get_participant_short_info(
     Ok(Json(ParticipantShortInfoResponse {
         name: participant.name,
         tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
-        role
+        role,
+        can_edit_clashes: tournament.allow_self_declared_clashes
     }))
 }
 
@@ -927,7 +929,7 @@ pub async fn list_participants(
 
 #[derive(Serialize)]
 pub struct ParticipantDeclaredClashList {
-    pub declared_clashes: Vec<DeclaredClash>
+    pub declared_clashes: Vec<DeclaredClash>,
 }
 
 #[derive(Serialize)]
@@ -946,6 +948,19 @@ pub async fn get_participant_declared_clashes(
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
         let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
         return Err(err);
+    }
+
+    let participant = schema::participant::Entity::find_by_id(participant_id)
+    .find_also_related(schema::tournament::Entity)
+    .one(&db).await.map_err(handle_error)?;
+
+    if let Some((participant, Some(tournament))) = participant {
+        if !tournament.allow_self_declared_clashes {
+            return Err(APIError::from((StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament")));
+        }
+    }
+    else {
+        return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
     }
 
     let clashes = open_tab_entities::schema::participant_clash::Entity::find()
@@ -1001,9 +1016,15 @@ pub async fn update_participant_clashes(
 
     let db = db.begin().await.map_err(handle_error)?;
 
-    let participant = domain::participant::Participant::try_get(&db, participant_id).await?;
-    dbg!(&participant);
-    if let Some(participant) = participant {
+    let participant = schema::participant::Entity::find_by_id(participant_id)
+        .find_also_related(schema::tournament::Entity)
+        .one(&db).await.map_err(handle_error)?;
+    
+    if let Some((participant, Some(tournament))) = participant {
+        if !tournament.allow_self_declared_clashes {
+            db.rollback().await.map_err(handle_error)?;
+            return Err(APIError::from((StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament")));
+        }
         let mut entity_group = EntityGroup::new(
             participant.tournament_id
         );

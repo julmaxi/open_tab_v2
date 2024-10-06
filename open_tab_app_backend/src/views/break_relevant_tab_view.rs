@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-use open_tab_entities::{EntityGroup, EntityTypeId};
+use itertools::Itertools;
+use open_tab_entities::{domain::participant_clash::ParticipantClash, prelude::Participant, EntityGroup, EntityTypeId};
 use sea_orm::prelude::Uuid;
+use serde::{Deserialize, Serialize};
 
 
 use crate::LoadedView;

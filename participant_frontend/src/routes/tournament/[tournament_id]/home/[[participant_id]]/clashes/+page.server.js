@@ -23,12 +23,22 @@ export async function load({ params, fetch, cookies, url }) {
             cookies,
             {}
         );
-        let { adjudicators } = await req.json();
-        data.targets = adjudicators.map(adjudicator => ({
+        let { adjudicators, teams } = await req.json();
+        let targets = adjudicators.map(adjudicator => ({
             uuid: adjudicator.uuid,
             participant_name: adjudicator.display_name,
-            participant_role: adjudicator.role,
+            participant_role: "adjudicator",
         }));
+        for (let team of teams) {
+            for (let member of team.members) {
+                targets.push({
+                    uuid: member.uuid,
+                    participant_name: member.display_name,
+                    participant_role: "speaker",
+                });
+            }
+        }
+        data.targets = targets;
         data.isEditing = true;
     }
     return data;

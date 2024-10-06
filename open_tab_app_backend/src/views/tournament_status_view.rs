@@ -24,7 +24,7 @@ use crate::LoadedView;
 
 pub struct LoadedTournamentStatusView {
     pub view: TournamentStatusView,
-    pub tournament_uuid: Uuid
+    pub tournament_uuid: Uuid,
 }
 
 impl LoadedTournamentStatusView {
@@ -62,6 +62,7 @@ pub struct TournamentStatusView {
     name: String,
     annoucements_password: Option<String>,
     remote_url: Option<String>,
+    allow_self_declared_clashes: bool,
 }
 
 impl TournamentStatusView {
@@ -77,7 +78,8 @@ impl TournamentStatusView {
         Ok(Self {
             name: tournament.name,
             annoucements_password: tournament.annoucements_password,
-            remote_url: remote.map(|r| r.url)
+            remote_url: remote.map(|r| r.url),
+            allow_self_declared_clashes: tournament.allow_self_declared_clashes,
         })
     }
 }

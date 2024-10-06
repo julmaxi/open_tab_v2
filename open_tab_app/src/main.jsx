@@ -18,6 +18,7 @@ import VenueViewRoute from "./Venues";
 import TournamentViewRoute from "./Routes/TournamentSettings/TournamentView";
 import { AssistantRoute } from "./Assistant";
 import { FeedbackProgressRoute } from "./FeedbackProgress";
+import ClashesRoute from "./ClashesView";
 
 const router = createMemoryRouter([
   {
@@ -43,6 +44,10 @@ const router = createMemoryRouter([
       {
         path: "participants",
         element: <ParticipantRoute />
+      },
+      {
+        path: "clashes",
+        element: <ClashesRoute />
       },
       {
         index: true,

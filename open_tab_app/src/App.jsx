@@ -47,6 +47,8 @@ function SideNav(props) {
   let roundsOverview = useView(currentView, {"rounds": []});
   let rounds = roundsOverview.rounds;
 
+  let clashesView = useView({type: "Clashes", tournament_uuid: tournamentContext.uuid}, {pending_clashes: [], approved_clashes: [], rejected_clashes: []});
+
   // Final item is a buffer so we never have the last item blocked by the connectivity status
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
     <NavItem href="/">
@@ -61,9 +63,14 @@ function SideNav(props) {
         </NavGroup>
       )
     }
-    <NavItem href="/participants">
-      Participants
-    </NavItem>
+    <NavGroup header="Participants">
+      <NavItem href="/participants">
+        Participants
+      </NavItem>
+      <NavItem href="/clashes">
+        Clashes {clashesView.pending_clashes.length > 0 ? <span className="bg-red-500 text-white rounded-full px-2">{clashesView.pending_clashes.length}</span> : null}
+      </NavItem>
+    </NavGroup>
     <NavItem href="/rounds">
       Rounds
     </NavItem>
