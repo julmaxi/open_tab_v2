@@ -262,7 +262,7 @@ function LoadParticipantsStep({ }) {
             <p>
                 If you want, you can allow participants to self-declare clashes.
                 You will still be able to manually approve clashes before they have an effect.
-                You can see if there are any new clashes in the <Link to="/clashes">clashes overview</Link>.
+                You can see if there are any new clash declarations in the <Link to="/clashes">declarations overview</Link>.
                 The side-bar will also show you if there are any new clashes.
             </p>
             <p className='text-yellow-500'>
