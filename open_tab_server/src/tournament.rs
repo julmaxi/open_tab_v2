@@ -480,7 +480,7 @@ pub async fn get_public_tournament_info_handler(
         .map_err(handle_error)?;
 
     if !published_tournament.is_some() {
-        let err = APIError::from((StatusCode::NOT_FOUND, "Tournament not found"));
+        let err: crate::response::TypedAPIError<String> = APIError::from((StatusCode::NOT_FOUND, "Tournament not found"));
         return Err(err);
     }
 
@@ -514,6 +514,47 @@ pub async fn get_public_tournament_info_handler(
     ))
 }
 
+#[derive(Serialize)]
+pub struct TournamentInstitutionList {
+    pub institutions: Vec<TournamentInstitutionInfo>,
+}
+
+#[derive(Serialize)]
+pub struct TournamentInstitutionInfo {
+    pub uuid: Uuid,
+    pub name: String,
+}
+
+impl From<open_tab_entities::schema::tournament_institution::Model> for TournamentInstitutionInfo {
+    fn from(model: open_tab_entities::schema::tournament_institution::Model) -> Self {
+        Self {
+            uuid: model.uuid,
+            name: model.name,
+        }
+    }
+}
+
+pub async fn get_tournament_institutions(
+    State(db) : State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user) : ExtractAuthenticatedUser,
+    Path(tournament_id): Path<Uuid>,
+) -> Result<Json<TournamentInstitutionList>, APIError> {
+    if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
+        let err: crate::response::TypedAPIError<String> = APIError::from((StatusCode::NOT_FOUND, "Tournament not found"));
+        return Err(err);
+    }
+    
+    let institutions = open_tab_entities::schema::tournament_institution::Entity::find()
+        .filter(open_tab_entities::schema::tournament_institution::Column::TournamentId.eq(tournament_id))
+        .all(&db).await.map_err(handle_error)?;
+
+    Ok(
+        Json(TournamentInstitutionList {
+            institutions: institutions.into_iter().map(|i| i.into()).collect(),
+        }
+    ))
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/tournaments", post(create_tournament_handler))
@@ -521,4 +562,5 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/tournament/:tournament_id/settings", patch(update_tournament_settings_handler))
         .route("/public_tournaments", get(get_active_tournaments_handler))
         .route("/tournament/:tournament_id/public", get(get_public_tournament_info_handler))
+        .route("/tournament/:tournament_id/institutions", get(get_tournament_institutions))
 }

@@ -1,9 +1,9 @@
-use std::{collections::{HashMap, HashSet}, vec};
+use std::{collections::HashMap, vec};
 
 use axum::{extract::{Path, State}, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, entity::LoadEntity, feedback_form::{FeedbackSourceRole, FeedbackTargetRole}}, schema::{self}, EntityGroup};
+use open_tab_entities::{derived_models::get_tournament_feedback_directions, domain::{self, ballot::SpeechRole, clash_declaration::ClashDeclaration, entity::LoadEntity, feedback_form::{FeedbackSourceRole, FeedbackTargetRole}, institution_declaration::InstitutionDeclaration}, schema::{self}, EntityGroup};
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
@@ -937,6 +937,7 @@ pub async fn list_participants(
 #[derive(Serialize)]
 pub struct ParticipantDeclaredClashList {
     pub declared_clashes: Vec<DeclaredClash>,
+    pub declared_institutions: Vec<DeclaredInstitution>
 }
 
 #[derive(Serialize)]
@@ -944,6 +945,14 @@ pub struct DeclaredClash {
     pub uuid: Uuid,
     pub participant_id: Uuid,
     pub participant_name: String,
+    pub is_self_declared: bool
+}
+
+#[derive(Serialize)]
+pub struct DeclaredInstitution {
+    pub uuid: Uuid,
+    pub institution_id: Uuid,
+    pub institution_name: String,
     pub is_self_declared: bool
 }
 
@@ -970,9 +979,11 @@ pub async fn get_participant_declared_clashes(
         return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
     }
 
-    let clashes = open_tab_entities::schema::participant_clash::Entity::find()
+    let clashes = open_tab_entities::schema::clash_declaration::Entity::find()
     .filter(
-        open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant_id)
+        open_tab_entities::schema::clash_declaration::Column::SourceParticipantId.eq(participant_id).and(
+            open_tab_entities::schema::clash_declaration::Column::IsRetracted.eq(false)
+        )
     ).all(&db).await.map_err(handle_error)?;
 
     let clash_target_ids = clashes.iter().map(|clash| clash.target_participant_id).collect::<Vec<_>>();
@@ -992,13 +1003,43 @@ pub async fn get_participant_declared_clashes(
                 uuid: clash.uuid,
                 participant_id: clash.target_participant_id,
                 participant_name: target_participants_by_id.get(&clash.target_participant_id).expect("Missing name").clone(),
-                is_self_declared: clash.is_user_declared
+                is_self_declared: true
             }
         }
-    ).collect::<Vec<_>>();
+    ).sorted_by(|c1, c2| c1.participant_name.cmp(&c2.participant_name)).collect::<Vec<_>>();
+
+    let institutions = open_tab_entities::schema::institution_declaration::Entity::find()
+    .filter(
+        open_tab_entities::schema::institution_declaration::Column::SourceParticipantId.eq(participant_id)
+        .and(open_tab_entities::schema::institution_declaration::Column::IsRetracted.eq(false))
+    ).all(&db).await.map_err(handle_error)?;
+
+    let institution_target_ids = institutions.iter().map(|institution| institution.tournament_institution_id).collect::<Vec<_>>();
+    let target_institutions_by_id = open_tab_entities::schema::tournament_institution::Entity::find()
+    .filter(
+        open_tab_entities::schema::tournament_institution::Column::Uuid.is_in(institution_target_ids)
+    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+        |i| {
+            (i.uuid, i.name)
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let declared_institutions = institutions.into_iter().map(
+        |institution| {
+            DeclaredInstitution {
+                uuid: institution.uuid,
+                institution_id: institution.tournament_institution_id,
+                institution_name: target_institutions_by_id.get(&institution.tournament_institution_id).expect("<Unknown Institution>").clone(),
+                is_self_declared: true
+            }
+        }
+    )
+    .sorted_by(|i1, i2| i1.institution_name.cmp(&i2.institution_name))
+    .collect::<Vec<_>>();
 
     Ok(Json(ParticipantDeclaredClashList {
-        declared_clashes
+        declared_clashes,
+        declared_institutions
     }))
 }
 
@@ -1007,10 +1048,14 @@ pub struct UpdateParticipantClashesRequest {
     #[serde(default)]
     pub added_clashes: Vec<Uuid>,
     #[serde(default)]
-    pub removed_clashes: Vec<Uuid>
+    pub removed_clashes: Vec<Uuid>,
+    #[serde(default)]
+    pub added_institutions: Vec<Uuid>,
+    #[serde(default)]
+    pub removed_institutions: Vec<Uuid>
 }
 
-pub async fn update_participant_clashes(
+pub async fn update_participant_clash_declarations(
     State(db): State<DatabaseConnection>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(participant_id): Path<Uuid>,
@@ -1032,41 +1077,105 @@ pub async fn update_participant_clashes(
             db.rollback().await.map_err(handle_error)?;
             return Err(APIError::from((StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament")));
         }
+        
+        if !tournament.allow_speaker_self_declared_clashes {
+            let participant_adj = schema::adjudicator::Entity::find()
+            .filter(
+                schema::adjudicator::Column::Uuid.eq(participant_id)
+            ).one(&db).await.map_err(handle_error)?;
+            if !participant_adj.is_some() {
+                db.rollback().await.map_err(handle_error)?;
+                return Err(APIError::from((StatusCode::FORBIDDEN, "Speakers cannot declare clashes")));
+            }
+        }
+        
         let mut entity_group = EntityGroup::new(
             participant.tournament_id
         );
-        let existing_participant_clashes = open_tab_entities::schema::participant_clash::Entity::find()
+        let existing_clash_declarations = open_tab_entities::schema::clash_declaration::Entity::find()
         .filter(
-            open_tab_entities::schema::participant_clash::Column::DeclaringParticipantId.eq(participant_id)
-        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.target_participant_id, clash)).into_group_map();
-        dbg!(&request.added_clashes);
+            open_tab_entities::schema::clash_declaration::Column::SourceParticipantId.eq(participant_id)
+        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.target_participant_id, ClashDeclaration::from_model(clash))).into_group_map();
+        let existing_institution_declarations = open_tab_entities::schema::institution_declaration::Entity::find()
+        .filter(
+            open_tab_entities::schema::institution_declaration::Column::SourceParticipantId.eq(participant_id)
+        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.tournament_institution_id, InstitutionDeclaration::from_model(clash))).into_group_map();
 
         for added_clash in request.added_clashes {
-            if !existing_participant_clashes.contains_key(&added_clash) {
+            if let Some(existing_declaration) = existing_clash_declarations.get(&added_clash) {
+                //We allow for multiple clash declartions between the same participants
+                //since otherwise syncing becomes unnecessarily complex.
+                if let Some(dec) = existing_declaration.iter().next() {
+                    let mut dec = dec.clone();
+                    dec.is_retracted = false;
+                    dec.was_seen = false;
+                    entity_group.add(
+                        open_tab_entities::Entity::ClashDeclaration(dec)
+                    );
+                }
+            }
+            else {
                 entity_group.add(
-                    open_tab_entities::Entity::ParticipantClash(open_tab_entities::domain::participant_clash::ParticipantClash {
+                    open_tab_entities::Entity::ClashDeclaration(open_tab_entities::domain::clash_declaration::ClashDeclaration {
                         uuid: Uuid::new_v4(),
-                        declaring_participant_id: participant_id,
+                        source_participant_id: participant_id,
                         target_participant_id: added_clash,
-                        clash_severity: 100,
+                        severity: 100,
                         was_seen: false,
-                        is_approved: false,
-                        is_user_declared: true
+                        is_retracted: false
                     })
                 );
             }
         }
 
-
         for removed_clash in request.removed_clashes {
-            if let Some(clashes) = existing_participant_clashes.get(&removed_clash) {
-                for clash in clashes {
-                    if clash.is_user_declared {
-                        entity_group.delete(
-                            open_tab_entities::EntityTypeId::ParticipantClash,
-                            clash.uuid
-                        );    
-                    }
+            if let Some(declarations) = existing_clash_declarations.get(&removed_clash) {
+                for declaration in declarations {
+                    let mut declaration = declaration.clone();
+                    declaration.was_seen = false;
+                    declaration.is_retracted = true;
+                    entity_group.add(
+                        open_tab_entities::Entity::ClashDeclaration(declaration)
+                    );
+                }
+            }
+        }
+        
+        for added_institution in request.added_institutions {
+            if let Some(existing_declaration) = existing_institution_declarations.get(&added_institution) {
+                //See above for the reasoning behind taking the first declaraion
+                if let Some(dec) = existing_declaration.iter().next() {
+                    let mut dec = dec.clone();
+                    dec.was_seen = false;
+                    dec.is_retracted = false;
+                    entity_group.add(
+                        open_tab_entities::Entity::InstitutionDeclaration(dec)
+                    );
+                }
+            }
+            else {
+                entity_group.add(
+                    open_tab_entities::Entity::InstitutionDeclaration(open_tab_entities::domain::institution_declaration::InstitutionDeclaration {
+                        uuid: Uuid::new_v4(),
+                        source_participant_id: participant_id,
+                        tournament_institution_id: added_institution,
+                        severity: 100,
+                        was_seen: false,
+                        is_retracted: false
+                    })
+                );
+            }
+        }
+
+        for removed_institution in request.removed_institutions {
+            if let Some(declarations) = existing_institution_declarations.get(&removed_institution) {
+                for declaration in declarations {
+                    let mut dec = declaration.clone();
+                    dec.was_seen = false;
+                    dec.is_retracted = true;
+                    entity_group.add(
+                        open_tab_entities::Entity::InstitutionDeclaration(dec)
+                    );
                 }
             }
         }
@@ -1089,5 +1198,5 @@ pub fn router() -> Router<AppState> {
     .route("/participant/:participant_id/settings", get(get_participant_settings))
     .route("/participant/:participant_id/settings", post(update_participant_settings))
     .route("/participant/:participant_id/clashes", get(get_participant_declared_clashes))
-    .route("/participant/:participant_id/clashes", post(update_participant_clashes))
+    .route("/participant/:participant_id/clashes", post(update_participant_clash_declarations))
 }

@@ -25,6 +25,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
                 last_modified: chrono::DateTime::from_timestamp_millis(786910980).map(|t| t.naive_utc()).unwrap(),
                 allow_self_declared_clashes: false,
                 allow_speaker_self_declared_clashes: false,
+                show_declared_clashes: false
             }.into();
             tournament.insert(&db).await?;
 
@@ -102,9 +103,6 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(400),
         clash_severity: 20,
-        is_approved: true,
-        is_user_declared: false,
-        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -113,9 +111,6 @@ async fn test_get_all_clashes_in_tournament() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(401),
         clash_severity: 20,
-        is_approved: true,
-        is_user_declared: false,
-        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -136,9 +131,6 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(440),
         target_participant_id: Uuid::from_u128(401),
         clash_severity: 20,
-        is_approved: true,
-        is_user_declared: false,
-        was_seen: true,
     };
     clash.save(&db, true).await?;
 
@@ -148,9 +140,6 @@ async fn test_ignore_inter_tournament_clashes() -> Result<(), anyhow::Error> {
         declaring_participant_id: Uuid::from_u128(441),
         target_participant_id: Uuid::from_u128(400),
         clash_severity: 20,
-        is_approved: true,
-        is_user_declared: false,
-        was_seen: true,
     };
     clash.save(&db, true).await?;
 

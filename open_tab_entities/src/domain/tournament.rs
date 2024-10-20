@@ -15,6 +15,7 @@ pub struct Tournament {
     pub feedback_release_time: Option<DateTime>,
     pub allow_self_declared_clashes: bool,
     pub allow_speaker_self_declared_clashes: bool,
+    pub show_declared_clashes: bool,
 }
 
 
@@ -27,6 +28,7 @@ impl Tournament {
             feedback_release_time: None,
             allow_self_declared_clashes: false,
             allow_speaker_self_declared_clashes: false,
+            show_declared_clashes: false
         }
     }
 }

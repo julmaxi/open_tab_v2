@@ -42,7 +42,7 @@ impl LoadedParticipantsListView {
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        if changes.has_changes_for_types(vec![EntityTypeId::Participant, EntityTypeId::Team]) {
+        if changes.has_changes_for_types(vec![EntityTypeId::Participant, EntityTypeId::Team, EntityTypeId::ClashDeclaration]) {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
             let mut out: HashMap<String, Json> = HashMap::new();

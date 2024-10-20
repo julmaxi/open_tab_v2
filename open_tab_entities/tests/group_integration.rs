@@ -92,10 +92,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
                 uuid: Uuid::from_u128(600),
                 declaring_participant_id: Uuid::from_u128(401),
                 target_participant_id: Uuid::from_u128(402),
-                clash_severity: 2,
-                is_user_declared: false,
-                is_approved: true,
-                was_seen: true,
+                clash_severity: 2
             }
         )
     );

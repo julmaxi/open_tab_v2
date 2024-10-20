@@ -16,6 +16,8 @@ pub mod feedback_response;
 pub mod tournament_plan_edge;
 pub mod tournament_plan_node;
 pub mod ballot_speech_timing;
+pub mod clash_declaration;
+pub mod institution_declaration;
 
 pub use entity::BoundTournamentEntityTrait;
 

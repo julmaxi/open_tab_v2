@@ -26,6 +26,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, DbErr>
             last_modified: chrono::DateTime::from_timestamp_millis(786910980).map(|t| t.naive_utc()).unwrap(),
             allow_self_declared_clashes: false,
             allow_speaker_self_declared_clashes: false,
+            show_declared_clashes: false
         }.into();
         a.insert(&db).await?;
          open_tab_entities::schema::team::Entity::insert_many(vec![

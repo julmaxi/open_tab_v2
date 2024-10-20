@@ -44,39 +44,6 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
     let get_many_tournaments_func : Option<Path> = find_path_name_value_attr(&input.attrs, "get_many_tournaments_func");
     let tournament_id : Option<Path> = find_path_name_value_attr(&input.attrs, "tournament_id");
     
-    let get_tournaments_func = match (tournament_id, get_many_tournaments_func) {
-        (None, None) => panic!("Must have either tournament_id or get_many_tournaments_func attributes"),
-        (Some(tournament_id), None) => {
-            let (_, tournament_type, _) = field_names_and_types.iter().find(|(f, _, _)| f.to_string() == tournament_id.segments.last().unwrap().into_token_stream().to_string()).expect("tournament_id not found in fields");
-            if tournament_type.into_token_stream().to_string().starts_with("Option") {
-                quote! {
-                    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-                        return Ok(entities.iter().map(|tournament| {
-                            tournament.#tournament_id
-                        }).collect());
-                    }
-                }    
-            }
-            else {
-                quote! {
-                    async fn get_many_tournaments(_db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-                        return Ok(entities.iter().map(|tournament| {
-                            Some(tournament.#tournament_id)
-                        }).collect());
-                    }
-                }    
-            }
-        },
-        (None, Some(get_many_tournaments_func)) => {
-            quote! {
-                async fn get_many_tournaments(db: &C, entities: &Vec<&Self>) -> Result<Vec<Option<Uuid>>, anyhow::Error> where C: sea_orm::ConnectionTrait {
-                    Self::#get_many_tournaments_func(db, entities).await
-                }
-            }
-        },
-        (_, _) => panic!("Cannot have both tournament_id and get_many_tournaments_func attributes"),
-    };
-
     let active_value_assignment = field_names_and_types.iter().map(|(f, ty, serialize)| {
         if *serialize {
             if check_is_option(ty) {
@@ -187,8 +154,6 @@ pub fn simple_entity_derive_impl(input: TokenStream) -> TokenStream {
                 ).exec(db).await?;
                 Ok(())
             }
-
-            #get_tournaments_func
         }
 
         impl crate::domain::entity::TournamentEntityTrait for #name {

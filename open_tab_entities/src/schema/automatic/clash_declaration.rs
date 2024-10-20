@@ -3,31 +3,33 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "participant_clash")]
+#[sea_orm(table_name = "clash_declaration")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub declaring_participant_id: Uuid,
+    pub was_seen: bool,
+    pub source_participant_id: Uuid,
     pub target_participant_id: Uuid,
-    pub clash_severity: i16,
+    pub severity: i32,
+    pub is_retracted: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
         belongs_to = "super::participant::Entity",
-        from = "Column::DeclaringParticipantId",
+        from = "Column::SourceParticipantId",
         to = "super::participant::Column::Uuid",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     Participant2,
     #[sea_orm(
         belongs_to = "super::participant::Entity",
         from = "Column::TargetParticipantId",
         to = "super::participant::Column::Uuid",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     Participant1,
 }

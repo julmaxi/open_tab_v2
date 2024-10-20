@@ -177,9 +177,6 @@ impl UploadParticipantsListAction {
                             declaring_participant_id: uuid,
                             target_participant_id,
                             clash_severity: 100,
-                            is_user_declared: false,
-                            is_approved: true,
-                            was_seen: true,
                         }
                     ));
                 }

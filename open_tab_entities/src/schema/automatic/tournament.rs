@@ -13,6 +13,7 @@ pub struct Model {
     pub last_modified: DateTime,
     pub allow_self_declared_clashes: bool,
     pub allow_speaker_self_declared_clashes: bool,
+    pub show_declared_clashes: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
