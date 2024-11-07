@@ -16,6 +16,7 @@ pub struct Model {
     pub debate_start_time: Option<DateTime>,
     pub full_motion_release_time: Option<DateTime>,
     pub round_close_time: Option<DateTime>,
+    pub silent_round_results_release_time: Option<DateTime>,
     pub is_silent: bool,
     pub feedback_release_time: Option<DateTime>,
 }

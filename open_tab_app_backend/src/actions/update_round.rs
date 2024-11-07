@@ -32,6 +32,8 @@ pub struct RoundUpdate {
     pub round_close_time: PatchValue<Option<chrono::NaiveDateTime>>,
     #[serde(default)]
     pub feedback_release_time: PatchValue<Option<chrono::NaiveDateTime>>,
+    #[serde(default)]
+    pub silent_round_results_release_time: PatchValue<Option<chrono::NaiveDateTime>>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +77,9 @@ impl ActionTrait for UpdateRoundAction {
         }
         if let PatchValue::Set(feedback_release_time) = self.update.feedback_release_time {
             existing_round.feedback_release_time = feedback_release_time;
+        }
+        if let PatchValue::Set(silent_round_results_release_time) = self.update.silent_round_results_release_time {
+            existing_round.silent_round_results_release_time = silent_round_results_release_time;
         }
 
         groups.add(Entity::TournamentRound(existing_round));

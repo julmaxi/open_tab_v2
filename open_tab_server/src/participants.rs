@@ -327,7 +327,7 @@ async fn get_participant_info(
     
     let show_results_map : HashMap<Uuid, bool> = all_rounds.iter().map(
         |round| {
-            let show_results = !round.is_silent && check_release_date(current_time, round.round_close_time);
+            let show_results = (!round.is_silent || check_release_date(current_time, round.silent_round_results_release_time)) && check_release_date(current_time, round.round_close_time);
             (round.uuid, show_results)
         }
     ).collect();

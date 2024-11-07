@@ -28,6 +28,8 @@ impl ActionTrait for SetBreakReleaseAction {
         let mut preceding_rounds = domain::round::TournamentRound::get_many(db, break_background.preceding_rounds).await?;
         for elem in preceding_rounds.iter_mut() {
             elem.feedback_release_time = Some(self.time);
+            //This will set the value for all rounds, even non-silent ones where it has no effect.
+            elem.silent_round_results_release_time = Some(self.time);
             g.add(Entity::TournamentRound(elem.clone()));
         }
         Ok(

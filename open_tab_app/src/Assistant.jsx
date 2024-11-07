@@ -343,7 +343,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
         </p>}
 
         {previous_break_node && <p>
-            You might also want to release feedback for the rounds in the break.
+            You might also want to release feedback for the rounds in the break, as well as the results for the silent rounds.
         </p>}
 
         {
@@ -359,7 +359,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                 <DateTimeSelectorButton
                     buttonFactory={Button}
                     buttonProps={{ role: "secondary" }}
-                    label="Release Feedback"
+                    label="Release Feedback and Silent Round Results"
                     onSetDate={(date) => {
                         if (date !== null) {
                             executeAction("SetBreakRelease", {
@@ -369,7 +369,6 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                         }
                     }}
                 >
-                Release Draw…
             </DateTimeSelectorButton>
  
                 <Button onClick={
@@ -385,7 +384,6 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                 }>
                     Save Break Tab…
                 </Button>
-
 
                 <Button onClick={
                     () => {

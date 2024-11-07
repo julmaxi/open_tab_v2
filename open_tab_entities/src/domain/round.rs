@@ -50,6 +50,7 @@ pub struct TournamentRound {
     pub full_motion_release_time: Option<chrono::NaiveDateTime>,
     pub round_close_time: Option<chrono::NaiveDateTime>,
     pub feedback_release_time: Option<chrono::NaiveDateTime>,
+    pub silent_round_results_release_time: Option<chrono::NaiveDateTime>,
 }
 
 impl TournamentRound {

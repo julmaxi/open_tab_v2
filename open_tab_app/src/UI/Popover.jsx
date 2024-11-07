@@ -12,7 +12,8 @@ import {
     useInteractions,
     FloatingFocusManager,
     useId,
-    FloatingArrow
+    FloatingArrow,
+    FloatingPortal
 } from '@floating-ui/react';
 
 export function Popover(props) {
@@ -63,9 +64,10 @@ export function Popover(props) {
                 }))}
 
             {props.isOpen && (
+            <FloatingPortal>
                 <FloatingFocusManager context={context} modal={false}>
                     <div
-                        className="bg-white border rounded p-2"
+                        className="bg-white border rounded p-2 absolute z-10"
                         ref={refs.setFloating}
                         style={floatingStyles}
                         aria-labelledby={headingId}
@@ -75,6 +77,7 @@ export function Popover(props) {
                         {props.children}
                     </div>
                 </FloatingFocusManager>
+            </FloatingPortal>
             )}
         </>
     );

@@ -43,7 +43,9 @@ pub async fn get_current_tab(
 
     let now = chrono::Utc::now().naive_utc();
     let visible_rounds = tournament_rounds.iter().filter(|r| {
-        if r.is_silent {
+        if r.is_silent && !r.silent_round_results_release_time.map_or(false, |t| {
+            t <= now
+        }) {
             false
         }
         else if r.round_close_time.map_or(false, |t| {
