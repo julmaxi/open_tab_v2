@@ -71,6 +71,9 @@ function WaitForBreakStep({ node_uuid }) {
 function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
     let isDone = num_submitted >= num_expected;
     let errorContext = useContext(ErrorHandlingContext);
+    let tournamentContext = useContext(TournamentContext);
+    let pendingBallotsView = useView({type: "PendingBallots", tournament_id: tournamentContext.uuid}, {pending_ballot_counts: {}});
+
     return <div className='w-full'>
         <h1>Results</h1>
 
@@ -87,6 +90,14 @@ function WaitForResultsStep({ round_uuid, num_submitted, num_expected }) {
         <p>
             {num_submitted} of {num_expected} ballots are in.
         </p>
+
+        {
+            pendingBallotsView.pending_ballot_counts[round_uuid] > 0 ? <p className='italic text-yellow-500'>
+                It looks like some ballots are pending for this round.
+                This happens if more than one ballot is submitted for a debate.
+                You should check the ballots in the <Link to={`/round/${round_uuid}/results`}>results view</Link> and make sure you select the correct ballot.
+            </p> : []
+        }
 
         <DateTimeSelectorButton
             buttonFactory={Button}
