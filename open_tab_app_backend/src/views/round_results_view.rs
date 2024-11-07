@@ -48,12 +48,10 @@ impl LoadedView for LoadedRoundResultsView {
             EntityTypeId::Participant,
             EntityTypeId::DebateBackupBallot
         ]) {
-            println!("Refreshing round results view {}", self.round_id);
             self.view = RoundResultsView::load(db, self.round_id).await?;
 
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);
-            println!("Done round results  view {}", self.round_id);
 
             Ok(Some(out))
         }

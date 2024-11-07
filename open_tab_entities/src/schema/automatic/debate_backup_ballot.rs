@@ -10,6 +10,7 @@ pub struct Model {
     pub debate_id: Uuid,
     pub ballot_id: Uuid,
     pub timestamp: DateTime,
+    pub was_seen: bool
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

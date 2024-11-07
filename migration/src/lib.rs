@@ -20,6 +20,7 @@ mod m20241005_142323_add_user_claim_date;
 mod m20241005_185444_add_tournament_last_modified;
 mod m20241006_101049_add_self_declared_clashes;
 mod m20241107_130832_add_silent_results_release_time;
+mod m20241107_154745_add_backup_ballot_seen_field;
 
 pub struct Migrator;
 
@@ -46,6 +47,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20241005_185444_add_tournament_last_modified::Migration),
             Box::new(m20241006_101049_add_self_declared_clashes::Migration),
             Box::new(m20241107_130832_add_silent_results_release_time::Migration),
+            Box::new(m20241107_154745_add_backup_ballot_seen_field::Migration),
         ]
     }
 }

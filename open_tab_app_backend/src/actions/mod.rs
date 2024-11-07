@@ -24,6 +24,7 @@ mod set_break_release;
 mod redraw_round;
 mod update_tournament;
 mod update_clashes_action;
+mod discard_ballot;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -43,6 +44,7 @@ pub use self::set_break_release::SetBreakReleaseAction;
 pub use self::redraw_round::RedrawRoundAction;
 pub use self::update_tournament::UpdateTournamentAction;
 pub use self::update_clashes_action::UpdateClashes;
+pub use self::discard_ballot::DiscardBallotAction;
 
 pub(crate) use self::edit_tree::EditTreeActionType;
 
@@ -66,6 +68,7 @@ pub enum Action {
     RedrawRound { action: RedrawRoundAction },
     UpdateTournament { action: UpdateTournamentAction },
     UpdateClashes { action: UpdateClashes },
+    DiscardBallot { action: DiscardBallotAction },
 }
 
 impl Action {
@@ -88,6 +91,7 @@ impl Action {
             Action::RedrawRound { action } => action.get_changes(db).await,
             Action::UpdateTournament { action } => action.get_changes(db).await,
             Action::UpdateClashes { action } => action.get_changes(db).await,
+            Action::DiscardBallot { action } => action.get_changes(db).await,
         }
     }
 }

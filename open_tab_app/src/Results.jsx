@@ -46,23 +46,62 @@ function ScoreOverview(props) {
 }
 
 function BackupBallotList(props) {
-    return <div className="border-t">
+    let tournamentId = useContext(TournamentContext).uuid;
+    return <div>
         {props.backup_ballots.map((backup_ballot) =>
-        <div>
+        <div key={backup_ballot.uuid}>
             <h2>{backup_ballot.name}</h2> 
             <ScoreOverview key={backup_ballot.uuid} ballot={backup_ballot.ballot} />
+
+            <div className="flex flex-col">
+            <button onClick={
+                () =>
+                    executeAction("UpdateScores", {
+                        "debate_id": props.debateId,
+                        "update": {"SetBallot": backup_ballot.uuid}
+                    })
+                
+            }>
+                Make Primary
+            </button>
+
+            {
+                props.isPendingList ? <button onClick={
+                    () =>
+                        executeAction("DiscardBallot", {
+                            "tournament_id": tournamentId,
+                            "backup_ballot_id": backup_ballot.uuid
+                        })
+                    
+                }>
+                    Discard
+                </button> : []
+            }
+            </div>
         </div>
     )}
     </div>
 }
 
+function checkBallotHasScores(ballot) {
+    return ballot.speeches.some(
+        (speech) => Object.keys(speech.scores).length > 0
+    );
+}
+
 function DebateResultCard(props) {
-    let [showBackupBallots, setShowBackupBallots] = useState(false);
+    let [showIgnoredBallots, setShowIgnoredBallots] = useState(false);
 
-    let backupBallots = props.debate.backup_ballots.filter(ballot => ballot.ballot.uuid != props.debate.ballot.uuid);
-    let numBackupBallots = backupBallots.length;
+    let bgColor = "bg-gray-100";
+    console.log(props.debate.ballot);
+    if (props.debate.pending_ballots.length > 0) {
+        bgColor = "bg-yellow-100";
+    }
+    else if (checkBallotHasScores(props.debate.ballot)) {
+        bgColor = "bg-green-100";
+    }
 
-    return <div className="overflow-hidden sm:rounded-lg border m-2 p-1">
+    return <div className={`overflow-hidden sm:rounded-lg border m-2 p-1 ${bgColor}`}>
         <h1 className="text-center">{props.debate.name}</h1>
 
         {props.debate.ballot ? <ScoreOverview ballot={props.debate.ballot} /> : "Missing Ballot"}
@@ -70,12 +109,18 @@ function DebateResultCard(props) {
         <div className="text-center text-sm">
             <button onClick={() => props.onStartEditDebateBallot(props.debate.uuid, props.debate.ballot)}>Edit ballot…</button>
         </div>
+        {props.debate.pending_ballots.length > 0 ? 
+        <div className="text-center text-sm border-t border-b">
+            <h3>Pending Ballots</h3>
+            <BackupBallotList debateId={props.debate.uuid} backup_ballots={props.debate.pending_ballots} isPendingList={true} />
+        </div> : []
+        }
         <div className="text-center text-sm">
-            <button disabled={numBackupBallots == 0} onClick={() => setShowBackupBallots(!showBackupBallots)}>
-                {numBackupBallots > 0 ? `${showBackupBallots ? "Hide" : "Show"} ${numBackupBallots} other ballot${numBackupBallots > 1 ? "s" : ""}…` : "No Backup Ballots" }
-            </button>
+        {props.debate.ignored_ballots.length > 0 ? <button onClick={() => setShowIgnoredBallots(!showIgnoredBallots)}>
+                {props.debate.ignored_ballots.length > 0 ? `${showIgnoredBallots ? "Hide" : "Show"} ${props.debate.ignored_ballots.length} discarded ballot${props.debate.ignored_ballots.length > 1 ? "s" : ""}…` : "" }
+            </button> : []}
 
-            {showBackupBallots && <BackupBallotList backup_ballots={backupBallots} />}
+            {showIgnoredBallots && <BackupBallotList debateId={props.debate.uuid} backup_ballots={props.debate.ignored_ballots} />}
         </div>
    </div>
 }

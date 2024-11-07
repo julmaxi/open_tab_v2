@@ -559,6 +559,7 @@ async fn test_get_tournament_from_backup_ballot() -> Result<(), anyhow::Error> {
         debate_id: debate.uuid,
         ballot_id: ballot2.uuid,
         timestamp: chrono::Utc::now().naive_utc(),
+        was_seen: true
     };
     backup_ballot.save(&db, true).await?;
 

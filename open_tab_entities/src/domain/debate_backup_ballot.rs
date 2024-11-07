@@ -16,7 +16,8 @@ pub struct DebateBackupBallot {
     pub uuid: Uuid,
     pub debate_id: Uuid,
     pub ballot_id: Uuid,
-    pub timestamp: DateTime
+    pub timestamp: DateTime,
+    pub was_seen: bool,
 }
 
 

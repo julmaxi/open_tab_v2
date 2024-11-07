@@ -11,7 +11,7 @@ use sea_orm::prelude::Uuid;
 use std::collections::HashMap;
 
 
-use serde::{Serialize, Deserialize};
+use serde::{de::IgnoredAny, Deserialize, Serialize};
 
 use sea_orm::prelude::*;
 use crate::prelude::*;
@@ -22,7 +22,8 @@ pub struct ResultDebate {
     pub uuid: Uuid,
     pub name: String,
     pub venue_name: Option<String>,
-    pub backup_ballots: Vec<BackupBallot>,
+    pub pending_ballots: Vec<BackupBallot>,
+    pub ignored_ballots: Vec<BackupBallot>,
     pub ballot: DisplayBallot
 }
 
@@ -54,21 +55,26 @@ impl ResultDebate {
             .map(|venue| (venue.uuid, venue))
             .collect::<HashMap<_, _>>();
 
+        let mut ballots_by_debate = backup_ballots.into_iter().into_group_map_by(|ballot| ballot.debate_id);
+
         let out_debates: Result<Vec<_>, anyhow::Error> = debates.into_iter().map(
             |debate| {
-                let backup_ballots: Result<Vec<BackupBallot>, anyhow::Error> = backup_ballots.iter().filter(|ballot| ballot.debate_id == debate.uuid).map(|ballot| Ok(BackupBallot {
+                let backup_ballots: Result<Vec<BackupBallot>, anyhow::Error> = ballots_by_debate.remove(&debate.uuid).unwrap_or(vec![]).into_iter().filter(|b| b.ballot_id != debate.ballot_id).map(|ballot| Ok(BackupBallot {
                     name: ballot.timestamp.to_string(),
                     uuid: ballot.uuid,
                     ballot_uuid: ballot.ballot_id,
-                    ballot: all_ballots_by_id.get(&ballot.ballot_id).ok_or(anyhow::anyhow!("Ballot not found"))?.clone()
+                    ballot: all_ballots_by_id.get(&ballot.ballot_id).ok_or(anyhow::anyhow!("Ballot not found"))?.clone(),
+                    was_seen: ballot.was_seen
                 })).collect();
+                let (ignored_ballots, pending_ballots) = backup_ballots?.into_iter().partition(|b| b.was_seen);
                 Ok(ResultDebate {
                     uuid: debate.uuid,
                     name: format!("Debate {}", debate.index + 1),
                     venue_name: debate.venue_id.map(
                         |vid| all_venues_by_id.get(&vid).map(|venue| venue.name.clone()).unwrap_or("unknown".to_string())
                     ),
-                    backup_ballots: backup_ballots?,
+                    pending_ballots,
+                    ignored_ballots,
                     ballot: all_ballots_by_id.get(&debate.ballot_id).cloned().ok_or(anyhow::anyhow!("Ballot not found"))?
                 })
             }
@@ -82,7 +88,8 @@ pub struct BackupBallot {
     pub name: String,
     pub uuid: Uuid,
     pub ballot_uuid: Uuid,
-    pub ballot: DisplayBallot
+    pub ballot: DisplayBallot,
+    pub was_seen: bool
 }
 
 

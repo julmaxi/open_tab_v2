@@ -341,6 +341,7 @@ async fn submit_ballot(
         debate_id,
         ballot_id: ballot.uuid,
         timestamp: Utc::now().naive_utc(),
+        was_seen: false
     };
 
     let group = EntityGroup::new_from_entities(

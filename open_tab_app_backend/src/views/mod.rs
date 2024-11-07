@@ -15,6 +15,7 @@ pub mod progress_view;
 pub mod adjudicator_break_candidates_view;
 pub mod feedback_progress;
 pub mod clashes_view;
+pub mod pending_ballots_view;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
@@ -35,6 +36,7 @@ use self::progress_view::LoadedProgressView;
 use self::adjudicator_break_candidates_view::LoadedAdjudicatorBreakCandidatesView;
 use self::feedback_progress::LoadedFeedbackProgressView;
 use self::clashes_view::LoadedClashesView;
+use self::pending_ballots_view::LoadedPendingBallotsView;
 
 
 
@@ -65,6 +67,7 @@ pub enum View {
     AdjudicatorBreakCandidates{node_uuid: Uuid},
     FeedbackProgress{tournament_uuid: Uuid},
     Clashes{tournament_uuid: Uuid},
+    PendingBallots{tournament_id: Uuid},
 }
 
 impl View {
@@ -129,6 +132,9 @@ impl View {
             View::Clashes { tournament_uuid } => {
                 Box::new(LoadedClashesView::load(db, *tournament_uuid).await?)
             },
+            View::PendingBallots { tournament_id } => {
+                Box::new(LoadedPendingBallotsView::load(db, *tournament_id).await?)
+            }
         })
     }
 }

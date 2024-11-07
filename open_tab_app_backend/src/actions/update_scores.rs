@@ -33,7 +33,14 @@ impl ActionTrait for UpdateScoresAction {
         let mut groups = EntityGroup::new(round.tournament_id);
         match self.update {
             ScoreUpdate::SetBallot(uuid) => {
-                debate.ballot_id = uuid;
+                let mut backup_ballot = DebateBackupBallot::get(db, uuid).await?;
+                debate.ballot_id = backup_ballot.ballot_id;
+                backup_ballot.was_seen = true;
+
+                groups.add(Entity::DebateBackupBallot(
+                    backup_ballot
+                ));
+
                 groups.add(Entity::TournamentDebate(debate));
             },
             ScoreUpdate::NewBallot(display_ballot) => {
@@ -45,6 +52,7 @@ impl ActionTrait for UpdateScoresAction {
                     debate_id: self.debate_id,
                     ballot_id: ballot.uuid,
                     timestamp: chrono::offset::Local::now().naive_local(),
+                    was_seen: true
                 };
                 groups.add(Entity::Ballot(ballot));
                 groups.add(Entity::TournamentDebate(debate));

@@ -48,6 +48,10 @@ function SideNav(props) {
   let rounds = roundsOverview.rounds;
 
   let clashesView = useView({type: "Clashes", tournament_uuid: tournamentContext.uuid}, {pending_clashes: [], approved_clashes: [], rejected_clashes: []});
+  let pendingBallotsView = useView({type: "PendingBallots", tournament_id: tournamentContext.uuid}, {pending_ballot_counts: {}});
+
+  console.log(pendingBallotsView);
+  console.log(rounds);
 
   // Final item is a buffer so we never have the last item blocked by the connectivity status
   return <nav className="bg-gray-100 w-60 h-full overflow-y-scroll">
@@ -59,7 +63,10 @@ function SideNav(props) {
         <NavGroup header={round.name} key={round.uuid}>
           <NavItem href={`/round/${round.uuid}/draw`}>Draw</NavItem>
           <NavItem href={`/round/${round.uuid}/publish`}>Publish</NavItem>
-          <NavItem href={`/round/${round.uuid}/results`}>Results</NavItem>
+          <NavItem href={`/round/${round.uuid}/results`}>
+            Results
+            {(pendingBallotsView.pending_ballot_counts[round.uuid] || []) > 0 ? <span className="ml-1 bg-red-500 text-white rounded-full px-2">{pendingBallotsView.pending_ballot_counts[round.uuid]}</span> : null}
+          </NavItem>
         </NavGroup>
       )
     }

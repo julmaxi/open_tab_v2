@@ -5,7 +5,7 @@ use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, 
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
-use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, debate_backup_ballot::DebateBackupBallot, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
 use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
 //use open_tab_server::TournamentChanges;
@@ -167,8 +167,6 @@ async fn execute_action_impl(action: Action, db: &DatabaseConnection, view_cache
     };
 
     tournament.update(&transaction).await?;
-    dbg!("Updated tournament");
-
     transaction.commit().await?;
     let transaction = db.begin().await?;
 
@@ -363,6 +361,11 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
                 ..old_debate.clone()
             }));
             new_changes.delete(EntityTypeId::Ballot, old_ballot.uuid);
+
+            new_changes.add(Entity::DebateBackupBallot(DebateBackupBallot {
+                was_seen: true,
+                ..*new_backup_ballot
+            }))
         }
     };
 
