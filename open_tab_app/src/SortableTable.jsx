@@ -18,7 +18,6 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
         }, [selectedRowId]);
     }
 
-
     let rowStylerFn = rowStyler ?? (() => "");
 
     let { orderedRows, groups } = useMemo(
@@ -40,13 +39,13 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
                 for (let [col, groups] of colGroups) {
                     let currentGroup = groups[groups.length - 1];
                     if (currentGroup === undefined || currentGroup.val !== row[col.key]) {
-                        currentGroup = { val: row[col.key], size: 1, start: i };
-                        groups.push(currentGroup);
+                        currentGroup = { val: row[col.key], size: 1, start: i, isHighlighted: realSelectedRowIds.has(row[rowId]) };
                     }
                     else {
                         currentGroup.size += 1;
-                        groups.push(currentGroup);
+                        currentGroup.isHighlighted = currentGroup.isHighlighted || realSelectedRowIds.has(row[rowId]);
                     }
+                    groups.push(currentGroup);
                 }
             }
 
@@ -92,7 +91,6 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
                                 onSelectRow(row[rowId]);
                             }
                             else {
-                                console.log(e.shiftKey)
                                 if (e.shiftKey) {
                                     let newSelection = new Set(realSelectedRowIds);
                                     if (realSelectedRowIds.has(row[rowId])) {
@@ -101,7 +99,6 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
                                     else {
                                         newSelection.add(row[rowId]);
                                     }
-                                    console.log(newSelection);
                                     onSelectRow(newSelection);
                                 }
                                 else {
@@ -117,7 +114,7 @@ export function SortableTable({ selectedRowId, selectedRowIds, onSelectRow, rowI
                                 val = (column.transform || ((val) => val))(val);
                                 let rowSpan = groups.get(column)?.[rowIdx]?.size ?? 1;
 
-                                return column.cellFactory !== undefined ? column.cellFactory(val, rowIdx, idx, row) : <td rowSpan={rowSpan} key={idx} className="">{val}</td>;
+                                return column.cellFactory !== undefined ? column.cellFactory(val, rowIdx, idx, row) : <td rowSpan={rowSpan} key={idx} className={groups.get(column)?.[rowIdx]?.isHighlighted ? "bg-blue-300" : ""}>{val}</td>;
                             }
                         )}
                     </tr>;

@@ -422,13 +422,16 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
         &speaker_info
     ).await?;
 
-    let team_ranking = tab.team_tab.iter().sorted_by_key(
-        |t: &&crate::tab_view::TeamTabEntry| ordered_float::NotNan::new(t.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap()
-    ).rev().map(|t| t.team_uuid).collect_vec();
+    let team_ranking = tab.team_tab.iter()
+        .map(|t| (ordered_float::NotNan::new(t.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap(), t))
+        .sorted_by_key(|t| t.0)
+        .rev().map(|t| t.1.team_uuid).collect_vec();
 
-    let speaker_ranking = tab.speaker_tab.iter().sorted_by_key(
-        |s: &&crate::tab_view::SpeakerTabEntry| ordered_float::NotNan::new(s.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap()
-    ).rev().map(|s| s.speaker_uuid).collect_vec();
+    let speaker_ranking = tab.speaker_tab.iter()
+        .map(|s| (ordered_float::NotNan::new(s.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap(), s))
+        .sorted_by_key(|s| s.0 )
+        .rev()
+        .map(|s| s.1.speaker_uuid).collect_vec();
 
     let mut break_ = TournamentBreak::new(tournament_id);
 
