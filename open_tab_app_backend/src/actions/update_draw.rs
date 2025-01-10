@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use itertools::{Itertools, izip};
 use async_trait::async_trait;
-use open_tab_entities::{domain::entity::LoadEntity, prelude::*, schema};
+use open_tab_entities::{domain::entity::LoadEntity, prelude::*, schema::{self, adjudicator::Column}};
 
 use sea_orm::{prelude::*, JoinType, QuerySelect, RelationBuilder};
 use thiserror::Error;
@@ -97,14 +97,50 @@ impl ActionTrait for UpdateDrawAction {
             groups.add(Entity::Ballot(new_ballot));
         }
 
+        let relevant_debates = open_tab_entities::domain::debate::TournamentDebate::get_many(db, self.updated_debates.iter().map(|d| d.uuid).collect()).await?.into_iter().map(|d| (d.uuid, d)).collect::<HashMap<_, _>>();
+
+        let relevant_venues_by_round = self.updated_debates.iter().filter(|d| d.venue.is_some()).map(|d| (relevant_debates.get(&d.uuid), d.venue.as_ref().unwrap().uuid)).filter_map(
+            |(d, v)| match d {
+                Some(d) => Some((v, d.round_id)),
+                None => None
+            }
+        ).collect_vec();
+
+        let mut potentially_changed_debates = open_tab_entities::schema::tournament_debate::Entity::find()
+            .filter(
+                // Overselects, but sea orm does not support tuple condidtions.
+                open_tab_entities::schema::tournament_debate::Column::VenueId.is_in(relevant_venues_by_round.iter().map(|(v, _)| v.clone()).collect_vec())
+                .and(
+                    open_tab_entities::schema::tournament_debate::Column::RoundId.is_in(relevant_venues_by_round.iter().map(|(_, r)| r.clone()).collect_vec())
+                )
+            )
+            .all(db).await?.into_iter().map(|d| ((d.venue_id.unwrap(), d.round_id), d)).collect::<HashMap<_, _>>();
+
         for debate in self.updated_debates {
             let mut existing_debate = open_tab_entities::domain::debate::TournamentDebate::try_get(
                 db,
                 debate.uuid
             ).await?.ok_or(UpdateDrawError::DebateNotFound(debate.uuid))?;
 
-            // We only allow the venue to be updated
-            existing_debate.venue_id = debate.venue.map(|v| v.uuid);
+            match debate.venue {
+                Some(venue) => {
+                    let prev_venue_debate = potentially_changed_debates.remove(&(venue.uuid, existing_debate.round_id));
+                    if let Some(mut prev_venue_debate) = prev_venue_debate {
+                        if prev_venue_debate.uuid != existing_debate.uuid {
+                            prev_venue_debate.venue_id = None;
+
+                            groups.add(Entity::TournamentDebate(
+                                TournamentDebate::from_model(prev_venue_debate)
+                            ));
+                        }
+                    }
+
+                    existing_debate.venue_id = Some(venue.uuid);
+                },
+                None => {
+                    existing_debate.venue_id = None;
+                }
+            }
 
             groups.add(Entity::TournamentDebate(existing_debate));
         }
