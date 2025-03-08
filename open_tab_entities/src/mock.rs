@@ -251,6 +251,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                 },
                 tournament_id: Some(tournament_uuid),
                 is_confidential: false,
+                is_required: false
             },
         ];
 

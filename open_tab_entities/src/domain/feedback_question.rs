@@ -72,6 +72,8 @@ pub struct FeedbackQuestion {
     pub tournament_id: Option<Uuid>,
 
     pub is_confidential: bool,
+
+    pub is_required: bool,
 }
 
 impl FeedbackQuestion {

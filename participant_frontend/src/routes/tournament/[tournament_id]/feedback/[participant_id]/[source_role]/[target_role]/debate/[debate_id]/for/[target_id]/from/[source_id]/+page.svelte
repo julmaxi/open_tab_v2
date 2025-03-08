@@ -50,6 +50,11 @@
     .validation-error {
         color: red;
     }
+
+    .required-indicator {
+        color: red;
+        font-weight: bold;
+    }
 </style>
 
 <div class="container">
@@ -64,7 +69,12 @@
     <div>
     {#each feedback_form.questions as question}
         <div>
-            <h3>{question.full_name}</h3>
+            <h3>
+                {question.full_name}
+                {#if question.is_required}
+                    <span class="required-indicator">*</span>
+                {/if}
+            </h3>
 
             {#if question.description.length > 0}
                 <p>{question.description}</p>

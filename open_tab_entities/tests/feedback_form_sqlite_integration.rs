@@ -1,10 +1,8 @@
 mod common;
 
-
 use common::set_up_db;
 use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackFormVisibility}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType, RangeQuestionConfig}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::BoundTournamentEntityTrait};
 use uuid::Uuid;
-
 
 #[tokio::test]
 async fn test_save_form_without_questions_roundtrip() -> Result<(), anyhow::Error> {
@@ -33,7 +31,6 @@ async fn test_save_form_without_questions_roundtrip() -> Result<(), anyhow::Erro
     Ok(())
 }
 
-
 #[tokio::test]
 async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
@@ -51,6 +48,7 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> 
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -65,6 +63,7 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> 
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
 
     q1.save(&db, true).await?;
@@ -91,8 +90,6 @@ async fn test_save_form_with_questions_roundtrip() -> Result<(), anyhow::Error> 
     Ok(())
 }
 
-
-
 #[tokio::test]
 async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
@@ -110,6 +107,7 @@ async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -124,6 +122,7 @@ async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
 
     q1.save(&db, true).await?;
@@ -160,8 +159,6 @@ async fn test_save_form_change_question_order() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-
-
 #[tokio::test]
 async fn test_save_response() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
@@ -179,6 +176,7 @@ async fn test_save_response() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -193,6 +191,7 @@ async fn test_save_response() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
 
     q1.save(&db, true).await?;
@@ -245,7 +244,6 @@ async fn test_save_response() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-
 #[tokio::test]
 async fn test_update_response() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
@@ -263,6 +261,7 @@ async fn test_update_response() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
     let q2 = FeedbackQuestion {
         uuid: Uuid::from_u128(5000),
@@ -277,6 +276,7 @@ async fn test_update_response() -> Result<(), anyhow::Error> {
         }},
         tournament_id: Some(Uuid::from_u128(1)),
         is_confidential: false,
+        is_required: true,
     };
 
     q1.save(&db, true).await?;

@@ -25,7 +25,8 @@ pub struct FeedbackFormQuestion {
     pub short_name: String,
     pub full_name: String,
     pub description: String,
-    pub question_type: QuestionType
+    pub question_type: QuestionType,
+    pub is_required: bool
 }
 
 
@@ -36,7 +37,8 @@ impl From<FeedbackQuestion> for FeedbackFormQuestion {
             short_name: question.short_name,
             full_name: question.full_name,
             description: question.description,
-            question_type: question.question_config
+            question_type: question.question_config,
+            is_required: question.is_required
         }
     }
 }
@@ -227,6 +229,11 @@ async fn submit_feedback_form(
                         errors.insert(*key, "Text too long".into());
                     }
                 }
+            }
+        }
+        else {
+            if question.is_required {
+                errors.insert(*key, "Required".into());
             }
         }
     }
