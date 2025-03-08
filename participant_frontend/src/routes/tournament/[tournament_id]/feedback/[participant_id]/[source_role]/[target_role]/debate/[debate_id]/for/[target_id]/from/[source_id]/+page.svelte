@@ -3,6 +3,7 @@
     import TextFieldWidget from './TextFieldWidget.svelte';
 
     export let data;
+    export let form;
 
     let feedback_form = data.feedback_form;
 </script>
@@ -45,12 +46,19 @@
         flex-direction: column;;
         align-items: center;
     }
+
+    .validation-error {
+        color: red;
+    }
 </style>
 
 <div class="container">
 <h1>Feedback for {data.feedback_form.target_name}</h1>
 <h2>Round {data.feedback_form.target_round_index + 1}</h2>
 
+{#if form?.validation_errors}
+    <p class="validation-error">There are errors in your feedback submission.</p>
+{/if}
 
 <form method="POST">
     <div>
@@ -63,22 +71,35 @@
             {/if}
         </div>
 
+        {#if form?.validation_errors[question.uuid]}
+            <p class="validation-error">{form.validation_errors[question.uuid]}</p>
+        {/if}
+
         {#if question.question_type.type == "RangeQuestion"}
             <input type="hidden" name={`${question.uuid}_type`} value="int" />
-            <RangeQuestionWidget config={question.question_type.config} name={question.uuid} />
+            <RangeQuestionWidget config={question.question_type.config} name={question.uuid} initialValue={
+                form?.values[question.uuid] || null
+            } />
         {:else if question.question_type.type == "TextQuestion"}
             <input type="hidden" name={`${question.uuid}_type`} value="string" />
-            <TextFieldWidget name={question.uuid} placeholder="Type comments here" maxLength={question.question_type.config.max_length} />
+            <TextFieldWidget
+                name={question.uuid}
+                placeholder="Type comments here"
+                maxLength={question.question_type.config.max_length}
+                initialValue={
+                    form?.values[question.uuid] || ""
+                }
+            />
         {:else if question.question_type.type == "YesNoQuestion"}
             <div class="radio">
                 <div>
                 <input type="hidden" name={`${question.uuid}_type`} value="bool" />
                 <div>
-                <input type="radio" name={question.uuid} value="yes" />
+                <input type="radio" name={question.uuid} value="yes" checked={form?.values[question.uuid] == true} />
                 <label for={question.uuid}>Yes</label>
                 </div>
                 <div>
-                <input type="radio" name={question.uuid} value="no" />
+                <input type="radio" name={question.uuid} value="no" checked={form?.values[question.uuid] == false} />
                 <label for={question.uuid}>No</label>
                 </div>
                 </div>

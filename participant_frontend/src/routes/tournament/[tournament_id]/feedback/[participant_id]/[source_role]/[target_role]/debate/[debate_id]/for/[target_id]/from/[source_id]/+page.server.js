@@ -1,4 +1,4 @@
-import { makeAuthenticatedRequestServerOnly } from '$lib/api';
+import { makeAuthenticatedRequestServerOnly, makeAuthenticatedRequestServerOnlyNoThrow } from '$lib/api';
 import { fail, redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -28,10 +28,17 @@ export const actions = {
             }
             let type = formData.get(`${key}_type`);
             if (type === "int") {
-                jsonForm[key] = {val: parseInt(val.toString())};
+                if (val != "") {
+                    jsonForm[key] = {val: parseInt(val.toString())};
+                }
             }
             else if (type === "bool") {
-                jsonForm[key] = {val: val === "yes"};
+                if (val === "yes") {
+                    jsonForm[key] = {val: true};
+                }
+                else if (val === "no") {
+                    jsonForm[key] = {val: false};
+                }
             }
             else if (type === "string") {
                 jsonForm[key] = {val: val.toString()};
@@ -43,19 +50,22 @@ export const actions = {
 
         let submitUrl = `api/feedback/${params.source_role}/${params.target_role}/debate/${params.debate_id}/for/${params.target_id}/from/${params.source_id}`;
 
-        try {
-            let res = await makeAuthenticatedRequestServerOnly(submitUrl, cookies, {
-                body: JSON.stringify({"answers": jsonForm}),
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-            });
-            console.log(res.status);
+        let res = await makeAuthenticatedRequestServerOnlyNoThrow(submitUrl, cookies, {
+            body: JSON.stringify({"answers": jsonForm}),
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+        });
+        
+        switch (res.status) {
+            case 200:
+                throw redirect(302, `/tournament/${params.tournament_id}/home/`);
+            case 400:
+                let values = await res.json();
+                return fail(400, {
+                    ...values
+                });
+            default:
+                throw Error(`Request to ${submitUrl} failed with status ${res.status}: ${await res.text()}`);
         }
-        catch (e) {
-			return fail(422, {
-				description: "Failed to submit feedback",
-			});
-        }
-        throw redirect(302, `/tournament/${params.tournament_id}/home/`);
     }
 }

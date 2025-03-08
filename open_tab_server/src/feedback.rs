@@ -1,6 +1,6 @@
 use std::{str::FromStr, collections::HashMap};
 
-use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
+use axum::{extract::{Path, State}, response::{IntoResponse, Response}, routing::{get, post}, Json, Router};
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{derived_models::{compute_question_summary_values, SummaryValue}, domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, feedback_question::{FeedbackQuestion, QuestionType, DEFAULT_TEXT_MAX_LENGTH}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::{Participant, Team}, schema, Entity, EntityGroup};
@@ -64,9 +64,30 @@ pub struct FeedbackFormSubmissionRequest {
     pub answers: HashMap<Uuid, Value>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct FeedbackFormSubmissionResponse {
-    submission_id: Uuid   
+    submission_id: Option<Uuid>,
+    values: HashMap<Uuid, serde_json::Value>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    validation_errors: HashMap<Uuid, String>
+}
+
+impl IntoResponse for FeedbackFormSubmissionResponse {
+    fn into_response(self) -> Response {
+        let mut res = serde_json::to_string(&self).unwrap().into_response();
+        if self.validation_errors.len() > 0 {
+            *res.status_mut() = StatusCode::BAD_REQUEST;
+        }
+        res
+    }
+}
+
+fn response_value_to_serde_value(value: &FeedbackResponseValue) -> serde_json::Value {
+    match value {
+        FeedbackResponseValue::Bool {val} => serde_json::Value::Bool(*val),
+        FeedbackResponseValue::Int {val} => serde_json::Value::Number(serde_json::Number::from(*val)),
+        FeedbackResponseValue::String {val} => serde_json::Value::String(val.clone())
+    }
 }
 
 async fn get_feedback_form(
@@ -135,7 +156,7 @@ async fn submit_feedback_form(
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
     Json(submission): Json<FeedbackFormSubmissionRequest>,
-) -> Result<Json<FeedbackFormSubmissionResponse>, APIError> {
+) -> Result<FeedbackFormSubmissionResponse, APIError> {
     let source_role = FeedbackSourceRole::from_str(&source_role)?;
     let target_role = FeedbackTargetRole::from_str(&target_role)?;
 
@@ -170,13 +191,8 @@ async fn submit_feedback_form(
             (QuestionType::RangeQuestion {..}, _) => {
                 Err("Invalid value")
             },
-            (QuestionType::TextQuestion { config }, Value::String { val }) => {
-                if val.len() > (config.max_length as usize) {
-                    Err("Text too long")
-                }
-                else {
-                    Ok(FeedbackResponseValue::String { val: val.clone() })
-                }
+            (QuestionType::TextQuestion { .. }, Value::String { val }) => {
+                Ok(FeedbackResponseValue::String { val: val.clone() })
             },
             (QuestionType::TextQuestion { .. }, _) => {
                 Err("Invalid value")
@@ -202,11 +218,26 @@ async fn submit_feedback_form(
         };
     }
 
+    for (key, question) in question_map.iter() {
+        let value = response_values.get(key);
+        if let Some(value) = value {
+            if let FeedbackResponseValue::String { val } = value {
+                if let QuestionType::TextQuestion { config } = &question.question_type {
+                    if val.len() > (config.max_length as usize) {
+                        errors.insert(*key, "Text too long".into());
+                    }
+                }
+            }
+        }
+    }
+
     if errors.len() > 0 {
-        return Err(
-            APIError::new_with_status(
-                StatusCode::BAD_REQUEST, "Invalid submission"
-            )
+        return Ok(
+            FeedbackFormSubmissionResponse {
+                submission_id: None,
+                values: response_values.into_iter().map(|(k, v)| (k, response_value_to_serde_value(&v))).collect(),
+                validation_errors: errors
+            }
         )
     }
 
@@ -249,7 +280,7 @@ async fn submit_feedback_form(
         source_team_id,
         source_participant_id,
         source_debate_id: debate_id,
-        values: response_values,
+        values: response_values.clone(),
     };
 
     let group = EntityGroup::new_from_entities(
@@ -260,11 +291,13 @@ async fn submit_feedback_form(
 
     db.commit().await?;
 
-    return Ok(Json(
+    return Ok(
         FeedbackFormSubmissionResponse {
-            submission_id
+            submission_id: Some(submission_id),
+            values: response_values.into_iter().map(|(k, v)| (k, response_value_to_serde_value(&v))).collect(),
+            validation_errors: HashMap::new()
         }
-    ))
+    )
 }
 
 #[derive(Debug, Serialize, Deserialize)]

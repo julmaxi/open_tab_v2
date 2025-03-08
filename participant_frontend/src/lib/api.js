@@ -2,6 +2,7 @@ import { browser } from "$app/environment";
 import { env } from "$env/dynamic/public";
 import { error } from "@sveltejs/kit";
 
+
 /**
  * @param {string} url
  * @param {import("@sveltejs/kit").Cookies} cookies
@@ -9,7 +10,7 @@ import { error } from "@sveltejs/kit";
  * 
  * @returns {Promise<Response>}
  */
-export async function makeAuthenticatedRequestServerOnly(
+export async function makeAuthenticatedRequestServerOnlyNoThrow(
     url,
     cookies,
     options
@@ -31,12 +32,28 @@ export async function makeAuthenticatedRequestServerOnly(
             headers: new Headers(headers),
         }
     );
+    return res   
+}
+
+/**
+ * @param {string} url
+ * @param {import("@sveltejs/kit").Cookies} cookies
+ * @param {RequestInit} options
+ * 
+ * @returns {Promise<Response>}
+ */
+export async function makeAuthenticatedRequestServerOnly(
+    url,
+    cookies,
+    options
+) {
+    const res = await makeAuthenticatedRequestServerOnlyNoThrow(url, cookies, options);
     if (res.status != 200) {
         let err = await res.text();
         console.log(Error(`Request to ${url} failed with status ${res.status}: ${err}`));
         throw error(res.status, `Request to ${url} failed with status ${res.status}: ${err}`);
     }
-    return res   
+    return res
 }
 
 export function getParticipantCookieNameInTournament(tournamentId) {
