@@ -9,7 +9,7 @@ use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, Relat
 use serde::{Serialize, Deserialize};
 
 
-use crate::{auth::ExtractAuthenticatedUser, response::{handle_error, APIError, TypedAPIError}, state::AppState};
+use crate::{auth::ExtractAuthenticatedUser, response::APIError, state::AppState};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,8 +74,8 @@ async fn get_feedback_form(
     Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
     ExtractAuthenticatedUser(_user): ExtractAuthenticatedUser
 ) -> Result<Json<FeedbackFormResponse>, APIError> {
-    let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
-    let target_role = FeedbackTargetRole::from_str(&target_role).map_err(handle_error)?;
+    let source_role = FeedbackSourceRole::from_str(&source_role)?;
+    let target_role = FeedbackTargetRole::from_str(&target_role)?;
 
     let tournament_id = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
@@ -86,9 +86,9 @@ async fn get_feedback_form(
         }
     };
 
-    let target_participant = schema::participant::Entity::find_by_id(target_id).one(&db).await.map_err(handle_error)?;
+    let target_participant = schema::participant::Entity::find_by_id(target_id).one(&db).await?;
     if target_participant.is_none() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Invalid participant")))
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Invalid participant"))
     }
     let target_participant = target_participant.unwrap();
     
@@ -96,10 +96,10 @@ async fn get_feedback_form(
         schema::tournament_debate::Entity
     ).filter(
         schema::tournament_debate::Column::Uuid.eq(debate_id)
-    ).one(&db).await.map_err(handle_error)?;
+    ).one(&db).await?;
 
     if target_round.is_none() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Invalid debate")))
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Invalid debate"))
     }
     let target_round = target_round.unwrap();
 
@@ -136,10 +136,10 @@ async fn submit_feedback_form(
     Path((source_role, target_role, debate_id, target_id, source_id)): Path<(String, String, Uuid, Uuid, Uuid)>,
     Json(submission): Json<FeedbackFormSubmissionRequest>,
 ) -> Result<Json<FeedbackFormSubmissionResponse>, APIError> {
-    let source_role = FeedbackSourceRole::from_str(&source_role).map_err(handle_error)?;
-    let target_role = FeedbackTargetRole::from_str(&target_role).map_err(handle_error)?;
+    let source_role = FeedbackSourceRole::from_str(&source_role)?;
+    let target_role = FeedbackTargetRole::from_str(&target_role)?;
 
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
     
     let tournament_id = match source_role {
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
@@ -156,7 +156,7 @@ async fn submit_feedback_form(
     let mut response_values = HashMap::new();
     let mut errors = HashMap::new();
     for (key, val) in submission.answers {
-        let question: &FeedbackFormQuestion = question_map.get(&key).ok_or_else(|| APIError::from((StatusCode::BAD_REQUEST, format!("Invalid question {}", key))))?;
+        let question: &FeedbackFormQuestion = question_map.get(&key).ok_or_else(|| APIError::new_with_status(StatusCode::BAD_REQUEST, format!("Invalid question {}", key)))?;
 
         let response_val = match (&question.question_type, &val) {
             (QuestionType::RangeQuestion { config }, Value::Int { val }) => {
@@ -204,8 +204,8 @@ async fn submit_feedback_form(
 
     if errors.len() > 0 {
         return Err(
-            APIError::from(
-                (StatusCode::BAD_REQUEST, "Invalid submission")
+            APIError::new_with_status(
+                StatusCode::BAD_REQUEST, "Invalid submission"
             )
         )
     }
@@ -216,7 +216,7 @@ async fn submit_feedback_form(
         FeedbackSourceRole::Chair | FeedbackSourceRole::Wing | FeedbackSourceRole::President | FeedbackSourceRole::NonAligned => {
             let is_authorized = user.check_is_authorized_as_participant(&db, source_id).await?  || user.check_is_authorized_for_tournament_administration(&db, tournament_id).await?;
             if !is_authorized {
-                return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
+                return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant"))
             }
 
             (Some(source_id), None)
@@ -224,7 +224,7 @@ async fn submit_feedback_form(
         FeedbackSourceRole::Team => {
             
             if !(user.check_is_authorized_as_member_of_team(&db, source_id).await? || user.check_is_authorized_for_tournament_administration(&db, tournament_id).await?) {
-                return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant")))
+                return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not allowed to submit feedback for this participant"))
             }
             (None, Some(source_id))
         }
@@ -236,10 +236,10 @@ async fn submit_feedback_form(
         open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id).and(
             open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid)            
         )
-    ).one(&db).await.map_err(handle_error)?;
+    ).one(&db).await?;
     
     if participant.is_none() {
-        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not a participant in this tournament")))
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not a participant in this tournament"))
     }
 
     let submission = FeedbackResponse {
@@ -258,7 +258,7 @@ async fn submit_feedback_form(
     );
     group.save_all_and_log(&db).await?;
 
-    db.commit().await.map_err(handle_error)?;
+    db.commit().await?;
 
     return Ok(Json(
         FeedbackFormSubmissionResponse {
@@ -291,11 +291,11 @@ struct ParticipantFeedbackIndividualValueList {
 
 async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, Path(participant_id): Path<Uuid>, ExtractAuthenticatedUser(user): ExtractAuthenticatedUser) -> Result<Json<ParticipantFeedbackSummary>, APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not allowed to view feedback for this participant")))
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not allowed to view feedback for this participant"))
     }
     let now = chrono::Utc::now().naive_utc();
 
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
     let relevant_answer_values = schema::feedback_response_value::Entity::find().inner_join(
         schema::feedback_response::Entity
     )
@@ -306,7 +306,7 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
             schema::feedback_response::Column::TargetParticipantId.eq(participant_id)
         )
     )
-    .all(&db).await.map_err(handle_error)?;
+    .all(&db).await?;
 
     let question_ids = relevant_answer_values.iter().map(|v| v.question_id).collect_vec();
 
@@ -314,8 +314,8 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
         schema::feedback_question::Column::Uuid.is_in(question_ids).and(
             schema::feedback_question::Column::IsConfidential.eq(false)
         )
-    ).order_by_asc(schema::feedback_question::Column::FullName).all(&db).await.map_err(handle_error)?.into_iter().map(FeedbackQuestion::from_model).collect_vec();
-    db.rollback().await.map_err(handle_error)?;
+    ).order_by_asc(schema::feedback_question::Column::FullName).all(&db).await?.into_iter().map(FeedbackQuestion::from_model).collect_vec();
+    db.rollback().await?;
 
     let answers_by_question_id : Result<Vec<(Uuid, FeedbackResponseValue)>, anyhow::Error> = relevant_answer_values.into_iter().map(|a| Ok((a.question_id, FeedbackResponseValue::try_from(a)?))).collect();
     let answers_by_question_id = answers_by_question_id?.into_iter().into_group_map();

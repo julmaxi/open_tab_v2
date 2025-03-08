@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Error, str::FromStr};
 
 use axum::response::{IntoResponse, Response};
 
@@ -28,74 +28,38 @@ impl APIError {
     }
 }
 
+impl<T> TypedAPIError<T> {
+    pub fn new_with_status<S>(code: axum::http::StatusCode, message: S) -> Self where S: Into<T> {
+        TypedAPIError {
+            message: message.into(),
+            code
+        }
+    }
+}
+
+/*
 impl<T> From<anyhow::Error> for TypedAPIError<T> where T: From<String> {
     fn from(err: anyhow::Error) -> Self {
         error!("Error while handling request {}", err.to_string());
         TypedAPIError { message: err.to_string().into(), code: axum::http::StatusCode::INTERNAL_SERVER_ERROR }
     }
 }
+ */
 
-impl<T> From<(axum::http::StatusCode, T)> for TypedAPIError<T> where T: Serialize + std::fmt::Debug {
-    fn from((code, err): (axum::http::StatusCode, T)) -> Self {
-        error!("Error while handling request {:?}", err);
-        TypedAPIError { message: err, code }
+impl<E> From<E> for APIError where E: std::fmt::Display {
+    fn from(err: E) -> Self {
+        APIError { message: err.to_string(), code: axum::http::StatusCode::INTERNAL_SERVER_ERROR }
     }
 }
 
-impl<T> IntoResponse for TypedAPIError<T> where T: Serialize
+impl<T> IntoResponse for TypedAPIError<T> where T: Serialize + std::fmt::Display
 {
     fn into_response(self) -> Response {
-        let mut res = serde_json::to_string(&APIErrorResponse {message: self.message}).unwrap().into_response();
+        tracing::error!("Error while handling request: {}", self.message);
+        let mut res = serde_json::to_string(&APIErrorResponse {
+            message: self.message
+        }).unwrap().into_response();
         *res.status_mut() = self.code;
         res
     }
-}
-
-impl From<(axum::http::StatusCode, &str)> for APIError {
-    fn from((code, message): (axum::http::StatusCode, &str)) -> Self {
-        error!("Error while handling request {}", message);
-        APIError { message: message.to_string(), code }
-    }
-}
-
-/*
-impl From<(axum::http::StatusCode, String)> for APIError {
-    fn from((code, message): (axum::http::StatusCode, String)) -> Self {
-        error!("Error while handling request {}", message);
-        APIError { message: message.to_string(), code }
-    }
-}
- */
-
-impl FromStr for APIError {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, ()> {
-        Ok(APIError { message: s.to_string(), code: axum::http::StatusCode::INTERNAL_SERVER_ERROR })
-    }
-}
-
-pub fn handle_error<E>(err: E) -> APIError
-where
-    E: std::error::Error
-{
-    error!("Error while handling request {}", err);
-    APIError::new(err.to_string())
-}
-
-
-pub fn handle_typed_error<E, T>(err: E) -> TypedAPIError<T>
-where
-    E: std::error::Error,
-    T: From<String>
-{
-    error!("Error while handling request {}", err);
-    TypedAPIError { message: err.to_string().into(), code: axum::http::StatusCode::INTERNAL_SERVER_ERROR }
-}
-
-
-pub fn handle_error_dyn(err: Box<dyn std::error::Error>) -> APIError
-{
-    error!("Error while handling request {}", err);
-    APIError::new(err.to_string())
 }

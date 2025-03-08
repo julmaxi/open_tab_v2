@@ -7,7 +7,7 @@ use open_tab_entities::{derived_models::get_tournament_feedback_directions, doma
 use sea_orm::{DatabaseConnection, TransactionTrait, prelude::*, QuerySelect, QueryOrder};
 use serde::{Serialize, Deserialize};
 
-use crate::{auth::{ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser}, response::{handle_error, APIError}, state::AppState};
+use crate::{auth::{ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser}, response::APIError, state::AppState};
 
 use open_tab_entities::domain::round::check_release_date;
 
@@ -212,11 +212,11 @@ async fn get_participant_info(
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantInfoResponse>, APIError> {
-    let transaction = db.begin().await.map_err(handle_error)?;
+    let transaction = db.begin().await?;
 
     let participant_query_result = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
     .find_also_related(open_tab_entities::schema::tournament::Entity)
-        .one(&transaction).await.map_err(handle_error)?;
+        .one(&transaction).await?;
 
     let is_admin = if let Some(participant_query_result) = &participant_query_result  {
         user.check_is_authorized_for_tournament_administration(&transaction, participant_query_result.1.as_ref().expect("Guaranteed by consistency constraints").uuid).await?
@@ -225,14 +225,14 @@ async fn get_participant_info(
     };
 
     if !(is_admin || user.check_is_authorized_as_participant(&transaction, participant_id).await?) {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
-        transaction.rollback().await.map_err(handle_error)?;
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
+        transaction.rollback().await?;
         return Err(err);
     }
 
     if participant_query_result.is_none() {
-        transaction.rollback().await.map_err(handle_error)?;
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
+        transaction.rollback().await?;
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"));
     }
 
     let (participant, tournament) = participant_query_result.unwrap();
@@ -246,13 +246,13 @@ async fn get_participant_info(
             open_tab_entities::schema::user_participant::Entity::find()
             .filter(
                 open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid)
-            ).one(&transaction).await.map_err(handle_error)?.is_some()
+            ).one(&transaction).await?.is_some()
         }
     };
 
     if !has_access {
-        transaction.rollback().await.map_err(handle_error)?;
-        return Err(APIError::from((StatusCode::FORBIDDEN, "You do not have access to this participant")));
+        transaction.rollback().await?;
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "You do not have access to this participant"));
     }
     let current_time = chrono::Utc::now().naive_utc();
 
@@ -265,7 +265,7 @@ async fn get_participant_info(
         open_tab_entities::schema::participant::Column::Uuid.eq(participant_id)
     )
     .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
-    .all(&transaction).await.map_err(handle_error)?;
+    .all(&transaction).await?;
 
     let participant_adjudicator_debates = open_tab_entities::schema::tournament_debate::Entity::find()
     .inner_join(open_tab_entities::schema::ballot::Entity)
@@ -273,7 +273,7 @@ async fn get_participant_info(
     .find_also_related(open_tab_entities::schema::tournament_venue::Entity)
     .filter(
         open_tab_entities::schema::ballot_adjudicator::Column::AdjudicatorId.eq(participant_id)
-    ).all(&transaction).await.map_err(handle_error)?;
+    ).all(&transaction).await?;
 
     let participant_non_aligned_speaker_debates = open_tab_entities::schema::tournament_debate::Entity::find()
     .inner_join(open_tab_entities::schema::ballot::Entity)
@@ -285,7 +285,7 @@ async fn get_participant_info(
                 open_tab_entities::domain::ballot::SpeechRole::NonAligned.to_str()
             )
         )
-    ).all(&transaction).await.map_err(handle_error)?;
+    ).all(&transaction).await?;
 
     //FIXME: Unelegant
     let participant_gov_debates = open_tab_entities::schema::tournament_debate::Entity::find()
@@ -300,7 +300,7 @@ async fn get_participant_info(
                 open_tab_entities::domain::ballot::SpeechRole::Government.to_str()
             )
         )
-    ).all(&transaction).await.map_err(handle_error)?;
+    ).all(&transaction).await?;
 
     let participant_opp_debates = open_tab_entities::schema::tournament_debate::Entity::find()
     .inner_join(open_tab_entities::schema::ballot::Entity)
@@ -314,7 +314,7 @@ async fn get_participant_info(
                 open_tab_entities::domain::ballot::SpeechRole::Opposition.to_str()
             )
         )
-    ).all(&transaction).await.map_err(handle_error)?;
+    ).all(&transaction).await?;
 
     let all_ballot_ids = participant_adjudicator_debates.iter().map(|d| d.0.ballot_id)
     .chain(participant_non_aligned_speaker_debates.iter().map(|d| d.0.ballot_id))
@@ -538,7 +538,7 @@ async fn get_participant_info(
     let relevant_submissions = schema::feedback_response::Entity::find()
     .filter(
         submission_filter
-    ).all(&transaction).await.map_err(handle_error)?;
+    ).all(&transaction).await?;
 
     let relevant_submission_map: HashMap<(Uuid, Uuid), Vec<schema::feedback_response::Model>> = relevant_submissions.into_iter().map(|submission| {
         ((submission.source_debate_id, submission.target_participant_id), submission)
@@ -569,7 +569,7 @@ async fn get_participant_info(
     .column(schema::participant::Column::Name)
     .filter(
         schema::participant::Column::Uuid.is_in(target_participant_uuids)
-    ).into_tuple().all(&transaction).await.map_err(handle_error)?;
+    ).into_tuple().all(&transaction).await?;
 
     let relevant_names = relevant_names.into_iter().collect::<HashMap<_, _>>();
     
@@ -663,9 +663,9 @@ async fn get_participant_info(
     let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
     .filter(
         open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament.uuid)
-    ).one(&transaction).await.map_err(handle_error)?;
+    ).one(&transaction).await?;
 
-    transaction.rollback().await.map_err(handle_error)?;
+    transaction.rollback().await?;
     Ok(Json(ParticipantInfoResponse {
         name: participant.name,
         tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
@@ -681,7 +681,7 @@ async fn get_participant_role(participant_id: Uuid, transaction: &sea_orm::Datab
     .find_also_related(open_tab_entities::schema::team::Entity)
     .filter(
         open_tab_entities::schema::speaker::Column::Uuid.eq(participant_id)
-    ).one(transaction).await.map_err(handle_error)?;
+    ).one(transaction).await?;
     let speaker_info = speaker_info.map(
         |(model, team)| {
             let team = team.unwrap(); // Guaranteed by consistency constraints
@@ -691,7 +691,7 @@ async fn get_participant_role(participant_id: Uuid, transaction: &sea_orm::Datab
     let adjudicator_info = open_tab_entities::schema::adjudicator::Entity::find()
     .filter(
         open_tab_entities::schema::adjudicator::Column::Uuid.eq(participant_id)
-    ).one(transaction).await.map_err(handle_error)?;
+    ).one(transaction).await?;
     let role = match (&speaker_info, &adjudicator_info) {
         (None, None) => ParticipantRoleInfo::None,
         (None, Some(_)) => ParticipantRoleInfo::Adjudicator,
@@ -719,20 +719,20 @@ async fn get_participant_short_info(
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantShortInfoResponse>, APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
         return Err(err);
     }
 
-    let transaction = db.begin().await.map_err(handle_error)?;
+    let transaction = db.begin().await?;
     let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
     .find_with_related(open_tab_entities::schema::tournament::Entity)
-    .all(&transaction).await.map_err(handle_error)?;
+    .all(&transaction).await?;
 
     let participant = participant.into_iter().next();
 
     if participant.is_none() {
-        transaction.rollback().await.map_err(handle_error)?;
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
+        transaction.rollback().await?;
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"));
     }
     let (participant, tournament) = participant.unwrap();
     let tournament = tournament.into_iter().next().unwrap(); // Guaranteed by consistency constraints
@@ -740,11 +740,11 @@ async fn get_participant_short_info(
     let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
     .filter(
         open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament.uuid)
-    ).one(&transaction).await.map_err(handle_error)?;
+    ).one(&transaction).await?;
 
     let role = get_participant_role(participant_id, &transaction).await?;
 
-    transaction.rollback().await.map_err(handle_error)?;
+    transaction.rollback().await?;
     Ok(Json(ParticipantShortInfoResponse {
         name: participant.name,
         tournament_name: published_tournament.map(|t| t.public_name).unwrap_or(tournament.name),
@@ -771,18 +771,18 @@ pub async fn get_participant_settings(
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantSettings>, APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
         return Err(err);
     }
 
-    let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(&db).await.map_err(handle_error)?;
+    let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id).one(&db).await?;
     if let Some(participant) = participant {
         Ok(Json(ParticipantSettings {
             is_anonymous: participant.is_anonymous
         }))
     }
     else {
-        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+        Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"))
     }
 }
 
@@ -793,7 +793,7 @@ pub async fn update_participant_settings(
     Json(new_settings): Json<ParticipantSettings>
 ) -> Result<(), APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
         return Err(err);
     }
 
@@ -811,7 +811,7 @@ pub async fn update_participant_settings(
         Ok(())
     }
     else {
-        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+        Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"))
     }
 }
 
@@ -859,7 +859,7 @@ pub async fn list_participants(
 ) -> Result<Json<ParticipantList>, APIError> {
     let tournament = open_tab_entities::schema::published_tournament::Entity::find().filter(
         open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id)
-    ).one(&db).await.map_err(handle_error)?;
+    ).one(&db).await?;
 
     let mut is_authorized = false;
     if let Some(tournament) = tournament {
@@ -869,24 +869,24 @@ pub async fn list_participants(
     if !is_authorized {
         if let Some(user) = user {
             if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
-                return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+                return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament"));
             }
         }
         else {
-            return Err(APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament")));
+            return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view participants in this tournament"));
         }
     }
 
     let institutions_by_id = open_tab_entities::schema::tournament_institution::Entity::find()
     .filter(
         open_tab_entities::schema::tournament_institution::Column::TournamentId.eq(tournament_id)
-    ).all(&db).await.map_err(handle_error)?.into_iter().map(|i| (i.uuid, InstitutionInfo::from(i))).collect::<HashMap<_, _>>();
+    ).all(&db).await?.into_iter().map(|i| (i.uuid, InstitutionInfo::from(i))).collect::<HashMap<_, _>>();
 
     let mut participants_by_id = open_tab_entities::schema::participant::Entity::find()
     .find_with_related(open_tab_entities::schema::participant_tournament_institution::Entity)
     .filter(
         open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id)
-    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+    ).all(&db).await?.into_iter().map(
         |(participant, institutions)| {
             let institutions = institutions.into_iter().map(|i| i.institution_id).collect::<Vec<_>>();
             
@@ -905,7 +905,7 @@ pub async fn list_participants(
         open_tab_entities::schema::team::Column::TournamentId.eq(tournament_id)
     )
     .order_by_asc(open_tab_entities::schema::team::Column::Name)
-    .all(&db).await.map_err(handle_error)?.into_iter().map(
+    .all(&db).await?.into_iter().map(
         |(team, speakers)| {
             let members = speakers.into_iter().filter_map(|speaker| {
                 participants_by_id.remove(&speaker.uuid)
@@ -921,7 +921,7 @@ pub async fn list_participants(
     let adjudicators = open_tab_entities::schema::adjudicator::Entity::find()
     .inner_join(open_tab_entities::schema::participant::Entity)
     .filter(open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id))
-    .all(&db).await.map_err(handle_error)?.into_iter().filter_map(
+    .all(&db).await?.into_iter().filter_map(
         |adjudicator| {
             participants_by_id.remove(&adjudicator.uuid)
         }
@@ -962,21 +962,21 @@ pub async fn get_participant_declared_clashes(
     Path(participant_id): Path<Uuid>,
 ) -> Result<Json<ParticipantDeclaredClashList>, APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
         return Err(err);
     }
 
     let participant = schema::participant::Entity::find_by_id(participant_id)
     .find_also_related(schema::tournament::Entity)
-    .one(&db).await.map_err(handle_error)?;
+    .one(&db).await?;
 
     if let Some((participant, Some(tournament))) = participant {
         if !tournament.allow_self_declared_clashes {
-            return Err(APIError::from((StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament")));
+            return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament"));
         }
     }
     else {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")));
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"));
     }
 
     let clashes = open_tab_entities::schema::clash_declaration::Entity::find()
@@ -984,14 +984,14 @@ pub async fn get_participant_declared_clashes(
         open_tab_entities::schema::clash_declaration::Column::SourceParticipantId.eq(participant_id).and(
             open_tab_entities::schema::clash_declaration::Column::IsRetracted.eq(false)
         )
-    ).all(&db).await.map_err(handle_error)?;
+    ).all(&db).await?;
 
     let clash_target_ids = clashes.iter().map(|clash| clash.target_participant_id).collect::<Vec<_>>();
 
     let target_participants_by_id = open_tab_entities::schema::participant::Entity::find()
     .filter(
         open_tab_entities::schema::participant::Column::Uuid.is_in(clash_target_ids)
-    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+    ).all(&db).await?.into_iter().map(
         |p| {
             (p.uuid, p.name)
         }
@@ -1012,13 +1012,13 @@ pub async fn get_participant_declared_clashes(
     .filter(
         open_tab_entities::schema::institution_declaration::Column::SourceParticipantId.eq(participant_id)
         .and(open_tab_entities::schema::institution_declaration::Column::IsRetracted.eq(false))
-    ).all(&db).await.map_err(handle_error)?;
+    ).all(&db).await?;
 
     let institution_target_ids = institutions.iter().map(|institution| institution.tournament_institution_id).collect::<Vec<_>>();
     let target_institutions_by_id = open_tab_entities::schema::tournament_institution::Entity::find()
     .filter(
         open_tab_entities::schema::tournament_institution::Column::Uuid.is_in(institution_target_ids)
-    ).all(&db).await.map_err(handle_error)?.into_iter().map(
+    ).all(&db).await?.into_iter().map(
         |i| {
             (i.uuid, i.name)
         }
@@ -1062,30 +1062,30 @@ pub async fn update_participant_clash_declarations(
     Json(request): Json<UpdateParticipantClashesRequest>
 ) -> Result<(), APIError> {
     if !user.check_is_authorized_as_participant(&db, participant_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized to view this participant"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized to view this participant");
         return Err(err);
     }
 
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
 
     let participant = schema::participant::Entity::find_by_id(participant_id)
         .find_also_related(schema::tournament::Entity)
-        .one(&db).await.map_err(handle_error)?;
+        .one(&db).await?;
     
     if let Some((participant, Some(tournament))) = participant {
         if !tournament.allow_self_declared_clashes {
-            db.rollback().await.map_err(handle_error)?;
-            return Err(APIError::from((StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament")));
+            db.rollback().await?;
+            return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "Self-declared clashes are not allowed in this tournament"));
         }
         
         if !tournament.allow_speaker_self_declared_clashes {
             let participant_adj = schema::adjudicator::Entity::find()
             .filter(
                 schema::adjudicator::Column::Uuid.eq(participant_id)
-            ).one(&db).await.map_err(handle_error)?;
+            ).one(&db).await?;
             if !participant_adj.is_some() {
-                db.rollback().await.map_err(handle_error)?;
-                return Err(APIError::from((StatusCode::FORBIDDEN, "Speakers cannot declare clashes")));
+                db.rollback().await?;
+                return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "Speakers cannot declare clashes"));
             }
         }
         
@@ -1095,11 +1095,11 @@ pub async fn update_participant_clash_declarations(
         let existing_clash_declarations = open_tab_entities::schema::clash_declaration::Entity::find()
         .filter(
             open_tab_entities::schema::clash_declaration::Column::SourceParticipantId.eq(participant_id)
-        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.target_participant_id, ClashDeclaration::from_model(clash))).into_group_map();
+        ).all(&db).await?.into_iter().map(|clash| (clash.target_participant_id, ClashDeclaration::from_model(clash))).into_group_map();
         let existing_institution_declarations = open_tab_entities::schema::institution_declaration::Entity::find()
         .filter(
             open_tab_entities::schema::institution_declaration::Column::SourceParticipantId.eq(participant_id)
-        ).all(&db).await.map_err(handle_error)?.into_iter().map(|clash| (clash.tournament_institution_id, InstitutionDeclaration::from_model(clash))).into_group_map();
+        ).all(&db).await?.into_iter().map(|clash| (clash.tournament_institution_id, InstitutionDeclaration::from_model(clash))).into_group_map();
 
         for added_clash in request.added_clashes {
             if let Some(existing_declaration) = existing_clash_declarations.get(&added_clash) {
@@ -1182,11 +1182,11 @@ pub async fn update_participant_clash_declarations(
 
         entity_group.save_all_and_log(&db).await?;
 
-        db.commit().await.map_err(handle_error)?;
+        db.commit().await?;
         Ok(())
     }
     else {
-        Err(APIError::from((StatusCode::NOT_FOUND, "Participant not found")))
+        Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Participant not found"))
     }
 }
 

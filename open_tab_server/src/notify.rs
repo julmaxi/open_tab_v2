@@ -10,7 +10,7 @@ use serde::{Serialize, Deserialize};
 use tracing::Subscriber;
 use weak_table::WeakValueHashMap;
 
-use crate::{state::AppState, response::{handle_error, APIError}};
+use crate::{state::AppState, response::APIError};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,10 +244,10 @@ pub async fn get_participant_events(
     let mut result = schema::participant::Entity::find()
         .find_with_related(schema::tournament::Entity)
         .filter(schema::participant::Column::Uuid.eq(participant_id))
-    .all(&db).await.map_err(handle_error)?;
+    .all(&db).await?;
 
     if result.len() == 0 {
-        return Err(APIError::from((axum::http::StatusCode::NOT_FOUND, "Submission not found")));
+        return Err(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Submission not found"));
     }
 
     let (participant, mut tournament) = result.pop().unwrap();

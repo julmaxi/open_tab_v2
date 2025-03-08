@@ -1,3 +1,4 @@
+use std::path::Display;
 use std::str::FromStr;
 
 use argon2::Argon2;
@@ -22,10 +23,10 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::http::request::Parts;
 // for `call`
 
-use crate::response::{TypedAPIError, handle_typed_error};
+use crate::response::TypedAPIError;
 use crate::tournament;
 use crate::{
-    response::{handle_error, handle_error_dyn, APIError},
+    response::APIError,
     state::AppState,
 };
 
@@ -64,18 +65,16 @@ impl AuthenticatedUser {
                             .eq(user_name.trim_start_matches("mail#")),
                     )
                     .one(&state.db)
-                    .await
-                    .map_err(handle_error)?
+                    .await?
             } else {
                 let user_uuid = Uuid::from_str(user_name)
-                    .map_err(|_| (StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
+                    .map_err(|_| APIError::new_with_status(StatusCode::BAD_REQUEST, "User ID is not formatted correcty"))?;
                 open_tab_entities::schema::user::Entity::find_by_id(user_uuid)
                     .one(&state.db)
-                    .await
-                    .map_err(handle_error)?
+                    .await?
             };
 
-            let user = user.ok_or((
+            let user = user.ok_or(APIError::new_with_status(
                 StatusCode::UNAUTHORIZED,
                 "User not found or password incorrect",
             ))?;
@@ -85,7 +84,7 @@ impl AuthenticatedUser {
             let algs: &[&dyn PasswordVerifier] = &[&Argon2::default()];
 
             password_hash.verify_password(algs, password).map_err(|_| {
-                (
+                APIError::new_with_status(
                     StatusCode::UNAUTHORIZED,
                     "User not found or password incorrect",
                 )
@@ -102,7 +101,7 @@ impl AuthenticatedUser {
                 TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                     .await
                     .map_err(|_| {
-                        (
+                        APIError::new_with_status(
                             StatusCode::UNAUTHORIZED,
                             "No valid authorization header found",
                         )
@@ -111,7 +110,7 @@ impl AuthenticatedUser {
                 .decode(&bearer_header.0.token())
                 .map_err(
                     |e| {
-                        (
+                        APIError::new_with_status(
                             StatusCode::UNAUTHORIZED,
                             format!("Bearer token invalid: {}", e),
                         )
@@ -119,7 +118,7 @@ impl AuthenticatedUser {
                 )?;
             let salt: SaltString = SaltString::from_b64(&TOKEN_SALT).unwrap();
             let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
-                (
+                APIError::new_with_status(
                     StatusCode::UNAUTHORIZED,
                     "No valid authorization header found",
                 )
@@ -129,10 +128,9 @@ impl AuthenticatedUser {
                 hashed_key.to_string(),
             )
             .one(&state.db)
-            .await
-            .map_err(handle_error)?;
+            .await?;
 
-            let key = key.ok_or((StatusCode::UNAUTHORIZED, "Bearer token invalid"))?;
+            let key = key.ok_or(APIError::new_with_status(StatusCode::UNAUTHORIZED, "Bearer token invalid"))?;
 
             return Ok(AuthenticatedUser {
                 uuid: key.user_id,
@@ -355,6 +353,16 @@ pub enum CreateUserRequestError {
     Other(String)
 }
 
+impl std::fmt::Display for CreateUserRequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CreateUserRequestError::UserExists => write!(f, "User already exists"),
+            CreateUserRequestError::PasswordTooShort => write!(f, "Password too short"),
+            CreateUserRequestError::Other(s) => write!(f, "{}", s)
+        }
+    }
+}
+
 
 impl From<String> for CreateUserRequestError {
     fn from(s: String) -> Self {
@@ -369,7 +377,7 @@ pub async fn create_user_handler(
     let pwd = request.password;
 
     if pwd.len() < 8 {
-        return Err((
+        return Err(TypedAPIError::new_with_status(
             StatusCode::BAD_REQUEST,
             CreateUserRequestError::PasswordTooShort,
         )
@@ -381,10 +389,12 @@ pub async fn create_user_handler(
             .filter(open_tab_entities::schema::user::Column::UserEmail.eq(user_email))
             .one(&db)
             .await
-            .map_err(handle_typed_error)?;
+            .map_err(
+                |e| TypedAPIError::new_with_status(StatusCode::INTERNAL_SERVER_ERROR, CreateUserRequestError::Other(e.to_string()))
+            )?;
 
         if existing_user.is_some() {
-            return Err((
+            return Err(TypedAPIError::new_with_status(
                 StatusCode::BAD_REQUEST,
                 CreateUserRequestError::UserExists,
             )
@@ -393,7 +403,7 @@ pub async fn create_user_handler(
     }
 
     let new_user_uuid = Uuid::new_v4();
-    let pwd = hash_password(pwd)?;
+    let pwd = hash_password(pwd).map_err(|e| TypedAPIError::new_with_status(StatusCode::INTERNAL_SERVER_ERROR, CreateUserRequestError::Other(e.to_string())))?;
     let model: open_tab_entities::schema::user::Model = open_tab_entities::schema::user::Model {
         uuid: new_user_uuid,
         password_hash: pwd,
@@ -404,7 +414,9 @@ pub async fn create_user_handler(
         .into_active_model()
         .insert(&db)
         .await
-        .map_err(handle_typed_error)?;
+        .map_err(
+            |e| TypedAPIError::new_with_status(StatusCode::INTERNAL_SERVER_ERROR, CreateUserRequestError::Other(e.to_string()))
+        )?;
 
     return Ok(CreateUserResponse {
         uuid: new_user_uuid,
@@ -436,14 +448,14 @@ pub async fn create_token_handler(
     Json(request): Json<GetTokenRequest>,
 ) -> Result<Json<GetTokenResponse>, APIError> {
     if user.authorized_only_for_tournament.is_some() {
-        return Err((
+        return Err(APIError::new_with_status(
             StatusCode::UNAUTHORIZED,
             "Tournament specific tokens can't be used to create new keys",
         )
             .into());
     }
     if user.is_access_only {
-        return Err((
+        return Err(APIError::new_with_status(
             StatusCode::UNAUTHORIZED,
             "Access only tokens can't create new tokens",
         )
@@ -454,12 +466,11 @@ pub async fn create_token_handler(
 
     let duration = Duration::minutes(10);
     let expiration = if user.is_password_authorized { Some(duration) } else { None };
-    let token = create_key(&key, user.uuid, request.tournament, expiration, !user.is_password_authorized).map_err(handle_error_dyn)?;
+    let token = create_key(&key, user.uuid, request.tournament, expiration, !user.is_password_authorized)?;
     token
         .into_active_model()
         .insert(&db)
-        .await
-        .map_err(handle_error)?;
+        .await?;
 
     return Ok(GetTokenResponse {
         token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
@@ -485,17 +496,16 @@ pub async fn register_user_handler(
 
     let participant = open_tab_entities::schema::participant::Entity::find_by_id(participant_id)
         .one(&db)
-        .await
-        .map_err(handle_error)?
-        .ok_or(APIError::from((
+        .await?
+        .ok_or(APIError::new_with_status(
             StatusCode::BAD_REQUEST,
             "Participant not found or key invalid",
-        )))?;
+        ))?;
 
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
 
     match &participant.registration_key {
-        None => Err((StatusCode::BAD_REQUEST, "Participant can not be claimed").into()),
+        None => Err(APIError::new_with_status(StatusCode::BAD_REQUEST, "Participant can not be claimed").into()),
         Some(registration_key) => {
             if *registration_key == submitted_key {
                 let existing_user = open_tab_entities::schema::user_participant::Entity::find()
@@ -506,34 +516,33 @@ pub async fn register_user_handler(
                     )
                     .one(&db)
                     .await
-                    .map_err(handle_error)?;
+                    ?;
 
                 if let Some((existing_user, Some(existing_user_model))) = existing_user {
                     if existing_user_model.user_email.is_some() {
-                        return Err((
+                        return Err(APIError::new_with_status(
                             StatusCode::FORBIDDEN,
                             "Participant already claimed by user",
-                        )
-                            .into());
+                        ));
                     }
                     else {
                         if link_current_user {
                             schema::user::Entity::delete_by_id(existing_user.user_id)
                             .exec(&db)
                             .await
-                            .map_err(handle_error)?;
+                            ?;
 
                             return handle_register_existing_user(db, user, participant_id, participant).await;
                         }
                         let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
                         let token =
-                            create_key(&key, existing_user.user_id, None, None, false).map_err(handle_error_dyn)?;
+                            create_key(&key, existing_user.user_id, None, None, false)?;
                         token
                             .into_active_model()
                             .insert(&db)
                             .await
-                            .map_err(handle_error)?;
-                        db.commit().await.map_err(handle_error)?;
+                            ?;
+                        db.commit().await?;
                         Ok(RegisterUserResponse {
                             user_id: existing_user.user_id,
                             participant_id: participant_id,
@@ -549,7 +558,7 @@ pub async fn register_user_handler(
                     else {
                         let (new_user_id, key) = make_new_anonymous_user(&db, participant_id).await?;
 
-                        db.commit().await.map_err(handle_error)?;
+                        db.commit().await?;
                         Ok(RegisterUserResponse {
                             user_id: new_user_id,
                             participant_id,
@@ -560,8 +569,8 @@ pub async fn register_user_handler(
                     }
                 }
             } else {
-                db.rollback().await.map_err(handle_error)?;
-                Err((StatusCode::BAD_REQUEST, "Incorrect key or participant id").into())
+                db.rollback().await?;
+                Err(APIError::new_with_status(StatusCode::BAD_REQUEST, "Incorrect key or participant id").into())
             }
         }
     }
@@ -581,7 +590,7 @@ async fn handle_register_existing_user(db: sea_orm::DatabaseTransaction, user: O
             )
             .all(&db)
             .await
-            .map_err(handle_error)?;
+            ?;
 
         open_tab_entities::schema::user_participant::Entity::delete_many()
         .filter(
@@ -591,7 +600,7 @@ async fn handle_register_existing_user(db: sea_orm::DatabaseTransaction, user: O
                     open_tab_entities::schema::user_participant::Column::ParticipantId
                         .is_in(previously_linked_participants.iter().map(|up| up.participant_id).collect::<Vec<_>>()),
                 ),
-        ).exec(&db).await.map_err(handle_error)?;
+        ).exec(&db).await?;
         
         let user_participant = open_tab_entities::schema::user_participant::Model {
             user_id: user.uuid,
@@ -602,9 +611,9 @@ async fn handle_register_existing_user(db: sea_orm::DatabaseTransaction, user: O
             .into_active_model()
             .insert(&db)
             .await
-            .map_err(handle_error)?;                        
+            ?;                        
 
-        db.commit().await.map_err(handle_error)?;
+        db.commit().await?;
     
         return Ok(RegisterUserResponse {
             user_id: user.uuid,
@@ -614,7 +623,7 @@ async fn handle_register_existing_user(db: sea_orm::DatabaseTransaction, user: O
         }.into())
     }
     else {
-        return Err((StatusCode::BAD_REQUEST, "You are not logged in").into())
+        return Err(APIError::new_with_status(StatusCode::BAD_REQUEST, "You are not logged in").into())
     }
 }
 
@@ -629,14 +638,14 @@ async fn make_new_anonymous_user(db: &sea_orm::DatabaseTransaction, participant_
         .into_active_model()
         .insert(db)
         .await
-        .map_err(handle_error)?;
+        ?;
     let key: [u8; 32] = thread_rng().gen::<[u8; 32]>();
-    let user_key = create_key(&key, new_user_id, None, None, false).map_err(handle_error_dyn)?;
+    let user_key = create_key(&key, new_user_id, None, None, false)?;
     user_key
         .into_active_model()
         .insert(db)
         .await
-        .map_err(handle_error)?;
+        ?;
     let user_participant = open_tab_entities::schema::user_participant::Model {
         user_id: new_user_id,
         participant_id,
@@ -646,7 +655,7 @@ async fn make_new_anonymous_user(db: &sea_orm::DatabaseTransaction, participant_
         .into_active_model()
         .insert(db)
         .await
-        .map_err(handle_error)?;
+        ?;
     Ok((new_user_id, key))
 }
 
@@ -671,18 +680,17 @@ pub async fn get_registration_info(
         .find_also_related(schema::tournament::Entity)
         .one(&db)
         .await
-        .map_err(handle_error)?
-        .ok_or(APIError::from((
+        ?
+        .ok_or(APIError::new_with_status(
             StatusCode::BAD_REQUEST,
             "Participant not found or key invalid",
-        )))?;
+        ))?;
 
     if tournament.is_none() {
-        return Err((
+        return Err(APIError::new_with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
             "Participant is not related to tournament",
-        )
-            .into());
+        ));
     }
 
     let tournament = tournament.unwrap();
@@ -709,7 +717,7 @@ pub async fn invalidate_token_handler(
     State(db): State<DatabaseConnection>,
     headers: HeaderMap
 ) -> Result<Json<()>, APIError> {
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
 
     let auth_header: Option<Authorization<Bearer>> = headers.typed_get();
     if let Some(auth_string) = auth_header {
@@ -717,7 +725,7 @@ pub async fn invalidate_token_handler(
             .decode(&auth_string.0.token())
             .map_err(
                 |e| {
-                    (
+                    APIError::new_with_status(
                         StatusCode::UNAUTHORIZED,
                         format!("Bearer token invalid: {}", e),
                     )
@@ -725,7 +733,7 @@ pub async fn invalidate_token_handler(
             )?;
         let salt: SaltString = SaltString::from_b64(&TOKEN_SALT).unwrap();
         let hashed_key = Argon2::default().hash_password(&key, &salt).map_err(|_| {
-            (
+            APIError::new_with_status(
                 StatusCode::UNAUTHORIZED,
                 "No valid bearer authorization header found",
             )
@@ -736,17 +744,17 @@ pub async fn invalidate_token_handler(
         )
         .one(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
         if let Some(key) = key {
-            key.delete(&db).await.map_err(handle_error)?;
+            key.delete(&db).await?;
         }
-        db.commit().await.map_err(handle_error)?;
+        db.commit().await?;
 
         return Ok(Json(()));
     }
     else {
-        return Err((StatusCode::UNAUTHORIZED, "No valid bearer authorization header found").into());
+        return Err(APIError::new_with_status(StatusCode::UNAUTHORIZED, "No valid bearer authorization header found").into());
     }
 }
 

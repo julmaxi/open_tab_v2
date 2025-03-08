@@ -29,7 +29,7 @@ use crate::patch::PatchValue;
 
 use open_tab_entities::domain::round::check_release_date;
 
-use crate::response::{APIError, handle_error};
+use crate::response::APIError;
 use crate::state::AppState;
 
 
@@ -48,27 +48,27 @@ async fn update_debate_state(
     Json(request): Json<UpdateDebateStateRequest>,
 ) -> Result<(), APIError> {
     if !check_is_authorized_for_debate_result_submission(&db, &user, debate_id).await? {
-        return  Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
     }
 
     let mut query_results = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(&db).await.map_err(
         |_| {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting debate")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting debate")
         }
     )?;
     if query_results.len() != 1 {
-        return  Err((axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
     }
 
     let (debate, mut rounds) = query_results.pop().unwrap();
     if rounds.len() != 1 {
-        return Err((axum::http::StatusCode::NOT_FOUND, "Round not found"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Round not found"))?;
     }
     let round = rounds.pop().unwrap();
     let debate_has_started = round.debate_start_time.map_or(false, |t| t <= Utc::now().naive_utc());
 
     if !debate_has_started {
-        return Err((axum::http::StatusCode::BAD_REQUEST, "Debate has not started"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::BAD_REQUEST, "Debate has not started"))?;
     }
 
     let debate = domain::debate::TournamentDebate::from_model(debate);
@@ -99,23 +99,21 @@ async fn get_debate_timing_info(
     Path(debate_id): Path<Uuid>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
 ) -> Result<Json<DebateTimingStateResponse>, APIError> {
-    let mut debate = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(&db).await.map_err(
-        handle_error
-    )?;
+    let mut debate = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(&db).await?;
     if debate.len() != 1{
-        return  Err((axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
     }
     let (debate, mut rounds) = debate.pop().unwrap();
     let round = rounds.pop().expect("Guaranteed by db constraints");
 
     if !user.check_is_authorized_in_tournament(&db, round.tournament_id).await? {
-        return Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for tournament"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for tournament"))?;
     }
 
     let round = domain::round::TournamentRound::from_model(round);
     let now = Utc::now().naive_utc();
     if !check_release_date(now, round.draw_release_time) {
-        return Err((axum::http::StatusCode::BAD_REQUEST, "Draw not released"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::BAD_REQUEST, "Draw not released"))?;
     }
 
     let ballot = domain::ballot::Ballot::get(&db, debate.ballot_id).await?;
@@ -123,7 +121,7 @@ async fn get_debate_timing_info(
 
     let timing_info_by_speech_ids = BallotSpeechTiming::get_all_in_debate(&db, debate_id).await?.into_iter().map(|timing| {
         Ok(((SpeechRole::from_str(&timing.speech_role)?, timing.speech_position as u8), timing))
-    }).collect::<Result<HashMap<_, _>, BallotParseError>>().map_err(handle_error)?;
+    }).collect::<Result<HashMap<_, _>, BallotParseError>>()?;
 
     let speeches = ballot.speeches.into_iter().flat_map(|speech| {
         let mut out = vec![];
@@ -222,23 +220,21 @@ async fn check_has_permission_for_timer<C>(
     user: &AuthenticatedUser
 ) -> Result<(Uuid, Uuid), APIError> where C: ConnectionTrait {
     //Returns ballot and tournament id if successful for efficiency
-    let mut debate = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(db).await.map_err(
-        handle_error
-    )?;
+    let mut debate = schema::tournament_debate::Entity::find_by_id(debate_id).find_with_related(schema::tournament_round::Entity).all(db).await?;
     if debate.len() != 1{
-        return  Err((axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
     }
     let (debate, mut rounds) = debate.pop().unwrap();
     let round = rounds.pop().expect("Guaranteed by db constraints");
 
     if !check_is_authorized_for_debate_result_submission(db, user, debate_id).await? {
-        return Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for tournament"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for tournament"))?;
     }
 
     let round = domain::round::TournamentRound::from_model(round);
     let now = Utc::now().naive_utc();
     if !check_release_date(now, round.draw_release_time) {
-        return Err((axum::http::StatusCode::BAD_REQUEST, "Draw not released"))?;
+        return Err(APIError::new_with_status(axum::http::StatusCode::BAD_REQUEST, "Draw not released"))?;
     }
 
     Ok((debate.ballot_id, round.tournament_id))

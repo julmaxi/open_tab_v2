@@ -19,10 +19,9 @@ use rand::{thread_rng, Rng};
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
 use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
-use tokio::join;
 
 use crate::auth::{create_key, ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser};
-use crate::response::{APIError, handle_error_dyn, handle_error};
+use crate::response::APIError;
 use crate::state::AppState;
 
 
@@ -48,7 +47,7 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
         last_modified: ActiveValue::Set(chrono::Utc::now().naive_utc()),
         ..Default::default()
     };
-    tournament.insert(&db).await.map_err(handle_error)?;
+    tournament.insert(&db).await?;
 
     let mut changes = EntityGroup::new(uuid);
     let tournament = open_tab_entities::domain::tournament::Tournament {
@@ -63,14 +62,14 @@ pub async fn create_tournament_handler(State(db) : State<DatabaseConnection>, Ex
     //changes.save_all_and_log_for_tournament(&db, uuid).await.map_err(handle_error_dyn)?;
     changes.save_all(&db).await?;
     let key = thread_rng().gen::<[u8; 32]>();
-    let token = create_key(&key, user.uuid, Some(uuid), None, false).map_err(handle_error_dyn)?;
-    token.into_active_model().insert(&db).await.map_err(handle_error)?;
+    let token = create_key(&key, user.uuid, Some(uuid), None, false)?;
+    token.into_active_model().insert(&db).await?;
 
     let user_tournament = open_tab_entities::schema::user_tournament::Model {
         user_id: user.uuid,
         tournament_id: uuid,
     };
-    user_tournament.into_active_model().insert(&db).await.map_err(handle_error)?;
+    user_tournament.into_active_model().insert(&db).await?;
 
     return Ok(
         Json(
@@ -163,15 +162,14 @@ pub async fn get_tournament_settings_handler(
     Path(tournament_id): Path<Uuid>,
 ) -> Result<Json<TournamentPublicationSettings>, APIError> {
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized for this tournament"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized for this tournament");
         return Err(err);
     }
 
     let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
         .one(&db)
-        .await
-        .map_err(handle_error)?;
+        .await?;
 
     if let Some(published_tournament) = published_tournament {
         return Ok(Json(published_tournament.into()));
@@ -181,8 +179,7 @@ pub async fn get_tournament_settings_handler(
         let tournament = open_tab_entities::schema::tournament::Entity::find()
             .filter(open_tab_entities::schema::tournament::Column::Uuid.eq(tournament_id))
             .one(&db)
-            .await
-            .map_err(handle_error)?;
+            .await?;
         default_settings.public_name = tournament.map(|t| t.name).unwrap_or_default();
 
         return Ok(Json(default_settings));
@@ -198,13 +195,13 @@ pub async fn update_tournament_settings_handler(
     Json(request): Json<TournamentPublicationSettings>,
 ) -> Result<(), APIError> {
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        let err = APIError::from((StatusCode::FORBIDDEN, "You are not authorized for this tournament"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized for this tournament");
         return Err(err);
     }
 
     if let Some(image) = &request.image.as_ref() {
         if image.data.len() > 1024 * 1024 * UPLOAD_MB_LIMIT {
-            let err = APIError::from((StatusCode::BAD_REQUEST, "Image data is too large"));
+            let err = APIError::new_with_status(StatusCode::BAD_REQUEST, "Image data is too large");
             return Err(err);
         }
     }
@@ -213,7 +210,7 @@ pub async fn update_tournament_settings_handler(
         .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
         .one(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let (mut published_tournament, should_insert) = match published_tournament {
         Some(published_tournament) => {
@@ -253,10 +250,10 @@ pub async fn update_tournament_settings_handler(
     published_tournament.location = sea_orm::ActiveValue::Set(request.location);
 
     if should_insert {
-        published_tournament.insert(&db).await.map_err(handle_error)?;
+        published_tournament.insert(&db).await?;
     }
     else {
-        published_tournament.update(&db).await.map_err(handle_error)?;
+        published_tournament.update(&db).await?;
     }
 
     Ok(())
@@ -336,7 +333,7 @@ pub async fn get_active_tournaments_handler(
         .order_by_desc(open_tab_entities::schema::published_tournament::Column::StartDate)
         .all(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let user_tournaments = if let Some(user) = user.as_ref() {
         open_tab_entities::schema::tournament::Entity::find()
@@ -345,7 +342,7 @@ pub async fn get_active_tournaments_handler(
             .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid))
             .order_by_desc(open_tab_entities::schema::tournament::Column::LastModified)
             .limit(10)
-            .all(&db).await.map_err(handle_error)?.into_iter().collect()
+            .all(&db).await?.into_iter().collect()
         }
     else {
         Vec::new()
@@ -361,7 +358,7 @@ pub async fn get_active_tournaments_handler(
         .limit(10)
         .all(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let upcoming_tournaments = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(
@@ -371,7 +368,7 @@ pub async fn get_active_tournaments_handler(
         .limit(10)
         .all(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let concluded_ids = concluded_tournaments.iter().filter_map(|t| t.tournament_id).collect::<Vec<_>>();
 
@@ -482,17 +479,17 @@ pub async fn get_public_tournament_info_handler(
         .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
         .one(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     if !published_tournament.is_some() {
-        let err: crate::response::TypedAPIError<String> = APIError::from((StatusCode::NOT_FOUND, "Tournament not found"));
+        let err: crate::response::TypedAPIError<String> = APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found");
         return Err(err);
     }
 
     let published_tournament = published_tournament.unwrap();
 
     if !published_tournament.list_publicly {
-        let err = APIError::from((StatusCode::FORBIDDEN, "This tournament is not public"));
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "This tournament is not public");
         return Err(err);
     }
 
@@ -503,7 +500,7 @@ pub async fn get_public_tournament_info_handler(
         .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
         .all(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let round_info = all_rounds.iter().map(|r| PublicRoundInfo::from_round(r, published_tournament.show_motions, now)).collect::<Vec<_>>();
 
@@ -545,13 +542,13 @@ pub async fn get_tournament_institutions(
     Path(tournament_id): Path<Uuid>,
 ) -> Result<Json<TournamentInstitutionList>, APIError> {
     if !user.check_is_authorized_in_tournament(&db, tournament_id).await? {
-        let err: crate::response::TypedAPIError<String> = APIError::from((StatusCode::NOT_FOUND, "Tournament not found"));
+        let err: crate::response::TypedAPIError<String> = APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found");
         return Err(err);
     }
     
     let institutions = open_tab_entities::schema::tournament_institution::Entity::find()
         .filter(open_tab_entities::schema::tournament_institution::Column::TournamentId.eq(tournament_id))
-        .all(&db).await.map_err(handle_error)?;
+        .all(&db).await?;
 
     Ok(
         Json(TournamentInstitutionList {

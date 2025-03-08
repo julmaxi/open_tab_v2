@@ -2,7 +2,7 @@ use axum::{extract::{Path, State}, routing::get, Json, Router};
 use sea_orm::{prelude::*, DatabaseConnection, EntityTrait, QueryOrder};
 use serde::Serialize;
 
-use crate::{auth::ExtractAuthenticatedUser, response::{handle_error, APIError}, state::AppState};
+use crate::{auth::ExtractAuthenticatedUser, response::APIError, state::AppState};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UserInfo {
@@ -13,7 +13,7 @@ pub async fn get_user_info(
     State(db): State<DatabaseConnection>,
     ExtractAuthenticatedUser(user): ExtractAuthenticatedUser,
 ) -> Result<Json<UserInfo>, APIError> {
-    let user = open_tab_entities::schema::user::Entity::find_by_id(user.uuid).one(&db).await.map_err(handle_error)?;
+    let user = open_tab_entities::schema::user::Entity::find_by_id(user.uuid).one(&db).await?;
 
     return Ok(Json(UserInfo {
         identifier: user.unwrap().user_email.unwrap_or("Anonymous User".to_string()),
@@ -39,7 +39,7 @@ pub async fn get_user_tournament_info(
         .order_by_asc(open_tab_entities::schema::participant::Column::Uuid)
         .all(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     let participant_id = user_participants.first().map(|up| up.participant_id);
     return Ok(Json(UserTournamentInfo {

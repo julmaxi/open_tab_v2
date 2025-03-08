@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::error_span;
 
-use crate::{state::AppState, response::{APIError, handle_error}, auth::ExtractAuthenticatedUser};
+use crate::{state::AppState, response::APIError, auth::ExtractAuthenticatedUser};
 
 
 
@@ -121,12 +121,12 @@ async fn get_log(
     Path(tournament_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>
 ) -> Result<Json<FatLog<Entity, EntityTypeId>>, APIError> {
-    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
+    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await?;
     if tournament.is_none() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found"));
     }
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not authorized for tournament administration")));
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not authorized for tournament administration"));
     }
 
     let since = match params.get("since").map(
@@ -145,7 +145,7 @@ async fn get_log(
         APIError::new("Failed to start transaction".into())
     })?;
     let fat_log = get_entity_changes_since(&transaction, tournament_id, since).await?;
-    transaction.rollback().await.map_err(handle_error)?;
+    transaction.rollback().await?;
     Ok(Json(
         fat_log
     ))
@@ -404,13 +404,13 @@ async fn handle_sync_push_request(
     Path(tournament_id): Path<Uuid>,
     Json(request_body): Json<SyncRequest<Entity, EntityTypeId>>
 ) -> Result<Json<SyncRequestResponse>, APIError> {
-    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await.map_err(handle_error)?;
+    let tournament = open_tab_entities::schema::tournament::Entity::find_by_id(tournament_id).one(&db).await?;
     if tournament.is_none() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found"));
     }
 
     if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
-        return Err(APIError::from((StatusCode::FORBIDDEN, "User is not authorized for tournament administration")));
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not authorized for tournament administration"));
     }
 
     let transaction = db.begin().await.map_err(|_| {
@@ -429,7 +429,7 @@ async fn handle_sync_push_request(
 
     match &outcome {
         ReconciliationOutcome::Reject => {
-            transaction.rollback().await.map_err(handle_error)?;
+            transaction.rollback().await?;
             return Ok(
                 Json(
                     SyncRequestResponse {
@@ -439,13 +439,13 @@ async fn handle_sync_push_request(
             )
         }
         ReconciliationOutcome::InvalidTournament => {
-            transaction.rollback().await.map_err(handle_error)?;
-            return Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid tournament")));
+            transaction.rollback().await?;
+            return Err(APIError::new_with_status(StatusCode::BAD_REQUEST, "Invalid tournament"));
         },
         ReconciliationOutcome::Success { entity_group, .. } => {
             notifications.read().await.process_entities(&transaction, entity_group.as_ref().unwrap()).await;
 
-            transaction.commit().await.map_err(handle_error)?;
+            transaction.commit().await?;
             return Ok(
                 Json(
                     SyncRequestResponse {

@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::{
     auth::MaybeExtractAuthenticatedUser,
-    response::{handle_error, APIError},
+    response::APIError,
     state::AppState
 };
 
@@ -30,10 +30,10 @@ async fn get_draw_handler(
         .find_also_related(schema::tournament::Entity)
         .one(&db)
         .await
-        .map_err(handle_error)?;
+        ?;
 
     if !round.is_some() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Round not found")));
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Round not found"));
     }
 
     let (round, tournament) = round.unwrap();
@@ -49,25 +49,25 @@ async fn get_draw_handler(
             .filter(schema::published_tournament::Column::TournamentId.eq(tournament.uuid))
             .one(&db)
             .await
-            .map_err(handle_error)?;
+            ?;
 
         if published_tournament.is_none() {
-            return Err(APIError::from((StatusCode::NOT_FOUND, "Tournament not found")));
+            return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found"));
         }
 
         if !published_tournament.unwrap().show_draws {
-            return Err(APIError::from((StatusCode::FORBIDDEN, "Draw not available")));
+            return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "Draw not available"));
         }
     }
 
     let now = chrono::Utc::now().naive_utc();
     if !check_release_date(now, round.draw_release_time) {
-        return Err(APIError::from((StatusCode::FORBIDDEN, "Draw has not been released yet")));
+        return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "Draw has not been released yet"));
     }
 
     let presentation_info = DrawPresentationInfo::load_for_round(&db, round_id)
         .await
-        .map_err(handle_error)?;
+        ?;
     
     Ok(Json(
         RoundDrawInfo {

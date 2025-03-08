@@ -8,7 +8,7 @@ use open_tab_entities::{domain::{self, entity::LoadEntity}, EntityGroup, derived
 use sea_orm::{prelude::Uuid, DatabaseConnection, TransactionTrait};
 use serde::{Serialize, Deserialize};
 
-use crate::{response::{APIError, handle_error}, state::AppState};
+use crate::{response::APIError, state::AppState};
 
 
 
@@ -25,7 +25,7 @@ async fn get_draw_presentation(
             ))
         },
         Err(LoadDrawError::NotFound) => {
-            Err(APIError::from((StatusCode::NOT_FOUND, "Round not found")))
+            Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Round not found"))
         },
         Err(LoadDrawError::DbError(err)) => {
             Err(APIError::from(anyhow::Error::from(err)))
@@ -49,11 +49,11 @@ async fn set_motion_release(
     State(db): State<DatabaseConnection>,
     Path(round_id): Path<Uuid>,
 ) -> Result<Json<ReleaseMotionResponse>, APIError> {
-    let db = db.begin().await.map_err(handle_error)?;
+    let db = db.begin().await?;
     let round = domain::round::TournamentRound::try_get(&db, round_id).await?;
 
     if !round.is_some() {
-        return Err(APIError::from((StatusCode::NOT_FOUND, "Round not found")))
+        return Err(APIError::new_with_status(StatusCode::NOT_FOUND, "Round not found"))
     }
 
     let mut round = round.unwrap();
@@ -82,7 +82,7 @@ async fn set_motion_release(
     );
 
     entity_group.save_all_and_log(&db).await?;
-    db.commit().await.map_err(handle_error)?;
+    db.commit().await?;
 
     Ok(Json(
         ReleaseMotionResponse {

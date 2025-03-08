@@ -261,14 +261,14 @@ async fn get_ballot_submission(
 ) -> Result<Json<GetBallotSubmissionResponse>, APIError> {
     let submission = schema::debate_backup_ballot::Entity::find_by_id(submission_id).one(&db).await.map_err(
         |_| {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting ballot submission")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting ballot submission")
         }
     )?;
-    let submission = submission.ok_or((axum::http::StatusCode::NOT_FOUND, "Submission not found"))?;
+    let submission = submission.ok_or(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Submission not found"))?;
 
 
     if !check_is_authorized_for_debate_result_submission(&db, &user, submission.debate_id).await? {
-        return  Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
     }
 
     let ballot = DisplayBallot::from_id(submission.ballot_id, &db).await?;
@@ -286,13 +286,13 @@ async fn get_debate(
 ) -> Result<Json<GetDebateResponse>, APIError> {
     let debate = schema::tournament_debate::Entity::find_by_id(debate_id).one(&db).await.map_err(
         |_| {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting debate")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting debate")
         }
     )?;
-    let debate = debate.ok_or((axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
+    let debate = debate.ok_or(APIError::new_with_status(axum::http::StatusCode::NOT_FOUND, "Debate not found"))?;
 
     if !check_is_authorized_for_debate_result_submission(&db, &user, debate_id).await? {
-        return  Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
     }
 
     let ballot = DisplayBallot::from_id(debate.ballot_id, &db).await?;
@@ -309,12 +309,12 @@ async fn submit_ballot(
     Json(request): Json<SubmitBallotRequest>,
 ) -> Result<Json<SubmitBallotResponse>, APIError> {
     if !check_is_authorized_for_debate_result_submission(&db, &user, debate_id).await? {
-        return  Err((axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
+        return  Err(APIError::new_with_status(axum::http::StatusCode::FORBIDDEN, "Not authorized for debate"))?;
     }
 
     let transaction = db.begin().await.map_err(
         |_| {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error starting transaction")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error starting transaction")
         }
     )?;
 
@@ -327,9 +327,9 @@ async fn submit_ballot(
     )
     .one(&transaction).await.map_err(
         |_| {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting tournament id")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting tournament id")
         }
-    )?.ok_or((axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting tournament id"))?.tournament_id;
+    )?.ok_or(APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error getting tournament id"))?.tournament_id;
 
     let mut ballot = request.ballot;
     let ballot_uuid = Uuid::new_v4();
@@ -357,7 +357,7 @@ async fn submit_ballot(
     transaction.commit().await.map_err(
         |e| {
             tracing::error!("Error committing transaction: {:?}", e);
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error committing transaction")
+            APIError::new_with_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Error committing transaction")
         }
     )?;
 
