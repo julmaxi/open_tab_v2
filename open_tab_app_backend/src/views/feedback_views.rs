@@ -99,7 +99,7 @@ impl FeedbackOverviewView {
 
         let summary_columns = questions.iter().filter(
             |q: &&FeedbackQuestion| match &q.question_config {
-                QuestionType::TextQuestion => false,
+                QuestionType::TextQuestion { .. } => false,
                 _ => true
             }
         ).map(|q| SummaryColumn {

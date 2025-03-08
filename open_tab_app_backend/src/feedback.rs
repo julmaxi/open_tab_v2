@@ -38,7 +38,9 @@ impl Into<domain::feedback_question::QuestionType> for QuestionType {
             QuestionType::RangeQuestion { config } => domain::feedback_question::QuestionType::RangeQuestion {
                 config: config.into()
             },
-            QuestionType::TextQuestion => domain::feedback_question::QuestionType::TextQuestion,
+            QuestionType::TextQuestion => domain::feedback_question::QuestionType::TextQuestion {
+                config: Default::default()
+            },
             QuestionType::YesNoQuestion => domain::feedback_question::QuestionType::YesNoQuestion,
         }
     }

@@ -309,6 +309,11 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
 }
 
 #[derive(Serialize)]
+pub struct AdministeredTournamentInfo {
+    name: String,
+}
+
+#[derive(Serialize)]
 pub struct PublicTournamentsInfo {
     active_user: Vec<TournamentInfo>,
     active: Vec<TournamentInfo>,

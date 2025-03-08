@@ -3,13 +3,13 @@ use std::{str::FromStr, collections::HashMap};
 use axum::{extract::Path, extract::State, Json, Router, routing::{get, post}};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::{feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::{FeedbackResponseValue, FeedbackResponse}}, prelude::{Participant, Team}, EntityGroup, Entity, schema, derived_models::{SummaryValue, compute_question_summary_values}};
+use open_tab_entities::{derived_models::{compute_question_summary_values, SummaryValue}, domain::{entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackSourceRole, FeedbackTargetRole}, feedback_question::{FeedbackQuestion, QuestionType, DEFAULT_TEXT_MAX_LENGTH}, feedback_response::{FeedbackResponse, FeedbackResponseValue}}, prelude::{Participant, Team}, schema, Entity, EntityGroup};
 use rand::{thread_rng, seq::SliceRandom};
 use sea_orm::{DatabaseConnection, prelude::Uuid, EntityTrait, QueryFilter, RelationTrait, JoinType, QuerySelect, ColumnTrait, TransactionTrait, QueryOrder};
 use serde::{Serialize, Deserialize};
 
 
-use crate::{response::{APIError, handle_error}, state::AppState, auth::ExtractAuthenticatedUser};
+use crate::{auth::ExtractAuthenticatedUser, response::{handle_error, APIError, TypedAPIError}, state::AppState};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,44 +154,60 @@ async fn submit_feedback_form(
     let question_map = questions.into_iter().map(|q| (q.uuid, q)).collect::<std::collections::HashMap<_, FeedbackFormQuestion>>();
 
     let mut response_values = HashMap::new();
+    let mut errors = HashMap::new();
     for (key, val) in submission.answers {
-        let question = question_map.get(&key).ok_or_else(|| APIError::from((StatusCode::BAD_REQUEST, format!("Invalid question {}", key))))?;
+        let question: &FeedbackFormQuestion = question_map.get(&key).ok_or_else(|| APIError::from((StatusCode::BAD_REQUEST, format!("Invalid question {}", key))))?;
 
         let response_val = match (&question.question_type, &val) {
             (QuestionType::RangeQuestion { config }, Value::Int { val }) => {
                 if val < &config.min || val > &config.max {
-                    Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid range")))
+                    Err("Invalid range")
                 }
                 else {
                     Ok(FeedbackResponseValue::Int { val: *val })
                 }
             },
             (QuestionType::RangeQuestion {..}, _) => {
-                Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid value")))
+                Err("Invalid value")
             },
-            (QuestionType::TextQuestion, Value::String { val }) => {
-                if val.len() > 1024 {
-                    Err(APIError::from((StatusCode::BAD_REQUEST, "Text too long")))
+            (QuestionType::TextQuestion { config }, Value::String { val }) => {
+                if val.len() > (config.max_length as usize) {
+                    Err("Text too long")
                 }
                 else {
                     Ok(FeedbackResponseValue::String { val: val.clone() })
                 }
             },
-            (QuestionType::TextQuestion, _) => {
-                Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid value")))
+            (QuestionType::TextQuestion { .. }, _) => {
+                Err("Invalid value")
             },
             (QuestionType::YesNoQuestion, Value::Bool { val }) => {
                 Ok(FeedbackResponseValue::Bool { val: *val })
             },
             (QuestionType::YesNoQuestion, _) => {
-                Err(APIError::from((StatusCode::BAD_REQUEST, "Invalid value")))
+                Err("Invalid value")
             },
-        }?;
-        
-        match &response_val {
-            FeedbackResponseValue::String { val } if val.len() == 0 => (),
-            _ => {response_values.insert(key, response_val);}
         };
+        
+        match response_val {
+            Ok(val) => {
+                match val {
+                    FeedbackResponseValue::String { val } if val.len() == 0 => (),
+                    _ => {response_values.insert(key, val);}        
+                }
+            },
+            Err(text) => {
+                errors.insert(key, text.to_owned());
+            }
+        };
+    }
+
+    if errors.len() > 0 {
+        return Err(
+            APIError::from(
+                (StatusCode::BAD_REQUEST, "Invalid submission")
+            )
+        )
     }
 
     let submission_id = Uuid::new_v4();
@@ -324,7 +340,7 @@ async fn get_participant_feedback_summary(State(db): State<DatabaseConnection>, 
     let individual_values = relevant_questions.iter().filter_map(
         |q| {
             match q.question_config {
-                QuestionType::TextQuestion => {
+                QuestionType::TextQuestion { .. } => {
                     let mut values = answers_by_question_id.get(&q.uuid).unwrap_or(&vec![]).clone();
                     values.shuffle(&mut thread_rng());
                     Some(ParticipantFeedbackIndividualValueList {

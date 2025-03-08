@@ -7,13 +7,19 @@ use uuid::Uuid;
 use async_trait::async_trait;
 use sea_orm::prelude::*;
 
+
+pub const DEFAULT_TEXT_MAX_LENGTH : u32 = 2048;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum QuestionType {
-    RangeQuestion{
+    RangeQuestion {
         config: RangeQuestionConfig
     },
-    TextQuestion,
+    TextQuestion {
+        #[serde(default)]
+        config: TextQuestionConfig
+    },
     YesNoQuestion,
 }
 
@@ -23,6 +29,20 @@ pub struct RangeQuestionConfig {
     pub max: i32,
     pub orientation: RangeQuestionOrientation,
     pub labels: Vec<(i32, String)>,
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextQuestionConfig {
+    pub max_length: u32,
+}
+
+impl Default for TextQuestionConfig {
+    fn default() -> Self {
+        TextQuestionConfig {
+            max_length: DEFAULT_TEXT_MAX_LENGTH, // Default max_length value
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,7 +82,7 @@ impl FeedbackQuestion {
                     crate::domain::feedback_response::FeedbackResponseValue::Int{val}
                 })
             },
-            QuestionType::TextQuestion => {
+            QuestionType::TextQuestion { .. } => {
                 response.string_value.clone().map(|val| {
                     crate::domain::feedback_response::FeedbackResponseValue::String{val}
                 })

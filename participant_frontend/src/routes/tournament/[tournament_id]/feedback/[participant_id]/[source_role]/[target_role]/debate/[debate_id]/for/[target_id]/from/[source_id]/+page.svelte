@@ -1,5 +1,6 @@
 <script>
     import RangeQuestionWidget from './RangeQuestionWidget.svelte';
+    import TextFieldWidget from './TextFieldWidget.svelte';
 
     export let data;
 
@@ -20,14 +21,6 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-    }
-
-    textarea {
-        width: calc(100% - 1rem);
-        margin: 0.5rem;
-        height: 10rem;
-        border-radius: 0.25rem;
-        padding: 0.5rem;
     }
 
     h1 {
@@ -75,7 +68,7 @@
             <RangeQuestionWidget config={question.question_type.config} name={question.uuid} />
         {:else if question.question_type.type == "TextQuestion"}
             <input type="hidden" name={`${question.uuid}_type`} value="string" />
-            <textarea name={question.uuid} placeholder="Type comments here" />
+            <TextFieldWidget name={question.uuid} placeholder="Type comments here" maxLength={question.question_type.config.max_length} />
         {:else if question.question_type.type == "YesNoQuestion"}
             <div class="radio">
                 <div>

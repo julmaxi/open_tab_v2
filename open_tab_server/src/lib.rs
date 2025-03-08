@@ -42,7 +42,7 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
     .allow_origin(Any);
 
     let app = Router::new().route(
-        "/", get(|State(_db): State<AppState>| async { "Hello, World!" })
+        "/", get(|State(_db): State<AppState>| async { "" })
     )
     .nest("/api",
         auth::router().merge(

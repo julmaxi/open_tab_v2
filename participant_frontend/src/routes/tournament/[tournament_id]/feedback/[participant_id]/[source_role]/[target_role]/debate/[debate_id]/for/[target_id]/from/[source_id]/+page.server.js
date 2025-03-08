@@ -1,5 +1,5 @@
 import { makeAuthenticatedRequestServerOnly } from '$lib/api';
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, cookies }) {
@@ -43,14 +43,19 @@ export const actions = {
 
         let submitUrl = `api/feedback/${params.source_role}/${params.target_role}/debate/${params.debate_id}/for/${params.target_id}/from/${params.source_id}`;
 
-        let res = await makeAuthenticatedRequestServerOnly(submitUrl, cookies, {
-            body: JSON.stringify({"answers": jsonForm}),
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-        });
-
-        if (res.status == 200) {
-            throw redirect(302, `/tournament/${params.tournament_id}/home/`);
+        try {
+            let res = await makeAuthenticatedRequestServerOnly(submitUrl, cookies, {
+                body: JSON.stringify({"answers": jsonForm}),
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+            });
+            console.log(res.status);
         }
+        catch (e) {
+			return fail(422, {
+				description: "Failed to submit feedback",
+			});
+        }
+        throw redirect(302, `/tournament/${params.tournament_id}/home/`);
     }
 }

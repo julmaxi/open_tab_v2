@@ -49,7 +49,7 @@ pub fn compute_question_summary_values(question_values: &HashMap<Uuid, Vec<Feedb
                         _ => None
                     }
                 )).unwrap_or(0.0)}),
-                crate::domain::feedback_question::QuestionType::TextQuestion => None,
+                crate::domain::feedback_question::QuestionType::TextQuestion { .. } => None,
                 crate::domain::feedback_question::QuestionType::YesNoQuestion => {
                     let n_yes = vals.into_iter().filter_map(
                         |v| match v {
