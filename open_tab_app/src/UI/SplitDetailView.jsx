@@ -1,8 +1,8 @@
 import React from "react";
 import { useState } from "react";
 
-export function SplitDetailView({ children }) {
-    let [width, setWidth] = useState(400);
+export function SplitDetailView({ children, initialDetailWidth=400 }) {
+    let [width, setWidth] = useState(initialDetailWidth);
 
     let numChildren = 0;
     React.Children.forEach(children, (c) => {
@@ -21,7 +21,6 @@ export function SplitDetailView({ children }) {
         </div>
         {numChildren > 1 ? <div style={{ "width": width, "minWidth": "200px" }} className="relative h-full overflow-scroll border-l-2">
             <DragHandle onDragDelta={(delta) => {
-                // The width is the width of the right pane, so we need to subtract the delta
                 let newWidth = width - delta;
                 if (newWidth < 200) {
                     newWidth = 200;

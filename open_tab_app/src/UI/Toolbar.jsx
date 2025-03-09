@@ -41,7 +41,7 @@ function Icon({name}) {
     }
 }
 
-export function ToolbarButton({children, onClick, icon = null}) {
+export function ToolbarButton({children, onClick, icon = null, color}) {
     return <button onClick={onClick} className="h-full pl-2 pr-2 border-r border-gray-400 hover:bg-gray-100 flex justify-center items-center">
         {icon && <div className="mr-1"><Icon name={icon} /></div>}
         {children}

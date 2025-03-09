@@ -7,6 +7,8 @@ use uuid::Uuid;
 use async_trait::async_trait;
 use sea_orm::prelude::*;
 
+use crate::schema;
+
 
 pub const DEFAULT_TEXT_MAX_LENGTH : u32 = 2048;
 
@@ -77,6 +79,14 @@ pub struct FeedbackQuestion {
 }
 
 impl FeedbackQuestion {
+    pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, anyhow::Error> where C: sea_orm::ConnectionTrait {
+        let forms = schema::feedback_question::Entity::find()
+            .filter(schema::feedback_question::Column::TournamentId.eq(tournament_id))
+            .all(db).await?;
+
+        Ok(forms.into_iter().map(FeedbackQuestion::from_model).collect())
+    }
+    
     pub fn extract_value_from_response_value_model(&self, response: &crate::schema::feedback_response_value::Model) -> Option<crate::domain::feedback_response::FeedbackResponseValue> {
         match &self.question_config {
             QuestionType::RangeQuestion { .. } => {

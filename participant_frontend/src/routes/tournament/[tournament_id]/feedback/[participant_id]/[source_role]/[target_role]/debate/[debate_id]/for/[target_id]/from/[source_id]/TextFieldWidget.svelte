@@ -4,19 +4,12 @@
     export let placeholder = '';
     export let rows = 4;
     export let cols = 50;
-    export let initialValue = '';
-
-    function getTextLength(text) {
-        return new TextEncoder().encode(text).length;
-    }
-
     let text = '';
-    let usedChars = getTextLength(initialValue);
-
+    let usedChars = 0;
 
     function handleInput(event) {
         text = event.target.value;
-        usedChars = getTextLength(text);
+        usedChars = new TextEncoder().encode(text).length;
     }
 </script>
 
@@ -52,7 +45,7 @@
         placeholder={placeholder} 
         rows={rows} 
         cols={cols}
-        value={text || initialValue} />
+        value={text} />
     {#if usedChars > maxLength}
         <div class="indicator {usedChars > maxLength ? 'error' : 'warning'}">
             {usedChars}/{maxLength} {usedChars > maxLength ? 'characters too long!' : 'characters'}

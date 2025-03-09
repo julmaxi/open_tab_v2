@@ -9,11 +9,13 @@ import {
     useDismiss,
     useRole,
     useClick,
+    useHover,
     useInteractions,
     FloatingFocusManager,
     useId,
     FloatingArrow,
-    FloatingPortal
+    FloatingPortal,
+    safePolygon
 } from '@floating-ui/react';
 
 export function Popover(props) {
@@ -42,13 +44,20 @@ export function Popover(props) {
     });
 
     const click = useClick(context);
+    const hover = useHover(context, {
+        enabled: props.hover === true,
+        handleClose: safePolygon({
+            requireIntent: false,
+        }),        
+    });
     const dismiss = useDismiss(context);
     const role = useRole(context);
 
     const { getReferenceProps, getFloatingProps } = useInteractions([
         click,
         dismiss,
-        role
+        role,
+        hover
     ]);
 
     const headingId = useId();

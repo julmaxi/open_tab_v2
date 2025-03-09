@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use open_tab_entities::{derived_models::compute_question_summary_values, domain::{feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup, EntityTypeId};
+use open_tab_entities::{derived_models::compute_question_summary_values, domain::{entity::LoadEntity, feedback_question::{FeedbackQuestion, QuestionType}, feedback_response::FeedbackResponseValue}, EntityGroup, EntityTypeId};
 use sea_orm::{prelude::*, QueryOrder, JoinType, QuerySelect, DatabaseTransaction};
 use serde::{Serialize, Deserialize};
 
@@ -87,15 +87,7 @@ impl FeedbackOverviewView {
         // Unwrap uaranteed by db constraints
         let adjudicator_names = adjudicators.iter().map(|(a, p)| (a.uuid, p.clone().unwrap().name.clone())).collect::<HashMap<_, _>>();
 
-        let questions = open_tab_entities::schema::feedback_question::Entity::find()
-            .join(JoinType::InnerJoin, open_tab_entities::schema::feedback_form_question::Relation::FeedbackQuestion.def().rev())
-            .join(JoinType::InnerJoin, open_tab_entities::schema::feedback_form_question::Relation::FeedbackForm.def())
-            .filter(open_tab_entities::schema::feedback_form::Column::TournamentId.eq(tournament_id))
-            .order_by_asc(open_tab_entities::schema::feedback_form_question::Column::Index)
-            .distinct()
-            .all(db).await?;
-
-        let questions = questions.into_iter().map(open_tab_entities::domain::feedback_question::FeedbackQuestion::from_model).collect::<Vec<_>>();
+        let questions = FeedbackQuestion::get_all_in_tournament(db, tournament_id).await?;
 
         let summary_columns = questions.iter().filter(
             |q: &&FeedbackQuestion| match &q.question_config {

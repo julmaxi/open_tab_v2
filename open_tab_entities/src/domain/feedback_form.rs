@@ -28,22 +28,35 @@ pub struct FeedbackForm {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct FeedbackFormVisibility {
+    #[serde(default)]
     pub show_chairs_for_wings: bool,
+    #[serde(default)]
     pub show_chairs_for_presidents: bool,
 
+    #[serde(default)]
     pub show_wings_for_chairs: bool,
+    #[serde(default)]
     pub show_wings_for_presidents: bool,
+    #[serde(default)]
     pub show_wings_for_wings: bool,
    
+    #[serde(default)]
     pub show_presidents_for_chairs: bool,
+    #[serde(default)]
     pub show_presidents_for_wings: bool,
 
+    #[serde(default)]
     pub show_teams_for_chairs: bool,
+    #[serde(default)]
     pub show_teams_for_presidents: bool,
+    #[serde(default)]
     pub show_teams_for_wings: bool,
 
+    #[serde(default)]
     pub show_non_aligned_for_chairs: bool,
+    #[serde(default)]
     pub show_non_aligned_for_presidents: bool,
+    #[serde(default)]
     pub show_non_aligned_for_wings: bool
 }
 
@@ -294,6 +307,10 @@ impl<C> BoundTournamentEntityTrait<C> for FeedbackForm where C: sea_orm::Connect
         }
 
         let existing_question_id_positions = existing_questions.iter().enumerate().map(|(index, q)| (q.feedback_question_id, index as usize)).collect::<HashMap<Uuid, usize>>();
+
+        let mut deleted_questions = existing_questions.iter().map(|x| x.feedback_question_id)
+        .filter(|x| !self.questions.contains(x))
+        .collect::<Vec<Uuid>>();
         
         for (new_index, question) in self.questions.iter().enumerate() {
             match existing_question_id_positions.get(&question) {
@@ -315,6 +332,10 @@ impl<C> BoundTournamentEntityTrait<C> for FeedbackForm where C: sea_orm::Connect
                 }
             }
         }
+
+        if !deleted_questions.is_empty() {
+            schema::feedback_form_question::Entity::delete_many().filter(schema::feedback_form_question::Column::FeedbackFormId.eq(self.uuid)).filter(schema::feedback_form_question::Column::FeedbackQuestionId.is_in(deleted_questions)).exec(db).await?;
+        }        
             
         Ok(())
     }

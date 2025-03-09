@@ -25,6 +25,7 @@ mod redraw_round;
 mod update_tournament;
 mod update_clashes_action;
 mod discard_ballot;
+mod update_feedback_system;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -45,6 +46,7 @@ pub use self::redraw_round::RedrawRoundAction;
 pub use self::update_tournament::UpdateTournamentAction;
 pub use self::update_clashes_action::UpdateClashes;
 pub use self::discard_ballot::DiscardBallotAction;
+pub use self::update_feedback_system::UpdateFeedbackSystemAction;
 
 pub(crate) use self::edit_tree::EditTreeActionType;
 
@@ -69,6 +71,7 @@ pub enum Action {
     UpdateTournament { action: UpdateTournamentAction },
     UpdateClashes { action: UpdateClashes },
     DiscardBallot { action: DiscardBallotAction },
+    UpdateFeedbackSystem { action: UpdateFeedbackSystemAction },
 }
 
 impl Action {
@@ -92,6 +95,7 @@ impl Action {
             Action::UpdateTournament { action } => action.get_changes(db).await,
             Action::UpdateClashes { action } => action.get_changes(db).await,
             Action::DiscardBallot { action } => action.get_changes(db).await,
+            Action::UpdateFeedbackSystem { action } => action.get_changes(db).await,
         }
     }
 }

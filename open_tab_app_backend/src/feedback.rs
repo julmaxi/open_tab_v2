@@ -1,28 +1,41 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use itertools::Itertools;
-use open_tab_entities::domain::{self, feedback_form::FeedbackFormVisibility};
+use open_tab_entities::domain::{self, feedback_form::FeedbackFormVisibility, feedback_question::FeedbackQuestion};
 use sea_orm::prelude::Uuid;
-use serde::{Serialize, Deserialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct QuestionInfo {
-    short_name: String,
-    full_name: String,
+pub struct QuestionInfo {
+    pub short_name: String,
+    pub full_name: String,
     #[serde(flatten)]
-    config: QuestionType,
+    pub config: QuestionType,
     #[serde(default)]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(default)]
-    is_confidential: bool,
+    pub is_confidential: bool,
     #[serde(default)]
-    is_required: bool
+    pub is_required: bool
+}
+
+impl From<FeedbackQuestion> for QuestionInfo {
+    fn from(question: FeedbackQuestion) -> Self {
+        QuestionInfo {
+            short_name: question.short_name,
+            full_name: question.full_name,
+            config: question.question_config.into(),
+            description: Some(question.description),
+            is_confidential: question.is_confidential,
+            is_required: question.is_required
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type")]
-enum QuestionType {
+pub enum QuestionType {
     #[serde(rename = "range")]
     RangeQuestion {
         #[serde(flatten)]
@@ -48,12 +61,68 @@ impl Into<domain::feedback_question::QuestionType> for QuestionType {
     }
 }
 
+impl From<domain::feedback_question::QuestionType> for QuestionType {
+    fn from(qt: domain::feedback_question::QuestionType) -> Self {
+        match qt {
+            domain::feedback_question::QuestionType::RangeQuestion { config } => QuestionType::RangeQuestion {
+                config: config.into()
+            },
+            domain::feedback_question::QuestionType::TextQuestion { config } => QuestionType::TextQuestion,
+            domain::feedback_question::QuestionType::YesNoQuestion => QuestionType::YesNoQuestion,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct RangeQuestionConfig {
     min: i32,
     max: i32,
     orientation: RangeQuestionOrientation,
+    #[serde(deserialize_with = "de_int_key")]
     labels: HashMap<i32, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+enum StringOrI32 {
+    String(String),
+    I32(i32)
+}
+
+fn de_int_key<'de, D, V>(deserializer: D) -> Result<HashMap<i32, V>, D::Error>
+where
+    D: Deserializer<'de>,
+    V: Deserialize<'de>,
+{
+    let string_map = <HashMap<StringOrI32, V>>::deserialize(deserializer);
+
+    string_map.map(|string_map| {
+        string_map.into_iter().map(|(k, v)| {
+            match k {
+                StringOrI32::String(s) => {
+                    let i = i32::from_str(&s).unwrap();
+                    (i, v)
+                },
+                StringOrI32::I32(i) => (i, v)
+            }
+        }).collect()
+    })
+}
+
+
+impl From<domain::feedback_question::RangeQuestionConfig> for RangeQuestionConfig {
+    fn from(config: domain::feedback_question::RangeQuestionConfig) -> Self {
+        RangeQuestionConfig {
+            min: config.min,
+            max: config.max,
+            orientation: match config.orientation {
+                domain::feedback_question::RangeQuestionOrientation::HighIsGood => RangeQuestionOrientation::HighIsGood,
+                domain::feedback_question::RangeQuestionOrientation::LowIsGood => RangeQuestionOrientation::LowIsGood,
+                domain::feedback_question::RangeQuestionOrientation::MeanIsGood => RangeQuestionOrientation::MeanIsGood,
+            },
+            labels: config.labels.into_iter().collect()
+        }
+    }
 }
 
 impl Into<domain::feedback_question::RangeQuestionConfig> for RangeQuestionConfig {

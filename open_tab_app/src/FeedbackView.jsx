@@ -5,6 +5,7 @@ import { useView } from "./View";
 import ContentView from "./ContentView";
 import { SortableTable } from "./SortableTable";
 
+
 function get_cell_value(value) {
     switch (value.type) {
         case "Average":
