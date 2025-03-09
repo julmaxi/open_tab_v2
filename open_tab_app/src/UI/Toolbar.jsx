@@ -1,4 +1,3 @@
-
 export function Toolbar({children}) {
     return <div className="flex flex-row w-full h-12 bg-gray-200 relative z-10" style={
         {
@@ -41,9 +40,18 @@ function Icon({name}) {
     }
 }
 
-export function ToolbarButton({children, onClick, icon = null, color}) {
-    return <button onClick={onClick} className="h-full pl-2 pr-2 border-r border-gray-400 hover:bg-gray-100 flex justify-center items-center">
-        {icon && <div className="mr-1"><Icon name={icon} /></div>}
-        {children}
-    </button>
+export function ToolbarButton({children, onClick, icon = null, color = null}) {
+    let colorClasses = "hover:bg-gray-100";
+    if (color === "red") {
+        colorClasses = "bg-red-500 text-white hover:bg-red-600";
+    } else if (color === "green") {
+        colorClasses = "bg-green-500 text-white hover:bg-green-600";
+    }
+
+    return (
+        <button onClick={onClick} className={`h-full pl-2 pr-2 border-r border-gray-400 flex justify-center items-center ${colorClasses}`}>
+            {icon && <div className="mr-1"><Icon name={icon} /></div>}
+            {children}
+        </button>
+    );
 }

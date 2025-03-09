@@ -3,6 +3,7 @@ import { executeAction } from "./Action";
 import Button from "./UI/Button";
 import { open } from "@tauri-apps/api/dialog";
 import { useFloating, offset, flip, shift } from '@floating-ui/react';
+import { confirm } from '@tauri-apps/api/dialog';
 
 import { TournamentContext } from "./TournamentContext";
 import { ErrorHandlingContext } from "./Action";
@@ -18,7 +19,6 @@ import ReorderableList from "./ReorderableList";
 import { Toolbar, ToolbarButton } from "./UI/Toolbar";
 
 function FormView({ form, questions, onUpdateQuestion, onUpdateForm, onAddQuestionToForm }) {
-    console.log(questions, form);
     const [isOpen, setIsOpen] = useState(false);
     const trigger = (
         <button className="flex items-center justify-center w-full h-12 bg-gray-200 border shadow-inner hover:bg-gray-300">
@@ -32,6 +32,10 @@ function FormView({ form, questions, onUpdateQuestion, onUpdateForm, onAddQuesti
     const formQuestions = form.questions.map((question) => {
         return { ...questions[question], uuid: question };
     });
+
+    if (formQuestions.some((question) => question === undefined)) {
+        return <p>Invalid form</p>;
+    }
 
     const addable_questions = Object.entries(questions).filter(([questionId, question]) => {
         return !form.questions.includes(questionId);
@@ -77,17 +81,17 @@ function FormView({ form, questions, onUpdateQuestion, onUpdateForm, onAddQuesti
                     renderItem={(item) => {
                         const question = questions[item.id];
                         return (
-                                <FeedbackQuestionEditor
-                                    question={question}
-                                    onUpdate={(newQuestion) => {
-                                        onUpdateQuestion(item.id, newQuestion);
-                                    }}
-                                    onRemove={() => {
-                                        let newForm = { ...form };
-                                        newForm.questions = newForm.questions.filter((q) => q !== item.id);
-                                        onUpdateForm(newForm);
-                                    }}
-                                />
+                            <FeedbackQuestionEditor
+                                question={question}
+                                onUpdate={(newQuestion) => {
+                                    onUpdateQuestion(item.id, newQuestion);
+                                }}
+                                onRemove={() => {
+                                    let newForm = { ...form };
+                                    newForm.questions = newForm.questions.filter((q) => q !== item.id);
+                                    onUpdateForm(newForm);
+                                }}
+                            />
                         );
                     }}
                 />
@@ -217,28 +221,28 @@ export function FeedbackConfigRoute() {
             <div className="flex-1 min-h-0">
                 <SplitDetailView initialDetailWidth={1000}>
                     <div className="h-full flex flex-col">
-                    <ul className="flex-1 overflow-y-auto">
-                        {forms.map((form, idx) => (
-                            <li key={form.uuid} className="relative">
-                                <span onClick={() => setSelectedFormIndex(idx)}>
-                                    {form.name}
-                                    <span className="text-blue-500">{
-                                        !feedback_forms.forms.includes(form) ? "*" : ""
-                                    }</span>
-                                </span>
-                                <button
-                                    className="absolute top-0 right-0 text-red-500"
-                                    onClick={() => removeForm(form.uuid)}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                        <ul className="flex-1 overflow-y-auto">
+                            {forms.map((form, idx) => (
+                                <li key={form.uuid} className={`relative w-full ${idx == selectedFormIndex ? "bg-blue-500 text-white" : "hover:bg-blue-300"}`}  onClick={() => setSelectedFormIndex(idx)}>
+                                    <span>
+                                        {form.name}
+                                        <span className="text-blue-500">{
+                                            !feedback_forms.forms.includes(form) ? "*" : ""
+                                        }</span>
+                                    </span>
+                                    <button
+                                        className="absolute right-0 text-red-500 h-full bg-white"
+                                        onClick={() => removeForm(form.uuid)}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
-                    <div>
+                    <div className="h-full">
                         {selectedForm !== null ? (
                             <FormView
                                 form={selectedForm}
@@ -285,16 +289,34 @@ export function FeedbackConfigRoute() {
                                 }}
                             />
                         ) : (
-                            <p>Select a form</p>
+                            <div className="h-full flex flex-col justify-center">
+                            <p className="text-gray-500 text-center">Select a form</p>
+                            </div>
                         )}
                     </div>
                 </SplitDetailView>
             </div>
             <Toolbar>
                 <ToolbarButton icon="add" onClick={addNewForm}>Add Form</ToolbarButton>
+                <ToolbarButton icon="add" onClick={async () => {
+                    let r = await confirm("This will overwrite your entire feedback system. Proceed?");
+
+                    if (r) {
+                        open({ directory: false }).then((result) => {
+                            
+                            if (result !== undefined) {
+                                executeAction("ImportFeedbackSystem", {
+                                    tournament_uuid: tournamentId,
+                                    template_path: result
+                                }, errorContext.handleError)
+                            }
+                        })
+                    }
+                }
+                }>Import</ToolbarButton>
                 {
                     hasChanges ? (
-                        <ToolbarButton icon="refresh" onClick={() => {
+                        <ToolbarButton icon="refresh" color="red" onClick={() => {
                             setSelectedForm(null);
                             setSelectedFormIndex(null);
                             setForms(feedback_forms.forms);
@@ -305,7 +327,7 @@ export function FeedbackConfigRoute() {
                 }
                 {
                     hasChanges ? (
-                        <ToolbarButton icon="save" onClick={() => {
+                        <ToolbarButton icon="save" color="green" onClick={() => {
                             setSelectedForm(null);
                             setSelectedFormIndex(null);
                             executeAction("UpdateFeedbackSystem", {

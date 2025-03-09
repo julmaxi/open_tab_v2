@@ -69,24 +69,7 @@ export const VisibilityConfigurator = ({
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Feedback Visibility</h2>
-
-            <div className="mb-6 flex space-x-4">
-                <button
-                    onClick={handleSelectAll}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                    Select All
-                </button>
-                <button
-                    onClick={handleReset}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                    Reset All
-                </button>
-            </div>
-
+        <div className="p-6">
             <div className="border rounded-lg overflow-hidden">
                 {/* Chairs first */}
                 <div className="p-4 bg-gray-50">
@@ -174,6 +157,21 @@ export const VisibilityConfigurator = ({
                         ))}
                     </div>
                 </div>
+            </div>
+
+            <div className="mb-6 flex space-x-4 mt-1">
+                <button
+                    onClick={handleSelectAll}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                    Select All
+                </button>
+                <button
+                    onClick={handleReset}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+                >
+                    Reset All
+                </button>
             </div>
         </div>
     );
