@@ -22,5 +22,5 @@
     {/if}
     <EditableBallot bind:ballot={data.ballot} />
 
-    <button class="p-2 text-center bg-green-600 text-white w-full font-bold">Submit</button>
+    <button class="p-2 text-center bg-green-600 text-white w-full font-bold" type="submit">Submit</button>
 </form>

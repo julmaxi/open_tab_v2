@@ -200,7 +200,7 @@
 {/if}
 
 {#each currentRounds as round}
-    <div class="box">
+    <div class="box round-box">
         <h2>{round.name}</h2>
 
         <div class="box-content">

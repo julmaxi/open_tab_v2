@@ -90,7 +90,7 @@
         </p>
         <form method="POST" action="?/register">
             <input name="key" type="hidden" value="{data.key}" />
-            <button>Login</button>
+            <button id="link-login">Login</button>
         </form>
 
         <p class="warning">

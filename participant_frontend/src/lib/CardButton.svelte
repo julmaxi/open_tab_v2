@@ -33,7 +33,7 @@
         padding-left: 2px;
     }
 </style>
-<a href={href}>
+<a class="card-button" href={href}>
     <svg width="100%" height="100%" viewBox="0 0 53 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;width: 16px;">
         <g transform="matrix(0.659646,0,0,0.303719,-91.918,-84.3739)">
             <rect x="139.344" y="300" width="57.498" height="32.989" style="fill:currentColor;"/>
