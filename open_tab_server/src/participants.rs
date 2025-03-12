@@ -468,18 +468,7 @@ async fn get_participant_info(
                 }
             }
 
-            let status = if check_release_date(current_time, round.round_close_time) {
-                RoundStatus::Completed
-            } else if check_release_date(current_time, round.debate_start_time) {
-                RoundStatus::InProgress
-            }
-            else if check_release_date(current_time, round.team_motion_release_time) {
-                RoundStatus::WaitingToStart { debate_start_time: round.debate_start_time }
-            } else if check_release_date(current_time, round.draw_release_time) {
-                RoundStatus::DrawReleased {}
-            } else {
-                RoundStatus::Planned
-            };
+            let status = get_round_status_at_time(&round, current_time);
 
             ParticipantRoundInfo {
                 uuid: round.uuid,
@@ -674,6 +663,22 @@ async fn get_participant_info(
         feedback_submissions: feedback_requests,
         expected_reload
     }))
+}
+
+pub fn get_round_status_at_time(round: &schema::tournament_round::Model, current_time: ChronoDateTime) -> RoundStatus {
+    let status = if check_release_date(current_time, round.round_close_time) {
+        RoundStatus::Completed
+    } else if check_release_date(current_time, round.debate_start_time) {
+        RoundStatus::InProgress
+    }
+    else if check_release_date(current_time, round.team_motion_release_time) {
+        RoundStatus::WaitingToStart { debate_start_time: round.debate_start_time }
+    } else if check_release_date(current_time, round.draw_release_time) {
+        RoundStatus::DrawReleased {}
+    } else {
+        RoundStatus::Planned
+    };
+    status
 }
 
 async fn get_participant_role(participant_id: Uuid, transaction: &sea_orm::DatabaseTransaction) -> Result<ParticipantRoleInfo, APIError> {

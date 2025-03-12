@@ -21,6 +21,7 @@ use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
 
 use crate::auth::{create_key, ExtractAuthenticatedUser, MaybeExtractAuthenticatedUser};
+use crate::participants::{get_round_status_at_time, RoundStatus};
 use crate::response::APIError;
 use crate::state::AppState;
 
@@ -307,7 +308,8 @@ impl From<open_tab_entities::schema::published_tournament::Model> for Tournament
 
 #[derive(Serialize)]
 pub struct AdministeredTournamentInfo {
-    name: String,
+    tournament_uuid: Uuid,
+    name: String
 }
 
 #[derive(Serialize)]
@@ -316,6 +318,7 @@ pub struct PublicTournamentsInfo {
     active: Vec<TournamentInfo>,
     concluded: Vec<TournamentInfo>,
     upcoming: Vec<TournamentInfo>,
+    administered: Vec<AdministeredTournamentInfo>,
 }
 
 pub async fn get_active_tournaments_handler(
@@ -404,6 +407,14 @@ pub async fn get_active_tournaments_handler(
 
     let user_tournament_ids = user_tournaments.iter().filter_map(|t| t.tournament_uuid).collect::<HashSet<_>>();
 
+    let administered_tournaments = open_tab_entities::schema::tournament::Entity::find()
+        .join(sea_orm::JoinType::InnerJoin, user_tournament::Relation::Tournament.def().rev())
+        .filter(user_tournament::Column::UserId.eq(user.as_ref().map(|u| u.uuid).unwrap_or_default()))
+        .order_by_desc(open_tab_entities::schema::tournament::Column::LastModified)
+        .limit(10)
+        .all(&db)
+        .await?;
+
     Ok(Json(
         PublicTournamentsInfo {
             active_user: user_tournaments,
@@ -414,6 +425,12 @@ pub async fn get_active_tournaments_handler(
                 t.into()
             }).collect(),
             upcoming: upcoming_tournaments.into_iter().map(|t| t.into()).collect(),
+            administered: administered_tournaments.into_iter().map(|t| {
+                AdministeredTournamentInfo {
+                    tournament_uuid: t.uuid,
+                    name: t.name,
+                }
+            }).collect(),
         }
     ))
 }
@@ -471,6 +488,7 @@ impl MotionInfo {
 
 pub async fn get_public_tournament_info_handler(
     State(db) : State<DatabaseConnection>,
+    MaybeExtractAuthenticatedUser(user) : MaybeExtractAuthenticatedUser,
     Path(tournament_id): Path<Uuid>,
 ) -> Result<Json<TournamentPublicInfo>, APIError> {
     let now = Utc::now().naive_utc();
@@ -481,39 +499,76 @@ pub async fn get_public_tournament_info_handler(
         .await
         ?;
 
-    if !published_tournament.is_some() {
-        let err: crate::response::TypedAPIError<String> = APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found");
-        return Err(err);
-    }
+    let info = match published_tournament {
+        Some(published_tournament) if published_tournament.list_publicly => {
+            // We will only ever show rounds with a released draw, either as active, or in the motion tab
+            let all_rounds = open_tab_entities::schema::tournament_round::Entity::find()
+                .filter(open_tab_entities::schema::tournament_round::Column::TournamentId.eq(tournament_id))
+                .filter(open_tab_entities::schema::tournament_round::Column::DrawReleaseTime.lte(now))
+                .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
+                .all(&db)
+                .await
+                ?;
 
-    let published_tournament = published_tournament.unwrap();
+            let round_info = all_rounds.iter().map(|r| PublicRoundInfo::from_round(r, published_tournament.show_motions, now)).collect::<Vec<_>>();
 
-    if !published_tournament.list_publicly {
-        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "This tournament is not public");
-        return Err(err);
-    }
-
-    // We will only ever show rounds with a released draw, either as active, or in the motion tab
-    let all_rounds = open_tab_entities::schema::tournament_round::Entity::find()
-        .filter(open_tab_entities::schema::tournament_round::Column::TournamentId.eq(tournament_id))
-        .filter(open_tab_entities::schema::tournament_round::Column::DrawReleaseTime.lte(now))
-        .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
-        .all(&db)
-        .await
-        ?;
-
-    let round_info = all_rounds.iter().map(|r| PublicRoundInfo::from_round(r, published_tournament.show_motions, now)).collect::<Vec<_>>();
-
-    Ok(Json(
-        TournamentPublicInfo {
-            tournament_name: published_tournament.public_name,
-            rounds: round_info,
-            show_draws: published_tournament.show_draws,
-            show_motions: published_tournament.show_motions,
-            show_tab: published_tournament.show_tab,
-            show_participants: published_tournament.show_participants,
+            Some(
+                TournamentPublicInfo {
+                    tournament_name: published_tournament.public_name,
+                    rounds: round_info,
+                    show_draws: published_tournament.show_draws,
+                    show_motions: published_tournament.show_motions,
+                    show_tab: published_tournament.show_tab,
+                    show_participants: published_tournament.show_participants,
+                }        
+            )
+        },
+        _ => {
+            None
         }
-    ))
+    };
+
+    if info.is_none() {
+        if let Some(user) = user {
+            if user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
+                let tournament = open_tab_entities::schema::tournament::Entity::find()
+                    .filter(open_tab_entities::schema::tournament::Column::Uuid.eq(tournament_id))
+                    .one(&db)
+                    .await?;
+
+                if let Some(tournament) = tournament {
+                    let all_rounds = open_tab_entities::schema::tournament_round::Entity::find()
+                    .filter(open_tab_entities::schema::tournament_round::Column::TournamentId.eq(tournament_id))
+                    .filter(open_tab_entities::schema::tournament_round::Column::DrawReleaseTime.lte(now))
+                    .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
+                    .all(&db)
+                    .await
+                    ?;
+        
+                    let round_info = all_rounds.iter().map(|r| PublicRoundInfo::from_round(r, true, now)).collect::<Vec<_>>();
+        
+                    return Ok(Json(
+                        TournamentPublicInfo {
+                            tournament_name: tournament.name,
+                            rounds: round_info,
+                            show_draws: false,
+                            show_motions: false,
+                            show_tab: false,
+                            show_participants: false,
+                        }
+                    ));    
+                }
+            }
+        }    
+    }
+
+    if let Some(info) = info {
+        Ok(Json(info))
+    }
+    else {
+        let err = APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found");
+        Err(err)
+    }
 }
 
 #[derive(Serialize)]
@@ -557,6 +612,66 @@ pub async fn get_tournament_institutions(
     ))
 }
 
+#[derive(Serialize)]
+pub struct AdminRoundInfo {
+    pub uuid: Uuid,
+    pub index: i32,
+    pub name: String,
+    pub status: RoundStatus
+}
+
+#[derive(Serialize)]
+pub struct TournamentAdminView {
+    pub tournament_name: String,
+    pub rounds: Vec<AdminRoundInfo>,
+}
+
+pub async fn get_admin_view(
+    State(db) : State<DatabaseConnection>,
+    ExtractAuthenticatedUser(user) : ExtractAuthenticatedUser,
+    Path(tournament_id): Path<Uuid>,
+) -> Result<Json<TournamentAdminView>, APIError> {
+    if !user.check_is_authorized_for_tournament_administration(&db, tournament_id).await? {
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized for this tournament");
+        return Err(err);
+    }
+
+    let tournament = open_tab_entities::schema::tournament::Entity::find()
+        .filter(open_tab_entities::schema::tournament::Column::Uuid.eq(tournament_id))
+        .one(&db)
+        .await?;
+
+    if tournament.is_none() {
+        let err = APIError::new_with_status(StatusCode::NOT_FOUND, "Tournament not found");
+        return Err(err);
+    }
+
+    let tournament = tournament.unwrap();
+
+    let rounds = open_tab_entities::schema::tournament_round::Entity::find()
+        .filter(open_tab_entities::schema::tournament_round::Column::TournamentId.eq(tournament_id))
+        .order_by_asc(open_tab_entities::schema::tournament_round::Column::Index)
+        .all(&db)
+        .await?;
+
+    let now = Utc::now().naive_utc();
+    let rounds = rounds.into_iter().map(|r| {
+        AdminRoundInfo {
+            uuid: r.uuid,
+            index: r.index,
+            status: get_round_status_at_time(&r, now),
+            name: format!("Round {}", r.index + 1),
+        }
+    }).collect();
+
+    Ok(Json(
+        TournamentAdminView {
+            tournament_name: tournament.name,
+            rounds,
+        }
+    ))
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/tournaments", post(create_tournament_handler))
@@ -565,4 +680,5 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/public_tournaments", get(get_active_tournaments_handler))
         .route("/tournament/:tournament_id/public", get(get_public_tournament_info_handler))
         .route("/tournament/:tournament_id/institutions", get(get_tournament_institutions))
+        .route("/tournament/:tournament_id/admin", get(get_admin_view))
 }

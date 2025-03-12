@@ -28,6 +28,11 @@
 
       padding: 1rem;
     }
+
+    .container.full {
+      min-height: 100vh;
+      padding: 0;
+    }
   
     a {
       padding: 0.25rem;
@@ -45,6 +50,7 @@
     }
   </style>
   
+  {#if !data.hideNavbar}
   <nav>
     <a class="tournament_name" href={data.titleLink}>{data.pageTitle}</a>
     {#each data.additionalLinks as link}
@@ -59,7 +65,8 @@
       <a class="login" href="/login">Login</a>
     {/if}
   </nav>
+  {/if}
   
-  <div class="container">
+  <div class="{data.hideNavbar ? 'container full' : 'container'}">
     <slot />
   </div>

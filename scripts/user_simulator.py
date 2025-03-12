@@ -539,5 +539,6 @@ def run_user_test(register_url):
         except Exception as e:
             pass
 
+
 if __name__ == "__main__":
     run_user_test("http://localhost:5173/register/lI3MbAf6QcmpB8nygb6g5y5H8FrfeKNz1YLJbyB776MhhPuKE0mr1QCN5dODlB3d")

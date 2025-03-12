@@ -44,6 +44,9 @@ export async function load({ params, fetch, cookies, url }) {
         };
     }
 
+    // Add hideNavbar field based on the URL
+    layoutInfo["hideNavbar"] = !!path.match("/tournament/[a-z0-9-]+/admin/round/[a-z0-9-]+/presentation");
+
     return layoutInfo;
 }
 
@@ -129,10 +132,11 @@ async function loadTournamentInfo({ params, fetch, cookies, url }) {
         tournamentName = participantInfo.tournament_name;
     }
     else {
-        let public_info = await fetch(
-            `${env.PUBLIC_API_URL}/api/tournament/${params.tournament_id}/public`,
+        let public_info = await makeAuthenticatedRequestServerOnly(
+            `api/tournament/${params.tournament_id}/public`,
+            cookies,
             {}
-        );
+        )
         public_info = await public_info.json();
 
         additionalLinks.push(

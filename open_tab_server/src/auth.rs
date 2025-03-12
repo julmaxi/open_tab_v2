@@ -106,7 +106,7 @@ impl AuthenticatedUser {
                             "No valid authorization header found",
                         )
                     })?;
-            let key = base64::engine::general_purpose::STANDARD_NO_PAD
+            let key = base64::engine::general_purpose::URL_SAFE
                 .decode(&bearer_header.0.token())
                 .map_err(
                     |e| {
@@ -473,7 +473,7 @@ pub async fn create_token_handler(
         .await?;
 
     return Ok(GetTokenResponse {
-        token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key),
+        token: base64::engine::general_purpose::URL_SAFE.encode(&key),
         expires: expiration.map(|d| (chrono::Utc::now() + d).timestamp_millis()),
         user_id: user.uuid,
     }
@@ -547,7 +547,7 @@ pub async fn register_user_handler(
                             user_id: existing_user.user_id,
                             participant_id: participant_id,
                             tournament_id: participant.tournament_id,
-                            token: Some(base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)),
+                            token: Some(base64::engine::general_purpose::URL_SAFE.encode(&key)),
                         }
                         .into())    
                     }
@@ -563,7 +563,7 @@ pub async fn register_user_handler(
                             user_id: new_user_id,
                             participant_id,
                             tournament_id: participant.tournament_id,
-                            token: Some(base64::engine::general_purpose::STANDARD_NO_PAD.encode(&key)),
+                            token: Some(base64::engine::general_purpose::URL_SAFE.encode(&key)),
                         }
                         .into())    
                     }
@@ -721,7 +721,7 @@ pub async fn invalidate_token_handler(
 
     let auth_header: Option<Authorization<Bearer>> = headers.typed_get();
     if let Some(auth_string) = auth_header {
-        let key = base64::engine::general_purpose::STANDARD_NO_PAD
+        let key = base64::engine::general_purpose::URL_SAFE
             .decode(&auth_string.0.token())
             .map_err(
                 |e| {

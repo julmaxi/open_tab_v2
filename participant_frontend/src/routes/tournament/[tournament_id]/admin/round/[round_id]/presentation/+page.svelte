@@ -9,7 +9,9 @@
     let debates = data.info.debates;
   
     let currentSlide = 0;
-    let startTime = null;
+    console.log(data.info);
+    let startTime = data.info.debate_start_time ? new Date(Date.parse(data.info.debate_start_time)) : null;
+
   
     onMount(() => {
       window.addEventListener('keydown', handleKeyPress);
@@ -36,7 +38,7 @@
 
     function startTimer() {
         async function startTimer() {
-            const response = await fetch(`/tournament/${data.tournamentId}/round/${data.roundId}/presentation/motion`, {
+            const response = await fetch(`./presentation/motion`, {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json'
@@ -58,12 +60,17 @@
     };
 
     $: cssVarStyles = Object.entries(fontSizes)
-		.map(([key, value]) => `--${key}:${value}`)
-		.join(';');
+        .map(([key, value]) => `--${key}:${value}`)
+        .join(';');
 
-  </script>
+    function formatTime(date) {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+</script>
   
-  <style>
+<style>
     .title {
         font-size: var(--title-size);
         line-height: 1;
@@ -93,16 +100,18 @@
         font-size: var(--subsubheader-size);
         line-height: 1;
     }
-  </style>
+</style>
 
-<div style={cssVarStyles} >
+<div style={cssVarStyles} class="w-full h-screen p-4">
 <SlidesView>
     <Slide slideIndex=0>
-        <h1 class="title text-center">{data.info.round_name}</h1>
+        <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full flex flex-col justify-center">
+            <h1 class="title text-center">{data.info.round_name}</h1>
+        </div>
     </Slide>
     {#each debates as debate, index}
     <Slide slideIndex={index + 1}>
-    <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full">
+    <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full overflow-y-auto">
         <h1 class="header font-bold p-0 mb-0">Raum {debate.debate_index + 1}</h1>
         <h2 class="subheader mb-7">{debate.venue ? debate.venue.venue_name : "" }</h2>
         <div class="grid grid-cols-2">
@@ -147,26 +156,34 @@
     </Slide>
     {/each}
     <Slide slideIndex={debates.length + 1}>
-        <h1 class="title text-center">Freie Reden bitte den Raum verlassen</h1>
+        <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full flex flex-col justify-center">
+            <h1 class="title text-center">Freie Reden bitte den Raum verlassen</h1>
+        </div>
     </Slide>
     <Slide slideIndex={debates.length + 2}>
-        <h1 class="title text-center">Das Thema lautet</h1>
+        <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full flex flex-col justify-center">
+            <h1 class="title text-center">Das Thema lautet</h1>
+        </div>
     </Slide>
     {#if data.info.info_slide}
     <Slide slideIndex={debates.length + 3}>
-        <p class="title text-center">{data.info.info_slide}</p>
+        <div style="{cssVarStyles + "; text-wrap: balance; overflow-wrap: break-word;"}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full">
+            <p class="title text-center">{data.info.info_slide}</p>
+        </div>
     </Slide>
     {/if}
     <Slide slideIndex={debates.length + 3 + (data.info.info_slide ? 1 : 0)} requiresReveal={true}>
+        <div style="{cssVarStyles}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full flex flex-col justify-center">
         <p class="title text-center">{data.info.motion}</p>
 
         {#if startTime !== null}
-            <p class="subheader text-center">Die Debatte startet um {startTime.getHours()}:{startTime.getMinutes()}</p>
+            <p class="subheader text-center">Die Debatte startet um {formatTime(startTime)}</p>
         {:else}
             <div class="w-full flex justify-center">
                 <button class="text-2xl font-bold mt-4 p-4 bg-blue-500 text-white rounded" on:click={startTimer}>Publish</button>
             </div>
         {/if}
+        </div>
     </Slide>
 </SlidesView>
 </div>

@@ -3,6 +3,9 @@
     import CardButton from "$lib/CardButton.svelte";
 
     export let tournament;
+    export let isAdministered = false;
+
+    console.log(">>", tournament)
 </script>
 
 <style>
@@ -94,7 +97,7 @@
     }
 </style>
 
-<a href={`/tournament/${tournament.tournament_uuid}`}>
+<a href={isAdministered ? `/tournament/${tournament.tournament_uuid}/admin` : `/tournament/${tournament.tournament_uuid}`}>
 <Card>
     <div class="card-content" slot="content">
         <h3>{tournament.name}</h3>
@@ -107,14 +110,18 @@
     </div>
 
     <div class="footer" slot="footer">
-        {#if tournament.user_is_participant}
-            <CardButton href={`/tournament/${tournament.tournament_uuid}`} label="View Your Page" />
-        {/if}
-        {#if tournament.show_participants}
-            <CardButton href={`/tournament/${tournament.tournament_uuid}/participants`} label="View Participants" />
-        {/if}
-        {#if tournament.show_tab }
-            <CardButton label="View Tab" href={`/tournament/${tournament.tournament_uuid}/tab`} />
+        {#if isAdministered}
+            <CardButton href={`/tournament/${tournament.tournament_uuid}/admin`} label="Administer" />
+        {:else}
+            {#if tournament.user_is_participant}
+                <CardButton href={`/tournament/${tournament.tournament_uuid}`} label="View Your Page" />
+            {/if}
+            {#if tournament.show_participants}
+                <CardButton href={`/tournament/${tournament.tournament_uuid}/participants`} label="View Participants" />
+            {/if}
+            {#if tournament.show_tab }
+                <CardButton label="View Tab" href={`/tournament/${tournament.tournament_uuid}/tab`} />
+            {/if}
         {/if}
     </div>
 </Card>

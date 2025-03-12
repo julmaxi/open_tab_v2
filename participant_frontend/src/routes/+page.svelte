@@ -12,6 +12,8 @@
 
     let tournamentsUpcoming = data.tournamentsInfo.upcoming;
 
+    let tournamentsAdministered = data.tournamentsInfo.administered;
+
     let userTournamentsInProgress = data.tournamentsInfo.active_user;
 </script>
 
@@ -146,4 +148,16 @@
         </div>
     {/if}
     </div>
+
+    {#if tournamentsAdministered?.length > 0}
+        <div class="section">
+            <h2>Administered Tournaments</h2>
+
+            <div class="list">
+                {#each tournamentsAdministered as tournament}
+                    <TournamentCard tournament={tournament} isAdministered={true} />
+                {/each}
+            </div>
+        </div>
+    {/if}
 </div>
