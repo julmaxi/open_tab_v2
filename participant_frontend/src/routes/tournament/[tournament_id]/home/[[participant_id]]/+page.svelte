@@ -241,7 +241,7 @@
                     <h3>
                         Info Slide
                     </h3>
-                    <div>
+                    <div style="overflow: scroll; width: 100%; word-wrap: break-word; max-height: 10rem;">
                         {round.motion.info_slide}
                     </div>
                 </div>
