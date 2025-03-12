@@ -12,7 +12,7 @@
 
 <style>
     .detail {
-        font-size: 0.1rem;
+        font-size: 1rem;
         border-top: 1px #ccc solid;
         text-align: center;
     }
@@ -21,6 +21,9 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+    .total {
+        text-align: center;
     }
 </style>
 
@@ -36,13 +39,15 @@
         {:else if info.score_status == "Shown"}
             <div>
                 <div>
-                    <div>
+                    <div class="total">
                         <span>{numberFormat.format(info.total_score)}</span>
                     </div>
                 </div>
-                <div class="detail">
-                    {joinedInvididualScores}
-                </div>
+                {#if joinedInvididualScores != ""}
+                    <div class="detail">
+                        {joinedInvididualScores}
+                    </div>
+                {/if}
             </div>
         {/if}
     {/if}
