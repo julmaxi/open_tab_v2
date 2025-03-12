@@ -474,7 +474,9 @@ questions:
       type: text
     - short_name: chair
       full_name: War diese Person Chair?
-      type: yes_no";
+      type: yes_no
+      is_required: true
+      ";
         let result = serde_yaml::from_str::<super::FeedbackForm>(test_string).unwrap();
         
         assert_eq!(result.questions, vec![
@@ -491,7 +493,7 @@ questions:
                 },
                 description: None,
                 is_confidential: false,
-                is_required: true
+                is_required: false
             }),
             super::QuestionKeyOrInline::Inline(super::QuestionInfo {
                 short_name: "comments".into(),
@@ -499,7 +501,7 @@ questions:
                 config: super::QuestionType::TextQuestion,
                 description: None,
                 is_confidential: false,
-                is_required: true
+                is_required: false
             }),
             super::QuestionKeyOrInline::Inline(super::QuestionInfo {
                 short_name: "chair".into(),

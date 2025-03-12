@@ -122,12 +122,12 @@ impl Fixture {
                 user_tournament.into_active_model().insert(&state.db).await.unwrap();    
             }
 
-            auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&raw_key) };
+            auth = Auth::Bearer { token: base64::engine::general_purpose::URL_SAFE.encode(&raw_key) };
             setup_func(state.db.clone()).await;
             open_tab_server::app_with_state(state).await
         }
         else {
-            open_tab_server::app().await
+            open_tab_server::app_with_state(AppState::new_test_app().await).await
         };
 
         Self {
@@ -185,7 +185,7 @@ impl Fixture {
             Auth::Basic { username, password } => {
                 builder.header(
                     "Authorization",
-                    format!("Basic {}", general_purpose::STANDARD.encode(&format!("{}:{}", username, password)))
+                    format!("Basic {}", general_purpose::URL_SAFE.encode(&format!("{}:{}", username, password)))
                 )
             },
             Auth::Bearer { token } => {

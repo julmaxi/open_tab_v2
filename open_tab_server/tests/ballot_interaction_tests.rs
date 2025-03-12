@@ -265,7 +265,7 @@ async fn test_chair_can_submit_ballot() {
         },
         create_test_user_and_open_r1
     ).await;
-    let auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&[0, 0, 0, 1]) };
+    let auth = Auth::Bearer { token: base64::engine::general_purpose::URL_SAFE.encode(&[0, 0, 0, 1]) };
     fixture.auth = auth;
 
     let response = fixture.post_json(
@@ -287,7 +287,7 @@ async fn test_chair_can_not_submit_ballot_for_inactive_round() {
         },
         create_test_user
     ).await;
-    let auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&[0, 0, 0, 1]) };
+    let auth = Auth::Bearer { token: base64::engine::general_purpose::URL_SAFE.encode(&[0, 0, 0, 1]) };
     fixture.auth = auth;
 
     let response = fixture.post_json(
@@ -311,7 +311,7 @@ async fn test_chair_can_not_submit_ballot_for_finished_round() {
         },
         create_test_user_and_close_r1
     ).await;
-    let auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&[0, 0, 0, 1]) };
+    let auth = Auth::Bearer { token: base64::engine::general_purpose::URL_SAFE.encode(&[0, 0, 0, 1]) };
     fixture.auth = auth;
 
     let response = fixture.post_json(
@@ -335,7 +335,7 @@ async fn test_chair_in_other_room_cannot_submit_ballot() {
         },
         create_test_user_and_open_r1
     ).await;
-    let auth = Auth::Bearer { token: base64::engine::general_purpose::STANDARD_NO_PAD.encode(&[0, 0, 0, 1]) };
+    let auth = Auth::Bearer { token: base64::engine::general_purpose::URL_SAFE.encode(&[0, 0, 0, 1]) };
     fixture.auth = auth;
 
     let response = fixture.post_json(
