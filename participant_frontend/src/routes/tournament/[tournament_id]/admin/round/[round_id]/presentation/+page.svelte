@@ -167,7 +167,7 @@
     </Slide>
     {#if data.info.info_slide}
     <Slide slideIndex={debates.length + 3}>
-        <div style="{cssVarStyles + "; text-wrap: balance; overflow-wrap: break-word;"}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full">
+        <div style="{cssVarStyles + "; text-wrap: balance; overflow-wrap: break-word;"}" class="bg-white p-12 pl-20 pr-20 rounded-md shadow-md w-full h-full overflow-scroll">
             <p class="title text-center">{data.info.info_slide}</p>
         </div>
     </Slide>

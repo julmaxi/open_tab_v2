@@ -159,6 +159,8 @@ function WaitForMotionRelease({ round_uuid }) {
 
 function WaitForPublishRoundStep({ round_uuid }) {
     let errorContext = useContext(ErrorHandlingContext);
+    let statusView = useView({ type: "TournamentStatus", tournament_uuid: tournamentContext.uuid }, null);
+
     return <div className='w-full'>
         <h1>Publish Round</h1>
         <p>
