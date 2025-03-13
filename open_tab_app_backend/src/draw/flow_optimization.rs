@@ -228,7 +228,7 @@ impl OptimizationState {
             cost -= ((adj_info.bias - avg_bias).abs() as f32 * self.options.bias_weight) as i32;
             cost -= ((avg_variance - adj_info.variance) as f32 * self.options.variance_weight) as i32;
 
-            Some(cost)      
+            Some(cost - 1)      
         }
         else {
             None
@@ -371,28 +371,46 @@ impl OptimizationState {
 
                 let mut graph_build = GraphBuilder::new();
 
+                let edges = unassigned_adjudicators.iter()
+                    .flat_map(
+                        |adj| {
+                            debates_to_assign_wings.iter().map(
+                                |(debate_idx, debate)| {
+                                    if let Some(cost) = self.compute_wing_cost_in_debate(*adj, debate) {
+                                        Some((*adj, *debate_idx, cost))
+                                    }
+                                    else {
+                                        None
+                                    }
+                                }
+                            )
+                        }
+                    )
+                    .filter_map(|x| x)
+                    .collect::<Vec<_>>();
+
+                let max_cost = edges.iter().map(|(_, _, c)| *c).max().unwrap_or(0);
+
                 unassigned_adjudicators.iter().for_each(
                     |adj| {
                         graph_build.add_edge(
                             Vertex::Source,
                             NodeType::Adjudicator(*adj),
                             Capacity(1),
-                            Cost(0)
+                            Cost(max_cost + 1)
                         );
+                    }
+                );
 
-                        debates_to_assign_wings.iter().for_each(
-                            |(debate_idx, debate)| {
-                                if let Some(cost) = self.compute_wing_cost_in_debate(*adj, debate) {
-                                    graph_build.add_edge(
-                                        NodeType::Adjudicator(*adj),
-                                        NodeType::Debate(round_id, *debate_idx),
-                                        Capacity(1),
-                                        Cost(
-                                            cost
-                                        )
-                                    );
-                                }
-                            }
+                edges.iter().for_each(
+                    |(adj, debate_idx, cost)| {
+                        graph_build.add_edge(
+                            NodeType::Adjudicator(*adj),
+                            NodeType::Debate(round_id, *debate_idx),
+                            Capacity(1),
+                            Cost(
+                                *cost
+                            )
                         );
                     }
                 );

@@ -12,6 +12,7 @@ pub struct ClashMap {
     pub clashes: Vec<Vec<ClashMapEntry>>,
     pub clash_matrix: HashMap<Uuid, HashMap<Uuid, usize>>,
     config: ClashMapConfig,
+    empty: Vec<ClashMapEntry>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -52,7 +53,8 @@ impl ClashMap {
         ClashMap {
             clash_matrix: HashMap::new(),
             clashes: Vec::new(),
-            config
+            config,
+            empty: Vec::new()
         }
     }
 
@@ -224,6 +226,8 @@ impl ClashMap {
             |(k, v)| (*k, &self.clashes[*v])
         ).collect()
     }
-
-
+    
+    pub fn get_clashes_between_participants(&self, first_uuid: &Uuid, second_uuid: &Uuid) -> &Vec<ClashMapEntry> {
+        self.clash_matrix.get(first_uuid).and_then(|m| m.get(second_uuid)).map(|v| &self.clashes[*v]).unwrap_or(&self.empty)
+    }
 }

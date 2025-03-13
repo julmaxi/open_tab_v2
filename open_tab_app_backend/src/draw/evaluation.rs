@@ -263,15 +263,8 @@ impl DrawEvaluator {
         for adj_pair in adjudicator_ids.iter().combinations(2) {
             let adj_1_id = adj_pair[0];
             let adj_2_id = adj_pair[1];
-            let adj_clashes = self.clash_map.get_clashes_for_participant(adj_1_id);
 
-            // The clash map is symmetric, so we only need to check one direction
-            let clashes = adj_clashes
-                .get(adj_2_id)
-                .iter()
-                .map(|c| c.iter())
-                .flatten()
-                .collect_vec();
+            let clashes = self.clash_map.get_clashes_between_participants(adj_1_id, adj_2_id);
             for clash in clashes {
                 let severity = (self.get_base_severity(&clash.clash_type) as f32
                     * self.config.adj_adj_clash_factor) as u16;
@@ -300,13 +293,7 @@ impl DrawEvaluator {
             .iter()
             .cartesian_product(ballot.non_aligned_speakers.iter())
         {
-            let adj_clashes = self.clash_map.get_clashes_for_participant(adj_id);
-            let clashes = adj_clashes
-                .get(speaker_id)
-                .iter()
-                .map(|c| c.iter())
-                .flatten()
-                .collect_vec();
+            let clashes = self.clash_map.get_clashes_between_participants(adj_id, speaker_id);
             for clash in clashes {
                 let severity = (self.get_base_severity(&clash.clash_type) as f32
                     * self.config.adj_speaker_clash_factor) as u16;
@@ -332,8 +319,6 @@ impl DrawEvaluator {
         }
 
         for adj_id in adjudicator_ids.iter() {
-            let adj_clashes = self.clash_map.get_clashes_for_participant(adj_id);
-
             vec![
                 (&ballot.government, &gov_member_ids),
                 (&ballot.opposition, &opp_member_ids),
@@ -343,12 +328,9 @@ impl DrawEvaluator {
                 member_ids
                     .iter()
                     .flat_map(|member_id| {
-                        adj_clashes
-                            .get(member_id)
-                            .iter()
-                            .map(|cs| {
-                                cs.iter()
-                                    .map(|c| DrawIssue {
+                        self.clash_map.get_clashes_between_participants(adj_id, member_id).iter()
+                            .map(|c| {
+                                DrawIssue {
                                         issue_type: c.clash_type.clone(),
                                         severity: (self.get_base_severity(&c.clash_type) as f32
                                             * self.config.adj_team_clash_factor)
@@ -357,12 +339,10 @@ impl DrawEvaluator {
                                             uuid: *team_id.as_ref().unwrap(),
                                             involved_speakers: vec![*member_id],
                                         },
-                                    })
-                                    .collect_vec()
+                                }
                             })
                             .collect_vec()
                     })
-                    .flatten()
                     .sorted()
                     .coalesce(coalesce_issues)
                     .collect_vec()
@@ -408,7 +388,6 @@ impl DrawEvaluator {
         }
 
         for non_aligned_id in ballot.non_aligned_speakers.iter() {
-            let non_aligned_clashes = self.clash_map.get_clashes_for_participant(non_aligned_id);
             vec![
                 (&ballot.government, &gov_member_ids),
                 (&ballot.opposition, &opp_member_ids),
@@ -418,26 +397,22 @@ impl DrawEvaluator {
                 member_ids
                     .iter()
                     .flat_map(|member_id| {
-                        non_aligned_clashes
-                            .get(member_id)
+                        self.clash_map.get_clashes_between_participants(non_aligned_id, member_id)
                             .iter()
-                            .map(|cs| {
-                                cs.iter()
-                                    .map(|c| DrawIssue {
-                                        issue_type: c.clash_type.clone(),
-                                        severity: (self.get_base_severity(&c.clash_type) as f32
-                                            * self.config.team_speaker_clash_factor)
-                                            as u16,
-                                        target: DrawIssueTarget::Team {
-                                            uuid: *team_id.as_ref().unwrap(),
-                                            involved_speakers: vec![*member_id],
-                                        },
-                                    })
-                                    .collect_vec()
+                            .map(|c| {
+                                DrawIssue {
+                                    issue_type: c.clash_type.clone(),
+                                    severity: (self.get_base_severity(&c.clash_type) as f32
+                                        * self.config.team_speaker_clash_factor)
+                                        as u16,
+                                    target: DrawIssueTarget::Team {
+                                        uuid: *team_id.as_ref().unwrap(),
+                                        involved_speakers: vec![*member_id],
+                                    },
+                                }
                             })
                             .collect_vec()
                     })
-                    .flatten()
                     .sorted()
                     .coalesce(coalesce_issues)
                     .collect_vec()
@@ -490,21 +465,17 @@ impl DrawEvaluator {
                 .iter()
                 .filter(|id| *id != non_aligned_id)
                 .map(|other_id| {
-                    non_aligned_clashes
-                        .get(other_id)
+                    self.clash_map.get_clashes_between_participants(non_aligned_id, other_id)
                         .iter()
-                        .map(|cs| {
-                            cs.iter()
-                                .map(|c| DrawIssue {
-                                    issue_type: c.clash_type.clone(),
-                                    severity: (self.get_base_severity(&c.clash_type) as f32
-                                        * self.config.speaker_speaker_clash_factor)
-                                        as u16,
-                                    target: DrawIssueTarget::Speaker { uuid: *other_id },
-                                })
-                                .collect_vec()
+                        .map(|c| {
+                            DrawIssue {
+                                issue_type: c.clash_type.clone(),
+                                severity: (self.get_base_severity(&c.clash_type) as f32
+                                    * self.config.speaker_speaker_clash_factor)
+                                    as u16,
+                                target: DrawIssueTarget::Speaker { uuid: *other_id },
+                            }
                         })
-                        .flatten()
                         .sorted()
                         .coalesce(coalesce_issues)
                         .collect_vec()
@@ -519,30 +490,26 @@ impl DrawEvaluator {
                 });
         }
 
-        for gov_speaker_id in gov_member_ids
-        {
-            let speaker_clashes = self.clash_map.get_clashes_for_participant(&gov_speaker_id);
+        for gov_speaker_id in gov_member_ids {
             opp_member_ids.iter().cloned().flat_map(|opp_speaker_id| {
-                    speaker_clashes
-                        .get(&opp_speaker_id)
-                        .iter()
-                        .flat_map(|cs| {
-                            cs.iter()
-                                .map(|c| DrawIssue {
-                                    issue_type: c.clash_type.clone(),
-                                    severity: (self.get_base_severity(&c.clash_type) as f32
-                                        * self.config.team_team_clash_factor)
-                                        as u16,
-                                    target: DrawIssueTarget::Team {
-                                        uuid: ballot
-                                            .opposition
-                                            .as_ref()
-                                            .map(|t| *t)
-                                            .unwrap_or(Uuid::nil()),
-                                        involved_speakers: vec![opp_speaker_id],
-                                    },
-                                })
-                                .collect_vec()
+                self.clash_map
+                    .get_clashes_between_participants(&gov_speaker_id, &opp_speaker_id)
+                    .iter()
+                        .map(|c| {
+                            DrawIssue {
+                                issue_type: c.clash_type.clone(),
+                                severity: (self.get_base_severity(&c.clash_type) as f32
+                                    * self.config.team_team_clash_factor)
+                                    as u16,
+                                target: DrawIssueTarget::Team {
+                                    uuid: ballot
+                                        .opposition
+                                        .as_ref()
+                                        .map(|t| *t)
+                                        .unwrap_or(Uuid::nil()),
+                                    involved_speakers: vec![opp_speaker_id],
+                                },
+                            }
                         })
                         .collect_vec()
                 })
