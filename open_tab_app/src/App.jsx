@@ -12,7 +12,6 @@ import "./App.css";
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
 
-import DrawEditor from "./Draw";
 import { Outlet, Route, useParams } from "react-router";
 import { Link } from "react-router-dom";
 import { useView } from "./View";
@@ -179,11 +178,5 @@ export function App() {
 
   return view;
 }
-
-export function DrawEditorRoute() {
-  let { roundId } = useParams();
-  return <DrawEditor round_uuid={roundId} />;
-}
-
 
 export default App;
