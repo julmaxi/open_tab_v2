@@ -4,13 +4,14 @@ use crate::domain::tournament_institution::TournamentInstitution;
 
 
 use sea_orm::prelude::*;
+use serde::{Serialize, Deserialize};
 use crate::prelude::*;
 
 
 use itertools::Itertools;
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TournamentParticipantsInfo {
     pub participants_by_id: HashMap<Uuid, Participant>,
     pub teams_by_id: HashMap<Uuid, Team>,

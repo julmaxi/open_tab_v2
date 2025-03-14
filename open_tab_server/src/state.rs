@@ -4,7 +4,7 @@ use db::DatabaseConfig;
 use migration::MigratorTrait;
 use tokio::sync::{RwLock};
 
-use crate::{db, notify::ParticipantNotificationManager};
+use crate::{db, cache, notify::ParticipantNotificationManager};
 use sea_orm::{prelude::*, Statement};
 
 
@@ -12,6 +12,7 @@ use sea_orm::{prelude::*, Statement};
 pub struct AppState {
     pub db: DatabaseConnection,
     pub notifications: Arc<RwLock<ParticipantNotificationManager>>,
+    pub cache_manager: Arc<crate::cache::CacheManager>,
 }
 
 impl AppState {
@@ -35,6 +36,7 @@ impl AppState {
         AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
+            cache_manager: Arc::new((cache::CacheManager::new((2 as usize).pow(20)))),
         }
     }
 
@@ -53,6 +55,7 @@ impl AppState {
         AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
+            cache_manager: Arc::new((cache::CacheManager::new((2 as usize).pow(20)))),
         }
     }
 
@@ -71,6 +74,7 @@ impl AppState {
         AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
+            cache_manager: Arc::new((cache::CacheManager::new((2 as usize).pow(20)))),
         }
     }
 }

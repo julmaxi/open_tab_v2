@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::{extract::{Query, Path, State}, Router, routing::{get, post}, Json};
 use chrono::Utc;
 use axum::http::StatusCode;
@@ -460,5 +461,5 @@ async fn handle_sync_push_request(
 pub fn router() -> Router<AppState> {
     Router::new()
     .route("/tournament/:tournament_id/log", get(get_log))
-    .route("/tournament/:tournament_id/log", post(handle_sync_push_request))
+    .route("/tournament/:tournament_id/log", post(handle_sync_push_request)).layer(DefaultBodyLimit::max(1024 * 1024 * 10))
 }

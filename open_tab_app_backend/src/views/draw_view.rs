@@ -642,8 +642,6 @@ impl DrawView {
         // from the tournament.
         let participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
 
-        let _clash_map = crate::draw::clashes::ClashMap::new_for_tournament(Default::default(), round.tournament_id, db).await?;
-
         //clash_map.add_dynamic_clashes_from_round_ballots(round_draws, &participant_info.team_members);
         //let evaluator = crate::draw::evaluation::DrawEvaluator::new(clash_map, Default::default());
         //let evaluator = DrawEvaluator::new_from_rounds(db, round.tournament_id, &other_rounds).await?;
@@ -655,6 +653,7 @@ impl DrawView {
 
         let debates = izip![debates, ballots.into_iter()].map(
             |(debate, debate_ballot)| {
+                
                 DrawDebate {
                     uuid: debate.uuid,
                     index: debate.index as usize,

@@ -159,6 +159,7 @@ function WaitForMotionRelease({ round_uuid }) {
 
 function WaitForPublishRoundStep({ round_uuid }) {
     let errorContext = useContext(ErrorHandlingContext);
+    let tournamentContext = useContext(TournamentContext);
     let statusView = useView({ type: "TournamentStatus", tournament_uuid: tournamentContext.uuid }, null);
 
     return <div className='w-full'>
@@ -178,7 +179,6 @@ function WaitForPublishRoundStep({ round_uuid }) {
             () => {
                 open({ directory: true }).then((result) => {
                     invoke("save_round_files", { roundId: round_uuid, dirPath: result }).then((result) => {
-                        console.log(result);
                     });
                 });
             }

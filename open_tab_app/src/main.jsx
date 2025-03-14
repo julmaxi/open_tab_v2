@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import {App, DrawEditorRoute} from "./App";
+import {App} from "./App";
 import "./styles.css";
 import {
   createMemoryRouter,
@@ -19,6 +19,7 @@ import TournamentViewRoute from "./Routes/TournamentSettings/TournamentView";
 import { AssistantRoute } from "./Assistant";
 import { FeedbackProgressRoute } from "./FeedbackProgress";
 import ClashesRoute from "./ClashesView";
+import DrawEditorRoute from "./Routes/Draw/DrawEditor";
 
 const router = createMemoryRouter([
   {

@@ -53,7 +53,6 @@ function ConnectivityStatus() {
     //let [lastUpdate, setLastUpdate] = useState(null);
 
     function updateWithStatus(status) {
-        console.log(status);
         switch (status.status) {
             case 'Alive': 
                 setState("ok");

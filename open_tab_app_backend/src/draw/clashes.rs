@@ -74,19 +74,18 @@ impl ClashMap {
             }
         }
 
-        all_participants_by_id.values().combinations(2).for_each(|pair| {
-            let first_participant = pair[0];
-            let second_participant = pair[1];
+        let institution_buckets = all_participants_by_id.values().flat_map(|p| p.institutions.iter().map(|i| (i.uuid, (p.uuid, i.clash_severity)))).into_group_map();
 
-            let first_participant_institution_map = first_participant.institutions.iter().map(|i| (i.uuid, i)).collect::<HashMap<_, _>>();
+        institution_buckets.into_iter().for_each(|(institution_id, participants)| {
+            participants.iter().combinations(2).for_each(|pair| {
+                let (p1, s1) = pair[0];
+                let (p2, s2) = pair[1];
 
-            second_participant.institutions.iter().filter(|i2| first_participant_institution_map.contains_key(&i2.uuid)).for_each(|i2| {
-                let i1 = first_participant_institution_map.get(&i2.uuid).unwrap();
                 let clash_entry = ClashMapEntry {
-                    clash_type: ClashType::InstitutionalClash { severity: (i1.clash_severity + i2.clash_severity) / 2, institution_id: i2.uuid },
+                    clash_type: ClashType::InstitutionalClash { severity: (s1 + s2) / 2, institution_id },
                 };
 
-                clash_map.add_clash_entry_for_participants(first_participant, second_participant, clash_entry);
+                clash_map.add_clash_entry(*p1, *p2, clash_entry);
             });
         });
 

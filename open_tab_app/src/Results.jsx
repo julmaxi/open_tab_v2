@@ -93,7 +93,6 @@ function DebateResultCard(props) {
     let [showIgnoredBallots, setShowIgnoredBallots] = useState(false);
 
     let bgColor = "bg-gray-100";
-    console.log(props.debate.ballot);
     if (props.debate.pending_ballots.length > 0) {
         bgColor = "bg-yellow-100";
     }

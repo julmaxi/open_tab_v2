@@ -6,8 +6,9 @@ use itertools::Itertools;
 use open_tab_entities::{prelude::TournamentRound, tab::TabView};
 use sea_orm::{DatabaseConnection, prelude::*};
 use serde::{Serialize, Deserialize};
+use std::sync::Arc;
 
-use crate::{response::APIError, auth::MaybeExtractAuthenticatedUser, state::AppState};
+use crate::{auth::MaybeExtractAuthenticatedUser, cache::CacheManager, response::APIError, state::AppState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TabResponse {
@@ -17,10 +18,12 @@ pub struct TabResponse {
 
 
 pub async fn get_current_tab(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     Path(tournament_id): Path<Uuid>,
     MaybeExtractAuthenticatedUser(user): MaybeExtractAuthenticatedUser,
 ) -> Result<Json<TabResponse>, APIError> {
+    let db = state.db.clone();
+    let cache_manager = state.cache_manager.clone();
     let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
         .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
         .one(&db)
@@ -58,7 +61,8 @@ pub async fn get_current_tab(
         }
     }).sorted_by_key(|r| r.index).collect_vec();
 
-    let tab = TabView::load_from_tournament_with_rounds_with_anonymity(&db, tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true).await?;
+    //leshow_anonymityt tab = TabView::load_from_tournament_with_rounds_with_anonymity(&db, tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true).await?;
+    let tab = cache_manager.get_tab(tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true, &db).await?;
 
     return Ok(
         Json(

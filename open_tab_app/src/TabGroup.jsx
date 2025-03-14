@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 
-export function TabGroup({initialActiveTab, ...props}) {
+export function TabGroup({initialActiveTab = 0, ...props}) {
   let [activeTab, setActiveTab] = useState(undefined);
-
-  initialActiveTab = initialActiveTab !== undefined ? initialActiveTab : 0;
 
   let children = React.Children.toArray(props.children);
   let reallyActiveTab = activeTab === undefined ? initialActiveTab : activeTab;
