@@ -38,7 +38,7 @@ export function DragBox(props) {
   );
 
   return <div
-    className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded`}
+    className={`relative flex bg-gray-100 min-w-[14rem] p-1 rounded overflow-clip`}
     style={{
       background: swapIssueColor
     }}

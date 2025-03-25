@@ -76,7 +76,7 @@ export function DropSlot(props) {
     }
 
     return (
-        <div ref={setNodeRef} style={style} className={props.className || ""}>
+        <div ref={setNodeRef} style={style} className={(props.className || "") + (isOver ? " bg-blue-200" : "")}>
             {props.children}
         </div>
     );
@@ -106,7 +106,7 @@ export function DropWell(props) {
     return (
         <div style={{minWidth: props.minWidth}} className={props.className || ""}>
             <DropSlot collection={props.collection} type={props.type} className={props.slotClassName}>
-                {Children.count(props.children) > 0 ? <DragItem disabledMessage={props.disabledMessage} disabled={props.disabled} className={props.slotClassName} collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
+                {Children.count(props.children) > 0 ? <DragItem disabledMessage={props.disabledMessage} disabled={props.disabled} collection={props.collection} type={props.type}>{props.children}</DragItem> : []}
             </DropSlot>
         </div>
     );

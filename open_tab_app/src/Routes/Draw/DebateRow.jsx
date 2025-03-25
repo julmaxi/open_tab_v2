@@ -27,15 +27,13 @@ export const DebateRow = memo(function DebateRow(props) {
 
     let headerHeight = 28;
  
-    return <div className="flex flex-col w-full min-h-[100px]" style={
-        {...(fixedHeight != undefined ? { height: `${fixedHeight}px`, overflow: "clip" } : { height: "auto" }), ...props.style}
-    }>
-        <div>
-                Debate {props.debate.index + 1}: <VenueSelector venue={props.debate.venue} onVenueChange={(venue) => props.onVenueChange(venue, props.debate)} />
-        </div>
-        <div className="flex flex-row w-full border-t last:border-b">
-            <div className="border-r w-[35%] pl-1 pr-1 flex flex-col justify-center">
-                <DropWell disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
+    return <>
+        <tr >
+                <td colSpan="4">Debate {props.debate.index + 1}: <VenueSelector venue={props.debate.venue} onVenueChange={(venue) => props.onVenueChange(venue, props.debate)} /></td> 
+        </tr>
+        <tr className="flex flex-row w-full border-t border-b">
+            <td className="border-r w-[35%] pl-1 pr-1 flex flex-col justify-center">
+                <DropWell className="flex-1 flex flex-col justify-center" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
                     {ballot.government !== null ? <TeamItem
                         team={ballot.government}
                         expandIssues={props.expandIssues}
@@ -46,7 +44,7 @@ export const DebateRow = memo(function DebateRow(props) {
                         highlightedIssues={highlightedIssues.government} /> : []}
                 </DropWell>
                 <br />
-                <DropWell disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
+                <DropWell className="flex-1 flex flex-col justify-center" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
                     {ballot.opposition !== null ? <TeamItem
                         team={ballot.opposition}
                         expandIssues={shouldExpandLocalIssues}
@@ -56,8 +54,8 @@ export const DebateRow = memo(function DebateRow(props) {
                         }}
                         highlightedIssues={highlightedIssues.opposition} /> : []}
                 </DropWell>
-            </div>
-            <div className="border-r w-[20%] pl-1 pr-1">
+            </td>
+            <td className="border-r w-[20%] pl-1 pr-1">
                 <DropList disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
                     {ballot.non_aligned_speakers.map((speaker, idx) => speaker ? <SpeakerItem
                         key={speaker.uuid}
@@ -69,8 +67,8 @@ export const DebateRow = memo(function DebateRow(props) {
                         }}
                         highlightedIssues={highlightedIssues.non_aligned_speakers[idx]} /> : <div key={idx} className="h-8 w-full text-center italic border-2 border-dashed border-gray-500 text-gray-500 rounded">Missing</div>)}
                 </DropList>
-            </div>
-            <div className="border-r flex-1 pl-1 pr-1 h-full">
+            </td>
+            <td className="border-r flex-1 pl-1 pr-1 h-full">
                 <div className="overflow-scroll" style={fixedHeight !== false ? { height: `${fixedHeight - headerHeight}px` } : {}}>
                     <DropList minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
                         {ballot.adjudicators.map((adjudicator, idx) => <AdjudicatorItem
@@ -85,16 +83,18 @@ export const DebateRow = memo(function DebateRow(props) {
                             dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == adjudicator.uuid ? props.dragSwapHighlight : null} />)}
                     </DropList>
                 </div>
-            </div>
-            <div className="w-[20%] pl-1 pr-1">
+            </td>
+            <td className="w-[20%] pl-1 pr-1 border-l">
                 <DropWell
                     minWidth={"200px"}
                     type="adjudicator"
+                    className="h-full"
+                    slotClassName="h-full flex flex-col justify-center"
                     collection={["debates", props.debate.index, "ballot", "president"]}
                 >
                     {ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => { }} dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == ballot.president.uuid ? props.dragSwapHighlight : null} /> : []}
                 </DropWell>
-            </div>
-        </div>
-    </div>;
+            </td>
+        </tr>
+    </>;
 });

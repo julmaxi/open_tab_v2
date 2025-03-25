@@ -220,7 +220,9 @@ function DrawTable({roundId, debates, dragHighlightedIssues, dragSwapHighlight})
     }>
         <div className="w-full h-full flex flex-col">
             <div className="overflow-y-scroll flex-1 w-full scroll-smooth">
-                <div className="w-full h-full">
+                <table className="w-full h-full">
+                
+                <tbody>
                 {debates.map((debate, debateIdx) => {
                     return <DebateRow
                         key={debate.uuid}
@@ -230,7 +232,8 @@ function DrawTable({roundId, debates, dragHighlightedIssues, dragSwapHighlight})
                         onVenueChange={onVenueChange} />;
                     })
                 }
-                </div>
+                </tbody>
+                </table>
             </div>
         </div>
     </div>;
