@@ -20,18 +20,21 @@ export function AdjudicatorItem(props) {
 
         swapIssueSeverity = props.dragSwapHighlight.severityBucket;
     }
+
+    const onHighlightIssues = React.useCallback((shouldHighlight, shouldExpand) => {
+        if (shouldHighlight) {
+            props.onHighlightIssues(props.adjudicator.uuid, shouldExpand);
+        }
+        else {
+            props.onHighlightIssues(null, shouldExpand);
+        }
+    }, [props.onHighlightIssues, props.adjudicator.uuid]);
+
     return <DragBox
         issues={props.adjudicator.issues}
         swapHighlightSeverity={swapIssueSeverity}
         expandIssues={props.expandIssues}
-        onHighlightIssues={(shouldHighlight, shouldExpand) => {
-            if (shouldHighlight) {
-                props.onHighlightIssues(props.adjudicator.uuid, shouldExpand);
-            }
-            else {
-                props.onHighlightIssues(null, shouldExpand);
-            }
-        }} highlightedIssues={highlightedIssues}>
+        onHighlightIssues={onHighlightIssues} highlightedIssues={highlightedIssues}>
         <div className={props.adjudicator.is_available ? "" : "line-through"}>{props.adjudicator.name}</div>
         <div className="text-xs rounded w-20 flex flex-row overflow-hidden">
             <SkillDisplay label="C" skill={props.adjudicator.chair_skill} />

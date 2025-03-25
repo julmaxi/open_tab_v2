@@ -23,7 +23,6 @@ import UpdateProgressWindow from "./UpdateProgressWindow";
 import { ErrorHandlingContext } from "./Action.js";
 
 
-
 function NavGroup(props) {
   return <div className="ml-3">
     <h4 className="font-bold">{props.header}</h4>

@@ -7,7 +7,7 @@ use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
 
-use crate::{draw::{PreliminaryRoundGenerator, PreliminariesDrawMode, evaluation::DrawEvaluator, preliminary::{RoundGenerationContext, DrawTeamInfo}, tab_draw::{pair_teams, pair_speakers, TeamPair, assign_teams}, flow_optimization::{OptimizationState, OptimizationOptions}}, TournamentParticipantsInfo, draw_view::{DrawBallot, DrawTeam, DrawSpeaker, DrawAdjudicator, SetDrawAdjudicator}, views};
+use crate::{draw::{evaluation::{DrawConstructionEvaluationContext, DrawEvaluator, DrawEvaluatorConfig}, flow_optimization::{OptimizationOptions, OptimizationState}, preliminary::{DrawTeamInfo, RoundGenerationContext}, tab_draw::{assign_teams, pair_speakers, pair_teams, TeamPair}, PreliminariesDrawMode, PreliminaryRoundGenerator}, draw_view::{DrawAdjudicator, DrawBallot, DrawSpeaker, DrawTeam, SetDrawAdjudicator}, views, TournamentParticipantsInfo};
 use serde::{Serialize, Deserialize};
 
 use super::{ActionTrait, edit_tree::reindex_rounds};
@@ -159,12 +159,11 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
         )
     };
 
-    // We maintain a list of all inserted rounds, so we can reindex them later. This is
-    // why this is mutable.
     let other_rounds = TournamentRound::get_all_in_tournament(db, tournament_id).await?.into_iter().filter(
         |r| !existing_rounds.contains(&r.uuid)
     ).collect_vec();
-    let draw_evaluator = DrawEvaluator::new_from_rounds(db, tournament_id, &other_rounds).await?;
+
+    let mut evaluation_context = DrawConstructionEvaluationContext::new_from_tournament(db, tournament_id).await?;
 
     let context = RoundGenerationContext {
         teams: all_teams.iter().map(|t| DrawTeamInfo {
@@ -212,7 +211,12 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                 randomization_scale: 0.5
             };
 
-            let ballots = generator.generate_draw_for_rounds(&context, rounds.iter().collect(), &draw_evaluator)?;
+            let ballots = generator.generate_draw_for_rounds(
+                &context,
+                rounds.iter().collect(),
+                other_rounds.iter().map(|r| r.uuid).collect(),
+                &mut evaluation_context
+            )?;
             ballots
         },
         RoundGroupConfig::FoldDraw { round_configs } => {
@@ -251,7 +255,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
         },
     };
 
-    let mut optimization_state = OptimizationState::load_from_rounds_and_draw_ballots(db, tournament_id, rounds.iter().zip(ballots.iter()).collect(), Arc::new(OptimizationOptions::default()), Arc::new(draw_evaluator)).await?;
+    let mut optimization_state = OptimizationState::load_from_rounds_and_draw_ballots(db, tournament_id, rounds.iter().zip(ballots.iter()).collect(), OptimizationOptions::default()).await?;
 
     let adjudicators_to_include = if all_adjudicator_ids.len() > 0 {
         Some(&all_adjudicator_ids)
@@ -259,7 +263,11 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     else {
         None
     };
-    optimization_state.update_state_by_assigning_adjudicators(adjudicators_to_include);
+    let evaluator = DrawEvaluator::new(DrawEvaluatorConfig::default(), other_rounds.iter().map(|r| r.uuid).collect(), &evaluation_context);
+    optimization_state.update_state_by_assigning_adjudicators(
+        adjudicators_to_include,
+        &evaluator
+    );
 
     let ballots = optimization_state.rounds.iter().zip(ballots).map(|(r, ballots)| {
         r.debates.iter().zip(ballots.iter()).map(
@@ -285,14 +293,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     for (round, round_existing_debates, round_new_ballots) in izip![rounds.iter(), existing_debates.into_iter(), ballots.into_iter()] {
         let debates = if round_existing_debates.len() < round_new_ballots.len() {
             let new_debates = (round_existing_debates.len()..round_new_ballots.len()).map(
-                |index| TournamentDebate {
-                    uuid: Uuid::new_v4(),
-                    round_id: round.uuid,
-                    index: index as u64,
-                    ballot_id: Uuid::nil(),
-                    is_motion_released_to_non_aligned: false,
-                    venue_id: None
-                }
+                |index| TournamentDebate::new(round.uuid, index as u64, Uuid::nil(), None)
             );
             round_existing_debates.into_iter().chain(
                 new_debates

@@ -1,9 +1,9 @@
 //@ts-check
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import "../../App.css";
 
-import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragOverlay, TraversalOrder, AutoScrollActivator, MeasuringStrategy, useDndContext } from '@dnd-kit/core';
 
 import { makeDragHandler } from '../../UI/DragDrop.jsx';
 
@@ -15,14 +15,17 @@ import { getMaxSeverityFromEvaluationResult, ISSUE_COLORS_BG, severityToBucket }
 import { DebateRow } from "./DebateRow.jsx";
 import { DrawToolTray } from "./DrawToolTray.jsx";
 import { DrawEditorSettingsContext } from "./DrawSettingsEditor";
+import _ from 'lodash';
 
 
 export const TRAY_DRAG_PATH = "__tray__";
 export const TEAM_DRAW_DISABLED_MESSAGE = "You need to enable team assignment in the settings to change the team and speaker draw.";
 
 function simulateDragOutcome(draw, from, to, isSwap) {
-    if (from.collection === TRAY_DRAG_PATH) {
-        if (to.collection == TRAY_DRAG_PATH) {
+    from = clone(from);
+    to = clone(to);
+    if (_.isEqual(from.collection, TRAY_DRAG_PATH)) {
+        if (_.isEqual(to.collection, TRAY_DRAG_PATH)) {
             return {}
         }
 
@@ -54,7 +57,7 @@ function simulateDragOutcome(draw, from, to, isSwap) {
                 to_collection = val.adjudicator;
             }
 
-            updatePath(to_debate, to.collection.slice(2), to_collection);
+            to_debate = updatePath(to_debate, to.collection.slice(2), to_collection);
 
             return { [to.collection[1]]: to_debate };
         }
@@ -81,24 +84,25 @@ function simulateDragOutcome(draw, from, to, isSwap) {
         to_debate = clone(draw.debates[to.collection[1]]);
     }
 
-    if (to.collection === TRAY_DRAG_PATH) {
+    if (_.isEqual(to.collection, TRAY_DRAG_PATH)) {
         if (from.index !== undefined) {
             from_collection.splice(from.index, 1);
         }
         else {
             from_collection = null;
         }
-        updatePath(from_debate, from.collection.slice(2), from_collection);
+        from_debate = updatePath(from_debate, from.collection.slice(2), from_collection);
         return { [from.collection[1]]: from_debate };
     }
     else {
         var to_collection;
-        if (from.collection == to.collection) {
+        if (_.isEqual(from.collection, to.collection)) {
             to_collection = from_collection
         }
         else {
             to_collection = clone(getPath(draw, to.collection));
         }
+        to.collection = to.collection.slice();
 
         if (to.index !== undefined && from.index !== undefined) {
             if (isSwap) {
@@ -140,13 +144,14 @@ function simulateDragOutcome(draw, from, to, isSwap) {
         }
     }
 
-    updatePath(from_debate, from.collection.slice(2), from_collection);
-    updatePath(to_debate, to.collection.slice(2), to_collection);
+    from_debate = updatePath(from_debate, from.collection.slice(2), from_collection);
 
     if (from.collection[1] == to.collection[1]) {
+        from_debate = updatePath(from_debate, to.collection.slice(2), to_collection)
         return { [from.collection[1]]: from_debate };
     }
     else {
+        to_debate = updatePath(to_debate, to.collection.slice(2), to_collection);
         return { [from.collection[1]]: from_debate, [to.collection[1]]: to_debate };
     }
 }
@@ -185,7 +190,6 @@ function getDragInfoFromDragInfo(drag_info, draw) {
     }
 }
 
-
 function DragItemPreview({ item, highlight, ...props }) {
     let issueColor = highlight ? ISSUE_COLORS_BG[highlight] : "bg-gray-100";
 
@@ -194,8 +198,48 @@ function DragItemPreview({ item, highlight, ...props }) {
     </div>
 }
 
+function Loading() {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <div className="loader">Loading...</div>
+        </div>
+    );
+}
+
+function DrawTable({roundId, debates, dragHighlightedIssues, dragSwapHighlight}) {
+    let errorContext = useContext(ErrorHandlingContext);
+    let tournament = useContext(TournamentContext);
+
+    let onVenueChange = useCallback((venue, debate) => {
+        executeAction("UpdateDraw", { tournament_id: tournament.uuid, updated_debates: [{ ...debate, venue: venue }] }, errorContext.handleError);
+    }, [tournament.uuid]);
+    return <div className="flex-1 h-full min-w-0" style={
+        {
+            scrollbarWidth: "none"
+        }
+    }>
+        <div className="w-full h-full flex flex-col">
+            <div className="overflow-y-scroll flex-1 w-full scroll-smooth">
+                <div className="w-full h-full">
+                {debates.map((debate, debateIdx) => {
+                    return <DebateRow
+                        key={debate.uuid}
+                        debate={debate}
+                        dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
+                        dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
+                        onVenueChange={onVenueChange} />;
+                    })
+                }
+                </div>
+            </div>
+        </div>
+    </div>;
+}
+
 function DrawEditor(props) {
     let errorContext = useContext(ErrorHandlingContext);
+    let tournament = useContext(TournamentContext);
+
     function onDragEnd(from, to, isSwap) {
         setDragHighlightedIssues(null);
         setDraggedItemHighlight(null);
@@ -204,9 +248,8 @@ function DrawEditor(props) {
             severityBucket: null,
             debateIdx: null,
             adjudicatorId: null
-        });
+        });        
         let changedDebates = simulateDragOutcome(draw, from, to, isSwap);
-
 
         executeAction("UpdateDraw", {
             tournament_id: tournament.uuid,
@@ -292,12 +335,10 @@ function DrawEditor(props) {
     const onDragOver = makeDragHandler(onDragOverFunc);
 
     let currentView = { type: "Draw", uuid: props.round_uuid };
-    let draw = useView(currentView, { "debates": [], "adjudicator_index": [] });
+    let draw = useView(currentView, { "debates": [], "adjudicator_index": [], isLoading: true });
     let debates = draw.debates;
 
     let roundId = props.round_uuid;
-
-    let tournament = useContext(TournamentContext);
 
     let [dragHighlightedIssues, setDragHighlightedIssues] = useState(null);
     let [dragSwapHighlight, setDragSwapHighlight] = useState({
@@ -353,35 +394,32 @@ function DrawEditor(props) {
         }
     });
 
+    const dragCancel = useCallback(() => {
+            setDragHighlightedIssues(null);
+            setDraggedItemHighlight(null);
+            setDraggedItem(null);
+            setDragSwapHighlight({
+                severityBucket: null,
+                debateIdx: null,
+                adjudicatorId: null
+            });
+        },
+        []
+    );
+
     return <div className="flex flex-row w-full h-full">
+        {draw.isLoading ? <Loading /> : 
         <DrawEditorSettingsContext.Provider value={settings}>
-            <DndContext collisionDetection={closestCenter} onDragEnd={dragEnd} onDragOver={dragOver} onDragStart={dragStart}>
+            <DndContext
+                collisionDetection={closestCenter}
+                onDragEnd={dragEnd}
+                onDragOver={dragOver}
+                onDragStart={dragStart}
+                onDragCancel={dragCancel}
+                autoScroll={true}
+            >
 
-                <div className="flex-1 overflow-y-scroll">
-                    <table className="w-full">
-                        <thead>
-                            <tr>
-                                <th>Teams</th>
-                                <th>Non Aligned</th>
-                                <th>Panel</th>
-                                <th>President</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {debates.map((debate, debateIdx) => <DebateRow
-                                key={debate.uuid}
-                                debate={debate}
-                                dragHighlightedIssues={dragHighlightedIssues ? dragHighlightedIssues[debateIdx] : null}
-                                dragSwapHighlight={dragSwapHighlight.debateIdx == debateIdx ? dragSwapHighlight : null}
-                                onVenueChange={(venue) => {
-                                    executeAction("UpdateDraw", { tournament_id: tournament.uuid, updated_debates: [{ ...debate, venue: venue }] }, errorContext.handleError);
-                                }
-                                }
-                            />)}
-                        </tbody>
-                    </table>
-                </div>
+                <DrawTable roundId={roundId} debates={debates} dragHighlightedIssues={dragHighlightedIssues} dragSwapHighlight={dragSwapHighlight} />
 
                 <DrawToolTray round_id={draw.round_uuid} adjudicator_index={draw.adjudicator_index} team_index={draw.team_index} isDragging={dragItemInfo !== null} />
 
@@ -389,7 +427,7 @@ function DrawEditor(props) {
                     {dragItemInfo ? <DragItemPreview item={dragItemInfo} highlight={draggedItemHighlight} /> : []}
                 </DragOverlay>
             </DndContext>
-        </DrawEditorSettingsContext.Provider>
+        </DrawEditorSettingsContext.Provider>}
     </div>
 }
 

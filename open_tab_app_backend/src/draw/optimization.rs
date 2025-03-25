@@ -8,7 +8,7 @@ use crate::draw_view::DrawBallot;
 
 
 
-use super::evaluation::DrawEvaluator;
+use super::evaluation::{DrawConstructionEvaluationContext, DrawEvaluator};
 
 
 #[derive(Debug)]
@@ -74,7 +74,7 @@ fn auction_algorithm(
     owners.into_iter().enumerate().map(|(obj, owner)| (owner, obj)).collect()
 }
 
-pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator, randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
+pub(crate) fn find_best_ballot_assignments(ballots: &Vec<Vec<DrawBallot>>, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>, randomization_scale: f64) -> Result<Vec<DrawBallot>, anyhow::Error> {
     let mut rng = thread_rng();
     let mut matrix = Matrix::new(ballots.len(), ballots[0].len());
     for (option_idx, ballot_options) in ballots.iter().enumerate() {

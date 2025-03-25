@@ -7,7 +7,7 @@ use identity::IdentityProvider;
 use migration::MigratorTrait;
 use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, debate_backup_ballot::DebateBackupBallot, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
-use open_tab_server::{sync::{SyncRequestResponse, SyncRequest, FatLog, reconcile_changes, ReconciliationOutcome}, tournament::CreateTournamentRequest, auth::{CreateUserRequest, CreateUserResponse, GetTokenResponse, GetTokenRequest, CreateUserRequestError}, response::APIErrorResponse};
+use open_tab_server::{auth::{CreateUserRequest, CreateUserRequestError, CreateUserResponse, GetTokenRequest, GetTokenResponse}, cache, response::APIErrorResponse, sync::{reconcile_changes, FatLog, ReconciliationOutcome, SyncRequest, SyncRequestResponse}, tournament::CreateTournamentRequest};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
 use sea_orm::{prelude::*, ActiveValue, Database, DatabaseTransaction, QueryOrder, Statement, TransactionTrait};
@@ -16,7 +16,7 @@ use open_tab_entities::prelude::*;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{draw::{evaluation::{DrawEvaluator, DrawIssue}, preliminary::PreliminaryDrawError}, draw_view::DrawBallot, feedback::FormTemplate, import::CSVReaderConfig, tournament_status_view::LoadedTournamentStatusView, Action, LoadedView, View};
+use open_tab_app_backend::{draw::{evaluation::{DrawEvaluator, DrawIssue}, preliminary::PreliminaryDrawError}, draw_view::{DrawBallot, LoadedDrawView}, feedback::FormTemplate, import::CSVReaderConfig, tournament_status_view::LoadedTournamentStatusView, Action, LoadedView, View};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -85,6 +85,10 @@ impl ViewCache {
         Self {
             cached_views: HashMap::new()
         }
+    }
+
+    pub fn get_cached_view(&self, view: &View) -> Option<&Box<dyn LoadedView>> {
+        self.cached_views.get(view)
     }
 
     pub async fn get_view_string<C>(&mut self, view: View, db: &C) -> Result<String, anyhow::Error> where C: sea_orm::ConnectionTrait {
@@ -358,6 +362,7 @@ async fn auto_accept_ballots<C>(changes: &EntityGroup, db: &C) -> Result<Option<
          {
             new_changes.add(Entity::TournamentDebate(TournamentDebate {
                 ballot_id: new_ballot.uuid,
+                is_complete: true,
                 ..old_debate.clone()
             }));
             new_changes.delete(EntityTypeId::Ballot, old_ballot.uuid);
@@ -529,7 +534,41 @@ struct FlatBallotEvaluationResult {
 }
 
 #[tauri::command]
-async fn evaluate_ballots(db: State<'_, DatabaseConnection>, tournament_id: Uuid, round_id: Uuid, ballots: Vec<DrawBallot>, target_uuid: Uuid) -> Result<Vec<FlatBallotEvaluationResult>, ()> {
+async fn evaluate_ballots(db: State<'_, DatabaseConnection>, view_cache: State<'_, Mutex<ViewCache>>, tournament_id: Uuid, round_id: Uuid, ballots: Vec<DrawBallot>, target_uuid: Uuid) -> Result<Vec<FlatBallotEvaluationResult>, ()> {
+    let cache = view_cache.lock().await;
+    let view = cache.cached_views.get(&View::Draw{uuid: round_id}).ok_or(())?;
+
+    let v = view.as_any();
+    let draw_view : Option<&LoadedDrawView> = v.downcast_ref();
+
+    let draw_view = draw_view.ok_or(())?;
+
+    let context = &draw_view.evaluation_context;
+
+    let relevant_rounds = TournamentRound::get_all_in_tournament(db.inner(), tournament_id).await.map_err(|_| ())?.into_iter().filter(|r| r.uuid != round_id).map(|r| r.uuid).collect_vec();
+
+    let evaluator = DrawEvaluator::new(
+        Default::default(),
+        relevant_rounds,
+        context
+    );
+
+    let eval_results = ballots.iter().map(|b| evaluator.find_issues_in_ballot(b));
+
+    Ok(zip(ballots.iter(), eval_results).map(
+        |(b, r)| FlatBallotEvaluationResult {
+            government: r.government_issues.into_iter().filter(
+                |i| i.target.uuid() == target_uuid
+            ).collect_vec(),
+            opposition: r.opposition_issues.into_iter().filter(
+                |i| i.target.uuid() == target_uuid
+            ).collect_vec(),
+            non_aligned_speakers: b.non_aligned_speakers.iter().filter_map(|s| s.as_ref()).map(|s| r.non_aligned_issues.get(&s.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
+            adjudicators: b.adjudicators.iter().map(|s| r.adjudicator_issues.get(&s.adjudicator.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
+        }
+    ).collect()) 
+
+    /*
     let evaluator = DrawEvaluator::new_from_other_rounds(
         db.inner(),
         tournament_id,
@@ -550,6 +589,7 @@ async fn evaluate_ballots(db: State<'_, DatabaseConnection>, tournament_id: Uuid
             adjudicators: b.adjudicators.iter().map(|s| r.adjudicator_issues.get(&s.adjudicator.uuid).map(|i| i.clone()).unwrap_or(Vec::new()).into_iter().filter(|i| i.target.uuid() == target_uuid).collect_vec()).collect_vec(),
         }
     ).collect())
+     */
 }
 
 
@@ -1341,6 +1381,9 @@ async fn show_error(error: String) {
     ).kind(
         tauri::api::dialog::MessageDialogKind::Error
     ).show(|_| {});
+}
+
+struct TournamentCache {
 }
 
 fn main() {

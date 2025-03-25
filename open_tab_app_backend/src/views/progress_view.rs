@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque, HashMap};
 
 use itertools::Itertools;
-use open_tab_entities::{domain::{participant::Participant, tournament_plan_node::TournamentPlanNode, tournament_plan_edge::TournamentPlanEdge, round::TournamentRound, debate::TournamentDebate, self}, EntityGroup, EntityTypeId};
-use sea_orm::prelude::*;
+use open_tab_entities::{domain::{self, debate::TournamentDebate, participant::Participant, round::TournamentRound, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::TournamentPlanNode}, schema, EntityGroup, EntityTypeId};
+use sea_orm::{prelude::*, sea_query::{Query, SqliteQueryBuilder}, IntoSimpleExpr, QuerySelect};
 use serde::Serialize;
 
 use crate::LoadedView;
@@ -60,20 +60,28 @@ struct ProgressView {
 
 impl ProgressView {
     pub async fn load_from_tournament<C>(db: &C, tournament_uuid: Uuid) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let participants = Participant::get_all_in_tournament(db, tournament_uuid).await?;
+        let query = Expr::exists(Query::select().column(schema::participant::Column::TournamentId).from(schema::participant::Entity.table_ref()).and_where(
+            schema::participant::Column::TournamentId.eq(tournament_uuid)
+        ).take()).to_owned();
+
+        let has_participants = schema::participant::Entity::find().select_only().expr(query).filter(
+            schema::participant::Column::TournamentId.eq(tournament_uuid)
+        ).distinct().into_tuple::<bool>().one(db).await?.unwrap_or(false);
 
         let mut steps = vec![];
-        steps.push(Step::LoadParticipants {is_done: participants.len() > 0});
+        steps.push(Step::LoadParticipants {is_done: has_participants});
 
-        if participants.len() > 0 {
+        if has_participants {
             let all_rounds_by_id = TournamentRound::get_all_in_tournament(db, tournament_uuid).await?.into_iter().map(|r| (r.uuid, r)).collect::<HashMap<_, _>>();
             let all_nodes = TournamentPlanNode::get_all_in_tournament(db, tournament_uuid).await?;
             let all_edges = TournamentPlanEdge::get_all_for_sources(db, all_nodes.iter().map(|n| n.uuid).collect_vec()).await?;
-            
+
+            /*
             let all_debates = TournamentDebate::get_all_in_rounds(db, all_rounds_by_id.keys().cloned().collect_vec()).await?;
             let all_debate_ids = all_debates.iter().flatten().map(|d| d.uuid).collect::<HashSet<_>>();
             let all_round_debate_ids : HashMap<_, _> = all_debates.iter().flatten().map(|d| (d.round_id, d.uuid)).into_group_map();
             let all_ballots_by_debate_id : HashMap<_, _> = domain::ballot::Ballot::get_all_in_debates(db, all_debate_ids.into_iter().collect()).await?.into_iter().collect();
+            */
     
             let child_nodes : HashSet<Uuid> = all_edges.iter().map(|e| e.target_id).collect();
             let roots = all_nodes.iter().filter(|n| !child_nodes.contains(&n.uuid)).map(|n| n.uuid).collect_vec();
@@ -86,6 +94,8 @@ impl ProgressView {
 
             let mut all_nodes_complete = true;
 
+            let all_debates = TournamentDebate::get_all_in_rounds(db, all_rounds_by_id.keys().cloned().collect_vec()).await?;
+            let all_debates_by_round_id = all_debates.into_iter().flatten().map(|d| (d.round_id, d)).into_group_map();
             
             while let Some((next, prev_break)) = explore_queue.pop_front() {
                 let node = all_nodes_by_id.get(&next).expect("Db constraint failed");
@@ -111,14 +121,10 @@ impl ProgressView {
                                     if round.draw_release_time.is_some() {
                                         steps.push(Step::WaitForMotionRelease { round_uuid: round.uuid, is_done: round.full_motion_release_time.is_some() });
                                         if round.full_motion_release_time.is_some() {
-                                            let debate_ids = all_round_debate_ids.get(&round.uuid).expect("Db constraint failed");
+                                            let debates = all_debates_by_round_id.get(&round.uuid).unwrap();
+                                            let num_scores = debates.iter().filter(|d| d.is_complete).count();
 
-                                            let ballots = debate_ids.iter().map(|d| all_ballots_by_debate_id.get(d).expect("Db constraint failed")).collect_vec();
-
-                                            let num_scores = ballots.iter().filter(|b| b.is_scored()).count();
-
-
-                                            steps.push(Step::WaitForResults { round_uuid: round.uuid, num_submitted: num_scores, num_expected: debate_ids.len(), is_silent: round.is_silent, is_done: round.round_close_time.is_some() });
+                                            steps.push(Step::WaitForResults { round_uuid: round.uuid, num_submitted: num_scores, num_expected: debates.len(), is_silent: round.is_silent, is_done: round.round_close_time.is_some() });
                                             node_is_done = round.round_close_time.is_some();
                                             if round.round_close_time.is_some() {
                                                 continue;

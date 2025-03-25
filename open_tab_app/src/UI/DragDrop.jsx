@@ -21,7 +21,6 @@ export function DragItem(props) {
     });
     const style = transform ? {
         visibility: "hidden"
-        //transform: CSS.Translate.toString(transform),
     } : {};
 
     style.userSelect = "none";
@@ -126,20 +125,22 @@ function Placeholder(props) {
     let simulate_insert = isOver && active.data.current.type == props.type;
 
     let style = useSpring({
-        from: { height: 2 },
-        to: { height: simulate_insert ? 25 : 2 },
+        from: { opacity: 0 },
+        to: { opacity: simulate_insert ? 1 : 0 },
         config: {
             tension: 210, friction: 20
         }
     });
-
 
     const innerStyle = {
         height: "2px",
     };
 
     return (
-        <animated.div style={style}>
+        <animated.div style={({
+            backgroundColor: "rgb(66, 153, 225)",
+            ...style
+        })}>
             <div ref={setNodeRef} style={innerStyle}>
             </div>
         </animated.div>

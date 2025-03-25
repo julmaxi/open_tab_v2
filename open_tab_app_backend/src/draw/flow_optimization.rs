@@ -8,7 +8,7 @@ use mcmf::{GraphBuilder, Capacity, Vertex, Cost};
 
 use crate::draw_view::DrawBallot;
 
-use super::evaluation::DrawEvaluator;
+use super::evaluation::{DrawConstructionEvaluationContext, DrawEvaluator};
 
 use super::datastructures::{
     AdjudicatorInfo, RoundInfo, DebateInfo
@@ -54,12 +54,10 @@ impl Default for OptimizationOptions {
 pub struct OptimizationState {
     pub rounds: Vec<RoundInfo>,
 
-    options: Arc<OptimizationOptions>,
+    options: OptimizationOptions,
 
     adjudicator_assignments: HashMap<Uuid, Vec<AdjudicatorPosition>>,
     adjudicator_info: HashMap<Uuid, AdjudicatorInfo>,
-
-    evaluator: Arc<DrawEvaluator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,13 +69,13 @@ enum NodeType {
 }
 
 impl OptimizationState {
-    pub async fn load_from_round_ids<C>(db: &C, tournament_id: Uuid, round_ids: Vec<Uuid>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_round_ids<C>(db: &C, tournament_id: Uuid, round_ids: Vec<Uuid>, options: OptimizationOptions) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let rounds = RoundInfo::load_from_rounds(db, round_ids).await?;
 
-        Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
+        Self::load_from_rounds(db, tournament_id, rounds, options).await
     }
 
-    pub async fn load_from_rounds_and_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(TournamentRound, Vec<Ballot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_rounds_and_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(TournamentRound, Vec<Ballot>)>, options: OptimizationOptions) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
@@ -90,10 +88,10 @@ impl OptimizationState {
             } 
         ).collect_vec();
 
-        Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
+        Self::load_from_rounds(db, tournament_id, rounds, options).await
     }
 
-    pub async fn load_from_rounds_and_draw_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(&TournamentRound, &Vec<DrawBallot>)>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_rounds_and_draw_ballots<C>(db: &C, tournament_id: Uuid, round_draw: Vec<(&TournamentRound, &Vec<DrawBallot>)>, options: OptimizationOptions) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let rounds = round_draw.into_iter().map(
             |(round_, draws)| {
                 RoundInfo {
@@ -106,10 +104,10 @@ impl OptimizationState {
             } 
         ).collect_vec();
 
-        Self::load_from_rounds(db, tournament_id, rounds, options, evaluator).await
+        Self::load_from_rounds(db, tournament_id, rounds, options).await
     }
 
-    pub async fn load_from_rounds<C>(db: &C, tournament_id: Uuid, rounds: Vec<RoundInfo>, options: Arc<OptimizationOptions>, evaluator: Arc<DrawEvaluator>) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    pub async fn load_from_rounds<C>(db: &C, tournament_id: Uuid, rounds: Vec<RoundInfo>, options: OptimizationOptions) -> Result<Self, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let adjudicators = Participant::get_all_adjudicators_in_tournament(db, tournament_id).await?;
 
         let mut adjudicator_assignments = adjudicators.iter().map(|adj| (adj.uuid.clone(), vec![AdjudicatorPosition::None; rounds.len()])).collect::<HashMap<Uuid, Vec<AdjudicatorPosition>>>();
@@ -166,13 +164,13 @@ impl OptimizationState {
         }).collect();
 
         Ok(
-            Self { rounds, options, adjudicator_assignments, adjudicator_info, evaluator }
+            Self { rounds, options, adjudicator_assignments, adjudicator_info }
         )
     }
 
-    fn compute_adjudicator_chair_cost_in_debate(&self, adjudicator: Uuid, debate: &DebateInfo, is_silent_round: bool) -> Option<i32> {
+    fn compute_adjudicator_chair_cost_in_debate(&self, adjudicator: Uuid, debate: &DebateInfo, is_silent_round: bool, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) -> Option<i32> {
         let adj_info = self.adjudicator_info.get(&adjudicator).unwrap();
-        let cost = self.compute_clash_cost_in_debate(adj_info, debate);
+        let cost = self.compute_clash_cost_in_debate(adj_info, debate, evaluator);
         if let Some(mut cost) = cost {
             if !is_silent_round {
                 cost -= (adj_info.feedback_skill as f32 * self.options.feedback_weight).round() as i32;
@@ -186,10 +184,10 @@ impl OptimizationState {
         }
     }
 
-    fn compute_clash_cost_in_debate(&self, adj_info: &AdjudicatorInfo, debate: &DebateInfo) -> Option<i32> {
+    fn compute_clash_cost_in_debate(&self, adj_info: &AdjudicatorInfo, debate: &DebateInfo, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) -> Option<i32> {
         let mut debate = debate.clone();
         debate.wings.push(adj_info.id);
-        let scores = self.evaluator.find_issues_in_debate(&debate);
+        let scores = evaluator.find_issues_in_debate(&debate);
         let empty = vec![];
         let adj_issues = scores.adjudicator_issues.get(&adj_info.id).unwrap_or(&empty);
         if adj_issues.iter().any(|i| i.severity as i32 >= self.options.hard_clash_threshold) {
@@ -198,9 +196,9 @@ impl OptimizationState {
         Some(adj_issues.into_iter().map(|issue| issue.severity as i32 * 100).sum())
     }
 
-    fn compute_wing_cost_in_debate(&self, adjudicator: Uuid, debate: &DebateInfo) -> Option<i32> {
+    fn compute_wing_cost_in_debate(&self, adjudicator: Uuid, debate: &DebateInfo, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) -> Option<i32> {
         let adj_info = self.adjudicator_info.get(&adjudicator).unwrap();
-        let cost = self.compute_clash_cost_in_debate(adj_info, debate);
+        let cost = self.compute_clash_cost_in_debate(adj_info, debate, evaluator);
 
         if let Some(mut cost) = cost {
             let avg_wing_discussion_skill = if debate.wings.len() > 0 {
@@ -235,7 +233,7 @@ impl OptimizationState {
         }
     }
 
-    pub fn update_state_by_assigning_chairs(&mut self, adjudicators: Option<&Vec<Uuid>>) {
+    pub fn update_state_by_assigning_chairs(&mut self, adjudicators: Option<&Vec<Uuid>>, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) {
         let debates_to_assign_chair = (0..self.rounds.len()).into_iter().flat_map(
             |i| self.rounds[i].debates.iter().enumerate().filter(|(_d_idx, d)| d.chair.is_none()).map(move |(d_idx, d)| (i, d_idx, d))
         ).collect_vec();
@@ -286,7 +284,7 @@ impl OptimizationState {
                 let is_silent = self.rounds[*round_id].is_silent;
                 self.adjudicator_assignments.keys().for_each(
                     |adj_id| {
-                        if let Some(cost) = self.compute_adjudicator_chair_cost_in_debate(*adj_id, debate, is_silent) {
+                        if let Some(cost) = self.compute_adjudicator_chair_cost_in_debate(*adj_id, debate, is_silent, evaluator) {
                             graph_build.add_edge(
                                 NodeType::AdjudicatorRoundRole(*adj_id, *round_id),
                                 NodeType::Debate(*round_id, *debate_idx),
@@ -338,7 +336,7 @@ impl OptimizationState {
         );
     }
 
-    pub fn update_state_by_assigning_wings(&mut self, adjudicators: Option<&Vec<Uuid>>) {
+    pub fn update_state_by_assigning_wings(&mut self, adjudicators: Option<&Vec<Uuid>>, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) {
         for round_id in 0..self.rounds.len() {
             // We stop iterating when we do not observe any changes in number of unassigned adjudicators
             // To stop this from happening on the first loop, we make sure the first test
@@ -376,7 +374,11 @@ impl OptimizationState {
                         |adj| {
                             debates_to_assign_wings.iter().map(
                                 |(debate_idx, debate)| {
-                                    if let Some(cost) = self.compute_wing_cost_in_debate(*adj, debate) {
+                                    if let Some(cost) = self.compute_wing_cost_in_debate(
+                                        *adj,
+                                        debate,
+                                        evaluator
+                                    ) {
                                         Some((*adj, *debate_idx, cost))
                                     }
                                     else {
@@ -454,8 +456,8 @@ impl OptimizationState {
         }
     }
 
-    pub fn update_state_by_assigning_adjudicators(&mut self, adjudicators: Option<&Vec<Uuid>>) {
-        self.update_state_by_assigning_chairs(adjudicators.clone());
-        self.update_state_by_assigning_wings(adjudicators.clone());
+    pub fn update_state_by_assigning_adjudicators(&mut self, adjudicators: Option<&Vec<Uuid>>, evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>) {
+        self.update_state_by_assigning_chairs(adjudicators.clone(), evaluator);
+        self.update_state_by_assigning_wings(adjudicators.clone(), evaluator);
     }
 }

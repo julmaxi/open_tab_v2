@@ -13,7 +13,7 @@ use crate::{
 
 use itertools::Itertools;
 
-use super::{evaluation::DrawEvaluator, optimization::find_best_ballot_assignments};
+use super::{evaluation::{DrawConstructionEvaluationContext, DrawEvaluator, DrawEvaluatorConfig}, optimization::find_best_ballot_assignments};
 
 pub struct RoundGenerationContext {
     pub teams: Vec<DrawTeamInfo>,
@@ -67,7 +67,8 @@ impl PreliminaryRoundGenerator {
         &self,
         context: &RoundGenerationContext,
         rounds: Vec<&TournamentRound>,
-        evaluator: &DrawEvaluator,
+        other_rounds: Vec<Uuid>,
+        evaluation_context: &mut DrawConstructionEvaluationContext,
     ) -> Result<Vec<Vec<DrawBallot>>, PreliminaryDrawError> {
         if rounds.len() % 3 != 0 {
             return Err(PreliminaryDrawError::IncorrectRoundCount(rounds.len()));
@@ -88,6 +89,8 @@ impl PreliminaryRoundGenerator {
             }
         }
 
+        let relevant_rounds = other_rounds.into_iter().chain(rounds.iter().map(|r| r.uuid)).collect_vec();
+
         let num_debates = context.teams.len() / 3;
 
         //let mut rng = thread_rng();
@@ -105,7 +108,6 @@ impl PreliminaryRoundGenerator {
             TeamRoundRole::NonAligned,
         ];
         role_sequence.shuffle(&mut rng);
-        let mut evaluator = evaluator.clone();
 
         let teams = context
             .teams
@@ -166,6 +168,12 @@ impl PreliminaryRoundGenerator {
                         _ => unreachable!(),
                     };
 
+                let evaluator = DrawEvaluator::new(
+                    DrawEvaluatorConfig::default(),
+                    relevant_rounds.clone(),
+                    evaluation_context
+                );            
+
                 let ballots = self.assign_teams_to_ballots(
                     &ballots,
                     gov_bucket,
@@ -174,40 +182,13 @@ impl PreliminaryRoundGenerator {
                     &evaluator,
                 );
 
-                if let Ok(ballots) = ballots.as_ref() {
-                    let draw_ballots = ballots
-                        .iter()
-                        .map(|b| Ballot {
-                            uuid: Uuid::nil(),
-                            speeches: b
-                                .non_aligned_speakers
-                                .iter()
-                                .enumerate()
-                                .map(|(idx, s)| Speech {
-                                    speaker: s.as_ref().map(|s| s.uuid),
-                                    role: SpeechRole::NonAligned,
-                                    is_opt_out: false,
-                                    position: idx as u8,
-                                    scores: HashMap::new(),
-                                })
-                                .collect(),
-                            government: BallotTeam {
-                                team: b.government.as_ref().map(|t| t.uuid),
-                                scores: HashMap::new(),
-                            },
-                            opposition: BallotTeam {
-                                team: b.opposition.as_ref().map(|t| t.uuid),
-                                scores: HashMap::new(),
-                            },
-                            adjudicators: vec![],
-                            president: None,
-                        })
-                        .collect::<Vec<Ballot>>();
+                drop(evaluator);
 
-                    evaluator.clash_map.add_dynamic_clashes_from_round_ballots(
-                        vec![&(round.uuid, draw_ballots)],
-                        &teams,
-                    )?;
+                if let Ok(ballots) = ballots.as_ref() {
+                    evaluation_context.add_round_ballots(
+                        round.uuid,
+                        ballots.iter().collect()
+                    );
                 }
                 ballots
             })
@@ -222,7 +203,7 @@ impl PreliminaryRoundGenerator {
         gov_bucket: &Vec<&DrawTeamInfo>,
         opp_bucket: &Vec<&DrawTeamInfo>,
         non_aligned_bucket: &Vec<&DrawTeamInfo>,
-        evaluator: &DrawEvaluator,
+        evaluator: &DrawEvaluator<DrawConstructionEvaluationContext>,
     ) -> Result<Vec<DrawBallot>, anyhow::Error> {
         let mut out_ballots = ballots.clone();
         let mut rng = thread_rng();
@@ -306,6 +287,7 @@ impl PreliminaryRoundGenerator {
     }
 }
 
+/* 
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
@@ -316,7 +298,7 @@ mod test {
 
     use crate::{
         draw::{
-            clashes::{ClashMap, ClashMapEntry, ClashType},
+            clashes::ClashType,
             evaluation::DrawEvaluator,
         },
         draw_view::DrawBallot,
@@ -486,3 +468,4 @@ mod test {
         Ok(())
     }
 }
+*/

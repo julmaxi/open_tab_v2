@@ -14,8 +14,8 @@ export function SpeakerItem(props) {
                 props.onHighlightIssues(null, false);
             }
         }} highlightedIssues={props.highlightedIssues}>
-        <div>{props.speaker.name}</div>
-        <div className="text-xs">{props.speaker.team_name}</div>
+        <div className="overflow-ellipsis overflow-hidden text-nowrap">{props.speaker.name}</div>
+        <div className="text-xs overflow-ellipsis overflow-hidden text-nowrap">{props.speaker.team_name}</div>
         <HorizontalList>
             {props.speaker.institutions.map((i) => <div key={i.uuid} className="text-xs">{i.name}</div>)}
         </HorizontalList>

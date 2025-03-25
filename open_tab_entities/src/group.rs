@@ -222,6 +222,21 @@ impl<T, E, G, D> EntityChangeSet<T, E, G, D> where E: EntityGroupEntityTrait<T>,
         updated_group
     }
 
+    pub fn as_delete_map(&self) -> D {
+        let mut deleted_group = D::new();
+
+        for (type_, uuid, op) in self.operation_log.iter() {
+            match op {
+                EntityOperationType::Update => {},
+                EntityOperationType::Delete => {
+                    deleted_group.add(*type_, *uuid);
+                }
+            }
+        }
+
+        deleted_group
+    }
+
     pub async fn save_all_with_options<C>(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut updated_group = G::new();
         let mut deleted_group = D::new();

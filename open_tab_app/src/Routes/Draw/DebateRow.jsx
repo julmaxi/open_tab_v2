@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, memo } from "react";
 import { DropWell, DropList } from "../../UI/DragDrop";
 import { AdjudicatorItem } from "./AdjudicatorItem";
 import { find_issues_with_target } from "./Clashes";
@@ -8,7 +8,7 @@ import { SpeakerItem } from "./SpeakerItem";
 import { TeamItem } from "./TeamItem";
 import { VenueSelector } from "./VenueSelector";
 
-export function DebateRow(props) {
+export const DebateRow = memo(function DebateRow(props) {
     let ballot = props.debate.ballot;
     let [localHighlightedIssues, setLocalHighlightedIssues] = useState({
         "government": [],
@@ -25,14 +25,16 @@ export function DebateRow(props) {
 
     let fixedHeight = props.fixedHeight;
 
-    return <>
-        <tr>
-            <td colSpan={4}>
-                Debate {props.debate.index + 1}: <VenueSelector venue={props.debate.venue} onVenueChange={(venue) => props.onVenueChange(venue)} />
-            </td>
-        </tr>
-        <tr>
-            <td className="border">
+    let headerHeight = 28;
+ 
+    return <div className="flex flex-col w-full min-h-[100px]" style={
+        {...(fixedHeight != undefined ? { height: `${fixedHeight}px`, overflow: "clip" } : { height: "auto" }), ...props.style}
+    }>
+        <div>
+                Debate {props.debate.index + 1}: <VenueSelector venue={props.debate.venue} onVenueChange={(venue) => props.onVenueChange(venue, props.debate)} />
+        </div>
+        <div className="flex flex-row w-full border-t last:border-b">
+            <div className="border-r w-[35%] pl-1 pr-1 flex flex-col justify-center">
                 <DropWell disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
                     {ballot.government !== null ? <TeamItem
                         team={ballot.government}
@@ -54,8 +56,8 @@ export function DebateRow(props) {
                         }}
                         highlightedIssues={highlightedIssues.opposition} /> : []}
                 </DropWell>
-            </td>
-            <td className="border">
+            </div>
+            <div className="border-r w-[20%] pl-1 pr-1">
                 <DropList disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="speaker" collection={["debates", props.debate.index, "ballot", "non_aligned_speakers"]}>
                     {ballot.non_aligned_speakers.map((speaker, idx) => speaker ? <SpeakerItem
                         key={speaker.uuid}
@@ -67,9 +69,9 @@ export function DebateRow(props) {
                         }}
                         highlightedIssues={highlightedIssues.non_aligned_speakers[idx]} /> : <div key={idx} className="h-8 w-full text-center italic border-2 border-dashed border-gray-500 text-gray-500 rounded">Missing</div>)}
                 </DropList>
-            </td>
-            <td className="border">
-                <div className="overflow-scroll" style={fixedHeight !== false ? { height: `${fixedHeight}px` } : {}}>
+            </div>
+            <div className="border-r flex-1 pl-1 pr-1 h-full">
+                <div className="overflow-scroll" style={fixedHeight !== false ? { height: `${fixedHeight - headerHeight}px` } : {}}>
                     <DropList minWidth={"200px"} type="adjudicator" collection={["debates", props.debate.index, "ballot", "adjudicators"]}>
                         {ballot.adjudicators.map((adjudicator, idx) => <AdjudicatorItem
                             key={adjudicator.uuid}
@@ -83,8 +85,8 @@ export function DebateRow(props) {
                             dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == adjudicator.uuid ? props.dragSwapHighlight : null} />)}
                     </DropList>
                 </div>
-            </td>
-            <td className="border">
+            </div>
+            <div className="w-[20%] pl-1 pr-1">
                 <DropWell
                     minWidth={"200px"}
                     type="adjudicator"
@@ -92,7 +94,7 @@ export function DebateRow(props) {
                 >
                     {ballot.president ? <AdjudicatorItem adjudicator={ballot.president} onHighlightIssues={() => { }} dragSwapHighlight={props.dragSwapHighlight && props.dragSwapHighlight.adjudicatorId == ballot.president.uuid ? props.dragSwapHighlight : null} /> : []}
                 </DropWell>
-            </td>
-        </tr>
-    </>;
-}
+            </div>
+        </div>
+    </div>;
+});

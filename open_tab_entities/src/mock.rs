@@ -332,14 +332,13 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
         let debates = ballots.iter().enumerate().map(|(round_idx, round_ballots)| {
             let round_debates = round_ballots.iter().enumerate().map(|(debate_idx, ballot)| {
                 let uuid = if options.deterministic_uuids {Uuid::from_u128(200 + debate_idx as u128 + 10 * round_idx as u128)} else {Uuid::new_v4()};
-                TournamentDebate {
+                TournamentDebate::new_with_uuid(
                     uuid,
-                    round_id: rounds[round_idx].uuid,
-                    ballot_id: ballot.uuid,
-                    index: debate_idx as u64,
-                    venue_id: Some(venues[debate_idx].uuid),
-                    is_motion_released_to_non_aligned: false
-                }
+                    rounds[round_idx].uuid,
+                    debate_idx as u64,
+                    ballot.uuid,
+                    Some(venues[debate_idx].uuid)
+                )
             }).collect_vec();
             round_debates
         }).collect_vec();

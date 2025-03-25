@@ -508,8 +508,11 @@ function AssistantLadder({ steps }) {
             {
                 transitions((style, step, idx) => {
                     let StepRenderer = StepTypeRenderers[step.step_type];
+                    let paramsWithoutKey = Object.assign({}, step);
+                    // React throws a silly fit if we don't remove ``key''
+                    delete paramsWithoutKey.key;
                     return <animated.div key={step.key} style={style}><div ref={(ref) => ref && refMap.set(step, ref)}><AssistantStepPane isActive={!step.is_done} key={idx}>
-                        <StepRenderer {...step} />
+                        <StepRenderer {...paramsWithoutKey} />
                     </AssistantStepPane></div></animated.div>
                 })
             }
@@ -519,7 +522,7 @@ function AssistantLadder({ steps }) {
 
 function Assistant({ }) {
     let tournamentContext = useContext(TournamentContext);
-    let state = useView({ type: "Progress", tournament_uuid: tournamentContext.uuid }, null);
+    let state = useView({ type: "Progress", tournament_uuid: tournamentContext.uuid }, {steps: []});
 
     let steps = state ? ([{ "step_type": "Welcome", is_done: state.steps.length > 0 }, ...state.steps]) : [];
 

@@ -33,6 +33,12 @@ impl ParticipantClash {
         Ok(tournament_uuids)
     }
 
+    pub async fn get_all_declared_by_participants<C>(db: &C, participant_ids: Vec<Uuid>) -> Result<Vec<Self>, DbErr> where C: sea_orm::ConnectionTrait {
+        Ok(schema::participant_clash::Entity::find()
+            .filter(schema::participant_clash::Column::DeclaringParticipantId.is_in(participant_ids))
+            .all(db).await?.into_iter().map(Self::from_model).collect())
+    }
+
     pub async fn get_all_in_tournament<C>(db: &C, tournament_id: Uuid) -> Result<Vec<Self>, DbErr> where C: sea_orm::ConnectionTrait {
         let p1_alias = Alias::new("p1");
         let p2_alias = Alias::new("p2");

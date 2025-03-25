@@ -21,6 +21,15 @@ pub struct TournamentParticipantsInfo {
 }
 
 impl TournamentParticipantsInfo {
+    pub fn new() -> Self {
+        Self {
+            participants_by_id: HashMap::new(),
+            teams_by_id: HashMap::new(),
+            team_members: HashMap::new(),
+            speaker_teams: HashMap::new(),
+            institutions_by_id: HashMap::new(),
+        }
+    }
     pub fn get_adjudicators(&self) -> Vec<&Participant> {
         self.participants_by_id.values().filter(|participant| {
             if let ParticipantRole::Adjudicator(_) = &participant.role {

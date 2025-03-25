@@ -6,7 +6,7 @@ use sea_orm::{prelude::Uuid, EntityTrait, QueryFilter, ColumnTrait};
 use serde::Serialize;
 
 
-use crate::{LoadedView, draw::clashes::{ClashMap, ClashMapConfig, ClashType}};
+use crate::{draw::{clashes::ClashType, evaluation::{DrawEvaluator, TournamentObservingDrawEvaluationContext}}, LoadedView};
 
 
 pub struct LoadedAdjudicatorBreakCandidatesView {
@@ -113,13 +113,13 @@ impl AdjudicatorBreakCandidatesView {
             _ => (vec![], vec![])
         };
 
-        let clash_map = ClashMap::new_for_tournament(
-            ClashMapConfig {
-                ignore_speaker_adj_clashes: true,
-            },
-            target_node.tournament_id,
-            db
-        ).await?;
+        let evaluation_context = TournamentObservingDrawEvaluationContext::new_from_tournament(db, target_node.tournament_id).await?;
+        let evaluator = DrawEvaluator::new(
+            Default::default(),
+            vec![],
+            &evaluation_context
+        );
+
         for adj in adjudicators.into_iter() {
             let mut num_clashing_teams = 0;
             let mut num_clashing_speakers = 0;
@@ -128,22 +128,12 @@ impl AdjudicatorBreakCandidatesView {
                 let empty = vec![];
                 let members = team_members.get(team).unwrap_or(&empty);
                 let has_clash = members.iter().any(|member| {
-                    let clashes = clash_map.get_clashes_for_participant(&adj.uuid);
-                    if let Some(clashes) = clashes.get(member) {
-                            if clashes.iter().any(|c| match &c.clash_type {
-                                ClashType::DeclaredClash{severity} => *severity > 0,
-                                ClashType::InstitutionalClash{severity, ..} => *severity > 0,
-                                _ => false
-                            }) {
-                                true
-                            }
-                            else {
-                                false
-                            }
-                    }
-                    else {
-                        false
-                    }
+                    let clashes = evaluator.get_permanent_clashes_between_participants(adj.uuid, *member);
+                    clashes.iter().any(|c| match &c {
+                        ClashType::DeclaredClash{severity} => *severity > 0,
+                        ClashType::InstitutionalClash{severity, ..} => *severity > 0,
+                        _ => false
+                    })
                 });
                 if has_clash {
                     num_clashing_teams += 1;
@@ -151,15 +141,13 @@ impl AdjudicatorBreakCandidatesView {
             }
 
             for speaker in breaking_speakers.iter() {
-                let clashes = clash_map.get_clashes_for_participant(&adj.uuid);
-                if let Some(clashes) = clashes.get(speaker) {
-                    if clashes.iter().any(|c| match &c.clash_type {
-                        ClashType::DeclaredClash{severity} => *severity > 0,
-                        ClashType::InstitutionalClash{severity, ..} => *severity > 0,
-                        _ => false
-                    }) {
-                        num_clashing_speakers += 1;
-                    }
+                let clashes = evaluator.get_permanent_clashes_between_participants(adj.uuid, *speaker);
+                if clashes.iter().any(|c| match &c {
+                    ClashType::DeclaredClash{severity} => *severity > 0,
+                    ClashType::InstitutionalClash{severity, ..} => *severity > 0,
+                    _ => false
+                }) {
+                    num_clashing_speakers += 1;
                 }
             }
 

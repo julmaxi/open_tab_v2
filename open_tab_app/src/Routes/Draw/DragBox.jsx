@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { ISSUE_COLORS_BORDER, ISSUE_COLORS_BG, SWAP_ISSUE_GRADIENTS, severityToBucket } from "./Clashes";
 import { useSpring, animated } from "react-spring";
 import { ClashIndicator, IssueList } from "./ClashIndicator";
@@ -43,10 +43,10 @@ export function DragBox(props) {
       background: swapIssueColor
     }}
   >
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       {props.children}
     </div>
-    <div className="flex items-center mr-1">
+    <div className="flex items-center">
       <ClashIndicator issues={props.issues} onHover={(isHovering) => {
         props.onHighlightIssues(isHovering, false);
         setIsHovering(isHovering);

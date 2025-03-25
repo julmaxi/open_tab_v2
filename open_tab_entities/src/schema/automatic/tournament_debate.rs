@@ -12,6 +12,7 @@ pub struct Model {
     pub ballot_id: Uuid,
     pub venue_id: Option<Uuid>,
     pub is_motion_released_to_non_aligned: bool,
+    pub is_complete: bool
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

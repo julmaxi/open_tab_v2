@@ -34,7 +34,7 @@ export function useView(viewDef, defaultVal) {
                     }
                     else {
                         let parsed_change_path = change_path.split(".").map(e => !isNaN(parseInt(e)) ? parseInt(e) : e);
-                        updatePath(new_view, parsed_change_path, updatedPaths[change_path])    
+                        new_view = updatePath(new_view, parsed_change_path, updatedPaths[change_path])    
                     }
                 }
                 setView(new_view);
@@ -69,7 +69,12 @@ export function updatePath(obj, path, new_val) {
     let child = obj[path[0]];
   
     let val = updatePath(child, path.slice(1), new_val)
-    obj[path[0]] = val;
-  
-    return obj;
+    if (Array.isArray(obj)) {
+        let new_obj = [...obj];
+        new_obj[path[0]] = val;
+        return new_obj;
+    }
+    else {
+        return {...obj, [path[0]]: val};
+    }
 }

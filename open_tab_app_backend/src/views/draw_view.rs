@@ -8,14 +8,14 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use open_tab_entities::{prelude::*, EntityTypeId};
 
-use open_tab_entities::schema::{self, tournament_round};
+use open_tab_entities::schema::{self, adjudicator, tournament_round};
 
 use itertools::izip;
 use itertools::Itertools;
 
 
 
-use crate::draw::evaluation::{DrawEvaluator, DrawIssue};
+use crate::draw::evaluation::{DrawEvaluator, DrawIssue, TournamentObservingDrawEvaluationContext};
 use crate::tab_view::TeamRoundRole;
 
 use super::base::{LoadedView, TournamentParticipantsInfo};
@@ -23,7 +23,13 @@ use super::base::{LoadedView, TournamentParticipantsInfo};
 
 pub struct LoadedDrawView {
     pub view: DrawView,
-    pub tournament_id: Uuid
+    pub tournament_id: Uuid,
+    pub participant_info: TournamentParticipantsInfo,
+
+    pub team_uuid_to_index: HashMap<Uuid, usize>,
+    pub adjudicator_uuid_to_index: HashMap<Uuid, usize>,
+
+    pub evaluation_context: TournamentObservingDrawEvaluationContext
     //TODO: Use this to cache team and participant names
     //to avoid a full reload every time
     //Alternatively, it would be interesting to try to implement
@@ -33,11 +39,28 @@ pub struct LoadedDrawView {
 impl LoadedDrawView {
     pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<LoadedDrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
+        let evaluation_context = TournamentObservingDrawEvaluationContext::new_from_tournament(db, round.tournament_id).await?;
+        let participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
+
+        let tournament_id = round.tournament_id;
+
+        let all_rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::TournamentId.eq(tournament_id)).all(db).await?;
+        let relevant_rounds = all_rounds.iter().map(|r| r.uuid).filter(|u| *u != round_uuid).collect_vec();
+
+        let evaluator = DrawEvaluator::new(Default::default(), relevant_rounds, &evaluation_context);
+        let view = DrawView::load_from_round(db, round, &participant_info, &evaluator).await?;
+
+        let team_uuid_to_index = view.team_index.iter().enumerate().map(|(idx, entry)| (entry.team.uuid, idx)).collect();
+        let adjudicator_uuid_to_index = view.adjudicator_index.iter().enumerate().map(|(idx, entry)| (entry.adjudicator.uuid, idx)).collect();
 
         Ok(
             LoadedDrawView {
-                tournament_id: round.tournament_id,
-                view: DrawView::load_from_round(db, round).await?,
+                tournament_id,
+                view,
+                evaluation_context,
+                participant_info,
+                team_uuid_to_index,
+                adjudicator_uuid_to_index
             }
         )
     }
@@ -46,7 +69,6 @@ impl LoadedDrawView {
 #[async_trait]
 impl LoadedView for LoadedDrawView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
-        // TODO: We assume, the debate index never changes, even though it could in theory
         let entities = changes.as_group_map();
 
         let changed_debates_by_id : HashMap<_, _> = entities.tournament_debates.iter().map(|d| (d.uuid, d)).collect();
@@ -57,6 +79,11 @@ impl LoadedView for LoadedDrawView {
         let has_new_debate = changed_debates_by_id.iter().any(
             |(uuid, _)| !know_debate_uuids.contains(uuid)
         );
+        
+        let all_rounds = schema::tournament_round::Entity::find().filter(schema::tournament_round::Column::TournamentId.eq(self.tournament_id)).all(db).await?;
+        let relevant_rounds = all_rounds.iter().map(|r| r.uuid).filter(|u| *u != self.view.round_uuid).collect_vec();
+
+        let changed_evaluation_debates : HashSet<_> = self.evaluation_context.update_from_changes(db, changes).await?.into_iter().collect();
 
         // TODO: Reloads could be much more efficient
         if has_new_debate || changes.has_changes_for_types(vec![
@@ -69,15 +96,20 @@ impl LoadedView for LoadedDrawView {
         {
             let mut out: HashMap<String, Json> = HashMap::new();
             let round = schema::tournament_round::Entity::find_by_id(self.view.round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
-            self.view = DrawView::load_from_round(db, round).await?;
+            self.participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
+            let evaluator = DrawEvaluator::new(Default::default(), relevant_rounds, &self.evaluation_context);
+            self.view = DrawView::load_from_round(db, round, &self.participant_info, &evaluator).await?;
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);
+
+            self.team_uuid_to_index = self.view.team_index.iter().enumerate().map(|(idx, entry)| (entry.team.uuid, idx)).collect();
+            self.adjudicator_uuid_to_index = self.view.adjudicator_index.iter().enumerate().map(|(idx, entry)| (entry.adjudicator.uuid, idx)).collect();    
     
             return Ok(Some(out))
         }
         
         for (idx, debate) in self.view.debates.iter_mut().enumerate() {
             let is_debate_changed = changed_debates_by_id.contains_key(&debate.uuid);
-            if is_debate_changed || changed_ballots_by_id.contains_key(&debate.ballot.uuid) {
+            if is_debate_changed || changed_ballots_by_id.contains_key(&debate.ballot.uuid) || changed_evaluation_debates.contains(&debate.uuid) {
                 indices_to_reload.push(idx);
 
                 if is_debate_changed {
@@ -86,9 +118,7 @@ impl LoadedView for LoadedDrawView {
             }
         }
         if indices_to_reload.len() > 0 {
-            let evaluator = DrawEvaluator::new_from_other_rounds(db, self.tournament_id, self.view.round_uuid).await?;
-
-            let info = TournamentParticipantsInfo::load(db, self.tournament_id).await?;
+            let evaluator = DrawEvaluator::new(Default::default(), relevant_rounds, &self.evaluation_context);
             let mut out : HashMap<String, serde_json::Value> = HashMap::new();
             let ballot_uuids = indices_to_reload.iter().map(|idx| {self.view.debates[*idx].ballot.uuid}).collect_vec();
             let ballots = Ballot::get_many(db, ballot_uuids).await?;
@@ -97,21 +127,69 @@ impl LoadedView for LoadedDrawView {
             let debate_venue_ids = debates.iter().filter_map(|d| if let Some(venue_id) = d.venue_id {Some((d.uuid, venue_id))} else {None}).collect_vec();
             let venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();
 
+            let mut adj_index_updates = HashMap::<Uuid, AdjudictorPosition>::new();
+
             for (idx, ballot, debate) in izip!(indices_to_reload, ballots, debates) {
-                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, &info, &evaluator, self.view.round_uuid);
+                let prev_value = &self.view.debates[idx].ballot;
+
+                let mut removed_adjudicators = HashSet::new();
+
+                for adj in prev_value.adjudicators.iter() {
+                    removed_adjudicators.insert(adj.adjudicator.uuid);
+                }
+
+                for (pos_idx, adjudicator) in ballot.adjudicators.iter().enumerate() {
+                    removed_adjudicators.remove(&adjudicator);
+                    adj_index_updates.insert(*adjudicator, AdjudictorPosition::Set {
+                        debate_uuid: debate.uuid,
+                        debate_index: idx,
+                        position: AdjudicatorPositionRole::Panel { position: pos_idx }
+                    });
+                }
+                for removed_adjudicator in removed_adjudicators {
+                    if !adj_index_updates.contains_key(&removed_adjudicator) {
+                        adj_index_updates.insert(removed_adjudicator, AdjudictorPosition::NotSet);
+                    }
+                }
+
+                if let Some(prev_president) = prev_value.president.as_ref().map(|p| p.adjudicator.uuid) {
+                    if !adj_index_updates.contains_key(&prev_president) {
+                        adj_index_updates.insert(prev_president, AdjudictorPosition::NotSet);
+                    }
+                }
+
+                if let Some(president) = &ballot.president {
+                    adj_index_updates.insert(*president, AdjudictorPosition::Set {
+                        debate_uuid: debate.uuid,
+                        debate_index: idx,
+                        position: AdjudicatorPositionRole::President
+                    });
+                }
+
+                self.view.debates[idx].ballot = DrawView::draw_ballot_from_debate_ballot(&ballot, &self.participant_info, &evaluator, self.view.round_uuid);
                 self.view.debates[idx].venue = debate.venue_id.map(|venue_id| venues.get(&venue_id).cloned().map(DrawVenue::from)).flatten();
 
                 out.insert(format!("debates.{}.ballot", idx), serde_json::to_value(&self.view.debates[idx].ballot)?);
                 out.insert(format!("debates.{}.venue", idx), serde_json::to_value(&self.view.debates[idx].venue)?);
             }
 
-            let index = DrawView::construct_adjudicator_index(&info, &self.view.debates, self.view.round_uuid);
+            for (uuid, update) in adj_index_updates {
+                if let Some(idx) = self.adjudicator_uuid_to_index.get(&uuid) {
+                    out.insert(format!("adjudicator_index.{}.position", idx), serde_json::to_value(&update)?);
+                    self.view.adjudicator_index[*idx].position = update;
+                }
+            }
+
+            /*
+            let index = DrawView::construct_adjudicator_index(&self.participant_info, &self.view.debates, self.view.round_uuid);
             out.insert("adjudicator_index".into(), serde_json::to_value(&index)?);
             self.view.adjudicator_index = index;
+            */
 
-            let team_index = DrawView::construct_team_index(&info, &self.view.debates);
+            let team_index = DrawView::construct_team_index(&self.participant_info, &self.view.debates);
             out.insert("team_index".into(), serde_json::to_value(&team_index)?);
             self.view.team_index = team_index;
+            
 
             Ok(Some(out))
         }
@@ -393,7 +471,7 @@ impl DrawView {
     fn draw_ballot_from_debate_ballot(
         ballot: &Ballot,
         info: &TournamentParticipantsInfo,
-        evaluator: &DrawEvaluator,
+        evaluator: &DrawEvaluator<TournamentObservingDrawEvaluationContext>,
         round_id: Uuid,
     ) -> DrawBallot {
         let _all_ballot_participant_uuids = ballot.speeches.iter().filter_map(|speech| {
@@ -492,12 +570,6 @@ impl DrawView {
         });
 
         ballot
-    }
-
-    pub async fn load<C>(db: &C, round_uuid: Uuid) -> Result<DrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
-        let round = schema::tournament_round::Entity::find_by_id(round_uuid).one(db).await?.ok_or(DrawViewError::MissingDebate)?;
-
-        return Self::load_from_round(db, round).await;
     }
 
     fn construct_adjudicator_index(
@@ -631,21 +703,16 @@ impl DrawView {
         ).sorted_by(|e1, e2| e1.team.name.cmp(&e2.team.name)).collect()
     }
 
-    async fn load_from_round<C>(db: &C, round: tournament_round::Model) -> Result<DrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
+    async fn load_from_round<C>(
+        db: &C, round: tournament_round::Model,
+        participant_info: &TournamentParticipantsInfo,
+        evaluator: &DrawEvaluator<'_, TournamentObservingDrawEvaluationContext>
+    ) -> Result<DrawView, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let debates = schema::tournament_debate::Entity::find().filter(schema::tournament_debate::Column::RoundId.eq(round.uuid)).all(db).await?;
 
         let ballot_uuids = debates.iter().map(|debate| debate.ballot_id).collect_vec();
 
         let ballots = Ballot::get_many(db, ballot_uuids).await?;
-
-        // FIXME: This will fail if a participant is missing
-        // from the tournament.
-        let participant_info = TournamentParticipantsInfo::load(db, round.tournament_id).await?;
-
-        //clash_map.add_dynamic_clashes_from_round_ballots(round_draws, &participant_info.team_members);
-        //let evaluator = crate::draw::evaluation::DrawEvaluator::new(clash_map, Default::default());
-        //let evaluator = DrawEvaluator::new_from_rounds(db, round.tournament_id, &other_rounds).await?;
-        let evaluator = DrawEvaluator::new_from_other_rounds(db, round.tournament_id, round.uuid).await?;
 
         let debate_venue_ids = debates.iter().filter_map(|d| if let Some(venue_id) = d.venue_id {Some((d.uuid, venue_id))} else {None}).collect_vec();
         let venues = TournamentVenue::get_many(db, debate_venue_ids.iter().map(|x| x.1).collect_vec()).await?.into_iter().map(|v| (v.uuid, v)).collect::<HashMap<_, _>>();

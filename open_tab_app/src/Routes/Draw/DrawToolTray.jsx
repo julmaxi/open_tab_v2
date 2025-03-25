@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { TabGroup, Tab } from "../../TabGroup";
 import { DragItem, DropSlot } from "../../UI/DragDrop";
 import { TRAY_DRAG_PATH } from "./Draw";
@@ -43,7 +43,7 @@ function teamPositionToStr(position) {
 
     }
 }
-function AdjudicatorTable({ adjudicator_index, ...props }) {
+const AdjudicatorTable = memo(function ({ adjudicator_index, ...props }) {
     return <div className="h-full overflow-auto">
         <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
@@ -64,8 +64,9 @@ function AdjudicatorTable({ adjudicator_index, ...props }) {
             </tbody>
         </table>
     </div>;
-}
-function TeamTable({ team_index, ...props }) {
+});
+
+const TeamTable = memo(function ({ team_index, ...props }) {
     return <div className="h-full overflow-auto">
         <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
@@ -81,7 +82,8 @@ function TeamTable({ team_index, ...props }) {
             </tbody>
         </table>
     </div>;
-}
+});
+
 function SpeakerIndexEntries({ team, positions, ...props }) {
     let rows = team.members.map(
         (member) => {

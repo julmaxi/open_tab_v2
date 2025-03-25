@@ -5,12 +5,13 @@ import { useContext } from 'react';
 import { TabGroup, Tab } from "./TabGroup.jsx";
 import { SortableTable } from "./SortableTable";
 
-export function FeedbackProgressTable({rows, rounds}) {
+export function FeedbackProgressTable({rows, rounds, isTeams}) {
     let data = [];
 
     for (let row of rows) {
         let out = {
             name: row.name,
+            uuid: row.team_id || row.participant_id,
         };
         let total = 0;
         for (let round of rounds) {
@@ -50,7 +51,7 @@ export function FeedbackProgressTable({rows, rounds}) {
         })
     )];
 
-    return <SortableTable columns={columns} data={data} selectedRowId={null} />
+    return <SortableTable rowId={"uuid"} columns={columns} data={data} selectedRowId={null} />
 }
 
 export function FeedbackProgressRoute() {
