@@ -11,7 +11,7 @@ export default function VenueOverview() {
     let tournamentId = useContext(TournamentContext).uuid;
     let venues = useView({type: "Venues", tournament_uuid: tournamentId}, {"venues": []});
     return <div className="h-full w-full flex flex-col">
-        <div className="w-full flex-1">
+        <div className="w-full flex-1 min-h-0">
             <SortableTable
                 rowId={"uuid"}
                 data={

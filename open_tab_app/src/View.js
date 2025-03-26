@@ -1,22 +1,44 @@
 //@ts-check
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/tauri";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import _ from 'lodash';
 
 export function useView(viewDef, defaultVal) {
     let [view, setView] = useState(defaultVal);
 
+    let viewId = useRef(-1);
+
     useEffect(() => {
+        if (view) {
+            setView({
+                ...view,
+                isLoading: true
+            })
+        }
         invoke("subscribe_to_view", {view: viewDef}).then((msg) => {
             if (msg["success"] === undefined) {
                 console.log("Error", msg);
             }
             else {
-                let viewResult = JSON.parse(msg["success"]);
-                setView(viewResult);    
+                let viewResult = JSON.parse(msg["success"]["content"]);
+
+                if (viewId !== null) {
+                    setView(viewResult);    
+                    viewId.current = msg["success"]["ref_id"];
+                }
+                else {
+                    invoke("unsubscribe_from_view", {refId: viewId.current});
+                }
             }
         });
+
+        return () => {
+            if (viewId.current !== -1) {
+                invoke("unsubscribe_from_view", {refId: viewId.current});
+                viewId.current = null;
+            }
+        }
     }, [...Object.values(viewDef)]);
 
     useEffect(
@@ -29,6 +51,7 @@ export function useView(viewDef, defaultVal) {
                 let updatedPaths = relevant_changes[0].updated_paths;
                 let new_view = {...view};
                 for (var change_path in updatedPaths) {
+                    console.log("Change path", change_path);
                     if (change_path === ".") {
                         new_view = updatedPaths[change_path];
                     }

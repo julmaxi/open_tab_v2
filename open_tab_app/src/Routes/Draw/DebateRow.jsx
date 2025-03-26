@@ -33,7 +33,7 @@ export const DebateRow = memo(function DebateRow(props) {
         </tr>
         <tr className="flex flex-row w-full border-t border-b">
             <td className="border-r w-[35%] pl-1 pr-1 flex flex-col justify-center">
-                <DropWell className="flex-1 flex flex-col justify-center" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
+                <DropWell className="flex-1 flex flex-col justify-end" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "government"]}>
                     {ballot.government !== null ? <TeamItem
                         team={ballot.government}
                         expandIssues={props.expandIssues}
@@ -44,7 +44,7 @@ export const DebateRow = memo(function DebateRow(props) {
                         highlightedIssues={highlightedIssues.government} /> : []}
                 </DropWell>
                 <br />
-                <DropWell className="flex-1 flex flex-col justify-center" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
+                <DropWell className="flex-1 flex flex-col justify-start" disabledMessage={TEAM_DRAW_DISABLED_MESSAGE} disabled={!settings.enableAlterTeamDraw} type="team" collection={["debates", props.debate.index, "ballot", "opposition"]}>
                     {ballot.opposition !== null ? <TeamItem
                         team={ballot.opposition}
                         expandIssues={shouldExpandLocalIssues}

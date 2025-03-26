@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::HashMap, error::Error, fmt::{Display, Formatter, Debug}, iter::zip, path::{PathBuf, Path}, fs::File};
+use std::{collections::{HashMap, HashSet}, error::Error, fmt::{Debug, Display, Formatter}, fs::File, iter::zip, path::{Path, PathBuf}};
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
@@ -52,7 +52,7 @@ async fn connect_db_to_file(path: Option<PathBuf>) -> Result<DatabaseConnection,
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum SubscriptionResponse {
-    Success(String),
+    Success {content: String, ref_id: u64},
     Error(String)
 }
 
@@ -72,6 +72,9 @@ impl Error for ViewCacheError {}
 
 pub struct ViewCache {
     cached_views: HashMap<View, Box<dyn LoadedView>>,
+    view_ref_counts: HashMap<View, usize>,
+    view_refs: HashMap<u64, View>,
+    next_ref: u64
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,7 +86,32 @@ pub struct ChangeNotification {
 impl ViewCache {
     pub fn new() -> Self {
         Self {
-            cached_views: HashMap::new()
+            cached_views: HashMap::new(),
+            view_refs: HashMap::new(),
+            view_ref_counts: HashMap::new(),
+            next_ref: 0
+        }
+    }
+
+    pub fn add_reference(&mut self, view: &View) -> u64 {
+        let ref_id = self.next_ref;
+        self.next_ref += 1;
+        self.view_refs.insert(ref_id, view.clone());
+        self.view_ref_counts.entry(view.clone()).or_insert(0);
+        self.view_ref_counts.get_mut(view).map(|c| *c += 1);
+        ref_id
+    }
+
+    pub fn drop_reference(&mut self, ref_id: u64) {
+        let view = self.view_refs.get(&ref_id).cloned();
+        if let Some(view) = view {
+            let count: &mut usize = self.view_ref_counts.get_mut(&view).unwrap();
+            *count -= 1;
+            if *count == 0 {
+                self.view_ref_counts.remove(&view);
+                self.view_refs.remove(&ref_id);
+                self.cached_views.remove(&view);
+            }    
         }
     }
 
@@ -111,6 +139,7 @@ impl ViewCache {
 
     pub async fn update_and_get_changes(&mut self, db: &DatabaseTransaction, changes: &EntityGroup) -> Result<Vec<ChangeNotification>, anyhow::Error> {
         let mut out = vec![];
+
         for (view, loaded_view) in self.cached_views.iter_mut() {
             let changes = loaded_view.update_and_get_changes(db, changes).await?;
             if let Some(changes) = changes {
@@ -145,10 +174,18 @@ async fn subscribe_to_view(view: View, db: State<'_, DatabaseConnection>, view_c
     let view_text = view_cache.get_view_string(view.clone(), db.inner()).await;
 
     Ok(view_text.map(|text| {
-        SubscriptionResponse::Success(text)
+        let ref_id = view_cache.add_reference(&view);
+        SubscriptionResponse::Success {content: text, ref_id}
     }).unwrap_or_else(|err| {
         SubscriptionResponse::Error(err.to_string())
     }))
+}
+
+#[tauri::command]
+async fn unsubscribe_from_view(ref_id: u64, view_cache: State<'_, Mutex<ViewCache>>) -> Result<(), ()> {
+    let mut view_cache = view_cache.lock().await;
+    view_cache.drop_reference(ref_id);
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1383,9 +1420,6 @@ async fn show_error(error: String) {
     ).show(|_| {});
 }
 
-struct TournamentCache {
-}
-
 fn main() {
     let db_path: PathBuf = dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or(PathBuf::from("."))).join("open_tab_db.sqlite3");
 
@@ -1404,6 +1438,7 @@ fn main() {
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             subscribe_to_view,
+            unsubscribe_from_view,
             execute_action,
             guess_csv_config,
             evaluate_ballots,
