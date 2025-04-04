@@ -74,6 +74,9 @@ pub struct TournamentBreak {
     //that there is no adjudicator break at all.
     //All adjudicators proceed to the next round.
     pub breaking_adjudicators: Vec<Uuid>,
+    
+    pub break_award_title: Option<String>,
+    pub break_award_prestige: Option<i32>,
 }
 
 impl TournamentBreak {
@@ -84,6 +87,8 @@ impl TournamentBreak {
             breaking_teams: vec![],
             breaking_speakers: vec![],
             breaking_adjudicators: vec![],
+            break_award_title: None,
+            break_award_prestige: None,
         }
     }
 
@@ -103,7 +108,7 @@ impl TournamentBreak {
             teams,
             speakers,
             adjudicators
-        ).into_iter().map(|(break_row, teams, speakers, adjudicators)| {
+        ).into_iter().map(|(break_row, teams, speakers, adjudicators )| {
             Self::from_rows(break_row, teams, speakers, adjudicators)
         }).collect();
         r
@@ -124,7 +129,9 @@ impl TournamentBreak {
             tournament_id: break_row.tournament_id,
             breaking_teams,
             breaking_speakers,
-            breaking_adjudicators
+            breaking_adjudicators,
+            break_award_title: break_row.break_award_title,
+            break_award_prestige: break_row.break_award_prestige,
         })
     }
 }
@@ -160,6 +167,8 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentBreak where C: sea_orm::Conn
         let model = schema::tournament_break::ActiveModel {
             uuid: ActiveValue::Set(self.uuid),
             tournament_id: ActiveValue::Set(self.tournament_id),
+            break_award_title: ActiveValue::Set(self.break_award_title.clone()),
+            break_award_prestige: ActiveValue::Set(self.break_award_prestige),
         };
 
         if guarantee_insert {

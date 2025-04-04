@@ -16,7 +16,7 @@ hyper = "*"
 http-body = "0.4"
 chrono = "*"
 
-sea-orm = { version = "0.12", features = [ "sqlx-sqlite", "runtime-tokio-rustls" ] }
+sea-orm = { version = "1.1", features = [ "sqlx-sqlite", "runtime-tokio-rustls" ] }
 serde = {version = "*", features = ["derive"]}
 serde_json = "*"
 base64 = "0.21.0"

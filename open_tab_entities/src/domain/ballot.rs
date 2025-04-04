@@ -1198,7 +1198,7 @@ mod test {
             Some(Uuid::from_u128(412)),
         ]);
         assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![0, 0, 1, 1, 0, 1, 2, 2, 2]);
-        assert_eq!(ballot.adjudicators, vec![]);
+        assert_eq!(ballot.adjudicators.len(), 0);
         assert!(ballot.president.is_none());
     
         Ok(())
@@ -1231,7 +1231,7 @@ mod test {
             Some(Uuid::from_u128(410)),
         ]);
         assert_eq!(ballot.speeches.iter().map(|s| s.position).collect_vec(), vec![2]);
-        assert_eq!(ballot.adjudicators, vec![]);
+        assert_eq!(ballot.adjudicators.len(), 0);
         assert!(ballot.president.is_none());
     
         Ok(())

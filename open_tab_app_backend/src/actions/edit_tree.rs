@@ -2,7 +2,7 @@ use std::collections::{HashMap, self};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{prelude::*, domain::{tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{TournamentPlanNode, PlanNodeConfig, BreakConfig, FoldDrawConfig}, self}, EntityTypeId};
+use open_tab_entities::{domain::{self, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, FoldDrawConfig, PlanNodeConfig, PlanNodeType, TournamentPlanNode}}, prelude::*, EntityTypeId};
 
 use sea_orm::prelude::*;
 
@@ -25,6 +25,7 @@ pub enum EditTreeActionType {
     AddTimBreakRounds { parent: Uuid },
     AddKOStage { parent: Uuid, num_stages: u64 },
     UpdateNode { node: Uuid, config: PlanNodeConfig },
+    AddAward { parent: Uuid, is_speaker_tab_award: bool },
 }
 
 #[derive(Error, Debug)]
@@ -115,7 +116,8 @@ impl ActionTrait for EditTreeAction {
             EditTreeActionType::AddKOStage { parent, num_stages } => {
                 let mut nodes = vec![];
                 let mut edges = vec![];
-                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_debates: u32::pow(2, (num_stages - 1) as u32) as u32 }));
+                let num_debates = u32::pow(2, num_stages as u32) as u32;
+                let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_teams: num_debates * 2, num_non_aligned: num_debates * 3}));
                 let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                     config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
                         round_configs: vec![open_tab_entities::domain::tournament_plan_node::FoldDrawConfig::default_ko_fold()]
@@ -224,6 +226,24 @@ impl ActionTrait for EditTreeAction {
                     _ => return Err(anyhow::anyhow!("Invalid node type for update"))
                 }
                 groups.add(Entity::TournamentPlanNode(node.clone()));
+            },
+            EditTreeActionType::AddAward { parent, is_speaker_tab_award } => {
+                let config = PlanNodeType::Break {
+                    config: if !is_speaker_tab_award { BreakConfig::KnockoutBreak } else {
+                        BreakConfig::TabBreak { num_teams: 0, num_non_aligned: 10 }
+                    },
+                    break_id: None,
+                    eligible_categories: vec![],
+                    suggested_award_title: Some("Top 10".into()),
+                    max_breaking_adjudicator_count: None,
+                    is_only_award: true,
+                    suggested_break_award_prestige: Some(10)
+                };
+
+                let award = TournamentPlanNode::new(self.tournament_id, config);
+                let award_id = award.uuid;
+                groups.add(Entity::TournamentPlanNode(award));
+                groups.add(Entity::TournamentPlanEdge(TournamentPlanEdge::new(parent, award_id)));
             }
         }
 

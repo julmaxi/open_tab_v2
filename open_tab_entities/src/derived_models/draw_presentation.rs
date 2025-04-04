@@ -75,6 +75,11 @@ impl DrawPresentationInfo {
         let venues_by_ids = domain::tournament_venue::TournamentVenue::get_many(db, venue_ids).await?
         .into_iter().map(|v| (v.uuid, v.into())).collect();
     
+        dbg!(&venues_by_ids);
+        dbg!(&participants_by_id);
+        dbg!(&teams_by_id);
+        dbg!(&ballots);
+        dbg!(&debates);
         let debates = izip![
             debates.into_iter(),
             ballots.into_iter()
@@ -137,8 +142,7 @@ impl DebatePresentationInfo {
             .map(|s| match s.speaker {
                 Some(id) => participants.get(&id).cloned().unwrap_or_default(),
                 None => ParticipantPresentationInfo::default()
-            }).collect_vec()
-        ;
+            }).collect_vec();
 
         Self {
             debate_id: debate.uuid,
@@ -216,64 +220,3 @@ impl From<domain::tournament_institution::TournamentInstitution> for Institution
         }
     }
 }
-
-
-
-
-
-// Mock Functions
-fn mock_venue_info() -> VenueInfo {
-    VenueInfo {
-        venue_id: Uuid::new_v4(),
-        venue_name: "Mock Venue".to_string(),
-    }
-}
-
-fn mock_institution_presentation_info() -> InstitutionPresentationInfo {
-    InstitutionPresentationInfo {
-        institution_id: Uuid::new_v4(),
-        institution_name: "Mock Institution".to_string(),
-    }
-}
-
-fn mock_participant_presentation_info() -> ParticipantPresentationInfo {
-    ParticipantPresentationInfo {
-        participant_id: Uuid::new_v4(),
-        participant_name: "Mock Participant".to_string(),
-        institutions: vec![mock_institution_presentation_info()],
-    }
-}
-
-fn mock_team_presentation_info() -> TeamPresentationInfo {
-    TeamPresentationInfo {
-        team_id: Uuid::new_v4(),
-        team_name: "Mock Team".to_string(),
-        members: vec![mock_participant_presentation_info(), mock_participant_presentation_info()],
-        all_institutions: vec![mock_institution_presentation_info()],
-    }
-}
-
-fn mock_debate_presentation_info(debate_index: i32) -> DebatePresentationInfo {
-    DebatePresentationInfo {
-        debate_id: Uuid::new_v4(),
-        debate_index,
-        venue: Some(mock_venue_info()),
-        government: mock_team_presentation_info(),
-        opposition: mock_team_presentation_info(),
-        adjudicators: vec![mock_participant_presentation_info(), mock_participant_presentation_info()],
-        president: Some(mock_participant_presentation_info()),
-        non_aligned_speakers: vec![mock_participant_presentation_info()],
-    }
-}
-
-pub fn mock_draw_presentation_info() -> DrawPresentationInfo {
-    DrawPresentationInfo {
-        round_id: Uuid::new_v4(),
-        round_index: 1,
-        round_name: "Mock Round".to_string(),
-        motion: "This house would use mock data".to_string(),
-        info_slide: Some("Mock Info Slide".to_string()),
-        debates: (1..=3).map(|index| mock_debate_presentation_info(index)).collect(),
-    }
-}
-

@@ -11,9 +11,11 @@ use base64::Engine;
 
 use chrono::{NaiveDateTime, Utc};
 use itertools::Itertools;
+use open_tab_entities::derived_models::{get_participant_model_public_name, get_participant_public_name};
+use open_tab_entities::domain::entity::LoadEntity;
 use open_tab_entities::domain::round::check_release_date;
 
-use open_tab_entities::schema::{self, published_tournament, user_participant, user_tournament};
+use open_tab_entities::schema::{self, adjudicator, published_tournament, user_participant, user_tournament};
 use open_tab_entities::{EntityGroup};
 use rand::{thread_rng, Rng};
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, IntoActiveModel, QueryOrder, QuerySelect};
@@ -672,6 +674,208 @@ pub async fn get_admin_view(
     ))
 }
 
+#[derive(Serialize)]
+pub struct TournamentAwardsInfo {
+    awards: Vec<TournamentAwardInfo>,
+}
+
+#[derive(Serialize)]
+pub struct TournamentAwardInfo {
+    pub uuid: Uuid,
+    pub name: String,
+    pub recipients: Vec<AwardRecipientInfo>
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type",)]
+pub enum AwardRecipientInfo {
+    Team {
+        uuid: Uuid,
+        team_name: String,
+        members: Vec<AwardTeamMemberInfo>,
+    },
+    Adjudicator {
+        uuid: Uuid,
+        name: String,
+    },
+    Speaker {
+        uuid: Uuid,
+        name: String,
+        team_name: String,
+    }
+}
+
+#[derive(Serialize)]
+pub struct AwardTeamMemberInfo {
+    pub uuid: Uuid,
+    pub name: String,
+}
+
+pub async fn get_awards(
+    State(db) : State<DatabaseConnection>,
+    MaybeExtractAuthenticatedUser(user) : MaybeExtractAuthenticatedUser,
+    Path(tournament_id): Path<Uuid>,
+) -> Result<Json<TournamentAwardsInfo>, APIError> {
+    let published_tournament = open_tab_entities::schema::published_tournament::Entity::find()
+        .filter(open_tab_entities::schema::published_tournament::Column::TournamentId.eq(tournament_id))
+        .one(&db)
+        .await?;
+
+    let mut is_authorized = false;
+
+    if let Some(published_tournament) = published_tournament {
+        if published_tournament.list_publicly {
+            is_authorized = true;
+        }
+        else if let Some(user) = user.as_ref() {
+            is_authorized = user.check_is_authorized_in_tournament(&db, tournament_id).await?;
+        }
+    }
+
+    if !is_authorized {
+        let err = APIError::new_with_status(StatusCode::FORBIDDEN, "You are not authorized for this tournament");
+        return Err(err);
+    }
+
+    let award_breaks = open_tab_entities::schema::tournament_break::Entity::find()
+        .filter(open_tab_entities::schema::tournament_break::Column::TournamentId.eq(tournament_id))
+        .filter(open_tab_entities::schema::tournament_break::Column::BreakAwardTitle.is_not_null())
+        .order_by_desc(open_tab_entities::schema::tournament_break::Column::BreakAwardPrestige)
+        .order_by_asc(open_tab_entities::schema::tournament_break::Column::BreakAwardTitle)
+        .all(&db).await?;
+
+    let award_breaks = open_tab_entities::domain::tournament_break::TournamentBreak::get_many(&db, 
+        award_breaks.iter().map(|award| award.uuid).collect::<Vec<_>>()
+    ).await?;
+
+    let mut relevant_teams = HashSet::new();
+    let mut relevant_participants = HashSet::new();
+
+    for break_ in award_breaks.iter() {
+        for recipient in break_.breaking_teams.iter() {
+            relevant_teams.insert(*recipient);
+        }
+
+        for recipient in break_.breaking_speakers.iter() {
+            relevant_participants.insert(*recipient);
+        }
+
+        for recipient in break_.breaking_adjudicators.iter() {
+            relevant_participants.insert(*recipient);
+        }
+    }
+
+    let teams = open_tab_entities::schema::team::Entity::find()
+        .filter(open_tab_entities::schema::team::Column::TournamentId.eq(tournament_id))
+        .filter(open_tab_entities::schema::team::Column::Uuid.is_in(relevant_teams))
+        .all(&db).await?;
+
+    let team_ids = teams.iter().map(|t| t.uuid).collect::<HashSet<_>>();
+
+    let participants = open_tab_entities::schema::participant::Entity::find()
+        .left_join(open_tab_entities::schema::speaker::Entity)
+        .select_also(open_tab_entities::schema::speaker::Entity)
+        .filter(
+            open_tab_entities::schema::participant::Column::TournamentId.eq(tournament_id)
+            .and(
+                open_tab_entities::schema::participant::Column::Uuid.is_in(relevant_participants)
+                .or(open_tab_entities::schema::speaker::Column::TeamId.is_in(team_ids))
+            )
+        )
+        .all(&db).await?;
+
+    let participants = participants.into_iter()
+        .map(
+            |(p, t)| {
+                (p, t.map(|t| t.team_id).flatten())
+            }
+        ).collect_vec();
+
+    let team_members = participants.iter().filter_map(|(p, t)| {
+        if let Some(team_id) = t {
+            Some((*team_id, p))
+        }
+        else {
+            None
+        }
+    }).into_group_map();
+
+    let teams = open_tab_entities::domain::team::Team::get_all_in_tournament(&db, tournament_id).await?;
+    let teams_by_id = teams.iter().map(|t| (t.uuid, t)).collect::<HashMap<_, _>>();
+
+    let participants_by_id = participants.iter().map(|(p, t)| (p.uuid, (p, t.clone()))).collect::<HashMap<_, _>>();
+
+    let awards = award_breaks.into_iter().map(
+        |break_| {
+            let team_recipients = break_.breaking_teams.iter().filter_map(|team| {
+                if let Some(team) = teams_by_id.get(team) {
+                    let members = team_members.get(&team.uuid)
+                        .map(|members| {
+                            members.iter().filter_map(|member| {
+                                if let Some((participant, _)) = participants_by_id.get(&member.uuid) {
+                                    Some(AwardTeamMemberInfo {
+                                        uuid: participant.uuid,
+                                        name: get_participant_model_public_name(participant),
+                                    })
+                                }
+                                else {
+                                    None
+                                }
+                            }).collect::<Vec<_>>()
+                        }).unwrap_or_default();
+
+                    Some(AwardRecipientInfo::Team {
+                        uuid: team.uuid,
+                        team_name: team.name.clone(),
+                        members,
+                    })
+                }
+                else {
+                    None
+                }
+            }).collect::<Vec<_>>();
+
+            let adjudicator_recipients = break_.breaking_adjudicators.iter().filter_map(|adjudicator| {
+                if let Some((adjudicator, _)) = participants_by_id.get(adjudicator) {
+                    Some(AwardRecipientInfo::Adjudicator {
+                        uuid: adjudicator.uuid,
+                        name: get_participant_model_public_name(adjudicator),
+                    })
+                }
+                else {
+                    None
+                }
+            }).collect::<Vec<_>>();
+
+            let speaker_recipients = break_.breaking_speakers.iter().filter_map(|speaker| {
+                if let Some((speaker, team)) = participants_by_id.get(speaker) {
+                    Some(AwardRecipientInfo::Speaker {
+                        uuid: speaker.uuid,
+                        name: get_participant_model_public_name(speaker),
+                        team_name: team.map(|t| teams_by_id.get(&t).map(|team| team.name.clone())).flatten().unwrap_or("<Unknown Team>".into()),
+                    })
+                }
+                else {
+                    None
+                }
+            }).collect::<Vec<_>>();
+
+            TournamentAwardInfo {
+                uuid: break_.uuid,
+                name: break_.break_award_title.unwrap_or("<Unknown Award>".into()),
+                recipients: team_recipients.into_iter().chain(adjudicator_recipients.into_iter()).chain(speaker_recipients.into_iter()).collect(),
+            }
+        }
+    ).collect::<Vec<_>>();
+
+
+    Ok(Json(
+        TournamentAwardsInfo {
+            awards,
+        }
+    ))
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/tournaments", post(create_tournament_handler))
@@ -681,4 +885,5 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/tournament/:tournament_id/public", get(get_public_tournament_info_handler))
         .route("/tournament/:tournament_id/institutions", get(get_tournament_institutions))
         .route("/tournament/:tournament_id/admin", get(get_admin_view))
+        .route("/tournament/:tournament_id/awards", get(get_awards))
 }

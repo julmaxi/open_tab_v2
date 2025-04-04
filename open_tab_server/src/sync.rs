@@ -7,7 +7,7 @@ use chrono::Utc;
 use axum::http::StatusCode;
 use itertools::Itertools;
 use open_tab_entities::{get_changed_entities_from_log, Entity, EntityGroup, EntityState, EntityTypeId, EntityTypeIdTrait, NewEntityState};
-use sea_orm::{prelude::*, DatabaseConnection, QueryOrder, TransactionTrait, IntoActiveModel, QuerySelect};
+use sea_orm::{prelude::*, AccessMode, DatabaseConnection, IntoActiveModel, IsolationLevel, QueryOrder, QuerySelect, TransactionTrait};
 use serde::{Deserialize, Serialize};
 
 use tokio::sync::RwLock;
@@ -414,10 +414,14 @@ async fn handle_sync_push_request(
         return Err(APIError::new_with_status(StatusCode::FORBIDDEN, "User is not authorized for tournament administration"));
     }
 
-    let transaction = db.begin().await.map_err(|_| {
+    let transaction: sea_orm::DatabaseTransaction = db.begin_with_config(
+        Some(IsolationLevel::Serializable),
+        Some(AccessMode::ReadWrite)
+    ).await.map_err(|_| {
         tracing::error!("Failed to start transaction");
         APIError::new("Failed to start transaction".into())
     })?;
+
  
     let outcome = reconcile_changes(
         &transaction,

@@ -23,7 +23,7 @@ impl ActionTrait for SetAdjudicatorBreakAction {
 
         match &node.config {
             open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config: _, rounds: _ } => anyhow::bail!("Cannot set adjudicator break on round"),
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id } => {
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id, .. } => {
                 if let Some(break_id) = break_id {
                     let mut break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, *break_id).await?;
                     break_.breaking_adjudicators = self.breaking_adjudicators;

@@ -102,7 +102,7 @@ impl AdjudicatorBreakCandidatesView {
         };
 
         let (breaking_teams, breaking_speakers) = match &target_node.config {
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id: Some(break_id) } => {
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id: Some(break_id), .. } => {
                 let break_ = open_tab_entities::domain::tournament_break::TournamentBreak::get(db, *break_id).await?;
 
                 let breaking_teams = break_.breaking_teams;

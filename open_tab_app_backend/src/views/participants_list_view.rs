@@ -42,16 +42,28 @@ impl LoadedParticipantsListView {
 #[async_trait]
 impl LoadedView for LoadedParticipantsListView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
+        let mut out: HashMap<String, Json> = HashMap::new();
         if changes.has_changes_for_types(vec![EntityTypeId::Participant, EntityTypeId::Team, EntityTypeId::ClashDeclaration]) {
             self.view = ParticipantsListView::load_from_tournament(db, self.tournament_id).await?;
 
-            let mut out: HashMap<String, Json> = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);
+        }
 
-            Ok(Some(out))
+        if changes.has_changes_for_types(vec![EntityTypeId::TournamentInstitution]) {
+            let institutions = domain::tournament_institution::TournamentInstitution::get_all_in_tournament(db, self.tournament_id).await?;
+            let institution_map = institutions.into_iter().map(|i| (i.uuid, i)).collect::<HashMap<_, _>>();
+            out.insert("institutions".to_string(), serde_json::to_value(&institution_map)?);
+        }
+
+        if changes.has_changes_for_types(vec![EntityTypeId::TournamentBreakCategory]) {
+            let break_categories = domain::tournament_break_category::TournamentBreakCategory::get_all_in_tournament(db, self.tournament_id).await?;
+        }
+
+        if out.len() == 0 {
+            return Ok(None);
         }
         else {
-            Ok(None)
+            Ok(Some(out))
         }
     }
 
@@ -64,6 +76,8 @@ impl LoadedView for LoadedParticipantsListView {
 pub struct ParticipantsListView {
     pub adjudicators: HashMap<Uuid, ParticipantEntry>,
     pub teams: HashMap<Uuid, TeamEntry>,
+    pub institutions: HashMap<Uuid, Institution>,
+    pub break_categories: HashMap<Uuid, BreakCategory>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,9 +96,10 @@ pub struct ParticipantEntry {
     #[serde(flatten)]
     pub role: ParticipantRole,
     pub clashes: Vec<Clash>,
-    pub institutions: Vec<Institution>,
+    pub institutions: Vec<ParticipantInstitution>,
     pub registration_key: Option<String>,
     pub is_anonymous: bool,
+    pub break_category_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,10 +119,21 @@ pub enum ClashDirection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParticipantInstitution {
+    pub uuid: Uuid,
+    pub clash_severity: i16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Institution {
     pub uuid: Uuid,
     pub name: String,
-    pub clash_severity: i16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BreakCategory {
+    pub uuid: Uuid,
+    pub name: String,
 }
 
 // This is used so we can use the structs in the modification action.
@@ -149,6 +175,7 @@ impl ParticipantsListView {
             name: "".into(),
             registration_key: None,
             is_anonymous: p.is_anonymous,
+            break_category_id: None,
         }).collect_vec().load_many(schema::participant_tournament_institution::Entity, db).await?;
 
         let all_clashes = schema::participant_clash::Entity::find()
@@ -192,9 +219,8 @@ impl ParticipantsListView {
             }))
             .collect_vec();
             let institutions = institutions.into_iter().map(
-                |i| Institution {
+                |i| ParticipantInstitution {
                     uuid: i.institution_id,
-                    name: institution_names.get(&i.institution_id).unwrap_or(&"Unknown Institution".to_string()).clone(),
                     clash_severity: i.clash_severity
                 }
             ).collect_vec();
@@ -215,6 +241,7 @@ impl ParticipantsListView {
                         Participant::encode_registration_key(p.uuid, &k)
                     }),
                     is_anonymous: p.is_anonymous,
+                    break_category_id: p.break_category_id,
                 }),
                 domain::participant::ParticipantRole::Speaker(
                     Speaker { team_id }
@@ -228,6 +255,7 @@ impl ParticipantsListView {
                             clashes,
                             registration_key: p.registration_key.map(|k| Participant::encode_registration_key(p.uuid, &k)),
                             is_anonymous: p.is_anonymous,
+                            break_category_id: p.break_category_id,
                         })    
                     }
                     else {
@@ -264,7 +292,9 @@ impl ParticipantsListView {
         Ok(
             ParticipantsListView {
                 adjudicators: adjudicators.into_iter().map(|a| (a.uuid, a)).collect(),
-                teams: teams.into_iter().map(|t| (t.uuid, t)).collect()
+                teams: teams.into_iter().map(|t| (t.uuid, t)).collect(),
+                institutions: institution_names.into_iter().map(|(i, n)| (i, Institution { uuid: i, name: n })).collect(),
+                break_categories: domain::tournament_break_category::TournamentBreakCategory::get_all_in_tournament(db, tournament_uuid).await?.into_iter().map(|b| (b.uuid, BreakCategory { uuid: b.uuid, name: b.name })).collect(),
             }
         )
     }

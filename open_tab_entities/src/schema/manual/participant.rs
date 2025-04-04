@@ -11,6 +11,7 @@ pub struct Model {
     pub name: String,
     pub registration_key: Option<Vec<u8>>,
     pub is_anonymous: bool,
+    pub break_category_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -29,7 +30,16 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tournament,
-}
+    #[
+        sea_orm(
+            belongs_to = "super::tournament_break_category::Entity",
+            from = "Column::BreakCategoryId",
+            to = "super::tournament_break_category::Column::Uuid",
+            on_update = "Cascade",
+            on_delete = "SetNull"
+        )]
+    BreakCategory,
+ }
 
 impl Related<super::adjudicator::Entity> for Entity {
     fn to() -> RelationDef {

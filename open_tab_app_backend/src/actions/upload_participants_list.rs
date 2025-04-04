@@ -161,6 +161,7 @@ impl UploadParticipantsListAction {
                 tournament_id: self.tournament_id,
                 registration_key: Some(registration_key.to_vec()),
                 is_anonymous: participant.is_anonymous.unwrap_or(false),
+                break_category_id: None,
             };
 
             out_entities.push(Entity::Participant(out_participant_entity));

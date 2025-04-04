@@ -41,7 +41,7 @@ async fn get_draw_handler(
     
     let mut is_authorized = false;
     if let Some(user) = user {
-        is_authorized = user.check_is_authorized_in_tournament(&db, tournament.uuid).await?;
+        is_authorized = user.check_is_authorized_in_tournament(&db, tournament.uuid).await.unwrap_or(false);
     }
 
     if !is_authorized {
@@ -68,7 +68,7 @@ async fn get_draw_handler(
     let presentation_info = DrawPresentationInfo::load_for_round(&db, round_id)
         .await
         ?;
-    
+
     Ok(Json(
         RoundDrawInfo {
             round_name: format!("Round {}", round.index),

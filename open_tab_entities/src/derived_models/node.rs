@@ -46,7 +46,7 @@ impl BreakNodeBackgroundInfo {
         loop {
             let node = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
             match &node.config {
-                PlanNodeType::Break { config: _, break_id } if node.uuid != node_id => {
+                PlanNodeType::Break { config: _, break_id, .. } if node.uuid != node_id => {
                     if relevant_break_id.is_none() {
                         relevant_break_id = Some(break_id.clone());
                     }

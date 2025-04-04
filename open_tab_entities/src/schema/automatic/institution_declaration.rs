@@ -20,16 +20,16 @@ pub enum Relation {
         belongs_to = "super::participant::Entity",
         from = "Column::SourceParticipantId",
         to = "super::participant::Column::Uuid",
-        on_update = "NoAction",
-        on_delete = "NoAction"
+        on_update = "Cascade",
+        on_delete = "Cascade"
     )]
     Participant,
     #[sea_orm(
         belongs_to = "super::tournament_institution::Entity",
         from = "Column::TournamentInstitutionId",
         to = "super::tournament_institution::Column::Uuid",
-        on_update = "NoAction",
-        on_delete = "NoAction"
+        on_update = "Cascade",
+        on_delete = "Cascade"
     )]
     TournamentInstitution,
 }

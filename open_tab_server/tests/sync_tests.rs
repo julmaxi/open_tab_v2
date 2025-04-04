@@ -21,21 +21,18 @@ async fn test_add_participant() {
     let default_tournament_uuid = Uuid::from_u128(1);
 
     let participant_uuid = Uuid::from_u128(100_000);
-    let participant = Participant {
-        uuid: participant_uuid,
-        name: "Peter G.".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
+    let participant = Participant::new_with_uuid(
+        participant_uuid,
+        "Peter G.".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
             open_tab_entities::domain::participant::Adjudicator {
                 chair_skill: 1,
                 panel_skill: 2,
                 unavailable_rounds: vec![],
             }
         ),
-        tournament_id: default_tournament_uuid,
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
+        default_tournament_uuid,
+    );
     
     let fake_version = Uuid::from_u128(200_000);
 
@@ -118,22 +115,19 @@ async fn test_can_add_participant_to_empty_tournament() {
         Box::new(create_second_tournament)
     ).await;
     let participant_uuid = Uuid::from_u128(100_000);
-    let participant = Participant {
-        uuid: participant_uuid,
-        name: "Peter G.".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
+    let participant = Participant::new_with_uuid(
+        participant_uuid,
+        "Peter G.".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
             open_tab_entities::domain::participant::Adjudicator {
                 chair_skill: 1,
                 panel_skill: 2,
                 unavailable_rounds: vec![],
             }
         ),
-        tournament_id: tournament_2_uuid,
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
-    
+        tournament_2_uuid,
+    );
+
     let fake_version = Uuid::from_u128(200_000);
     let log = FatLog { log: vec![
         LogEntry {
@@ -187,22 +181,19 @@ async fn test_can_not_add_participant_to_other_tournament() {
         Box::new(create_second_tournament)
     ).await;
     let participant_uuid = Uuid::from_u128(100_000);
-    let participant = Participant {
-        uuid: participant_uuid,
-        name: "Peter G.".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
+    let participant = Participant::new_with_uuid(
+        participant_uuid,
+        "Peter G.".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(
             open_tab_entities::domain::participant::Adjudicator {
                 chair_skill: 1,
                 panel_skill: 2,
                 unavailable_rounds: vec![],
             }
         ),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
-    
+        Uuid::from_u128(1),
+    );
+
     let fake_version = Uuid::from_u128(200_000);
     let log = FatLog { log: vec![
         LogEntry {

@@ -10,6 +10,10 @@ pub struct Model {
     pub config: String,
     pub tournament_id: Uuid,
     pub break_id: Option<Uuid>,
+    pub suggested_award_title: Option<String>,
+    pub max_breaking_adjudicator_count: Option<i32>,
+    pub is_only_award: bool,
+    pub suggested_award_prestige: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -30,6 +34,8 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     TournamentBreak,
+    #[sea_orm(has_many = "super::tournament_break_eligible_category::Entity")]
+    TournamentBreakEligibleCategory,
     #[sea_orm(has_many = "super::tournament_plan_node_round::Entity")]
     TournamentPlanNodeRound,
 }
@@ -46,9 +52,28 @@ impl Related<super::tournament_break::Entity> for Entity {
     }
 }
 
+impl Related<super::tournament_break_eligible_category::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TournamentBreakEligibleCategory.def()
+    }
+}
+
 impl Related<super::tournament_plan_node_round::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TournamentPlanNodeRound.def()
+    }
+}
+
+impl Related<super::tournament_break_category::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::tournament_break_eligible_category::Relation::TournamentBreakCategory.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::tournament_break_eligible_category::Relation::TournamentPlanNode
+                .def()
+                .rev(),
+        )
     }
 }
 

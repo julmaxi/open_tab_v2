@@ -8,6 +8,8 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
     pub tournament_id: Uuid,
+    pub break_award_title: Option<String>,
+    pub break_award_prestige: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

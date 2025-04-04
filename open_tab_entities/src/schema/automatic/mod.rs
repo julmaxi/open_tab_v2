@@ -22,6 +22,8 @@ pub mod team;
 pub mod tournament;
 pub mod tournament_break;
 pub mod tournament_break_adjudicator;
+pub mod tournament_break_category;
+pub mod tournament_break_eligible_category;
 pub mod tournament_break_speaker;
 pub mod tournament_break_team;
 pub mod tournament_debate;

@@ -2,31 +2,32 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { createContext, useContext } from 'react';
 
 
-export const ErrorHandlingContext = createContext({handleError: (error) => {}});
+export const ErrorHandlingContext = createContext({ handleError: (error) => { } });
 
 
 /**
  * 
- * @param {*} type 
+ * @param {string} type 
  * @param {*} params 
- * @param {*} handleError 
+ * @param {Function} handleError
  * @returns 
  */
 export async function executeAction(type, params, handleError = null) {
-  let result = await invoke("execute_action", {
-    action: {
-      type: type,
-      action: params
-    }
-  });
+    let result = await invoke("execute_action", {
+        action: {
+            type: type,
+            action: params
+        }
+    });
 
-  if (result.success == true) {
-    return true;
-  }
-  else {
-    if (handleError !== null) {
-      handleError(result.error);
+    if (result.success == true) {
+        return true;
     }
-    return false;
-  }
+    else {
+        console.error("Error when executing action", type, result.error);
+        if (handleError !== null) {
+            handleError(result.error);
+        }
+        return false;
+    }
 }

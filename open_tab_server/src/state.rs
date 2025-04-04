@@ -74,7 +74,7 @@ impl AppState {
         AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
-            cache_manager: Arc::new((cache::CacheManager::new((2 as usize).pow(20)))),
+            cache_manager: Arc::new(cache::CacheManager::new((2 as usize).pow(20))),
         }
     }
 }

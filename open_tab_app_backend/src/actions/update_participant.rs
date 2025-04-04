@@ -87,6 +87,7 @@ impl ActionTrait for UpdateParticipantsAction {
                     }).collect(),
                     registration_key: Some(registration_key.to_vec()),
                     is_anonymous: participant.is_anonymous,
+                    break_category_id: participant.break_category_id,
                 }
             ));
         }
@@ -185,6 +186,7 @@ impl ActionTrait for UpdateParticipantsAction {
                     }).collect(),
                     registration_key: participant.registration_key.map(|r| general_purpose::URL_SAFE_NO_PAD.decode(r).map(|r| r[16..48].to_vec())).transpose()?,
                     is_anonymous: participant.is_anonymous,
+                    break_category_id: participant.break_category_id,
                 }
             ));
         }

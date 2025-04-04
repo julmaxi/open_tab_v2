@@ -73,7 +73,12 @@ async fn test_save_empty_break_node() {
             tournament_id: Uuid::from_u128(1),
             config: PlanNodeType::Break{
                 config: BreakConfig::Manual,
-                break_id: None
+                break_id: None,
+                eligible_categories: vec![],
+                suggested_award_title: None,
+                max_breaking_adjudicator_count: None,
+                is_only_award: false,
+                suggested_break_award_prestige: None
             }
         },
         true

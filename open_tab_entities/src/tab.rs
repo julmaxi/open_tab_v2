@@ -1,12 +1,10 @@
-
-
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::{zip, self};
 use std::collections::{HashMap, HashSet};
 
 
-use crate::derived_models::{BreakNodeBackgroundInfo, get_participant_public_name};
+use crate::derived_models::{get_participant_public_name, name_to_initials, BreakNodeBackgroundInfo};
 use crate::domain::entity::LoadEntity;
 use crate::domain::tournament_plan_node::PlanNodeType;
 use crate::info::TournamentParticipantsInfo;
@@ -72,7 +70,8 @@ pub struct SpeakerTabEntry {
     pub speaker_uuid: Uuid,
     pub total_score: f64,
     pub avg_score: Option<f64>,
-    pub detailed_scores: Vec<Option<SpeakerTabEntryDetailedScore>>
+    pub detailed_scores: Vec<Option<SpeakerTabEntryDetailedScore>>,
+    pub is_anonymous: bool, // New field
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,11 +145,15 @@ impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
 }
 
 impl TabView {
-    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
-        Self::load_from_rounds_with_anonymity(db, round_ids, speaker_info, false).await
+    pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+        let mut tab = Self::load_from_rounds(db, round_ids, speaker_info).await?;
+        if respect_anonymity {
+            tab.anonymize();
+        }
+        Ok(tab)
     }
 
-    pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+    pub async fn load_from_rounds<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let num_round_ids = round_ids.len();
         let rounds_with_debates = schema::tournament_round::Entity::find()
         .find_with_related(schema::tournament_debate::Entity)
@@ -275,9 +278,12 @@ impl TabView {
 
         let mut speaker_tab = speaker_detailed_scores.into_iter().map(
             |(speaker_id, per_round_score)| {
+                let (speaker_name, is_anonymous) = speaker_info.participants_by_id.get(&speaker_id).map(
+                    |p| (p.name.clone(), p.is_anonymous)
+                ).unwrap_or(("<Unknown Speaker>".to_string(), false));
                 SpeakerTabEntry {
                     rank: 0,
-                    speaker_name: speaker_info.participants_by_id.get(&speaker_id).map(|p| if respect_anonymity {get_participant_public_name(p)} else {p.name.clone()}).unwrap_or("<Unknown Speaker>".to_string()),
+                    speaker_name,
                     team_name: speaker_info.speaker_teams.get(&speaker_id).and_then(|t| speaker_info.teams_by_id.get(t)).map(|t| t.name.clone()).unwrap_or("<Unknown Team>".to_string()),
                     speaker_uuid: speaker_id,
                     total_score: per_round_score.values().map(|s| s.score).sum(),
@@ -288,6 +294,7 @@ impl TabView {
                         None
                     },
                     detailed_scores: round_order.iter().map(|r| per_round_score.get(&r).cloned()).collect_vec(),
+                    is_anonymous,
                 }
             }
         ).sorted_by_key(|s| -OrderedFloat(s.total_score)).collect_vec();
@@ -370,7 +377,12 @@ impl TabView {
 
     pub async fn load_from_tournament_with_rounds_with_anonymity<C>(db: &C, tournament_uuid: Uuid, round_ids: Vec<Uuid>, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
         let speaker_info = super::info::TournamentParticipantsInfo::load(db, tournament_uuid).await?;
-        Self::load_from_rounds_with_anonymity(db, round_ids, &speaker_info, respect_anonymity).await
+        let mut tab = Self::load_from_rounds(db, round_ids, &speaker_info).await?;
+
+        if respect_anonymity {
+            tab.anonymize();
+        }
+        Ok(tab)
     }
 
     fn detail_score_for_debate_side(ballot: &Ballot, team_role: &TeamRoundRole) -> (Option<f64>, Vec<f64>) {
@@ -400,6 +412,20 @@ impl TabView {
                 );
             }
         }
+    }
+
+    pub fn anonymize(&mut self) {
+        for speaker in &mut self.speaker_tab {
+            if speaker.is_anonymous {
+                speaker.speaker_name = name_to_initials(&speaker.speaker_name);
+            }
+        }
+    }
+
+    pub fn anonymized(&self) -> Self {
+        let mut cloned = self.clone();
+        cloned.anonymize();
+        cloned
     }
 }
 

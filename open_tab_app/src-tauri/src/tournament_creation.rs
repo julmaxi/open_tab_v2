@@ -29,7 +29,15 @@ impl TournamentCreationConfig {
         let final_node_id = if self.num_preliminaries % 3 != 0 {
             let minor_break_node = TournamentPlanNode::new(
                 tournament_id,
-                PlanNodeType::Break { config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TwoThirdsBreak, break_id: None }
+                PlanNodeType::Break {
+                    config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TwoThirdsBreak,
+                    break_id: None,
+                    suggested_award_title: None,
+                    eligible_categories: vec![],
+                    max_breaking_adjudicator_count: None,
+                    is_only_award: false,
+                    suggested_break_award_prestige: None
+                }
             );
             let minor_break_node_uuid = minor_break_node.uuid;
     
@@ -68,7 +76,15 @@ impl TournamentCreationConfig {
     
                 let break_ = TournamentPlanNode::new(
                     tournament_id,
-                    PlanNodeType::Break { config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak, break_id: None }
+                    PlanNodeType::Break {
+                        config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak,
+                        break_id: None,
+                        eligible_categories: vec![],
+                        suggested_award_title: None,
+                        max_breaking_adjudicator_count: None,
+                        is_only_award: false,
+                        suggested_break_award_prestige: None
+                    }
                 );
     
                 let second_round = TournamentPlanNode::new(
@@ -121,18 +137,28 @@ impl TournamentCreationConfig {
             prelim_node_uuid
         };
     
-        let mut prev_id = final_node_id;
+        let mut prev_id: Uuid = final_node_id;
     
         for break_round_idx in 0..self.num_break_rounds {
             let num_debates = u32::pow(2, self.num_break_rounds - break_round_idx - 1);
     
             let break_node = TournamentPlanNode::new(
                 tournament_id,
-                PlanNodeType::Break { config: if break_round_idx == 0 {
-                    open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates: num_debates }
-                } else {
-                    open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak
-                }, break_id: None }
+                PlanNodeType::Break {
+                    config: if break_round_idx == 0 {
+                        open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_teams: num_debates * 2, num_non_aligned: num_debates * 3 }
+                    } else {
+                        open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak
+                    }, break_id: None, suggested_award_title: if break_round_idx == 0 {
+                        Some("Open".to_string())
+                    } else {
+                        None
+                    },
+                    eligible_categories: vec![],
+                    max_breaking_adjudicator_count: None,
+                    is_only_award: false,
+                    suggested_break_award_prestige: Some(0)
+                }
             );
             let break_node_id = break_node.uuid;
     
@@ -158,6 +184,24 @@ impl TournamentCreationConfig {
             all_nodes.push(break_node);
             all_nodes.push(node);
         }
+
+        let award_node = TournamentPlanNode::new(
+            tournament_id,
+            PlanNodeType::Break {
+                config: open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak,
+                break_id: None,
+                eligible_categories: vec![],
+                suggested_award_title: Some("Best Team".to_string()),
+                suggested_break_award_prestige: Some(100),
+                max_breaking_adjudicator_count: None,
+                is_only_award: true
+            }
+        );
+
+        all_edges.push(
+            TournamentPlanEdge::new(prev_id, award_node.uuid)
+        );
+        all_nodes.push(award_node);
 
         (all_nodes, all_edges)    
     }

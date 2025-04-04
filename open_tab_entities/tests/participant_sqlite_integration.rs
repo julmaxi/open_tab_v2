@@ -1,5 +1,3 @@
-
-
 use migration::MigratorTrait;
 use sea_orm::{Database, Statement, ActiveValue, TransactionTrait};
 use open_tab_entities::domain::{participant::{Participant, Speaker, Adjudicator, ParticipantRole, ParticipantInstitution}, BoundTournamentEntityTrait, entity::LoadEntity};
@@ -161,80 +159,77 @@ async fn test_participant_roundtrip(participant: Participant, as_insert: bool) -
 
 #[tokio::test]
 async fn test_speaker_roundtrip() -> Result<(), anyhow::Error> {
-    test_participant_roundtrip(Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Speaker(Speaker {
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Speaker(Speaker {
             team_id: Some(Uuid::from_u128(200))
         }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![
-            ParticipantInstitution {
-                uuid: Uuid::from_u128(500),
-                clash_severity: 20
-            }
-        ],
-        registration_key: None,
-        is_anonymous: false
-    }, true).await?;
+        Uuid::from_u128(1),
+    );
+    participant.institutions = vec![
+        ParticipantInstitution {
+            uuid: Uuid::from_u128(500),
+            clash_severity: 20,
+        }
+    ];
+    participant.is_anonymous = false;
+
+    test_participant_roundtrip(participant, true).await?;
 
     Ok(())
 }
 
 #[tokio::test]
 async fn test_adjudicator_roundtrip() -> Result<(), anyhow::Error> {
-    test_participant_roundtrip(Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
             chair_skill: 10,
             panel_skill: 20,
             ..Default::default()
         }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    }, true).await?;
+        Uuid::from_u128(1),
+    );
+    participant.is_anonymous = false;
 
-    Ok(())
-}
-
-
-#[tokio::test]
-async fn test_save_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
-    let participant = Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
-            unavailable_rounds: vec![Uuid::from_u128(10)],
-            ..Default::default()
-        }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
     test_participant_roundtrip(participant, true).await?;
 
     Ok(())
 }
 
-
 #[tokio::test]
-async fn test_remove_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
-    let mut participant = Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+async fn test_save_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
             unavailable_rounds: vec![Uuid::from_u128(10)],
             ..Default::default()
         }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
+        Uuid::from_u128(1),
+    );
+    participant.is_anonymous = false;
+
+    test_participant_roundtrip(participant, true).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_remove_adjudicator_round_availability_override() -> Result<(), anyhow::Error> {
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        open_tab_entities::domain::participant::ParticipantRole::Adjudicator(Adjudicator {
+            unavailable_rounds: vec![Uuid::from_u128(10)],
+            ..Default::default()
+        }),
+        Uuid::from_u128(1),
+    );
+    participant.is_anonymous = false;
+
     let db = set_up_db(true).await?;
     let t = db.begin().await?;
     participant.save(&t, true).await?;
@@ -246,37 +241,33 @@ async fn test_remove_adjudicator_round_availability_override() -> Result<(), any
         },
         _ => panic!("Not an adjudicator")
     }
-    participant.save(&db, false).await?;    
+    participant.save(&db, false).await?;
 
     let participant = Participant::get(&db, Uuid::from_u128(440)).await?;
     match participant.role {
         ParticipantRole::Adjudicator(a) => {
-            assert_eq!(a.unavailable_rounds, vec![]);
+            assert_eq!(a.unavailable_rounds.len(), 0);
         },
         _ => panic!("Not an adjudicator")
     }
     Ok(())
 }
 
-
 #[tokio::test]
 async fn test_make_speaker_into_adjudicator() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
-    let mut participant = Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: ParticipantRole::Speaker(Speaker {
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        ParticipantRole::Speaker(Speaker {
             team_id: Some(Uuid::from_u128(200))
         }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
+        Uuid::from_u128(1),
+    );
 
     participant.save(&db, true).await?;
 
-    participant.role = ParticipantRole::Adjudicator(Adjudicator {..Default::default() });
+    participant.role = ParticipantRole::Adjudicator(Adjudicator { ..Default::default() });
 
     test_participant_roundtrip_in_db(&db, participant, false).await?;
 
@@ -286,15 +277,12 @@ async fn test_make_speaker_into_adjudicator() -> Result<(), anyhow::Error> {
 #[tokio::test]
 async fn test_make_adjudicator_into_speaker() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
-    let mut participant = Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
+        Uuid::from_u128(1),
+    );
 
     participant.save(&db, true).await?;
 
@@ -310,15 +298,12 @@ async fn test_make_adjudicator_into_speaker() -> Result<(), anyhow::Error> {
 #[tokio::test]
 async fn test_change_participant_name() -> Result<(), anyhow::Error> {
     let db = set_up_db(true).await?;
-    let mut participant = Participant {
-        uuid: Uuid::from_u128(440),
-        name: "Test".into(),
-        role: ParticipantRole::Adjudicator(Adjudicator {..Default::default() }),
-        tournament_id: Uuid::from_u128(1),
-        institutions: vec![],
-        registration_key: None,
-        is_anonymous: false
-    };
+    let mut participant = Participant::new_with_uuid(
+        Uuid::from_u128(440),
+        "Test".into(),
+        ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
+        Uuid::from_u128(1),
+    );
 
     participant.save(&db, true).await?;
 

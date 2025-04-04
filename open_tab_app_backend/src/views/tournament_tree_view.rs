@@ -142,12 +142,7 @@ pub fn get_special_name_from_preceding_breaks(breaks: &Vec<&BreakConfig>) -> Opt
     let most_recent = most_recent.unwrap();
 
     match most_recent {
-        BreakConfig::TabBreak { num_debates } => if is_pow2(*num_debates as i32) && *num_debates > 0 {
-            Some(num_teams_to_round_name((num_debates * 2) as i32))
-        }
-        else {
-            None
-        },
+        BreakConfig::TabBreak { num_non_aligned, num_teams } => Some(num_teams_to_round_name(*num_teams as i32)),
         BreakConfig::KnockoutBreak => {
             let remaining_teams = get_num_remaining_teams_from_breaks(breaks);
             if let Some(remaining_teams) = remaining_teams {
@@ -172,8 +167,9 @@ fn get_num_remaining_teams_from_breaks(breaks: &Vec<&BreakConfig>) -> Option<i32
     for break_ in breaks {
         num_remaining = match break_ {
             BreakConfig::Manual => None,
-            BreakConfig::TabBreak { num_debates } => Some((num_debates * 2) as i32),
-            BreakConfig::KnockoutBreak => if let Some(remaining) = num_remaining {
+            BreakConfig::TabBreak { num_teams, num_non_aligned } => Some(*num_teams as i32),
+            BreakConfig::BestSpeakerOnlyBreak => Some(0),
+            BreakConfig::KnockoutBreak | BreakConfig::TeamOnlyKnockoutBreak => if let Some(remaining) = num_remaining {
                 if remaining % 2 == 0 {
                     Some(remaining / 2)
                 }
@@ -276,7 +272,7 @@ pub fn get_round_names(nodes: &Vec<TournamentPlanNode>, node_children: &HashMap<
                     explore_queue.push((*child, prev_breaks.clone()));
                 }
             },
-            domain::tournament_plan_node::PlanNodeType::Break { config, break_id: _ } => {
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id: _, .. } => {
                 let children = node_children.get(&next_node_id).unwrap_or(&empty_vec);
                 for child in children {
                     let mut breaks = prev_breaks.clone();
@@ -423,8 +419,22 @@ impl TournamentTreeView {
                     config: config.clone()
                 }),  Self::get_standard_node_actions(node_uuid))
             },
-            domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
-                let break_description = config.human_readable_description();
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id, is_only_award, .. } => {
+                let break_description = if *is_only_award {
+                    match config {
+                        BreakConfig::KnockoutBreak => "Winner's Award".to_string(),
+                        BreakConfig::TabBreak { num_teams, .. } if *num_teams > 0 => {
+                            format!("Best Teams Award ({})", *num_teams)
+                        },
+                        BreakConfig::TabBreak { num_teams: _, num_non_aligned } if *num_non_aligned > 0 => {
+                            format!("Best Speakers Award ({})", *num_non_aligned)
+                        },
+                        _ => "Unknown Award".to_string()
+                    }
+                }
+                else {
+                    config.human_readable_description()
+                };
 
                 (TournamentTreeNodeContent::Break(BreakInfo {
                     uuid: *break_id,
@@ -517,6 +527,14 @@ impl TournamentTreeView {
             AvailableAction {
                 description: "Add Reitze Break".to_string(),
                 action: EditTreeActionType::AddTimBreakRounds { parent: round_uuid }
+            },
+            AvailableAction {
+                description: "Add Award".to_string(),
+                action: EditTreeActionType::AddAward { parent: round_uuid, is_speaker_tab_award: false }
+            },
+            AvailableAction {
+                description: "Add Award (Speaker Tab)".to_string(),
+                action: EditTreeActionType::AddAward { parent: round_uuid, is_speaker_tab_award: true }
             },
         ]
     }

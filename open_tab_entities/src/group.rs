@@ -5,7 +5,7 @@ use open_tab_macros::EntityCollection;
 use serde::{Serialize, Deserialize};
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, QueryOrder, QuerySelect};
 
-use crate::{domain::{ballot::Ballot, ballot_speech_timing::BallotSpeechTiming, debate::TournamentDebate, debate_backup_ballot::DebateBackupBallot, entity::{BatchBoundTournamentEntityTrait, LoadEntity}, feedback_form::FeedbackForm, feedback_question::FeedbackQuestion, feedback_response::FeedbackResponse, participant::Participant, participant_clash::ParticipantClash, round::TournamentRound, team::Team, tournament::Tournament, tournament_break::TournamentBreak, tournament_institution::TournamentInstitution, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::TournamentPlanNode, tournament_venue::TournamentVenue, institution_declaration::InstitutionDeclaration, clash_declaration::ClashDeclaration, BoundTournamentEntityTrait}, schema::tournament_log};
+use crate::{domain::{ballot::Ballot, ballot_speech_timing::BallotSpeechTiming, debate::TournamentDebate, debate_backup_ballot::DebateBackupBallot, entity::{BatchBoundTournamentEntityTrait, LoadEntity}, feedback_form::FeedbackForm, tournament_break_category::TournamentBreakCategory, feedback_question::FeedbackQuestion, feedback_response::FeedbackResponse, participant::Participant, participant_clash::ParticipantClash, round::TournamentRound, team::Team, tournament::Tournament, tournament_break::TournamentBreak, tournament_institution::TournamentInstitution, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::TournamentPlanNode, tournament_venue::TournamentVenue, institution_declaration::InstitutionDeclaration, clash_declaration::ClashDeclaration, BoundTournamentEntityTrait}, schema::tournament_log};
 
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -76,6 +76,7 @@ pub enum Entity {
     BallotSpeechTiming(BallotSpeechTiming),
     ClashDeclaration(ClashDeclaration),
     InstitutionDeclaration(InstitutionDeclaration),
+    TournamentBreakCategory(TournamentBreakCategory),
 }
 
 pub trait GroupedEntityMapTrait<T, E> where T: EntityTypeIdTrait, E: EntityGroupEntityTrait<T> {
@@ -325,7 +326,6 @@ impl<T, E, G, D> EntityChangeSet<T, E, G, D> where E: EntityGroupEntityTrait<T>,
                     is_deleted: ActiveValue::Set(false)
                 };
                 if seen_uuids.contains(&uuid) {
-                    dbg!(t);
                     continue;
                 }
                 seen_uuids.insert(uuid);

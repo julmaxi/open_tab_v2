@@ -9,7 +9,6 @@ pub struct Model {
     pub uuid: Uuid,
     pub tournament_id: Option<Uuid>,
     pub public_name: String,
-    #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]
     pub image_data: Option<Vec<u8>>,
     pub image_type: Option<String>,
     pub list_publicly: bool,

@@ -23,12 +23,11 @@ pub enum ScoreUpdate {
     NewBallot(DisplayBallot),
 }
 
-
-
 #[async_trait]
 impl ActionTrait for UpdateScoresAction {
     async fn get_changes<C>(self, db: &C) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
         let mut debate = open_tab_entities::domain::debate::TournamentDebate::get(db, self.debate_id).await?;
+        debate.is_complete = true;
         let round = open_tab_entities::domain::round::TournamentRound::get(db, debate.round_id).await?;
         let mut groups = EntityGroup::new(round.tournament_id);
         match self.update {

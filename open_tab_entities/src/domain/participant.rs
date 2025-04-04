@@ -21,6 +21,27 @@ pub struct Participant {
     pub institutions: Vec<ParticipantInstitution>,
     pub registration_key: Option<Vec<u8>>,
     pub is_anonymous: bool,
+    pub break_category_id: Option<Uuid>,
+}
+
+impl Participant {
+    pub fn new_with_uuid(
+        uuid: Uuid,
+        name: String,
+        role: ParticipantRole,
+        tournament_id: Uuid,
+    ) -> Self {
+        Self {
+            uuid,
+            name,
+            role,
+            tournament_id,
+            institutions: vec![],
+            registration_key: None,
+            is_anonymous: false,
+            break_category_id: None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -162,6 +183,7 @@ impl Participant {
             tournament_id: participant.tournament_id,
             institutions: institutions,
             is_anonymous: participant.is_anonymous,
+            break_category_id: participant.break_category_id
         })
     }
 }
@@ -251,6 +273,7 @@ impl<C> BoundTournamentEntityTrait<C> for Participant where C: sea_orm::Connecti
                 name: ActiveValue::Set(ent.name.clone()),
                 registration_key: ActiveValue::Set(ent.registration_key.clone()),
                 is_anonymous: ActiveValue::Set(ent.is_anonymous),
+                break_category_id: ActiveValue::Set(ent.break_category_id),
             };
 
             if let Some((_part_model, adj_model, speaker_model, institution_models)) = existing.get(&ent.uuid) {
@@ -439,6 +462,7 @@ fn test_get_speaker() -> Result<(), ParticipantParseError> {
             name: "Test".into(),
             registration_key: None,
             is_anonymous: false,
+            break_category_id: None,
         },
         Some(schema::speaker::Model {
             uuid: Uuid::from_u128(400),
@@ -470,6 +494,7 @@ fn test_get_adjudicator() -> Result<(), ParticipantParseError> {
             name: "Test".into(),
             registration_key: None,
             is_anonymous: false,
+            break_category_id: None,
         },
         None,
         Some(schema::adjudicator::Model { uuid: Uuid::from_u128(400), chair_skill: 0, panel_skill: 0 }),
@@ -501,6 +526,7 @@ mod test {
                 name: "Test".into(),
                 registration_key: None,
                 is_anonymous: false,
+                break_category_id: None,
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),
@@ -525,6 +551,7 @@ mod test {
                 name: "Test".into(),
                 registration_key: None,
                 is_anonymous: false,
+                break_category_id: None,
             },
             Some(schema::speaker::Model {
                 uuid: Uuid::from_u128(400),

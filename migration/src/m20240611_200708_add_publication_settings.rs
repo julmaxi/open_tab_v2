@@ -53,7 +53,7 @@ impl MigrationTrait for Migration {
                  )
                 .col(
                     ColumnDef::new(PublishedTournament::ImageData)
-                        .blob(BlobSize::Medium)
+                        .blob()
                 )
                 .col(
                     ColumnDef::new(PublishedTournament::ImageType)

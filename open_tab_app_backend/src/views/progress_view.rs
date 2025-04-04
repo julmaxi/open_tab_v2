@@ -148,7 +148,7 @@ impl ProgressView {
                             ));
                         }
                     },
-                    open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id } => {
+                    open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config: _, break_id, .. } => {
                         steps.push(Step::WaitForBreak { node_uuid: node.uuid, is_done: break_id.is_some() });
 
                         if break_id.is_some() {

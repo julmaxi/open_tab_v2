@@ -3,6 +3,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
 use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, tab::TeamRoundRole, EntityTypeId};
+use open_tab_entities::domain::tournament_plan_node::TournamentEligibleBreakCategory;
 
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
@@ -96,7 +97,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
     while let Some(curr_node_id) = curr_node_id_option {
         let node: &TournamentPlanNode = all_nodes.get(&curr_node_id).ok_or(NodeExecutionError::RoundIsNotInTournament { tournament_id })?;
         match &node.config {
-            PlanNodeType::Break { config: _, break_id } => {
+            PlanNodeType::Break { config: _, break_id, .. } => {
                 if relevant_break_id.is_none() {
                     relevant_break_id = Some(break_id.clone());
 
@@ -113,7 +114,7 @@ async fn generate_round_draw<C>(db: &C, tournament_id: Uuid, node_id: Uuid, conf
                         break;
                     }
                 }
-            }
+            },
         }
 
         let parent = parent_map.get(&curr_node_id);
@@ -406,7 +407,7 @@ pub enum MakeBreakError {
 }
 
 
-async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
+async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>, eligible_categories: &Vec<TournamentEligibleBreakCategory>, suggested_award_title: &Option<String>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let mut groups = EntityGroup::new(tournament_id);
 
     let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
@@ -437,13 +438,13 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
     let mut break_ = TournamentBreak::new(tournament_id);
 
     match config {
-        open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates } => {
-            let teams = team_ranking.into_iter().take((num_debates * 2) as usize).collect_vec();
-            if teams.len() < (num_debates * 2) as usize {
+        open_tab_entities::domain::tournament_plan_node::BreakConfig::TabBreak { num_teams, num_non_aligned } => {
+            let teams = team_ranking.into_iter().take((*num_teams) as usize).collect_vec();
+            if teams.len() < *num_teams as usize {
                 return Err(MakeBreakError::NotEnoughTeams.into());
             }
             let speakers = find_speakers_not_in_teams(&teams, &speaker_ranking, &speaker_info.team_members);
-            let speakers = speakers.into_iter().take((num_debates * 3) as usize).collect_vec();
+            let speakers = speakers.into_iter().take((*num_non_aligned) as usize).collect_vec();
 
             break_.breaking_teams = teams;
             break_.breaking_speakers = speakers;
@@ -459,7 +460,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             break_.breaking_teams = teams;
             break_.breaking_speakers = speakers;
         },
-        open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak => {
+        open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak | open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak | open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak => {
             let relevant_round = preceding_rounds.first().ok_or(MakeBreakError::KOBreakConditionNotMet)?;
 
             let mut break_team_ids = vec![];
@@ -512,7 +513,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             }
 
             let tab_breaking_speakers = tab.speaker_tab.iter()
-            .sorted_by_key(|e| -ordered_float::NotNan::new(e.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap())
+            .sorted_by_cached_key(|e| -ordered_float::NotNan::new(e.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap())
             .filter(
                 |e| {
                     !best_speaker_ids.contains(&e.speaker_uuid)
@@ -524,8 +525,12 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 return Err(MakeBreakError::NotEnoughTeams.into())
             }
 
-            break_.breaking_teams = break_team_ids;
-            break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).chain(best_speaker_ids.into_iter()).collect();
+            if *config != open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak {
+                break_.breaking_teams = break_team_ids;
+            }
+            if *config != open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak {
+                break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).collect();
+            }
         },
         open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak => {
             if team_ranking.len() < 3 || team_ranking.len() % 3 != 0 {
@@ -581,10 +586,26 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
     }
 
     let break_id = break_.uuid;
+    break_.break_award_title = suggested_award_title.clone();
 
     groups.add(Entity::TournamentBreak(break_));
     let mut original_node = all_nodes.get(&node_id).expect("Guaranteed by db constraints").clone();
-    original_node.config = PlanNodeType::Break { config: config.clone(), break_id: Some(break_id) };
+    match &mut original_node.config {
+        PlanNodeType::Round { .. } => {
+            original_node.config = PlanNodeType::Break {
+                config: BreakConfig::TabBreak { num_teams: 0, num_non_aligned: 0 },
+                break_id: Some(break_id),
+                eligible_categories: vec![],
+                suggested_award_title: None,
+                max_breaking_adjudicator_count: None,
+                is_only_award: false,
+                suggested_break_award_prestige: None
+            };
+        },
+        PlanNodeType::Break { break_id: break_id_ref, .. } => {
+            *break_id_ref = Some(break_id);
+        },
+    };
     groups.add(Entity::TournamentPlanNode(original_node));
 
     Ok(groups)
@@ -601,8 +622,8 @@ impl ActionTrait for ExecutePlanNodeAction {
             open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
                 generate_round_draw(db, self.tournament_id, node.uuid, config, rounds).await?
             },
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id } => {
-                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone()).await?
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id, eligible_categories, suggested_award_title, .. } => {
+                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone(), eligible_categories, suggested_award_title).await?
             },
         };
 

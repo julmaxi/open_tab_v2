@@ -54,19 +54,16 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             tournament_id: Uuid::from_u128(1),
         }
     ));
-    changeset.add(Entity::Participant(
-        Participant {
-            uuid: Uuid::from_u128(401),
-            name: "Judge 1".into(),
-            tournament_id: Uuid::from_u128(1),
-            role: ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
-            institutions: vec![
-                ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
-            ],
-            registration_key: None,
-            is_anonymous: false,
-        }
-    ));
+    let mut p = Participant::new_with_uuid(
+        Uuid::from_u128(401),
+        "Judge 1".into(),
+        ParticipantRole::Adjudicator(Adjudicator { ..Default::default() }),
+        Uuid::from_u128(1),
+    );
+    p.institutions = vec![
+        ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
+    ];
+    changeset.add(Entity::Participant(p));
     changeset.add(Entity::Team(
         open_tab_entities::domain::team::Team {
             uuid: Uuid::from_u128(200),
@@ -74,17 +71,16 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             tournament_id: Uuid::from_u128(1),
         }
     ));
-    changeset.add(Entity::Participant(
-        Participant {
-            uuid: Uuid::from_u128(402),
-            name: "Speaker 1".into(),
-            tournament_id: Uuid::from_u128(1),
-            role: ParticipantRole::Speaker(Speaker { team_id: Some(Uuid::from_u128(200)), ..Default::default() }),
-            institutions: vec![],
-            registration_key: None,
-            is_anonymous: false,
-        }
-    ));
+    let mut p = Participant::new_with_uuid(
+        Uuid::from_u128(402),
+        "Speaker 1".into(),
+        ParticipantRole::Speaker(Speaker { team_id: Some(Uuid::from_u128(200)), ..Default::default() }),
+        Uuid::from_u128(1),
+    );
+    p.institutions = vec![
+        ParticipantInstitution { uuid: Uuid::from_u128(500), clash_severity: 2 }
+    ];
+    changeset.add(Entity::Participant(p));
 
     changeset.add(
         Entity::ParticipantClash(

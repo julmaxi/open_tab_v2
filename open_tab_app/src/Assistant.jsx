@@ -458,11 +458,40 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                     Export QR Codes…
                 </Button>    
             }
-            <Button onClick={() => {
-                executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid }, errorContext.handleError);
-            }} role="primary">Generate Draw</Button>
+
+            <WaitingButton action={() => {
+                return executeAction("ExecutePlanNode", { plan_node: node_uuid, tournament_id: tournamentContext.uuid }, errorContext.handleError);
+            }
+            } role="primary">
+                Generate Draw
+            </WaitingButton>
         </div>
     </div>
+}
+
+function WaitingButton({ action, children }) {
+    let [isWaiting, setIsWaiting] = useState(false);
+    let errorContext = useContext(ErrorHandlingContext);
+
+    return <Button onClick={
+        () => {
+            setIsWaiting(true);
+            action().then(() => {
+                setIsWaiting(false);
+            }).catch((e) => {
+                setIsWaiting(false);
+                errorContext.handleError(e);
+            });
+        }
+    } role="primary" disabled={isWaiting}>
+        {children}
+        {
+            isWaiting ? <svg className="animate-spin h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8.009,8.009,0,0,1,12,20Z" />
+                <path fill="currentColor" d="M13.41406,7.58594l-2.82813-2.82813L7.75781,7.58594l2.82813,2.82813Z" />
+            </svg> : []
+        }
+    </Button>
 }
 
 function AssistantStepPane({ children, isActive = false }) {

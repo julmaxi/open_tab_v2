@@ -150,6 +150,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
                 institutions,
                 registration_key: Some(registration_key.to_vec()),
                 is_anonymous: false,
+                break_category_id: None,
             }
         }).collect_vec();
 
@@ -186,6 +187,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             institutions,
             registration_key: Some(registration_key.to_vec()),
             is_anonymous: false,
+            break_category_id: None,
         }
     }).collect_vec();
 
@@ -360,7 +362,15 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
     );
     let finals_break_plan_node = TournamentPlanNode::new(
         tournament_uuid,
-        PlanNodeType::Break { config: crate::domain::tournament_plan_node::BreakConfig::TabBreak { num_debates: 1 }, break_id: None }
+        PlanNodeType::Break {
+            config: crate::domain::tournament_plan_node::BreakConfig::TabBreak { num_teams: 2, num_non_aligned: 3 },
+            is_only_award: false,
+            break_id: None,
+            eligible_categories: vec![],
+            suggested_award_title: Some("Open".to_string()),
+            max_breaking_adjudicator_count: None,
+            suggested_break_award_prestige: Some(10)
+        }
     );
     let finals_round_node = TournamentPlanNode::new(
         tournament_uuid,

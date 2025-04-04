@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use axum::Router;
 use chrono::{NaiveDate, NaiveDateTime};
 use itertools::Itertools;
 use open_tab_entities::schema::{tournament, user};
-use sea_orm::{prelude::Uuid, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, RelationTrait, ColumnTrait};
+use sea_orm::{prelude::Uuid, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait};
+use tokio::sync::Mutex;
 
-use crate::state::AppState;
+use crate::{cache::{self, CacheManager}, state::AppState};
 
 struct UserStatistics {
     tournament_statistics: Vec<UserTournamentStatistic>,
@@ -41,6 +44,7 @@ enum UserTournamentRole {
 
 async fn retrieve_user_statistics(
     db: &DatabaseConnection,
+    cache: Arc<CacheManager>,
     user_id: Uuid,
     public_only: bool,
 ) -> anyhow::Result<UserStatistics> {
@@ -51,6 +55,7 @@ async fn retrieve_user_statistics(
             .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::participant::Relation::Tournament.def().rev())
             .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::user_participant::Relation::Participant.def().rev())
             .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user_id))
+            .order_by_desc(tournament::Column::LastModified)
             .all(db).await?.into_iter().map(
                 |model| {
                     (
@@ -61,6 +66,15 @@ async fn retrieve_user_statistics(
                 }
             ).collect_vec()
     };
+
+    for (tournament_id, tournament_name, tournament_date) in tournaments {
+        let tournament_tab = cache.get_tab(
+            tournament_id,
+            vec![],
+            false,
+            db
+        ).await?;
+    }
 
     todo!();
 }

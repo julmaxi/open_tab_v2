@@ -31,9 +31,9 @@ impl ActionTrait for SetManualBreakAction {
 
         let tournament_id = node.tournament_id;
 
-        let (prev_break_id, config) = match node.config {
-            PlanNodeType::Break { config, break_id } => {
-                (break_id, config)
+        let prev_break_id = match node.config {
+            PlanNodeType::Break { break_id, .. } => {
+                break_id
             },
             _ => return Err(anyhow::anyhow!("Node is not a manual break"))
         };
@@ -45,10 +45,12 @@ impl ActionTrait for SetManualBreakAction {
         break_.breaking_speakers = self.breaking_speakers;
         break_.breaking_teams = self.breaking_teams;
 
-        node.config = PlanNodeType::Break {
-            config,
-            break_id: Some(break_id)
-        };
+        match &mut node.config {
+            PlanNodeType::Break { break_id: break_id_ref, .. } => {
+                *break_id_ref = Some(break_id);
+            },
+            _ => return Err(anyhow::anyhow!("Node is not a manual break"))
+        }
 
         groups.add(Entity::TournamentPlanNode(node));
         groups.add(Entity::TournamentBreak(break_));

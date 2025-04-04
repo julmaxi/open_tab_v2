@@ -338,7 +338,7 @@ function DrawEditor(props) {
     const onDragOver = makeDragHandler(onDragOverFunc);
 
     let currentView = { type: "Draw", uuid: props.round_uuid };
-    let draw = useView(currentView, { "debates": [], "adjudicator_index": [] });
+    let draw = useView(currentView, { "debates": [], "adjudicator_index": [],  });
     let debates = draw.debates;
 
     let roundId = props.round_uuid;

@@ -9,7 +9,7 @@ import {
 import ParticipantRoute from "./Routes/Participants";
 
 import { RoundResultRoute } from "./Results";
-import { RoundsEditorRoute } from "./RoundsEditor";
+import { RoundsEditorRoute } from "./Routes/Rounds/RoundsEditor";
 import { RoundPublicationRoute } from "./RoundPublicationView";
 import { FeedbackOverviewRoute } from "./FeedbackView";
 import { TabViewRoute } from "./TabView";

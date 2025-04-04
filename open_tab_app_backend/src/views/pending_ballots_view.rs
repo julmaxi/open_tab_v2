@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 
-use sea_orm::{prelude::*, QueryOrder, QuerySelect};
+use sea_orm::{prelude::*, DbBackend, QueryOrder, QuerySelect, QueryTrait};
 use open_tab_entities::{prelude::*, EntityTypeId};
 
 use open_tab_entities::schema::{debate_backup_ballot, tournament, tournament_debate, tournament_round};
@@ -68,7 +68,7 @@ impl PendingBallotsView {
             .join(sea_orm::JoinType::InnerJoin, tournament_debate::Relation::TournamentRound.def())
             .filter(tournament_round::Column::TournamentId.eq(tournament_id))
             .filter(debate_backup_ballot::Column::WasSeen.eq(false))
-            .group_by(tournament_debate::Column::Uuid)
+            .group_by(tournament_round::Column::Uuid)
             .into_tuple::<(Uuid, i32)>()
             .all(db)
             .await?;

@@ -1,6 +1,9 @@
 
 
 
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use async_trait::async_trait;
 use itertools::{Itertools, izip};
 use sea_orm::{prelude::*, ActiveValue, QueryOrder};
@@ -86,20 +89,60 @@ impl RoundGroupConfig {
 #[serde(tag = "type")]
 pub enum BreakConfig {
     Manual,
-    TabBreak {num_debates: u32},
+    TabBreak { num_teams: u32, num_non_aligned: u32 },
     KnockoutBreak,
     TwoThirdsBreak,
     TimBreak,
+    TeamOnlyKnockoutBreak,
+    BestSpeakerOnlyBreak,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct TournamentEligibleBreakCategory {
+    pub category_id: Uuid,
+    pub config: EligibilityConfig,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct EligibilityConfig {
+    pub team_eligibility_mode: TeamEligibilityMode,
+    pub non_aligned_eligibility_mode: NonAlignedEligibilityMode,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub enum TeamEligibilityMode {
+    AnyEligible,
+    MajorityEligible,
+    AllEligible,    
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub enum NonAlignedEligibilityMode {
+    All,
+    AllInEligibleTeams,
+    AllEligibleInEligibleTeams,
 }
 
 impl BreakConfig {
     pub fn human_readable_description(&self) -> String {
         match self {
-            BreakConfig::TabBreak{num_debates } => format!("Top {0} break", num_debates * 2),
-            BreakConfig::TwoThirdsBreak => "Upper 2/3rds break".to_string(),
-            BreakConfig::KnockoutBreak => "Debate winners break".to_string(),
-            BreakConfig::TimBreak => "Upper 1/3rd breaks, along with non-aligned".to_string(),
-            BreakConfig::Manual => "Manual Break".to_string()
+            BreakConfig::TabBreak{num_teams, num_non_aligned } => {
+                if *num_teams == 0 {
+                    return format!("Top {0} Speakers", num_non_aligned)
+                }
+                else if num_teams % 2 == 0 && num_non_aligned % 3 == 0 && num_non_aligned / 3 == num_teams / 2 {
+                    return format!("Top {0} break", num_teams)
+                }
+                else {
+                    return format!("Top {0} teams, {1} non-aligned", num_teams, num_non_aligned)
+                }
+            },
+            BreakConfig::TwoThirdsBreak => "Upper 2/3rds".to_string(),
+            BreakConfig::KnockoutBreak => "Debate winners".to_string(),
+            BreakConfig::TimBreak => "Upper 1/3rd, along with non-aligned".to_string(),
+            BreakConfig::Manual => "Manual".to_string(),
+            BreakConfig::TeamOnlyKnockoutBreak => "Winning Team".to_string(),
+            BreakConfig::BestSpeakerOnlyBreak => "Best Speaker".to_string(),
         }
     }
 }
@@ -108,19 +151,35 @@ impl BreakConfig {
 #[serde(tag = "type")]
 pub enum PlanNodeConfig {
     RoundGroup{config: RoundGroupConfig},
-    Break{config: BreakConfig},
+    Break { config: BreakConfig },
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum PlanNodeType {
     Round{config: RoundGroupConfig, rounds: Vec<Uuid>},
-    Break{config: BreakConfig, break_id: Option<Uuid>}
+    Break{
+        config: BreakConfig,
+        break_id: Option<Uuid>,
+        eligible_categories: Vec<TournamentEligibleBreakCategory>,
+        suggested_award_title: Option<String>,
+        suggested_break_award_prestige: Option<i32>,
+        max_breaking_adjudicator_count: Option<i32>,
+        is_only_award: bool,
+    },
 }
 
 
 impl PlanNodeType {
     pub fn new_break(config: BreakConfig) -> Self {
-        PlanNodeType::Break{config, break_id: None}
+        PlanNodeType::Break{
+            config,
+            break_id: None,
+            eligible_categories: vec![],
+            suggested_award_title: None,
+            max_breaking_adjudicator_count: None,
+            is_only_award: false,
+            suggested_break_award_prestige: None,
+        }
     }
 }
 
@@ -168,6 +227,7 @@ impl TournamentPlanNode {
     pub fn from_rows(
         node_row: schema::tournament_plan_node::Model,
         rounds: Vec<schema::tournament_plan_node_round::Model>,
+        break_categories: Vec<schema::tournament_break_eligible_category::Model>,
     ) -> Result<Self, anyhow::Error> {
         let config = serde_json::from_str::<PlanNodeConfig>(&node_row.config)?;
         match config {
@@ -182,7 +242,21 @@ impl TournamentPlanNode {
                 Ok(Self {
                     uuid: node_row.uuid,
                     tournament_id: node_row.tournament_id,
-                    config: PlanNodeType::Break{config, break_id: node_row.break_id},
+                    config: PlanNodeType::Break {
+                        config,
+                        is_only_award: node_row.is_only_award,
+                        max_breaking_adjudicator_count: node_row.max_breaking_adjudicator_count,
+                        suggested_award_title: node_row.suggested_award_title,
+                        break_id: node_row.break_id,
+                        suggested_break_award_prestige: node_row.suggested_award_prestige,
+                        eligible_categories: break_categories.into_iter().map(|r| {
+                            Ok(TournamentEligibleBreakCategory {
+                                category_id: r.tournament_break_category_id,
+                                config: serde_json::from_value::<EligibilityConfig>(r.config)?,
+                            })
+                        },
+                    ).collect::<Result<Vec<_>, anyhow::Error>>()?
+                    }
                 })
             }
         }
@@ -196,11 +270,14 @@ impl TournamentPlanNode {
 
         let rounds = nodes.load_many(schema::tournament_plan_node_round::Entity, db).await?;
 
+        let break_categories = nodes.load_many(schema::tournament_break_eligible_category::Entity, db).await?;
+
         let r : Result<Vec<_>, _> = izip!(
             nodes,
             rounds,
-        ).into_iter().map(|(node, rounds)| {
-            Self::from_rows(node, rounds)
+            break_categories
+        ).into_iter().map(|(node, rounds, categories)| {
+            Self::from_rows(node, rounds, categories)
         }).collect();
         r
     }
@@ -216,12 +293,14 @@ impl LoadEntity for TournamentPlanNode {
         let nodes = nodes.into_iter().flatten().collect::<Vec<_>>();
 
         let rounds = nodes.load_many(schema::tournament_plan_node_round::Entity, db).await?;
+        let break_categories = nodes.load_many(schema::tournament_break_eligible_category::Entity, db).await?;
 
         let r : Result<Vec<_>, _> = izip!(
             nodes,
             rounds,
-        ).into_iter().map(|(node, rounds)| {
-            Self::from_rows(node, rounds)
+            break_categories
+        ).into_iter().map(|(node, rounds, categories)| {
+            Self::from_rows(node, rounds, categories)
         }).collect();
         r.map(|r| utils::pad(r, &exists_mask))
     }
@@ -232,7 +311,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
     async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let empty_vec = vec![];
         let (model, rounds) = match &self.config {
-            PlanNodeType::Break { config, break_id } => {
+            PlanNodeType::Break { config, break_id, suggested_award_title, max_breaking_adjudicator_count, is_only_award, suggested_break_award_prestige, .. } => {
                 (schema::tournament_plan_node::ActiveModel {
                     uuid: ActiveValue::Set(self.uuid),
                     tournament_id: ActiveValue::Set(self.tournament_id),
@@ -240,6 +319,10 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
                     config: ActiveValue::Set(serde_json::to_string(
                         &PlanNodeConfig::Break { config: config.clone() })?
                     ),
+                    suggested_award_title: ActiveValue::Set(suggested_award_title.clone()),
+                    max_breaking_adjudicator_count: ActiveValue::Set(*max_breaking_adjudicator_count),
+                    is_only_award: ActiveValue::Set(*is_only_award),
+                    suggested_award_prestige: ActiveValue::Set(suggested_break_award_prestige.clone()),
                 }, &empty_vec)
             },
             PlanNodeType::Round { config, rounds } => {
@@ -250,6 +333,10 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
                     config: ActiveValue::Set(serde_json::to_string(
                         &PlanNodeConfig::RoundGroup { config: config.clone() })?
                     ),
+                    suggested_award_title: ActiveValue::Set(None),
+                    max_breaking_adjudicator_count: ActiveValue::Set(None),
+                    is_only_award: ActiveValue::Set(false),
+                    suggested_award_prestige: ActiveValue::Set(None),
                 }, rounds)
             }
         };
@@ -318,6 +405,54 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
             }
         };
 
+        if let PlanNodeType::Break { eligible_categories, .. } = &self.config {
+            let mut to_insert = vec![];
+            let mut to_update = vec![];
+
+            let previous_categories = schema::tournament_break_eligible_category::Entity::find()
+                .filter(schema::tournament_break_eligible_category::Column::TournamentPlanNodeId.eq(self.uuid))
+                .all(db)
+                .await?;
+
+            let prev_categories_by_id = previous_categories.iter().map(|c| (c.tournament_break_category_id, c)).collect::<HashMap<_, _>>();
+
+            let to_delete = previous_categories.iter().filter(|c| {
+                !eligible_categories.iter().any(|e| e.category_id == c.tournament_break_category_id)
+            }).map(|c| c.tournament_break_category_id).collect_vec();
+
+            for category in eligible_categories {
+                let prev_category = prev_categories_by_id.get(&category.category_id);
+                if let Some(_) = prev_category {
+                    to_update.push(schema::tournament_break_eligible_category::ActiveModel {
+                        tournament_plan_node_id: ActiveValue::Unchanged(self.uuid),
+                        tournament_break_category_id: ActiveValue::Unchanged(category.category_id),
+                        config: ActiveValue::Set(serde_json::to_value(&category.config)?),
+                    });
+                } else {
+                    to_insert.push(schema::tournament_break_eligible_category::ActiveModel {
+                        tournament_plan_node_id: ActiveValue::Set(self.uuid),
+                        tournament_break_category_id: ActiveValue::Set(category.category_id),
+                        config: ActiveValue::Set(serde_json::to_value(&category.config)?),
+                    });
+                }
+            }
+
+            if to_insert.len() > 0 {
+                schema::tournament_break_eligible_category::Entity::insert_many(to_insert).exec(db).await?;
+            }
+
+            for update in to_update {
+                update.update(db).await?;
+            }
+
+            if to_delete.len() > 0 {
+                schema::tournament_break_eligible_category::Entity::delete_many()
+                    .filter(schema::tournament_break_eligible_category::Column::TournamentPlanNodeId.eq(self.uuid)
+                        .and(schema::tournament_break_eligible_category::Column::TournamentBreakCategoryId.is_in(to_delete)))
+                    .exec(db).await?;
+            }
+        }
+
         Ok(())
     }
 
@@ -328,7 +463,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
     }
     
     async fn delete_many(db: &C, ids: Vec<Uuid>) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
-        schema::tournament_break::Entity::delete_many().filter(schema::tournament_break::Column::Uuid.is_in(ids)).exec(db).await?;
+        schema::tournament_plan_node::Entity::delete_many().filter(schema::tournament_plan_node::Column::Uuid.is_in(ids)).exec(db).await?;
         Ok(())
     }
 }
