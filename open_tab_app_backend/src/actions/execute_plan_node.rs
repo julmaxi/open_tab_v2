@@ -625,7 +625,7 @@ pub fn get_eligiblity_info(
 }
 
 
-async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>, eligible_categories: &Vec<TournamentEligibleBreakCategory>, suggested_award_title: &Option<String>, participants: &HashMap<Uuid, Participant>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
+async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>, eligible_categories: &Vec<TournamentEligibleBreakCategory>, suggested_award_title: &Option<String>, suggested_break_award_prestige: &Option<i32>, participants: &HashMap<Uuid, Participant>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let mut groups = EntityGroup::new(tournament_id);
 
     let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
@@ -820,6 +820,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
 
     let break_id = break_.uuid;
     break_.break_award_title = suggested_award_title.clone();
+    break_.break_award_prestige = suggested_break_award_prestige.clone();
 
     groups.add(Entity::TournamentBreak(break_));
     let mut original_node = all_nodes.get(&node_id).expect("Guaranteed by db constraints").clone();
@@ -855,11 +856,11 @@ impl ActionTrait for ExecutePlanNodeAction {
             open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
                 generate_round_draw(db, self.tournament_id, node.uuid, config, rounds).await?
             },
-            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id, eligible_categories, suggested_award_title, .. } => {
+            open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id, eligible_categories, suggested_award_title, suggested_break_award_prestige, .. } => {
                 let participants = Participant::get_all_in_tournament(db, self.tournament_id).await?.into_iter().map(
                     |p| (p.uuid, p)
                 ).collect::<HashMap<_, _>>();
-                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone(), eligible_categories, suggested_award_title, &participants).await?
+                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone(), eligible_categories, suggested_award_title, suggested_break_award_prestige, &participants).await?
             },
         };
 
