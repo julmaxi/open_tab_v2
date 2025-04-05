@@ -9,13 +9,14 @@ use std::{
 
 use super::{AdjudicatorData, ParticipantData, ParticipantFileData, SpeakerData, TeamData};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct CSVReaderConfig {
     name_column: Option<CSVNameCol>,
     role_column: Option<usize>,
     institutions_column: Option<usize>,
     clashes_column: Option<usize>,
     anonymity_column: Option<usize>,
+    break_category_column: Option<usize>,
     delimiter: Option<u8>,
 }
 
@@ -51,7 +52,8 @@ enum CSVField {
     Role,
     Institutions,
     Conflicts,
-    IsAnonymous
+    IsAnonymous,
+    BreakCategory
 }
 
 pub struct ParseResult {
@@ -127,6 +129,9 @@ impl CSVReaderConfig {
                 let anonymity_pattern: Vec<&str> =
                     vec!["anonym", "initialien", "nicht.*namentlich"];
 
+                let break_category_pattern: Vec<&str> =
+                    vec!["category", "cat", "break_category"];
+
                 let mut m = HashMap::new();
                 m.insert(CSVField::FullName, full_name_patterns);
                 m.insert(CSVField::FirstName, first_name_patterns);
@@ -135,6 +140,8 @@ impl CSVReaderConfig {
                 m.insert(CSVField::Role, role_patterns);
                 m.insert(CSVField::Conflicts, conflicts_patterns);
                 m.insert(CSVField::IsAnonymous, anonymity_pattern);
+                m.insert(CSVField::BreakCategory, break_category_pattern);
+                
 
                 m.into_iter()
                     .map(|(key, patterns)| {
@@ -179,6 +186,7 @@ impl CSVReaderConfig {
             clashes_column: proposed_column_assignment.remove(&CSVField::Conflicts),
             anonymity_column: proposed_column_assignment.remove(&CSVField::IsAnonymous),
             delimiter: None,
+            break_category_column: proposed_column_assignment.remove(&CSVField::BreakCategory),
         }
     }
 
@@ -248,11 +256,19 @@ impl CSVReaderConfig {
                 None => None,
             };
 
+            let break_category = match self.break_category_column {
+                Some(index) => row
+                    .get(index)
+                    .map(|i| i.into()),
+                None => None,
+            };
+
             let participant_data = ParticipantData {
                 name,
                 institutions,
                 clashes,
-                is_anonymous
+                is_anonymous,
+                break_category
             };
 
             let role = row
@@ -380,6 +396,7 @@ mod test {
             clashes_column: Some(3),
             delimiter: Some(b','),
             anonymity_column: None,
+            break_category_column: None,
         };
 
         let test_file = "Name,Team,Club,Clashes
@@ -422,6 +439,7 @@ Pers. D,,Club C,
             clashes_column: Some(4),
             delimiter: Some(b','),
             anonymity_column: None,
+            ..Default::default()
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes
@@ -464,6 +482,7 @@ Pers.,D,,Club C,
             clashes_column: Some(4),
             delimiter: Some(b','),
             anonymity_column: None,
+            ..Default::default()
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes
@@ -496,6 +515,7 @@ Pers.,D,#4,Club C,
             clashes_column: Some(4),
             delimiter: Some(b','),
             anonymity_column: Some(5),
+            ..Default::default()
         };
 
         let test_file = "Vorname,Name,Team,Club,Clashes,Anonymity

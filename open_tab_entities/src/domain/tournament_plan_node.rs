@@ -107,10 +107,12 @@ pub struct TournamentEligibleBreakCategory {
 pub struct EligibilityConfig {
     pub team_eligibility_mode: TeamEligibilityMode,
     pub non_aligned_eligibility_mode: NonAlignedEligibilityMode,
+    pub adjudicator_eligibility_mode: AdjudicatorEligibilityMode,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum TeamEligibilityMode {
+    DoNotRestrict,
     AnyEligible,
     MajorityEligible,
     AllEligible,    
@@ -118,9 +120,16 @@ pub enum TeamEligibilityMode {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum NonAlignedEligibilityMode {
-    All,
+    DoNotRestrict,
+    AllEligible,
     AllInEligibleTeams,
     AllEligibleInEligibleTeams,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub enum AdjudicatorEligibilityMode {
+    DoNotRestrict,
+    AllEligible,
 }
 
 impl BreakConfig {
@@ -171,7 +180,7 @@ pub enum PlanNodeType {
 
 impl PlanNodeType {
     pub fn new_break(config: BreakConfig) -> Self {
-        PlanNodeType::Break{
+        PlanNodeType::Break {
             config,
             break_id: None,
             eligible_categories: vec![],

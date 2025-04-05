@@ -1,7 +1,3 @@
-
-
-
-
 use open_tab_entities::prelude::*;
 
 use serde::{Serialize, Deserialize};
@@ -26,6 +22,7 @@ mod update_tournament;
 mod update_clashes_action;
 mod discard_ballot;
 mod update_feedback_system;
+mod create_break_category;
 
 pub use self::base::ActionTrait;
 pub use self::update_draw::UpdateDrawAction;
@@ -47,6 +44,7 @@ pub use self::update_tournament::UpdateTournamentAction;
 pub use self::update_clashes_action::UpdateClashes;
 pub use self::discard_ballot::DiscardBallotAction;
 pub use self::update_feedback_system::UpdateFeedbackSystemAction;
+pub use self::create_break_category::CreateBreakCategoryAction;
 
 pub(crate) use self::edit_tree::EditTreeActionType;
 
@@ -72,6 +70,7 @@ pub enum Action {
     UpdateClashes { action: UpdateClashes },
     DiscardBallot { action: DiscardBallotAction },
     UpdateFeedbackSystem { action: UpdateFeedbackSystemAction },
+    CreateBreakCategory { action: CreateBreakCategoryAction },
 }
 
 impl Action {
@@ -96,6 +95,7 @@ impl Action {
             Action::UpdateClashes { action } => action.get_changes(db).await,
             Action::DiscardBallot { action } => action.get_changes(db).await,
             Action::UpdateFeedbackSystem { action } => action.get_changes(db).await,
+            Action::CreateBreakCategory { action } => action.get_changes(db).await,
         }
     }
 }

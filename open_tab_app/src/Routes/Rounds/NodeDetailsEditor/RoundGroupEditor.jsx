@@ -12,13 +12,13 @@ import ModalOverlay from "@/UI/Modal";
 import { SortableTable } from "@/SortableTable";
 import { AdjudicatorBreakSelector } from "@/AdjudicatorBreakSelector";
 import Stepper from "@/UI/Stepper";
+import _ from "lodash";
 
-function RoundGroupEditor({ nodeId, nodeContent }) {
-    let [editedConfig, setEditedConfig] = useState(nodeContent.config);
-    useEffect(() => {
-        setEditedConfig(nodeContent.config);
-    }, [nodeContent.config]);
+function RoundGroupEditorInner({ nodeId, nodeContent }) {
+    let [actualEditedConfig, setEditedConfig] = useState({});
     let tournamentContext = useContext(TournamentContext);
+
+    let editedConfig = {..._.cloneDeep(nodeContent.config), ...actualEditedConfig}
 
     return <div className="w-full h-full">
         {
@@ -36,7 +36,7 @@ function RoundGroupEditor({ nodeId, nodeContent }) {
         }
 
         {
-            editedConfig !== nodeContent.config ? <div className="flex flex-row mt-2 border-t">
+            !_.isEqual(editedConfig, nodeContent.config) ? <div className="flex flex-row mt-2 border-t">
                 <Button role="primary" onClick={() => {
                     executeAction(
                         "EditTournamentTree",
@@ -45,12 +45,11 @@ function RoundGroupEditor({ nodeId, nodeContent }) {
                             action: {
                                 type: "UpdateNode",
                                 node: nodeId,
-                                config: {
-                                    type: "RoundGroup",
-                                    config: editedConfig
-                                }
+                                config: editedConfig
                             }
                         }
+                    ).then(
+                        setEditedConfig({})
                     )
                 }}>Save</Button>
                 <Button role="secondary" onClick={() => {
@@ -183,6 +182,10 @@ function numToOrdinal(n) {
     let s = ["th", "st", "nd", "rd"];
     let v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function RoundGroupEditor({ nodeId, nodeContent }) {
+    return <RoundGroupEditorInner key={nodeId} nodeId={nodeId} nodeContent={nodeContent} />
 }
 
 export default RoundGroupEditor;

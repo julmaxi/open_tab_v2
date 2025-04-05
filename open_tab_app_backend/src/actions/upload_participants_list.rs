@@ -125,6 +125,14 @@ impl UploadParticipantsListAction {
             participants_with_uuid_and_role.iter().map(|o| (o.0.name.clone(), o.2))
         );
 
+        let mut existing_break_categories_by_name = open_tab_entities::schema::tournament_break_category::Entity::find()
+            .filter(open_tab_entities::schema::tournament_break_category::Column::TournamentId.eq(self.tournament_id))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|bc| (bc.name.clone(), bc.uuid))
+            .collect::<HashMap<_, _>>();
+
         for (participant, role, uuid) in participants_with_uuid_and_role {
             let institutions = participant.institutions.iter().map(|institution_name| {
                     let institution_uuid = existing_institution_uuids_by_name.get(institution_name)
@@ -150,6 +158,37 @@ impl UploadParticipantsListAction {
                         clash_severity: 100
                     }
                 }).collect::<Vec<_>>();
+            
+            let break_category = if let Some(category_name) = participant.break_category.as_ref() {
+                let category_name = category_name.trim();
+                if category_name.is_empty() {
+                    None
+                }
+                else {
+                    let existing_category = existing_break_categories_by_name.get(category_name);
+                    if let Some(existing_category) = existing_category {
+                        Some(existing_category.clone())
+                    }
+                    else {
+                        let uuid = Uuid::new_v4();
+                        let category_name = category_name.to_string();
+                        out_entities.push(
+                            Entity::TournamentBreakCategory(
+                                open_tab_entities::domain::tournament_break_category::TournamentBreakCategory {
+                                    uuid: uuid.clone(),
+                                    name: category_name.clone(),
+                                    tournament_id: self.tournament_id,
+                                }
+                            )
+                        );
+                        existing_break_categories_by_name.insert(category_name.clone(), uuid);
+                        Some(uuid)
+                    }    
+                }
+            }
+            else {
+                None
+            };
 
             let registration_key : [u8; 32] = thread_rng().gen();
  
@@ -161,7 +200,7 @@ impl UploadParticipantsListAction {
                 tournament_id: self.tournament_id,
                 registration_key: Some(registration_key.to_vec()),
                 is_anonymous: participant.is_anonymous.unwrap_or(false),
-                break_category_id: None,
+                break_category_id: break_category
             };
 
             out_entities.push(Entity::Participant(out_participant_entity));

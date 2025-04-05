@@ -5,7 +5,7 @@ function makeClassname(...args) {
     return args.filter((arg) => arg !== undefined).join(" ");
 }
 
-function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames, ...props }) {
+function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames, value = null, ...props }) {
     const [filter, setFilter] = React.useState(null);
 
     const shownItems = useMemo(() => {
@@ -71,6 +71,11 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
 
     let isReallyOpen = isOpen || !!inputValue;
 
+    let inputProps = {...getInputProps()};
+    if (value && !isOpen) {
+        inputProps.value = value;
+    }
+
     return (
         <div>
             <div className="w-72 flex flex-col gap-1">
@@ -78,7 +83,7 @@ function ComboBox({ placeholder, items, onSelect, allowCreate, ignoredItemNames,
                     <input
                         placeholder={placeholder || ""}
                         className="w-full p-1.5 border rounded"
-                        {...getInputProps()}
+                        {...inputProps}
                     />
                     <button
                         aria-label="toggle menu"

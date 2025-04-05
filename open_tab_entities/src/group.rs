@@ -59,6 +59,7 @@ pub trait EntityTypeIdTrait : Clone + Copy + Debug + PartialEq + Eq + Send + Syn
 pub enum Entity {
     Tournament(Tournament),
     TournamentInstitution(TournamentInstitution),
+    TournamentBreakCategory(TournamentBreakCategory),
     Team(Team),
     TournamentRound(TournamentRound),
     Participant(Participant),
@@ -76,7 +77,6 @@ pub enum Entity {
     BallotSpeechTiming(BallotSpeechTiming),
     ClashDeclaration(ClashDeclaration),
     InstitutionDeclaration(InstitutionDeclaration),
-    TournamentBreakCategory(TournamentBreakCategory),
 }
 
 pub trait GroupedEntityMapTrait<T, E> where T: EntityTypeIdTrait, E: EntityGroupEntityTrait<T> {

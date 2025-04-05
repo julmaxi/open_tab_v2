@@ -17,6 +17,7 @@ pub mod feedback_progress;
 pub mod clashes_view;
 pub mod pending_ballots_view;
 pub mod feedback_forms_view;
+pub mod break_categories_view;
 mod base;
 
 pub use self::base::{LoadedView, TournamentParticipantsInfo};
@@ -39,10 +40,9 @@ use self::feedback_progress::LoadedFeedbackProgressView;
 use self::clashes_view::LoadedClashesView;
 use self::pending_ballots_view::LoadedPendingBallotsView;
 use self::feedback_forms_view::LoadedFeedbackFormsView;
-
+use self::break_categories_view::LoadedBreakCategoriesView;
 
 use self::draw_view::LoadedDrawView;
-
 
 use sea_orm::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -70,6 +70,7 @@ pub enum View {
     Clashes{tournament_uuid: Uuid},
     PendingBallots{tournament_id: Uuid},
     FeedbackForms{tournament_id: Uuid},
+    BreakCategories{tournament_uuid: Uuid},
 }
 
 impl View {
@@ -140,6 +141,9 @@ impl View {
             View::FeedbackForms { tournament_id } => {
                 Box::new(LoadedFeedbackFormsView::load(db, *tournament_id).await?)
             },
+            View::BreakCategories { tournament_uuid } => {
+                Box::new(LoadedBreakCategoriesView::load(db, *tournament_uuid).await?)
+            }
         })
     }
 }

@@ -21,7 +21,7 @@ import { RowBlockerContext, BlockLease, RowBlockManager } from "./RowBlocker";
 import AddParticipantDialog from "./AddParticipantDialog";
 import { Toolbar, ToolbarButton } from "../../UI/Toolbar";
 
-function ParticipantTable(props) {
+function ParticipantTable({ participants }) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
     let [selectedTeamUuid, setSelectedTeamUuid] = useState(null);
 
@@ -47,7 +47,7 @@ function ParticipantTable(props) {
         url = parsedUrl.toString().slice(0, -1);
     }
 
-    let flatTable = Object.entries(props.participants.teams).flatMap(([team_uuid, team]) => {
+    let flatTable = Object.entries(participants.teams).flatMap(([team_uuid, team]) => {
         return Object.entries(team.members).map(([speaker_uuid, speaker]) => {
             return {
                 "uuid": speaker.uuid,
@@ -57,11 +57,12 @@ function ParticipantTable(props) {
                 "clashes": speaker.clashes,
                 "registration_key": speaker.registration_key,
                 "path": ["teams", team_uuid, "members", speaker_uuid],
+                "break_category": speaker.break_category_id !== null ? (participants.break_categories[speaker.break_category_id]?.name || "<Unknown Break Category>") : "-",
             }
         })
     });
 
-    flatTable.push(...Object.entries(props.participants.adjudicators).map(
+    flatTable.push(...Object.entries(participants.adjudicators).map(
         ([adjudicator_uuid, adjudicator]) => {
             return {
                 "uuid": adjudicator.uuid,
@@ -71,13 +72,14 @@ function ParticipantTable(props) {
                 "clashes": adjudicator.clashes,
                 "registration_key": adjudicator.registration_key,
                 "path": ["adjudicators", adjudicator_uuid],
+                "break_category": adjudicator.break_category_id !== null ? (participants.break_categories[adjudicator.break_category_id]?.name || "<Unknown Break Category>") : "-",
             }
         }
     ));
 
     flatTable = flatTable.map((r) => {
         let row = { ...r };
-        row.institutions = row.institutions.map((i) => i.name).join(", ");
+        row.institutions = row.institutions.map((i) => participants.institutions[i.uuid]?.name || "<Unknown Institution>").join(", ");
         let clashes = [];
         // Assumes clashes are sorted by id, with outgoing clashes first
         for (let idx = 0; idx < r.clashes.length; idx++) {
@@ -103,13 +105,13 @@ function ParticipantTable(props) {
 
     let participantsById = {};
 
-    Object.entries(props.participants.teams).forEach(([, team]) => {
+    Object.entries(participants.teams).forEach(([, team]) => {
         Object.entries(team.members).forEach(([speaker_uuid, speaker]) => {
             participantsById[speaker_uuid] = speaker;
         })
     });
 
-    Object.entries(props.participants.adjudicators).forEach(([adjudicator_uuid, adjudicator]) => {
+    Object.entries(participants.adjudicators).forEach(([adjudicator_uuid, adjudicator]) => {
         participantsById[adjudicator_uuid] = adjudicator;
     });
 
@@ -121,8 +123,8 @@ function ParticipantTable(props) {
 
     let selectedTeam = useMemo(
         () => {
-            return selectedTeamUuid ? props.participants.teams[selectedTeamUuid] : null;
-        }, [selectedTeamUuid, props.participants.teams]
+            return selectedTeamUuid ? participants.teams[selectedTeamUuid] : null;
+        }, [selectedTeamUuid, participants.teams]
     );
 
     let columns = [
@@ -131,7 +133,7 @@ function ParticipantTable(props) {
             "key": "name", "header": "Name", cellFactory: (value, rowIdx, colIdx, rowValue) => {
                 return <EditableCell key={colIdx} value={value} onChange={
                     (newName) => {
-                        let newParticipant = { ...getPath(props.participants, rowValue.path) };
+                        let newParticipant = { ...getPath(participants, rowValue.path) };
                         newParticipant.name = newName;
                         executeAction("UpdateParticipants", { updated_participants: [newParticipant], tournament_id: tournamentContext.uuid })
                     }
@@ -140,6 +142,7 @@ function ParticipantTable(props) {
         },
         { "key": "institutions", "header": "Institutions" },
         { "key": "clashes", "header": "Clashes" },
+        { "key": "break_category", "header": "Break Cat." },
     ];
 
     if (url != null) {
@@ -201,12 +204,17 @@ function ParticipantTable(props) {
                 selectedParticipant != null &&
                 <ErrorBoundary>
                     <div className="p-1">
-                        <ParticipantDetailView participant={selectedParticipant} onClose={() => {
-                            setSelectedParticipantUuid(null)
-                            setSelectedTeamUuid(null)
-                        }} />
+                        <ParticipantDetailView
+                            participant={selectedParticipant}
+                            institutions={participants.institutions}
+                            break_categories={participants.break_categories}
+                            onClose={() => {
+                                setSelectedParticipantUuid(null)
+                                setSelectedTeamUuid(null)
+                            }}
+                        />
 
-                        <ChangeRoleView participant={selectedParticipant} currentType={selectedParticipant.type} allTeams={props.participants.teams} />
+                        <ChangeRoleView participant={selectedParticipant} currentType={selectedParticipant.type} allTeams={participants.teams} />
                         {selectedParticipant && selectedTeam && <TeamDetailView team={selectedTeam} />}
 
                         <div className="">
@@ -234,7 +242,7 @@ export function ParticipantOverview() {
     let tournamentContext = useContext(TournamentContext);
     let currentView = { type: "ParticipantsList", tournament_uuid: tournamentContext.uuid };
 
-    let participants = useView(currentView, { "teams": {}, "adjudicators": {} });
+    let participants = useView(currentView, { "teams": {}, "adjudicators": {}, "institutions": {}, "break_categories": [] });
 
     let [importDialogState, setImportDialogState] = useState(null);
     let [addParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);

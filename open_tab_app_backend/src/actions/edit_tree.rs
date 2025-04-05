@@ -2,7 +2,7 @@ use std::collections::{HashMap, self};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{domain::{self, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, FoldDrawConfig, PlanNodeConfig, PlanNodeType, TournamentPlanNode}}, prelude::*, EntityTypeId};
+use open_tab_entities::{domain::{self, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, FoldDrawConfig, PlanNodeType, RoundGroupConfig, TournamentEligibleBreakCategory, TournamentPlanNode}}, prelude::*, EntityTypeId};
 
 use sea_orm::prelude::*;
 
@@ -18,13 +18,33 @@ pub struct EditTreeAction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NodeUpdate {
+    RoundGroup {
+        config: RoundGroupConfig
+    },
+    BreakConfig {
+        config: BreakConfig,
+        eligible_categories: Vec<TournamentEligibleBreakCategory>,
+        suggested_award_title: Option<String>,
+        suggested_break_award_prestige: Option<i32>,
+        max_breaking_adjudicator_count: Option<i32>,
+        is_only_award: bool
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum EditTreeActionType {
     AddPreliminaryRounds { parent: Option<Uuid> },
     AddMinorBreakRounds { parent: Uuid, draws: Vec<FoldDrawConfig> },
     AddTimBreakRounds { parent: Uuid },
     AddKOStage { parent: Uuid, num_stages: u64 },
-    UpdateNode { node: Uuid, config: PlanNodeConfig },
+    UpdateNode {
+        node: Uuid,
+        #[serde(flatten)]
+        update: NodeUpdate
+    },
     AddAward { parent: Uuid, is_speaker_tab_award: bool },
 }
 
@@ -116,7 +136,7 @@ impl ActionTrait for EditTreeAction {
             EditTreeActionType::AddKOStage { parent, num_stages } => {
                 let mut nodes = vec![];
                 let mut edges = vec![];
-                let num_debates = u32::pow(2, num_stages as u32) as u32;
+                let num_debates = u32::pow(2, (num_stages - 1) as u32) as u32;
                 let first_break = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::new_break(BreakConfig::TabBreak { num_teams: num_debates * 2, num_non_aligned: num_debates * 3}));
                 let first_round = TournamentPlanNode::new(self.tournament_id, open_tab_entities::domain::tournament_plan_node::PlanNodeType::Round {
                     config: open_tab_entities::domain::tournament_plan_node::RoundGroupConfig::FoldDraw {
@@ -213,15 +233,35 @@ impl ActionTrait for EditTreeAction {
                 groups.add(Entity::TournamentPlanNode(second_break));
                 groups.add(Entity::TournamentPlanNode(second_round));
             },
-            EditTreeActionType::UpdateNode { node, config } => {
+            EditTreeActionType::UpdateNode { node, update } => {
                 //TODO:  Validation?
                 let node = all_nodes.iter_mut().find(|n| n.uuid == node).unwrap();
-                match (&mut node.config, config) {
-                    (domain::tournament_plan_node::PlanNodeType::Round { config, .. }, PlanNodeConfig::RoundGroup { config: new_config }) => {
+                match (&mut node.config, update) {
+                    (domain::tournament_plan_node::PlanNodeType::Round { config, .. }, NodeUpdate::RoundGroup { config: new_config }) => {
                         *config = new_config
                     },
-                    (domain::tournament_plan_node::PlanNodeType::Break { config, .. }, PlanNodeConfig::Break { config: new_config }) => {
-                        *config = new_config
+                    (domain::tournament_plan_node::PlanNodeType::Break {
+                        config,
+                        eligible_categories,
+                        suggested_award_title,
+                        suggested_break_award_prestige,
+                        max_breaking_adjudicator_count,
+                        is_only_award,
+                        ..
+                    }, NodeUpdate::BreakConfig {
+                        config: new_config,
+                        eligible_categories: new_eligible_categories,
+                        suggested_award_title: new_suggested_award_title,
+                        suggested_break_award_prestige: new_suggested_break_award_prestige,
+                        max_breaking_adjudicator_count: new_max_breaking_adjudicator_count,
+                        is_only_award: new_is_only_award
+                    }) => {
+                        *config = new_config;
+                        *eligible_categories = new_eligible_categories;
+                        *suggested_award_title = new_suggested_award_title;
+                        *suggested_break_award_prestige = new_suggested_break_award_prestige;
+                        *max_breaking_adjudicator_count = new_max_breaking_adjudicator_count;
+                        *is_only_award = new_is_only_award;
                     },
                     _ => return Err(anyhow::anyhow!("Invalid node type for update"))
                 }

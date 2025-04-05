@@ -17,28 +17,8 @@ import RoundGroupEditor from "./RoundGroupEditor";
 import BreakEditor from "./BreakEditor";
 
 function NodeDetailsEditor({ node }) {
-    let tournamentContext = useContext(TournamentContext);
-
     if (node.content.type == "Break") {
-        return <BreakEditor nodeId={node.uuid} nodeContent={node.content} onUpdate={
-            (newConfig) => {
-                executeAction(
-                    "EditTournamentTree",
-                    {
-                        tournament_id: tournamentContext.uuid,
-                        action: {
-                            type: "UpdateNode",
-                            node: node.uuid,
-                            config: {
-                                type: "Break",
-                                config: newConfig
-                            }
-                        }
-                    }
-                )
-            }
-
-        } />
+        return <BreakEditor nodeId={node.uuid} nodeContent={node.content} />
     }
     else {
         return <RoundGroupEditor nodeId={node.uuid} nodeContent={node.content} />

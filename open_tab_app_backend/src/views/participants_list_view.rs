@@ -57,6 +57,8 @@ impl LoadedView for LoadedParticipantsListView {
 
         if changes.has_changes_for_types(vec![EntityTypeId::TournamentBreakCategory]) {
             let break_categories = domain::tournament_break_category::TournamentBreakCategory::get_all_in_tournament(db, self.tournament_id).await?;
+            let break_category_map = break_categories.into_iter().map(|b| (b.uuid, b)).collect::<HashMap<_, _>>();
+            out.insert("break_categories".to_string(), serde_json::to_value(&break_category_map)?);
         }
 
         if out.len() == 0 {

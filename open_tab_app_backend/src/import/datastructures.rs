@@ -18,6 +18,7 @@ pub struct ParticipantData {
     pub institutions: Vec<String>,
     pub clashes: Vec<String>,
     pub is_anonymous: Option<bool>,
+    pub break_category: Option<String>,
 }
 
 pub struct SpeakerData {

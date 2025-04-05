@@ -14,7 +14,7 @@ import { AdjudicatorBreakSelector } from "../../AdjudicatorBreakSelector";
 import Stepper from "../../UI/Stepper";
 import { ErrorHandlingContext } from "@/Action";
 
-const avgPointFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 function BreakContainer(props) {
     let tournamentContext = useContext(TournamentContext);

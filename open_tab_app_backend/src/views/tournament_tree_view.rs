@@ -1,6 +1,7 @@
 
-use open_tab_entities::domain::tournament_plan_node::RoundGroupConfig;
+use open_tab_entities::domain::tournament_plan_node::{RoundGroupConfig, TournamentEligibleBreakCategory};
 use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
+use open_tab_entities::schema::prelude::TournamentBreakEligibleCategory;
 use sea_orm::prelude::Uuid;
 
 
@@ -94,6 +95,11 @@ struct BreakInfo {
     uuid: Option<Uuid>,
     break_description: String,
     config: BreakConfig,
+    eligible_categories: Vec<TournamentEligibleBreakCategory>,
+    suggested_award_title: Option<String>,
+    suggested_break_award_prestige: Option<i32>,
+    max_breaking_adjudicator_count: Option<i32>,
+    is_only_award: bool
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -419,7 +425,7 @@ impl TournamentTreeView {
                     config: config.clone()
                 }),  Self::get_standard_node_actions(node_uuid))
             },
-            domain::tournament_plan_node::PlanNodeType::Break { config, break_id, is_only_award, .. } => {
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id, is_only_award, eligible_categories, suggested_award_title, suggested_break_award_prestige, max_breaking_adjudicator_count, .. } => {
                 let break_description = if *is_only_award {
                     match config {
                         BreakConfig::KnockoutBreak => "Winner's Award".to_string(),
@@ -439,7 +445,13 @@ impl TournamentTreeView {
                 (TournamentTreeNodeContent::Break(BreakInfo {
                     uuid: *break_id,
                     break_description,
-                    config: config.clone()
+                    config: config.clone(),
+                    eligible_categories: eligible_categories.clone(),
+                    suggested_award_title: suggested_award_title.clone(),
+                    suggested_break_award_prestige: suggested_break_award_prestige.clone(),
+                    max_breaking_adjudicator_count: max_breaking_adjudicator_count.clone(),
+                    is_only_award: *is_only_award
+
                 }),  Self::get_standard_node_actions(node_uuid),)
             },
         };

@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, tab::TeamRoundRole, EntityTypeId};
+use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, schema::speaker, tab::TeamRoundRole, EntityTypeId};
 use open_tab_entities::domain::tournament_plan_node::TournamentEligibleBreakCategory;
 
 use rand::{thread_rng, Rng};
@@ -406,8 +406,226 @@ pub enum MakeBreakError {
     IsManualBreak,
 }
 
+pub struct EligibilityInfo {
+    pub eligible_teams: HashSet<Uuid>,
+    pub eligible_speakers: HashSet<Uuid>,
+    pub eligible_adjudicators: HashSet<Uuid>,
+}
 
-async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>, eligible_categories: &Vec<TournamentEligibleBreakCategory>, suggested_award_title: &Option<String>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
+pub fn get_eligiblity_info(
+    eligible_categories: &Vec<TournamentEligibleBreakCategory>,
+    participants: &HashMap<Uuid, Participant>,
+) -> EligibilityInfo {
+    let team_members = participants.values().filter_map(|p| {
+        match p.role {
+            ParticipantRole::Speaker(Speaker {team_id: Some(team_id), ..}) => Some((team_id, p.uuid)),
+            _ => None
+        }
+    }).into_group_map();
+
+    let speakers = participants.values().filter_map(
+        |p| {
+            match p.role {
+                ParticipantRole::Speaker(_) => Some(p.uuid),
+                _ => None
+            }
+        }
+    ).collect();
+
+    let adjudicators = participants.values().filter_map(
+        |p| {
+            match p.role {
+                ParticipantRole::Adjudicator(_) => Some(p.uuid),
+                _ => None
+            }
+        }
+    ).collect();
+
+    if eligible_categories.len() == 0 {
+        return EligibilityInfo {
+            eligible_teams: team_members.keys().cloned().collect(),
+            eligible_speakers: speakers,
+            eligible_adjudicators: adjudicators,
+        };
+    }
+
+    let mut category_qualified_teams = eligible_categories.iter().map(
+        |c| {
+            let eligible_teams = if c.config.team_eligibility_mode != open_tab_entities::domain::tournament_plan_node::TeamEligibilityMode::DoNotRestrict {
+                let eligible_teams = team_members.iter().filter_map(
+                    |(team_id, members)| {
+                        let num_qualified_members = members.iter().filter(
+                            |m| {
+                                participants.get(m).map(
+                                    |p| p.break_category_id
+                                ).flatten() == Some(c.category_id)
+                            }
+                        ).count();
+
+                        let is_eligible = match c.config.team_eligibility_mode {
+                            open_tab_entities::domain::tournament_plan_node::TeamEligibilityMode::AnyEligible => {
+                                num_qualified_members > 0
+                            },
+                            open_tab_entities::domain::tournament_plan_node::TeamEligibilityMode::MajorityEligible => {
+                                num_qualified_members >= ((members.len() as f32) / 2.0).ceil() as usize
+                            },
+                            open_tab_entities::domain::tournament_plan_node::TeamEligibilityMode::AllEligible => {
+                                num_qualified_members == members.len()
+                            },
+                            open_tab_entities::domain::tournament_plan_node::TeamEligibilityMode::DoNotRestrict => {
+                                unreachable!()
+                            }
+                        };
+
+                        if is_eligible {
+                            Some(*team_id)
+                        }
+                        else {
+                            None
+                        }
+                    }
+                ).collect_vec();
+                Some(eligible_teams)
+            }
+            else {
+                None
+            };
+
+            (c.category_id, eligible_teams)
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let mut category_qualified_speakers = eligible_categories.iter().map(
+        |c| {
+            let eligible_participants = if c.config.non_aligned_eligibility_mode != open_tab_entities::domain::tournament_plan_node::NonAlignedEligibilityMode::DoNotRestrict {
+                let eligible_participants = participants.values().filter_map(
+                    |p| {
+                            match p.role {
+                                ParticipantRole::Speaker(Speaker {team_id, ..}) => {
+                                    let is_natively_eligible = p.break_category_id == Some(c.category_id);
+
+                                    let is_team_elible = team_id.map(
+                                        |t| {
+                                            let teams = category_qualified_teams.get(&c.category_id).unwrap();
+                                            
+                                            if let Some(teams) = teams {
+                                                teams.contains(&t)
+                                            }
+                                            else {
+                                                true
+                                            }
+                                        }
+                                    ).unwrap_or(false);
+
+                                    let is_eligible = match c.config.non_aligned_eligibility_mode {
+                                        open_tab_entities::domain::tournament_plan_node::NonAlignedEligibilityMode::AllEligible => is_natively_eligible,
+                                        open_tab_entities::domain::tournament_plan_node::NonAlignedEligibilityMode::AllInEligibleTeams => is_team_elible,
+                                        open_tab_entities::domain::tournament_plan_node::NonAlignedEligibilityMode::AllEligibleInEligibleTeams => is_natively_eligible && is_team_elible,
+                                        open_tab_entities::domain::tournament_plan_node::NonAlignedEligibilityMode::DoNotRestrict => unreachable!(),
+                                    };
+
+                                    if is_eligible {
+                                        Some(p.uuid)
+                                    }
+                                    else {
+                                        None
+                                    }
+                                },
+                                _ => None
+                            }
+                    }
+                ).collect_vec();
+                Some(eligible_participants)
+            }
+            else {
+                None
+            };
+
+            (c.category_id, eligible_participants)
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let mut qualified_adjudicators = eligible_categories.iter().map(
+        |c| {
+            let eligible_adjudicators = if c.config.adjudicator_eligibility_mode != open_tab_entities::domain::tournament_plan_node::AdjudicatorEligibilityMode::DoNotRestrict {
+                let eligible_adjudicators = participants.values().filter_map(
+                    |p| {
+                        match p.role {
+                            ParticipantRole::Adjudicator(_) => {
+                                let is_natively_eligible = p.break_category_id == Some(c.category_id);
+
+                                let is_eligible = match c.config.adjudicator_eligibility_mode {
+                                    open_tab_entities::domain::tournament_plan_node::AdjudicatorEligibilityMode::DoNotRestrict => unreachable!(),
+                                    open_tab_entities::domain::tournament_plan_node::AdjudicatorEligibilityMode::AllEligible => is_natively_eligible,
+                                };
+
+                                if is_eligible {
+                                    Some(p.uuid)
+                                }
+                                else {
+                                    None
+                                }
+                            },
+                            _ => None
+                        }
+                    }
+                ).collect_vec();
+                Some(eligible_adjudicators)
+            }
+            else {
+                None
+            };
+
+            (c.category_id, eligible_adjudicators)
+        }
+    ).collect::<HashMap<_, _>>();
+
+    let mut out_info = EligibilityInfo {
+        eligible_teams: HashSet::new(),
+        eligible_speakers: HashSet::new(),
+        eligible_adjudicators: HashSet::new(),
+    };
+
+    let mut did_restrict_teams = false;
+    let mut did_restrict_speakers = false;
+    let mut did_restrict_adjudicators = false;
+
+    for category in eligible_categories {
+        let team_ids = category_qualified_teams.remove(&category.category_id).flatten();
+        let speaker_ids = category_qualified_speakers.remove(&category.category_id).flatten();
+        let adjudicator_ids = qualified_adjudicators.remove(&category.category_id).flatten();
+
+        if let Some(team_ids) = team_ids {
+            out_info.eligible_teams.extend(team_ids.iter().cloned());
+            did_restrict_teams = true;
+        }
+        if let Some(eligible_speakers) = speaker_ids {
+            out_info.eligible_speakers.extend(eligible_speakers.iter().cloned());
+            did_restrict_speakers = true;
+        }
+        if let Some(adjudicator_ids) = adjudicator_ids {
+            out_info.eligible_adjudicators.extend(adjudicator_ids.iter().cloned());
+            did_restrict_adjudicators = true;
+        }
+    }
+
+    if !did_restrict_teams {
+        out_info.eligible_teams = team_members.keys().cloned().collect();
+    }
+
+    if !did_restrict_speakers {
+        out_info.eligible_speakers = speakers;
+    }
+
+    if !did_restrict_adjudicators {
+        out_info.eligible_adjudicators = adjudicators;
+    }
+
+    out_info
+}
+
+
+async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &BreakConfig, break_id: Option<Uuid>, eligible_categories: &Vec<TournamentEligibleBreakCategory>, suggested_award_title: &Option<String>, participants: &HashMap<Uuid, Participant>) -> Result<EntityGroup, anyhow::Error> where C: sea_orm::ConnectionTrait {
     let mut groups = EntityGroup::new(tournament_id);
 
     let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, tournament_id, node_id).await?;
@@ -424,12 +642,27 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
         &speaker_info
     ).await?;
 
+    let eligibility_info = get_eligiblity_info(
+        eligible_categories,
+        participants
+    );
+
     let team_ranking = tab.team_tab.iter()
+        .filter(
+            |t| {
+                eligibility_info.eligible_teams.contains(&t.team_uuid)
+            }
+        )
         .map(|t| (ordered_float::NotNan::new(t.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap(), t))
         .sorted_by_key(|t| t.0)
         .rev().map(|t| t.1.team_uuid).collect_vec();
 
     let speaker_ranking = tab.speaker_tab.iter()
+        .filter(
+            |s| {
+                eligibility_info.eligible_speakers.contains(&s.speaker_uuid)
+            }
+        )
         .map(|s| (ordered_float::NotNan::new(s.total_score + thread_rng().gen_range(0.0..0.000001)).unwrap(), s))
         .sorted_by_key(|s| s.0 )
         .rev()
@@ -623,10 +856,428 @@ impl ActionTrait for ExecutePlanNodeAction {
                 generate_round_draw(db, self.tournament_id, node.uuid, config, rounds).await?
             },
             open_tab_entities::domain::tournament_plan_node::PlanNodeType::Break { config, break_id, eligible_categories, suggested_award_title, .. } => {
-                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone(), eligible_categories, suggested_award_title).await?
+                let participants = Participant::get_all_in_tournament(db, self.tournament_id).await?.into_iter().map(
+                    |p| (p.uuid, p)
+                ).collect::<HashMap<_, _>>();
+                generate_break(db, self.tournament_id, node.uuid, config, break_id.clone(), eligible_categories, suggested_award_title, &participants).await?
             },
         };
 
         Ok(changes)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use open_tab_entities::{domain::tournament_plan_node::{AdjudicatorEligibilityMode, EligibilityConfig, NonAlignedEligibilityMode, TeamEligibilityMode, TournamentEligibleBreakCategory}, prelude::Participant};
+    use sea_orm::prelude::Uuid;
+
+    use super::get_eligiblity_info;
+
+    #[test]
+    fn test_break_with_no_eligibility_includes_all_teams() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 0), (101, 0), (102, 0)]),
+                (2, vec![(103, 1), (104, 2), (105, 1)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &vec![],
+            &participants
+        );
+
+        assert_eq!(info.eligible_teams.len(), 3);
+        assert_eq!(info.eligible_speakers.len(), 9);
+        assert_eq!(info.eligible_adjudicators.len(), 0);
+    }
+
+    #[test]
+    fn test_all_eligible_only_includes_fully_eligible_teams() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_teams.len(), 1);
+        assert_eq!(info.eligible_teams.iter().next().unwrap(), &Uuid::from_u128(1));
+    }
+
+    #[test]
+    fn test_majority_eligible_includes_full_and_majority_teams() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 1), (104, 2), (105, 1)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::MajorityEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_teams.len(), 2);
+        assert_eq!(info.eligible_teams.contains(&Uuid::from_u128(1)), true);
+        assert_eq!(info.eligible_teams.contains(&Uuid::from_u128(2)), true);
+    }
+
+    #[test]
+    fn test_any_eligible_includes_any_teams() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AnyEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_teams.len(), 2);
+    }
+
+    #[test]
+    fn test_all_non_aligned_includes_all_non_aligned() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_speakers.len(), 9);
+    }
+
+    #[test]
+    fn test_all_eligible_non_aligned() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::AllEligible,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_speakers.len(), 4);
+    }
+
+    #[test]
+    fn test_all_eligible_in_eligible_team() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AnyEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::AllEligibleInEligibleTeams,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_speakers.len(), 4);
+    }
+
+    #[test]
+    fn test_all_speakers_eligibile() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_speakers.len(), 9);
+    }
+
+    #[test]
+    fn test_all_in_eligible_team() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 0)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 0)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AnyEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::AllInEligibleTeams,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_speakers.len(), 6);
+    }
+
+    #[test]
+    fn test_multiple_categories_make_union() {
+        let participants = mock_teams(
+            vec![
+                (1, vec![(100, 1), (101, 1), (102, 1)]),
+                (2, vec![(103, 0), (104, 0), (105, 0)]),
+                (3, vec![(106, 1), (107, 2), (108, 3)])
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+                (2, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AnyEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_teams.len(), 2);
+    }
+
+    #[test]
+    fn test_break_all_adjudicators() {
+        let participants = mock_adjudicators(
+            vec![
+                (1, 1),
+                (2, 1),
+                (3, 2),
+                (4, 3)
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_adjudicators.len(), 4);
+    }
+
+    #[test]
+    fn test_break_only_category_adjudicators() {
+        let participants = mock_adjudicators(
+            vec![
+                (1, 1),
+                (2, 1),
+                (3, 2),
+                (4, 3)
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::AllEligible,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_adjudicators.len(), 2);
+    }
+
+    #[test]
+    fn test_break_only_category_adjudicators_with_do_not_restrict() {
+        let participants = mock_adjudicators(
+            vec![
+                (1, 1),
+                (2, 1),
+                (3, 2),
+                (4, 3)
+            ]
+        );
+
+        let info = get_eligiblity_info(
+            &mock_categories(vec![
+                (1, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::AllEligible,
+                }),
+                (2, EligibilityConfig {
+                    team_eligibility_mode: TeamEligibilityMode::AllEligible,
+                    non_aligned_eligibility_mode: NonAlignedEligibilityMode::DoNotRestrict,
+                    adjudicator_eligibility_mode: AdjudicatorEligibilityMode::DoNotRestrict,
+                }),
+            ]),
+            &participants
+        );
+
+        assert_eq!(info.eligible_adjudicators.len(), 2);
+    }
+
+
+    fn mock_categories(configs: Vec<(u128, EligibilityConfig)>) -> Vec<TournamentEligibleBreakCategory> {
+        configs.into_iter().map(
+            |(category_id, config)| {
+                TournamentEligibleBreakCategory {
+                    category_id: Uuid::from_u128(category_id),
+                    config,
+                }
+            }
+        ).collect()
+    }
+
+    fn mock_teams(teams: Vec<(u128, Vec<(u128, u128)>)>) -> HashMap<Uuid, Participant> {
+        let participants = teams.into_iter().flat_map(
+            |(team_id, members)| {
+                members.into_iter().map(
+                    move |(member_id, category_id)| {
+                        mock_speaker_with_category(
+                            Uuid::from_u128(member_id),
+                            Uuid::from_u128(category_id),
+                            Uuid::from_u128(team_id)
+                        )
+                    }
+                )
+            }
+        );
+
+        participants.map(
+            |p| (p.uuid, p)
+        ).collect()
+    }
+
+    fn mock_adjudicators(adjudicators: Vec<(u128, u128)>) -> HashMap<Uuid, Participant> {
+        let participants = adjudicators.into_iter().map(
+            |(adjudicator_id, category_id)| {
+                mock_adjudicator_with_category(
+                    Uuid::from_u128(adjudicator_id),
+                    Uuid::from_u128(category_id)
+                )
+            }
+        );
+
+        participants.map(
+            |p| (p.uuid, p)
+        ).collect()
+    }
+
+    fn mock_adjudicator_with_category(uuid: Uuid, category: Uuid) -> Participant {
+        let mut p = Participant::new_with_uuid(
+            uuid,
+            "Test".into(),
+            open_tab_entities::prelude::ParticipantRole::Adjudicator(
+                open_tab_entities::prelude::Adjudicator {
+                    ..Default::default()
+                }
+            ),
+            Uuid::from_u128(1)
+        );
+        if category != Uuid::nil() {
+            p.break_category_id = Some(category);
+        }
+        p
+    }
+
+    fn mock_speaker_with_category(uuid: Uuid, category: Uuid, team_id: Uuid) -> Participant {
+        let mut p = Participant::new_with_uuid(
+            uuid,
+            "Test".into(),
+            open_tab_entities::prelude::ParticipantRole::Speaker(
+                open_tab_entities::prelude::Speaker {
+                    team_id: Some(team_id),
+                }
+            ),
+            Uuid::from_u128(1)
+        );
+        if category != Uuid::nil() {
+            p.break_category_id = Some(category);
+        }
+        p
     }
 }
