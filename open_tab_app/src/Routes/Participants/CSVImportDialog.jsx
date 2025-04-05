@@ -43,9 +43,11 @@ export function CSVImportDialog(props) {
                 },
             ]
         },
-        { type: "", required: true, key: "role_column", displayName: "Role" },
+        { type: "number", required: true, key: "role_column", displayName: "Role" },
         { type: "number", required: true, key: "institutions_column", displayName: "Institution" },
         { type: "number", required: false, key: "clashes_column", displayName: "Clashes" },
+        { type: "number", required: false, key: "anonymity_column", displayName: "Anonymity" },
+        { type: "number", required: false, key: "break_category_column", displayName: "Break Category" },
     ];
 
     let [values, setValues] = useState(props.initialConfig || {});

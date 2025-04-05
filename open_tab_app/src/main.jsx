@@ -20,11 +20,18 @@ import { AssistantRoute } from "./Assistant";
 import { FeedbackProgressRoute } from "./FeedbackProgress";
 import ClashesRoute from "./ClashesView";
 import DrawEditorRoute from "./Routes/Draw/DrawEditor";
+import { useRouteError } from "react-router-dom";
+
+const PassError = () => {
+  const error = useRouteError();
+  throw error;
+};
 
 const router = createMemoryRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <PassError />,
     children: [
       {
         path: "/",

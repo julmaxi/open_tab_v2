@@ -76,7 +76,7 @@ function AdjudicatorSkillInput({ value, onChange }) {
     }} />
 }
 
-export function ParticipantDetailView({ onClose, participant, ...props }) {
+export function ParticipantDetailView({ onClose, participant, institutions, break_categories, ...props }) {
     let [modifiedParticipant, setModifiedParticipant] = useState(participant);
 
     useEffect(() => {
@@ -134,6 +134,8 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
         }
     }
 
+    let flatBreakCategories = Object.values(break_categories);
+
     return <div className="w-full p-2">
         <button
             onClick={onClose}
@@ -156,6 +158,31 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                 }} />
                 <label className="ml-1">Only show initials on tab</label>
             </div>
+        </Section>
+
+        <Section title="Break Category">
+            <ComboBox
+                placeholder={"Select Break Category"}
+                items={flatBreakCategories}
+                onSelect={(value, isCreate) => {
+                    if (isCreate) {
+                        let newUuid = crypto.randomUUID();
+                        console.log(newUuid);
+                        executeAction("CreateBreakCategory", { tournament_uuid: tournamentContext.uuid, name: value, uuid: newUuid });
+                        let updatedPart = { ...modifiedParticipant };
+                        updatedPart.break_category_id = newUuid;
+                        setModifiedParticipant(updatedPart);
+                    }
+                    else {
+                        let updatedPart = { ...modifiedParticipant };
+                        updatedPart.break_category_id = value.uuid;
+                        setModifiedParticipant(updatedPart);    
+                    }
+                }}
+                value={modifiedParticipant.break_category_id !== null ? (break_categories[modifiedParticipant.break_category_id]?.name || "<Unknown Category>") : null}
+                allowCreate={true}
+                
+            />
         </Section>
 
         <Section title="Clashes">
@@ -244,7 +271,16 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
 
         <Section title={"Institutions"}>
             <div className="h-36">
-                <SortableTable rowId={"uuid"} selectedRowId={null} data={modifiedParticipant.institutions} columns={[
+                <SortableTable rowId={"uuid"} selectedRowId={null} data={
+                    modifiedParticipant.institutions.map(
+                        (i) => {
+                            return {
+                                ...i,
+                                name: institutions[i.uuid]?.name || "<Unknown Institution>",
+                            };
+                        }
+                    )
+                } columns={[
                     {
                         "key": "name",
                         "header": "Name",
@@ -261,7 +297,10 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                                 className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
                                 onClick={() => {
                                     let toDelete = modifiedParticipant.institutions.findIndex(r => r.uuid === row.uuid);
-                                    setModifiedParticipant({ ...modifiedParticipant, institutions: [...modifiedParticipant.institutions.slice(0, toDelete), ...modifiedParticipant.institutions.slice(toDelete + 1)] });
+                                    setModifiedParticipant({ ...modifiedParticipant, institutions: [
+                                        ...modifiedParticipant.institutions.slice(0, toDelete),
+                                        ...modifiedParticipant.institutions.slice(toDelete + 1)]
+                                    });
                                 }}
                             >&times;</button></td>;
                         }
@@ -274,7 +313,6 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                     let newUuid = crypto.randomUUID();
                     executeAction("CreateInstitution", { tournament_uuid: tournamentContext.uuid, name: institution, uuid: newUuid });
                     let institutionEntry = {
-                        name: institution,
                         uuid: newUuid,
                         clash_severity: 100
                     };
@@ -282,7 +320,7 @@ export function ParticipantDetailView({ onClose, participant, ...props }) {
                 }
                 else {
                     let institutionEntry = {
-                        ...institution,
+                        uuid: institution.uuid,
                         clash_severity: 100
                     };
                     setModifiedParticipant({ ...modifiedParticipant, institutions: [...modifiedParticipant.institutions, institutionEntry] });

@@ -5,7 +5,7 @@ import { useContext } from 'react';
 import { TabGroup, Tab } from "./TabGroup.jsx";
 import { SortableTable } from "./SortableTable";
 
-export function FeedbackProgressTable({rows, rounds, isTeams}) {
+export function FeedbackProgressTable({rows, rounds}) {
     let data = [];
 
     for (let row of rows) {
