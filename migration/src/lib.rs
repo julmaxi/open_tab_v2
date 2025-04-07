@@ -24,6 +24,7 @@ mod m20241107_154745_add_backup_ballot_seen_field;
 mod m20250308_153659_add_required_feedback;
 mod m20250317_103419_add_tournament_complete_field;
 mod m20250328_125955_add_awards;
+mod m20250406_140902_add_well_known_institutions;
 
 pub struct Migrator;
 
@@ -54,6 +55,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250308_153659_add_required_feedback::Migration),
             Box::new(m20250317_103419_add_tournament_complete_field::Migration),
             Box::new(m20250328_125955_add_awards::Migration),
+            Box::new(m20250406_140902_add_well_known_institutions::Migration),
         ]
     }
 }

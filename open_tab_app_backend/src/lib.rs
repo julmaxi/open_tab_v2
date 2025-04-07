@@ -8,3 +8,4 @@ pub use actions::*;
 pub use views::*;
 
 pub mod feedback;
+pub mod institutions;

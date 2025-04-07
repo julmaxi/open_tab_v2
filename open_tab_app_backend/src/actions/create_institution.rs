@@ -27,6 +27,7 @@ impl ActionTrait for CreateInstitutionAction {
                 uuid: self.uuid,
                 tournament_id: self.tournament_uuid,
                 name: self.name,
+                official_identifier: None,
             })
         );
         Ok(

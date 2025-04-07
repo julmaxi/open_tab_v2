@@ -8,7 +8,7 @@ use open_tab_entities::{prelude::*, domain::{participant::ParticipantInstitution
 use rand::{thread_rng, Rng};
 use sea_orm::prelude::*;
 
-use crate::import::{CSVReaderConfig, ParticipantData};
+use crate::{import::{CSVReaderConfig, ParticipantData}, institutions::InstitutionNormalizer, participants_list_view::Institution};
 use serde::{Serialize, Deserialize};
 
 use super::ActionTrait;
@@ -19,7 +19,9 @@ use super::ActionTrait;
 pub struct UploadParticipantsListAction {
     path: String,
     tournament_id: Uuid,
-    parser_config: CSVReaderConfig
+    parser_config: CSVReaderConfig,
+    #[serde(default)]
+    institution_normalizer: Option<String>,
 }
 
 
@@ -105,6 +107,13 @@ impl UploadParticipantsListAction {
         Vec<Entity>, anyhow::Error> where C: sea_orm::ConnectionTrait
      {
         let mut out_entities = Vec::new();
+        dbg!(&self.institution_normalizer);
+        let normalizer = self.institution_normalizer.as_ref().map(|normalizer| {
+            InstitutionNormalizer::from_csv_file(
+                &normalizer
+            )
+        }).transpose()?;
+
         let mut existing_institution_uuids_by_name = open_tab_entities::schema::tournament_institution::Entity::find()
             .filter(open_tab_entities::schema::tournament_institution::Column::TournamentId.eq(self.tournament_id))
             .all(db)
@@ -146,6 +155,8 @@ impl UploadParticipantsListAction {
                                     uuid: uuid.clone(),
                                     name: institution_name.clone(),
                                     tournament_id: self.tournament_id,
+                                    official_identifier: normalizer.as_ref().map(|normalizer| normalizer.normalize(institution_name))
+                                        .flatten()
                                 }
                             )
                         );

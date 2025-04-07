@@ -1,7 +1,7 @@
 //@ts-check
 
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { executeAction } from "../../Action";
+import { ErrorHandlingContext, executeAction } from "../../Action";
 import { TournamentContext } from "../../TournamentContext";
 import { getPath, useView } from "../../View";
 
@@ -20,6 +20,7 @@ import Button from "../../UI/Button";
 import { RowBlockerContext, BlockLease, RowBlockManager } from "./RowBlocker";
 import AddParticipantDialog from "./AddParticipantDialog";
 import { Toolbar, ToolbarButton } from "../../UI/Toolbar";
+import { appDataDir } from "@tauri-apps/api/path";
 
 function ParticipantTable({ participants }) {
     let [selectedParticipantUuid, setSelectedParticipantUuid] = useState(null);
@@ -240,35 +241,16 @@ function ParticipantTable({ participants }) {
 
 export function ParticipantOverview() {
     let tournamentContext = useContext(TournamentContext);
+
+    let errorContext = useContext(ErrorHandlingContext);
+
     let currentView = { type: "ParticipantsList", tournament_uuid: tournamentContext.uuid };
 
     let participants = useView(currentView, { "teams": {}, "adjudicators": {}, "institutions": {}, "break_categories": [] });
 
-    let [importDialogState, setImportDialogState] = useState(null);
     let [addParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
 
-    return <div className="flex flex-col h-full w-full" onKeyDown={(e) => {
-        if (e.nativeEvent.key == "Escape") {
-            setImportDialogState(null);
-        }
-    }}>
-        <ModalOverlay open={importDialogState !== null}>
-            {
-                importDialogState !== null ? <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
-                    (values) => {
-                        executeAction(
-                            "UploadParticipantsList", {
-                            tournament_id: tournamentContext.uuid,
-                            path: importDialogState.file,
-                            parser_config: values
-                        }
-                        );
-                        setImportDialogState(null);
-                    }
-                } initialConfig={importDialogState.proposedConfig} /> : []
-            }
-        </ModalOverlay>
-
+    return <div className="flex flex-col h-full w-full">
         <ModalOverlay open={addParticipantDialogOpen}>
             <AddParticipantDialog onAbort={() => setAddParticipantDialogOpen(false)} onSubmit={(values) => {
                 let role = null;

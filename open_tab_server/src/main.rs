@@ -9,6 +9,7 @@ struct Config {
     host: String,
     port: u16,
     logging_config: String,
+    assests_path: String
 }
 
 impl Default for Config {
@@ -17,7 +18,8 @@ impl Default for Config {
             db_url: "sqlite://./server.sqlite3?mode=rwc".into(),
             host: "0.0.0.0".into(),
             port: 3000,
-            logging_config: "trace,sqlx::query=debug,hyper=error,mio=debug,tower_http=debug,axum::rejection=trace,sqlx::query=error".into()
+            logging_config: "trace,sqlx::query=debug,hyper=error,mio=debug,tower_http=debug,axum::rejection=trace,sqlx::query=error".into(),
+            assests_path: "assets".into(),
         }
     }
 }

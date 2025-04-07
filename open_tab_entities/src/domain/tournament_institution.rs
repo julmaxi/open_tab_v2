@@ -12,7 +12,8 @@ use crate::schema;
 pub struct TournamentInstitution {
     pub uuid: Uuid,
     pub name: String,
-    pub tournament_id: Uuid
+    pub tournament_id: Uuid,
+    pub official_identifier: Option<String>,
 }
 
 impl TournamentInstitution {

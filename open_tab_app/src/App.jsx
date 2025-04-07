@@ -75,6 +75,9 @@ function SideNav(props) {
       <NavItem href="/clashes">
         Declarations {clashesView.pending_clashes.length > 0 ? <span className="bg-red-500 text-white rounded-full px-2">{clashesView.pending_clashes.length}</span> : null}
       </NavItem>
+      <NavItem href="/institutions">
+        Institutions
+      </NavItem>
     </NavGroup>
     <NavItem href="/rounds">
       Rounds

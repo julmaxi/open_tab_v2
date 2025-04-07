@@ -80,6 +80,7 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             uuid,
             name,
             tournament_id: tournament_uuid,
+            official_identifier: None
         }
     }).collect_vec();
 

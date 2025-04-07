@@ -20,6 +20,7 @@ import { AssistantRoute } from "./Assistant";
 import { FeedbackProgressRoute } from "./FeedbackProgress";
 import ClashesRoute from "./ClashesView";
 import DrawEditorRoute from "./Routes/Draw/DrawEditor";
+import InstitutionsListView from "./Routes/Institutions";
 import { useRouteError } from "react-router-dom";
 
 const PassError = () => {
@@ -86,6 +87,10 @@ const router = createMemoryRouter([
         path: "status",
         element: <TournamentViewRoute />,
       },
+      {
+        path: "institutions",
+        element: <InstitutionsListView />,
+      }
     ],
   },
 ]);

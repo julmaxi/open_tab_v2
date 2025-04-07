@@ -20,6 +20,7 @@ import {
 import { openImportDialog } from "../../openImportDialog";
 import { ErrorHandlingContext } from "../../Action";
 import { CSVImportDialog } from "./CSVImportDialog";
+import { appDataDir, resourceDir } from "@tauri-apps/api/path";
 
 
 function NumberField(props) {
@@ -170,18 +171,23 @@ export function ParticipantImportDialogButton({buttonFactory, buttonProps: butto
             });
         }} className="h-full">Import…</ButtonFactory>        
 
-
         <ModalOverlay open={importDialogState !== null}>
             {
                 importDialogState !== null ? <CSVImportDialog onAbort={() => setImportDialogState(null)} onSubmit={
                     (values) => {
-                        executeAction(
-                            "UploadParticipantsList", {
-                                tournament_id: tournamentContext.uuid,
-                                path: importDialogState.file,
-                                parser_config: values
-                            },
-                            errorContext.handleError
+                        resourceDir().then(
+                            (path) => {
+                                console.log(path);
+                                executeAction(
+                                        "UploadParticipantsList", {
+                                        tournament_id: tournamentContext.uuid,
+                                        path: importDialogState.file,
+                                        parser_config: values,
+                                        institution_normalizer: path + "resources/well_known_institutions.csv",
+                                    },
+                                    errorContext.handleError
+                                );
+                            }
                         );
                         setImportDialogState(null);
                     }

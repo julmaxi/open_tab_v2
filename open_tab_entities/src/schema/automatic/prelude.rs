@@ -2,6 +2,7 @@
 
 pub use super::adjudicator::Entity as Adjudicator;
 pub use super::adjudicator_availability_override::Entity as AdjudicatorAvailabilityOverride;
+pub use super::asset::Entity as Asset;
 pub use super::ballot_adjudicator::Entity as BallotAdjudicator;
 pub use super::ballot_speech_timing::Entity as BallotSpeechTiming;
 pub use super::clash_declaration::Entity as ClashDeclaration;
@@ -11,6 +12,7 @@ pub use super::feedback_form_question::Entity as FeedbackFormQuestion;
 pub use super::feedback_question::Entity as FeedbackQuestion;
 pub use super::feedback_response::Entity as FeedbackResponse;
 pub use super::feedback_response_value::Entity as FeedbackResponseValue;
+pub use super::institution_alias::Entity as InstitutionAlias;
 pub use super::institution_declaration::Entity as InstitutionDeclaration;
 pub use super::participant_clash::Entity as ParticipantClash;
 pub use super::participant_tournament_institution::Entity as ParticipantTournamentInstitution;
@@ -36,5 +38,7 @@ pub use super::tournament_round::Entity as TournamentRound;
 pub use super::tournament_venue::Entity as TournamentVenue;
 pub use super::user::Entity as User;
 pub use super::user_access_key::Entity as UserAccessKey;
+pub use super::user_associated_institution::Entity as UserAssociatedInstitution;
 pub use super::user_participant::Entity as UserParticipant;
 pub use super::user_tournament::Entity as UserTournament;
+pub use super::well_known_institution::Entity as WellKnownInstitution;

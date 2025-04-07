@@ -37,6 +37,7 @@ pub async fn set_up_db(with_mock_env: bool) -> Result<DatabaseConnection, anyhow
                 tournament_id: ActiveValue::Set(Uuid::from_u128(1)),
                 uuid: ActiveValue::Set(Uuid::from_u128(500)),
                 name: ActiveValue::Set("Testclub".into()),
+                official_identifier: ActiveValue::Set(None)
             }
         ).exec(&db).await?;
 

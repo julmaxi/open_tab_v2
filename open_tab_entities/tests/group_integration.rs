@@ -52,6 +52,7 @@ fn make_changeset() -> (EntityGroup, Ballot) {
             uuid: Uuid::from_u128(500),
             name: "Testclub".into(),
             tournament_id: Uuid::from_u128(1),
+            official_identifier: None
         }
     ));
     let mut p = Participant::new_with_uuid(

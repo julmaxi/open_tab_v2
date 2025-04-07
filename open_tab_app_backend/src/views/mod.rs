@@ -59,7 +59,11 @@ pub enum View {
     TournamentTree{tournament_uuid: Uuid},
     FeedbackOverview{tournament_uuid: Uuid},
     FeedbackDetail{participant_id: Uuid},
-    Institutions{tournament_uuid: Uuid},
+    Institutions{
+        tournament_uuid: Uuid,
+        #[serde(default)]
+        include_statistics: bool
+    },
     Venues{tournament_uuid: Uuid},
     TournamentStatus{tournament_uuid: Uuid},
     BreakRelevantTab{node_uuid: Uuid},
@@ -108,8 +112,8 @@ impl View {
             View::FeedbackDetail { participant_id } => {
                 Box::new(LoadedFeedbackDetailView::load(db, *participant_id).await?)
             },
-            View::Institutions { tournament_uuid } => {
-                Box::new(LoadedInstitutionsView::load(db, *tournament_uuid).await?)
+            View::Institutions { tournament_uuid, include_statistics } => {
+                Box::new(LoadedInstitutionsView::load(db, *tournament_uuid, *include_statistics).await?)
             },
             View::Venues { tournament_uuid } => {
                 Box::new(LoadedVenueListView::load(db, *tournament_uuid).await?)

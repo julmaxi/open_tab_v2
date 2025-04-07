@@ -16,6 +16,8 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_many = "super::user_access_key::Entity")]
     UserAccessKey,
+    #[sea_orm(has_many = "super::user_associated_institution::Entity")]
+    UserAssociatedInstitution,
     #[sea_orm(has_many = "super::user_participant::Entity")]
     UserParticipant,
     #[sea_orm(has_many = "super::user_tournament::Entity")]
@@ -25,6 +27,12 @@ pub enum Relation {
 impl Related<super::user_access_key::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UserAccessKey.def()
+    }
+}
+
+impl Related<super::user_associated_institution::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserAssociatedInstitution.def()
     }
 }
 
@@ -55,6 +63,19 @@ impl Related<super::tournament::Entity> for Entity {
     }
     fn via() -> Option<RelationDef> {
         Some(super::user_tournament::Relation::User.def().rev())
+    }
+}
+
+impl Related<super::well_known_institution::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::user_associated_institution::Relation::WellKnownInstitution.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::user_associated_institution::Relation::User
+                .def()
+                .rev(),
+        )
     }
 }
 
