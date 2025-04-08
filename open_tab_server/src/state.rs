@@ -13,6 +13,7 @@ pub struct AppState {
     pub db: DatabaseConnection,
     pub notifications: Arc<RwLock<ParticipantNotificationManager>>,
     pub cache_manager: Arc<crate::cache::CacheManager>,
+    pub config: crate::config::Config,
 }
 
 impl AppState {
@@ -37,6 +38,7 @@ impl AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
             cache_manager: Arc::new(cache::CacheManager::new((2 as usize).pow(20))),
+            config: Default::default(),
         }
     }
 
@@ -56,7 +58,14 @@ impl AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
             cache_manager: Arc::new(cache::CacheManager::new((2 as usize).pow(20))),
+            config: Default::default(),
         }
+    }
+
+    pub async fn new_with_db_and_config(db: DatabaseConnection, config: crate::config::Config) -> AppState {
+        let mut app_state = AppState::new_with_db(db).await;
+        app_state.config = config;
+        app_state
     }
 
     pub async fn new_test_app() -> AppState {
@@ -75,6 +84,7 @@ impl AppState {
             db,
             notifications: Arc::new(RwLock::new(ParticipantNotificationManager::new())),
             cache_manager: Arc::new(cache::CacheManager::new((2 as usize).pow(20))),
+            config: Default::default(),
         }
     }
 }

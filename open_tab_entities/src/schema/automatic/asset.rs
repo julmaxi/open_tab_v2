@@ -6,8 +6,11 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "asset")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
+    pub uuid: Uuid,
     pub hash: Vec<u8>,
+    #[sea_orm(unique)]
+    pub name: String,
+    pub file_type: String
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

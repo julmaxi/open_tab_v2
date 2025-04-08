@@ -28,6 +28,9 @@ pub mod patch;
 pub mod round;
 pub mod user_profile;
 pub mod cache;
+pub mod config;
+pub mod assets;
+pub mod commands;
 
 use state::AppState;
 
@@ -45,6 +48,11 @@ pub async fn app_with_state(state: AppState) -> axum::Router<()> {
 
     let app = Router::new().route(
         "/", get(|State(_db): State<AppState>| async { "" })
+    )
+    .merge(
+        assets::router(
+            &state
+        )
     )
     .nest("/api",
         auth::router().merge(

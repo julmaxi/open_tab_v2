@@ -129,7 +129,7 @@ impl MigrationTrait for Migration {
                     .table(Asset::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Asset::Id)
+                        ColumnDef::new(Asset::Uuid)
                             .uuid()
                             .not_null()
                             .primary_key(),
@@ -138,6 +138,17 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Asset::Hash)
                             .binary_len(4)
                             .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Asset::Name)
+                            .string_len(255)
+                            .null()
+                            .unique_key()
+                    )
+                    .col(
+                        ColumnDef::new(Asset::FileType)
+                            .string_len(4)
+                            .not_null()
                     )
                     .to_owned(),
             )
@@ -205,8 +216,10 @@ enum UserAssociatedInstitution {
 #[derive(DeriveIden)]
 enum Asset {
     Table,
-    Id,
+    Uuid,
     Hash,
+    Name,
+    FileType
 }
 
 #[derive(DeriveIden)]
