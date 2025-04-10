@@ -3,14 +3,17 @@ use std::hash::Hash;
 use std::iter::{zip, self};
 use std::collections::{HashMap, HashSet};
 
+mod base;
+mod augmented;
+pub use base::{TabView};
 
-use crate::derived_models::{get_participant_public_name, name_to_initials, BreakNodeBackgroundInfo};
+use crate::derived_models::BreakNodeBackgroundInfo;
 use crate::domain::entity::LoadEntity;
 use crate::domain::tournament_plan_node::PlanNodeType;
-use crate::info::TournamentParticipantsInfo;
+use crate::info::{get_tournament_teams_members, TournamentParticipantsInfo};
 use serde::{Serialize, Deserialize};
 
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, QuerySelect};
 use crate::{prelude::*, domain};
 
 use crate::schema::{self, speaker};
@@ -19,134 +22,68 @@ use itertools::Itertools;
 
 use ordered_float::OrderedFloat;
 pub use sea_orm::prelude::Uuid;
+pub use self::base::*;
+pub use self::augmented::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TabView {
-    pub num_rounds: u32,
-    pub team_tab: Vec<TeamTabEntry>,
-    pub speaker_tab: Vec<SpeakerTabEntry>
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct BreakingAdjudicatorInfo {
+    pub name: String,
+    pub uuid: Uuid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TeamTabEntry {
-    pub rank: u32,
-    pub team_name: String,
-    pub team_uuid: Uuid,
-    pub total_score: f64,
-    pub avg_score: Option<f64>,
-    pub detailed_scores: Vec<Option<TeamTabEntryDetailedScore>>,
-    //Be careful here: member ranks start at 1, not 0 for
-    //convenience in the frontend
-    pub member_ranks: Vec<u32>
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct BreakRelevantTabView {
+    pub tab: TabView,
+    pub speaker_teams: HashMap<Uuid, Uuid>,
+    pub team_members: HashMap<Uuid, Vec<Uuid>>,
+    pub breaking_teams: Vec<Uuid>,
+    pub breaking_speakers: Vec<Uuid>,
+    pub breaking_adjudicators: Vec<Uuid>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TeamTabEntryDetailedScore {
-    pub team_score: Option<f64>,
-    pub speaker_score: f64,
-    pub role: TeamRoundRole
-}
+impl BreakRelevantTabView {
+    pub async fn load_from_node<C>(db: &C, node_uuid: Uuid) -> Result<BreakRelevantTabView, anyhow::Error> where C: ConnectionTrait {
+        let target_node = crate::domain::tournament_plan_node::TournamentPlanNode::get(db, node_uuid).await?;
+        let break_background = BreakNodeBackgroundInfo::load_for_break_node(db, target_node.tournament_id, node_uuid).await?;
+        let speaker_info = TournamentParticipantsInfo::load(db, target_node.tournament_id).await?;
 
-impl TeamTabEntryDetailedScore {
-    pub fn total_score(&self) -> f64 {
-        match self.team_score {
-            Some(team_score) => team_score + self.speaker_score,
-            None => self.speaker_score
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum TeamRoundRole {
-    Government,
-    Opposition,
-    NonAligned,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpeakerTabEntry {
-    pub rank: u32,
-    pub speaker_name: String,
-    pub team_name: String,
-    pub speaker_uuid: Uuid,
-    pub total_score: f64,
-    pub avg_score: Option<f64>,
-    pub detailed_scores: Vec<Option<SpeakerTabEntryDetailedScore>>,
-    pub is_anonymous: bool, // New field
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpeakerTabEntryDetailedScore {
-    pub score: f64,
-    pub team_role: TeamRoundRole,
-    pub speech_position: u8
-}
-
-struct VecMap<K, V> {
-    store: HashMap<K, Vec<Option<V>>>
-}
-
-impl Debug for VecMap<Uuid, TeamTabEntryDetailedScore> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("VecMap")
-        .field("store", &self.store.iter().map(|(k, v)| (k, v.len())).collect::<HashMap<_, _>>())
-        .finish()
-    }
-}
-
-impl<K, V> VecMap<K, V> where K: Eq + Hash + Clone, V: Clone {
-    fn new() -> VecMap<K, V> {
-        VecMap {
-            store: HashMap::new()
-        }
-    }
-
-    fn get(&self, key: &K, index: usize) -> Option<&V> {
-        let vec = self.store.get(key)?;
-        vec.get(index)?.as_ref()
-    }
-
-    fn get_mut(&mut self, key: &K, index: usize) -> Option<&mut V> {
-        let vec = self.store.get_mut(key)?;
-        if let Some(val) = vec.get_mut(index) {
-            val.as_mut()
-        }
-        else {
-            None
-        }
-    }
-
-    fn reserve(&mut self, key: &K, len: usize) {
-        if let Some(vec) = self.store.get_mut(key) {
-            if vec.len() < len {
-                vec.extend(iter::repeat(None).take(len - vec.len() + 1));
-            }
-        }
-        else {
-            self.store.insert(key.clone(), iter::repeat(None).take(len).collect());
-        }
-    }
-
-    fn insert(&mut self, key: &K, index: usize, value: V) {
-        let vec = self.store.get_mut(key);
-        let vec = if let Some(vec) = vec {
-            vec
-        }
-        else {
-            self.store.insert(key.clone(), vec![]);
-            self.store.get_mut(key).unwrap()
+        let break_id = match target_node.config {
+            PlanNodeType::Break { break_id, .. } => {
+                break_id
+            },
+            _ =>  None
         };
-        
-        if vec.len() <= index {
-            vec.extend(iter::repeat(None).take(index - vec.len() + 1));
-        }
 
-        vec[index] = Some(value);
+        let (breaking_teams, breaking_speakers, breaking_adjudicators) = match break_id {
+            Some(break_id) => {
+                let break_ = crate::domain::tournament_break::TournamentBreak::get(db, break_id).await?;
+                (break_.breaking_teams, break_.breaking_speakers, break_.breaking_adjudicators)
+            },
+            None => (vec![], vec![], vec![])
+        };
+
+        let tab = TabView::load_from_rounds(
+            db,
+            break_background.preceding_rounds.clone(),
+            &speaker_info.team_members,
+        ).await?;
+
+        Ok(BreakRelevantTabView {
+            tab,
+            speaker_teams: speaker_info.speaker_teams,
+            team_members: speaker_info.team_members,
+            breaking_teams,
+            breaking_speakers,
+            breaking_adjudicators
+        })
     }
 }
 
-impl TabView {
-    pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<TabView, anyhow::Error> where C: ConnectionTrait {
+
+
+/* 
+impl AugmentedTabView {
+    pub async fn load_from_rounds_with_anonymity<C>(db: &C, round_ids: Vec<Uuid>, speaker_info: &super::info::TournamentParticipantsInfo, respect_anonymity: bool) -> Result<AugmentedTabView, anyhow::Error> where C: ConnectionTrait {
         let mut tab = Self::load_from_rounds(db, round_ids, speaker_info).await?;
         if respect_anonymity {
             tab.anonymize();
@@ -498,3 +435,4 @@ impl BreakRelevantTabView {
         })
     }
 }
+    */

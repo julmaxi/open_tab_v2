@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde_json::Value;
 use tera::{Context, Tera};
-use open_tab_entities::{derived_models::{name_to_initials, DrawPresentationInfo, RegistrationInfo}, tab::{BreakRelevantTabView, TabView}};
+use open_tab_entities::{derived_models::{name_to_initials, DrawPresentationInfo, RegistrationInfo}, tab::{AugmentedBreakRelevantTabView, AugmentedTabView, BreakRelevantTabView, TabView}};
 
 
 use std::io::Write;
@@ -220,8 +220,8 @@ pub fn make_open_office_presentation<W>(context: &TemplateContext, writer: W, in
 
 #[derive(Debug)]
 pub enum OptionallyBreakRelevantTab {
-    Tab(TabView),
-    BreakRelevantTab(BreakRelevantTabView)
+    Tab(AugmentedTabView),
+    BreakRelevantTab(AugmentedBreakRelevantTabView)
 }
 
 pub fn write_open_office_tab<W>(context: &TemplateContext, writer: W, tab_view: OptionallyBreakRelevantTab, tournament_name: String) -> 
@@ -321,26 +321,26 @@ pub fn make_pdf_registration_items<W>(
 
 #[cfg(test)]
 mod test {
-    use open_tab_entities::tab::{SpeakerTabEntry, SpeakerTabEntryDetailedScore, TeamRoundRole, TeamTabEntry, Uuid};
+    use open_tab_entities::tab::{AugmentedSpeakerTabEntry, AugmentedTeamTabEntry, SpeakerTabEntry, SpeakerTabEntryDetailedScore, TeamRoundRole, Uuid};
     use super::*;
 
     #[test]
     fn test_save_tab() {
-        let tab_view = TabView {
+        let tab_view = AugmentedTabView {
             num_rounds: 3,
             team_tab: vec![
-                TeamTabEntry {
+                AugmentedTeamTabEntry {
+                    team_name: "Team A".into(),
                     rank: 1,
-                    team_name: "Team A".to_string(),
                     team_uuid: Uuid::from_u128(10),
                     total_score: 100.0,
                     avg_score: Some(90.0),
                     detailed_scores: vec![],
                     member_ranks: vec![1, 4, 5],
                 },
-                TeamTabEntry {
+                AugmentedTeamTabEntry {
+                    team_name: "Team B".into(),
                     rank: 2,
-                    team_name: "Team B".to_string(),
                     team_uuid: Uuid::from_u128(20),
                     total_score: 90.0,
                     avg_score: Some(85.0),
@@ -349,11 +349,12 @@ mod test {
                 },
             ],
             speaker_tab: vec![
-                SpeakerTabEntry {
+                AugmentedSpeakerTabEntry {
+                    speaker_name: "Speaker A".into(),
+                    team_name: "Team A".into(),
                     rank: 1,
-                    speaker_name: "Speaker A".to_string(),
-                    team_name: "Team A".to_string(),
                     speaker_uuid: Uuid::from_u128(300),
+                    team_uuid: Uuid::from_u128(10),
                     total_score: 95.0,
                     avg_score: Some(90.0),
                     detailed_scores: vec![
@@ -373,13 +374,14 @@ mod test {
                             speech_position: 3,
                         }),
                     ],
-                    is_anonymous: false,
+                    is_anonymous: false
                 },
-                SpeakerTabEntry {
+                AugmentedSpeakerTabEntry {
+                    speaker_name: "Speaker B".into(),
+                    team_name: "Team B".into(),
                     rank: 2,
-                    speaker_name: "Speaker B".to_string(),
-                    team_name: "Team B".to_string(),
                     speaker_uuid: Uuid::from_u128(400),
+                    team_uuid: Uuid::from_u128(20),
                     total_score: 85.0,
                     avg_score: Some(80.0),
                     detailed_scores: vec![
@@ -399,13 +401,14 @@ mod test {
                             speech_position: 3,
                         }),
                     ],
-                    is_anonymous: false,
+                    is_anonymous: false
                 },
-                SpeakerTabEntry {
+                AugmentedSpeakerTabEntry {
                     rank: 3,
-                    speaker_name: "Speaker C".to_string(),
-                    team_name: "Team A".to_string(),
+                    speaker_name: "Speaker C".into(),
+                    team_name: "Team A".into(),
                     speaker_uuid: Uuid::from_u128(500),
+                    team_uuid: Uuid::from_u128(10),
                     total_score: 80.0,
                     avg_score: Some(75.0),
                     detailed_scores: vec![
@@ -425,7 +428,7 @@ mod test {
                             speech_position: 3,
                         }),
                     ],
-                    is_anonymous: false,
+                    is_anonymous: false
                 },
             ],
         };

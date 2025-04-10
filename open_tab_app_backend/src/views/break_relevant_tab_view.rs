@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::LoadedView;
 
-pub use open_tab_entities::tab::BreakRelevantTabView;
+pub use open_tab_entities::tab::AugmentedBreakRelevantTabView;
 
 
 pub struct LoadedBreakRelevantTabView {
     node_uuid: Uuid,
-    view: BreakRelevantTabView
+    view: AugmentedBreakRelevantTabView
 }
 
 impl LoadedBreakRelevantTabView {
@@ -21,7 +21,7 @@ impl LoadedBreakRelevantTabView {
         Ok(
             LoadedBreakRelevantTabView {
                 node_uuid,
-                view: BreakRelevantTabView::load_from_node(db, node_uuid).await?,
+                view: AugmentedBreakRelevantTabView::load_from_node(db, node_uuid).await?,
             }
         )
     }
@@ -38,7 +38,7 @@ impl LoadedView for LoadedBreakRelevantTabView {
             EntityTypeId::Ballot,
             EntityTypeId::TournamentBreak
         ]) {
-            self.view = BreakRelevantTabView::load_from_node(db, self.node_uuid).await?;
+            self.view = AugmentedBreakRelevantTabView::load_from_node(db, self.node_uuid).await?;
 
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);

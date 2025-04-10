@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::domain::tournament_institution::TournamentInstitution;
+use crate::{domain::tournament_institution::TournamentInstitution, schema};
 
 
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, QuerySelect};
 use serde::{Serialize, Deserialize};
 use crate::prelude::*;
 
@@ -74,4 +74,18 @@ impl TournamentParticipantsInfo {
             institutions_by_id
         })
     }
+}
+
+
+pub async fn get_tournament_teams_members<C>(db: &C, tournament_uuid: Uuid) -> Result<HashMap<Uuid, Vec<Uuid>>, anyhow::Error> where C: ConnectionTrait {
+    let team_members = schema::speaker::Entity::find()
+        .select_only()
+        .column(schema::speaker::Column::TeamId)
+        .column(schema::speaker::Column::Uuid)
+        .inner_join(schema::participant::Entity)
+        .filter(schema::participant::Column::TournamentId.eq(tournament_uuid))
+        .filter(schema::speaker::Column::TeamId.is_not_null())
+        .into_tuple::<(Uuid, Uuid)>()
+        .all(db).await?.into_iter().into_group_map();
+    Ok(team_members)
 }

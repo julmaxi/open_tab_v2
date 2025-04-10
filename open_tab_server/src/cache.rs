@@ -61,7 +61,7 @@ impl<K> SerializedLRUCache<K> where K: std::hash::Hash + Eq + Clone {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum CacheKey {
-    Tab(Uuid, Vec<Uuid>, bool),
+    Tab(Uuid, Vec<Uuid>),
     ParticipantInfo(Uuid),
 }
 
@@ -103,7 +103,7 @@ impl CacheManager {
         }
     }
 
-    pub async fn get_tab<C>(&self, tournament_id: Uuid, round_ids: Vec<Uuid>, show_anonymity: bool, db: &C) -> anyhow::Result<TabView> where C: ConnectionTrait {
+    pub async fn get_tab<C>(&self, tournament_id: Uuid, round_ids: Vec<Uuid>, db: &C) -> anyhow::Result<TabView> where C: ConnectionTrait {
         let current_tournament_version = schema::tournament_log::Entity::find()
             .filter(schema::tournament_log::Column::TournamentId.eq(tournament_id))
             .order_by_desc(schema::tournament_log::Column::SequenceIdx)
@@ -113,7 +113,7 @@ impl CacheManager {
 
         let current_tournament_version = current_tournament_version.unwrap_or_default();
 
-        let key = CacheKey::Tab(tournament_id, round_ids.clone(), show_anonymity);
+        let key = CacheKey::Tab(tournament_id, round_ids.clone());
 
         let mut cache = self.cache.write().await;
 
@@ -127,7 +127,7 @@ impl CacheManager {
                 tracing::debug!("Cache miss for tab with key {:?}", key);
                 let participant_info = self.get_tournament_participants_info(tournament_id, db).await?;
                 let mut cache = self.cache.write().await;
-                let tab = TabView::load_from_rounds_with_anonymity(db, round_ids, &participant_info, show_anonymity).await?;
+                let tab = TabView::load_from_rounds(db, round_ids, &participant_info.team_members).await?;
                 cache.insert(key, current_tournament_version, &tab)?;
                 Ok(tab)
             }

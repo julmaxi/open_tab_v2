@@ -7,6 +7,7 @@ use async_trait::async_trait;
 
 
 
+use open_tab_entities::tab::AugmentedTabView;
 use sea_orm::prelude::*;
 use open_tab_entities::{prelude::*, EntityTypeId};
 
@@ -21,12 +22,10 @@ use super::base::LoadedView;
 pub use open_tab_entities::tab::{
     TabView,
     TeamRoundRole,
-    TeamTabEntry,
-    SpeakerTabEntry
 };
 
 pub struct LoadedTabView {
-    pub view: TabView,
+    pub view: AugmentedTabView,
     pub tournament_uuid: Uuid
 }
 
@@ -35,7 +34,7 @@ impl LoadedTabView {
         Ok(
             LoadedTabView {
                 tournament_uuid,
-                view: TabView::load_from_tournament(db, tournament_uuid).await?,
+                view: AugmentedTabView::load_from_tournament(db, tournament_uuid).await?,
             }
         )
     }
@@ -45,7 +44,7 @@ impl LoadedTabView {
 impl LoadedView for LoadedTabView {
     async fn update_and_get_changes(&mut self, db: &sea_orm::DatabaseTransaction, changes: &EntityGroup) -> Result<Option<HashMap<String, serde_json::Value>>, anyhow::Error> {
         if changes.has_changes_for_type(EntityTypeId::Ballot) {
-            self.view = TabView::load_from_tournament(db, self.tournament_uuid).await?;
+            self.view = AugmentedTabView::load_from_tournament(db, self.tournament_uuid).await?;
 
             let mut out = HashMap::new();
             out.insert(".".to_string(), serde_json::to_value(&self.view)?);

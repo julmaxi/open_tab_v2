@@ -5,7 +5,7 @@ use std::{collections::{HashMap, HashSet}, error::Error, fmt::{Debug, Display, F
 
 use identity::IdentityProvider;
 use migration::MigratorTrait;
-use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, debate_backup_ballot::DebateBackupBallot, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
+use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, debate_backup_ballot::DebateBackupBallot, entity::LoadEntity}, schema::{self}, tab::{AugmentedBreakRelevantTabView, AugmentedTabView, BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
 use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{write_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserRequestError, CreateUserResponse, GetTokenRequest, GetTokenResponse}, cache, response::APIErrorResponse, sync::{reconcile_changes, FatLog, ReconciliationOutcome, SyncRequest, SyncRequestResponse}, tournament::CreateTournamentRequest};
 //use open_tab_server::TournamentChanges;
@@ -16,7 +16,7 @@ use open_tab_entities::prelude::*;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
-use open_tab_app_backend::{draw::{evaluation::{DrawEvaluator, DrawIssue}, preliminary::PreliminaryDrawError}, draw_view::{DrawBallot, LoadedDrawView}, feedback::FormTemplate, import::CSVReaderConfig, tournament_status_view::LoadedTournamentStatusView, Action, LoadedView, View};
+use open_tab_app_backend::{draw::{evaluation::{DrawEvaluator, DrawIssue}, preliminary::PreliminaryDrawError}, draw_view::{DrawBallot, LoadedDrawView}, feedback::FormTemplate, import::CSVReaderConfig, tournament_status_view::LoadedTournamentStatusView, Action, LoadedView, TournamentParticipantsInfo, View};
 
 use thiserror::Error;
 use tokio::{sync::Mutex, sync::RwLock};
@@ -1309,13 +1309,25 @@ async fn send_tournament_api_request(
 
 #[tauri::command]
 async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_, TemplateContext>, tournament_id: Uuid, node_id: Option<Uuid>, path: String) -> Result<(), ()> {
+    let participant_info = TournamentParticipantsInfo::load(db.inner(), tournament_id).await.map_err(handle_error)?;
     let tab_view = match node_id {
         Some(node_id) => {
-            let tab_view = BreakRelevantTabView::load_from_node_with_anonymity(db.inner(), node_id, true).await.map_err(handle_error)?;
-            OptionallyBreakRelevantTab::BreakRelevantTab(tab_view)
+            let tab_view = BreakRelevantTabView::load_from_node(db.inner(), node_id).await.map_err(handle_error)?;
+            let augmented_tab_view = AugmentedBreakRelevantTabView::from_break_relevant_tab(
+                &tab_view,
+                &participant_info.teams_by_id,
+                &participant_info.participants_by_id,
+                true);
+            OptionallyBreakRelevantTab::BreakRelevantTab(augmented_tab_view)
         },
         None => {
-            let tab_view = TabView::load_from_tournament_with_anonymity(db.inner(), tournament_id, true).await.map_err(handle_error)?;
+            let tab_view = TabView::load_from_tournament(db.inner(), tournament_id).await.map_err(handle_error)?;
+            let tab_view = AugmentedTabView::from_tab_view(
+                &tab_view,
+                &participant_info.teams_by_id,
+                &participant_info.participants_by_id,
+                true);
+
             OptionallyBreakRelevantTab::Tab(tab_view)
         }
     };

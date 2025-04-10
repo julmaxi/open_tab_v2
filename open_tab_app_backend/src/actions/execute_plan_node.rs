@@ -639,7 +639,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
     let tab = views::tab_view::TabView::load_from_rounds(
         db,
         preceding_rounds.clone(),
-        &speaker_info
+        &speaker_info.team_members
     ).await?;
 
     let eligibility_info = get_eligiblity_info(

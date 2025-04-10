@@ -3,7 +3,7 @@
 use axum::{extract::{Path, State}, Json, Router, routing::get};
 use axum::http::StatusCode;
 use itertools::Itertools;
-use open_tab_entities::{domain::participant::ParticipantInstitution, prelude::TournamentRound, schema, tab::TabView};
+use open_tab_entities::{domain::{self, participant::ParticipantInstitution}, prelude::TournamentRound, schema, tab::{AugmentedTabView, TabView}};
 use sea_orm::{prelude::*, sea_query::IntoCondition, DatabaseConnection, DbBackend, QuerySelect, QueryTrait, RelationBuilder};
 use serde::{Serialize, Deserialize};
 use std::{collections::HashMap, sync::Arc};
@@ -12,7 +12,7 @@ use crate::{auth::MaybeExtractAuthenticatedUser, cache::CacheManager, response::
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TabResponse {
-    tab: TabView,
+    tab: AugmentedTabView,
     well_known_institutions: HashMap<String, WellKnownInstitutionInfo>,
     participant_well_known_institutions: HashMap<Uuid, Vec<String>>,
     team_well_known_institutions: HashMap<Uuid, Vec<String>>,
@@ -70,7 +70,11 @@ pub async fn get_current_tab(
     }).sorted_by_key(|r| r.index).collect_vec();
 
     //leshow_anonymityt tab = TabView::load_from_tournament_with_rounds_with_anonymity(&db, tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true).await?;
-    let tab = cache_manager.get_tab(tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), true, &db).await?;
+    let tab = cache_manager.get_tab(tournament_id, visible_rounds.iter().map(|r| r.uuid).collect_vec(), &db).await?;
+
+    let teams = domain::team::Team::get_all_in_tournament(&db, tournament_id).await?.into_iter().map(|team| (team.uuid, team)).collect::<HashMap<_, _>>();
+    let participants = domain::participant::Participant::get_all_in_tournament(&db, tournament_id).await?.into_iter().map(|participant| (participant.uuid, participant)).collect::<HashMap<_, _>>();
+    let tab = AugmentedTabView::from_tab_view(&tab, &teams, &participants, true);
 
     let tournament_well_known_rel = || schema::tournament_institution::Entity::belongs_to(
         schema::well_known_institution::Entity
