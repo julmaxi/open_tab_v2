@@ -6,7 +6,7 @@ use std::{collections::{HashMap, HashSet}, error::Error, fmt::{Debug, Display, F
 use identity::IdentityProvider;
 use migration::MigratorTrait;
 use open_tab_entities::{derived_models::{DrawPresentationInfo, RegistrationInfo}, domain::{self, ballot::{BallotParseError, SpeechRole}, debate_backup_ballot::DebateBackupBallot, entity::LoadEntity}, schema::{self}, tab::{BreakRelevantTabView, TabView}, utilities::BatchLoadError, EntityGroup, EntityTypeId};
-use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{make_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
+use open_tab_reports::{TemplateContext, make_open_office_ballots, template::{write_open_office_tab, OptionallyBreakRelevantTab, make_open_office_presentation, make_pdf_registration_items}};
 use open_tab_server::{auth::{CreateUserRequest, CreateUserRequestError, CreateUserResponse, GetTokenRequest, GetTokenResponse}, cache, response::APIErrorResponse, sync::{reconcile_changes, FatLog, ReconciliationOutcome, SyncRequest, SyncRequestResponse}, tournament::CreateTournamentRequest};
 //use open_tab_server::TournamentChanges;
 use reqwest::Client;
@@ -1323,7 +1323,7 @@ async fn save_tab(db: State<'_, DatabaseConnection>, template_context: State<'_,
     let tournament = domain::tournament::Tournament::get(db.inner(), tournament_id).await.map_err(handle_error)?;
 
     let file = File::create(path).map_err(handle_error)?;
-    make_open_office_tab(&template_context, file, tab_view, tournament.name).map_err(handle_error)?;
+    write_open_office_tab(&template_context, file, tab_view, tournament.name).map_err(handle_error)?;
 
     Ok(())
 }

@@ -18,6 +18,7 @@ use crate::schema::{self, speaker};
 use itertools::Itertools;
 
 use ordered_float::OrderedFloat;
+pub use sea_orm::prelude::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabView {
