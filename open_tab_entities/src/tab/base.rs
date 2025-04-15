@@ -23,6 +23,7 @@ pub use sea_orm::prelude::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabView {
     pub num_rounds: u32,
+    pub rounds: Vec<Uuid>,
     pub team_index: HashMap<Uuid, usize>,
     pub speaker_index: HashMap<Uuid, usize>,
     pub team_tab: Vec<TeamTabEntry>,
@@ -293,7 +294,7 @@ impl TabView {
         let speaker_index = speaker_tab.iter().enumerate().map(|(i, t)| (t.speaker_uuid, i)).collect::<HashMap<_, _>>();
 
         Ok(
-            TabView { team_tab, speaker_tab, num_rounds: num_round_ids as u32, team_index, speaker_index }
+            TabView { team_tab, speaker_tab, num_rounds: num_round_ids as u32, team_index, speaker_index, rounds: round_order }
         )
     }
 

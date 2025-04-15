@@ -48,6 +48,16 @@
     .login {
       margin-left: auto;
     }
+
+    div.login {
+      display: flex;
+      align-items: center;
+    }
+    div.login > a {
+      border-right: 1px solid #ccc;
+      padding-right: 2px;
+      margin-right: 2px;
+    }
   </style>
   
   {#if !data.hideNavbar}
@@ -58,9 +68,12 @@
     {/each}
     <slot name="header" />
     {#if data["isAuthenticated"]}
-    <form class="login" method="POST" action="/logout">
+    <div class="login">
+    <a href={`/user/${data.userId}`}>Profile</a>
+    <form method="POST" action="/logout">
       <button type="submit" formaction="/logout">Logout</button>
     </form>
+    </div>
     {:else}
       <a class="login" href="/login">Login</a>
     {/if}

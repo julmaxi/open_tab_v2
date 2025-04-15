@@ -27,6 +27,7 @@ export async function load({ params, fetch, cookies, url }) {
     else {
         layoutInfo["isAuthenticated"] = true;
         layoutInfo["userIdentifier"] = userInfo.identifier;
+        layoutInfo["userId"] = userInfo.uuid;
     }
 
     if (path.startsWith("/tournament/")) {

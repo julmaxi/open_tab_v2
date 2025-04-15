@@ -1,4 +1,4 @@
-use axum::{extract::{Path, State}, routing::get, Json, Router};
+use axum::{extract::{Path, State}, http::StatusCode, routing::get, Json, Router};
 use sea_orm::{prelude::*, DatabaseConnection, EntityTrait, QueryOrder};
 use serde::Serialize;
 
@@ -6,6 +6,7 @@ use crate::{auth::ExtractAuthenticatedUser, response::APIError, state::AppState}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UserInfo {
+    uuid: Uuid,
     identifier: String,
 }
 
@@ -15,9 +16,20 @@ pub async fn get_user_info(
 ) -> Result<Json<UserInfo>, APIError> {
     let user = open_tab_entities::schema::user::Entity::find_by_id(user.uuid).one(&db).await?;
 
-    return Ok(Json(UserInfo {
-        identifier: user.unwrap().user_email.unwrap_or("Anonymous User".to_string()),
-    }));
+    if let Some(user) = user {
+        Ok(Json(UserInfo {
+            uuid: user.uuid,
+            identifier: user.user_email.unwrap_or("Anonymous User".to_string()),
+        }))
+    }
+    else {
+        //This should never happen, since otherwise the user was
+        //not authorized in the first place.
+        Err(APIError::new_with_status(
+            StatusCode::NOT_FOUND,
+            "User not found",
+        ))
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

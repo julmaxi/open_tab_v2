@@ -12,3 +12,5 @@ test.csv
 .vscode/
 
 open_tab_server/assets
+sample_data/
+scripts/
