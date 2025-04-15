@@ -77,6 +77,8 @@ pub struct TournamentBreak {
     
     pub break_award_title: Option<String>,
     pub break_award_prestige: Option<i32>,
+
+    pub award_series_key: Option<String>,
 }
 
 impl TournamentBreak {
@@ -89,6 +91,7 @@ impl TournamentBreak {
             breaking_adjudicators: vec![],
             break_award_title: None,
             break_award_prestige: None,
+            award_series_key: None
         }
     }
 
@@ -132,6 +135,7 @@ impl TournamentBreak {
             breaking_adjudicators,
             break_award_title: break_row.break_award_title,
             break_award_prestige: break_row.break_award_prestige,
+            award_series_key: break_row.award_series_key,
         })
     }
 }
@@ -169,6 +173,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentBreak where C: sea_orm::Conn
             tournament_id: ActiveValue::Set(self.tournament_id),
             break_award_title: ActiveValue::Set(self.break_award_title.clone()),
             break_award_prestige: ActiveValue::Set(self.break_award_prestige),
+            award_series_key: ActiveValue::Set(self.award_series_key.clone()),
         };
 
         if guarantee_insert {

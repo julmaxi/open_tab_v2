@@ -31,30 +31,31 @@ impl ActionTrait for SetManualBreakAction {
 
         let tournament_id = node.tournament_id;
 
-        let prev_break_id = match node.config {
-            PlanNodeType::Break { break_id, .. } => {
-                break_id
-            },
-            _ => return Err(anyhow::anyhow!("Node is not a manual break"))
-        };
+        if let PlanNodeType::Break {
+            break_id,
+            suggested_break_award_prestige,
+            suggested_award_title,
+            suggested_award_series_key,
+            ..
+        } = &node.config {
+            let break_id = break_id.clone().unwrap_or(Uuid::new_v4());
 
-        let break_id = prev_break_id.unwrap_or(Uuid::new_v4());
+            let mut break_ = TournamentBreak::new(tournament_id);
+            break_.uuid = break_id;
+            break_.breaking_speakers = self.breaking_speakers;
+            break_.breaking_teams = self.breaking_teams;
 
-        let mut break_ = TournamentBreak::new(tournament_id);
-        break_.uuid = break_id;
-        break_.breaking_speakers = self.breaking_speakers;
-        break_.breaking_teams = self.breaking_teams;
-
-        match &mut node.config {
-            PlanNodeType::Break { break_id: break_id_ref, .. } => {
-                *break_id_ref = Some(break_id);
-            },
-            _ => return Err(anyhow::anyhow!("Node is not a manual break"))
+            break_.break_award_title = suggested_award_title.clone();
+            break_.award_series_key = suggested_award_series_key.clone();
+            break_.break_award_prestige = suggested_break_award_prestige.clone();
+ 
+            groups.add(Entity::TournamentPlanNode(node));
+            groups.add(Entity::TournamentBreak(break_));
+    
+            Ok(groups)
         }
-
-        groups.add(Entity::TournamentPlanNode(node));
-        groups.add(Entity::TournamentBreak(break_));
-
-        Ok(groups)
+        else {
+            Err(anyhow::anyhow!("Node is not a break"))
+        }
     }
 }

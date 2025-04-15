@@ -24,7 +24,7 @@
 
         plot.addChild(
             new KDEPlot(
-               (new Array(100)).fill(0).map((_, i) => 40 + Math.random() * 20)
+                samples.map((sample) => sample.total_score),
             )
         );
 

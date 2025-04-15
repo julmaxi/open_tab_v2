@@ -11,6 +11,9 @@ pub enum Command {
     AddInstitutions {
         path: String
     },
+    AddAwardSeries {
+        path: String
+    }
 }
 
 impl Command {
@@ -91,6 +94,53 @@ impl Command {
 
                 schema::well_known_institution::Entity::insert_many(to_insert_institutions).exec(&transaction).await?;
                 schema::institution_alias::Entity::insert_many(to_insert_aliases).exec(&transaction).await?;
+                transaction.commit().await?;
+                Ok(())
+            }
+            Command::AddAwardSeries { path } => {
+                let csv_path = Path::new(path).join("award_series.csv");
+                dbg!(&csv_path);
+                let mut reader = ReaderBuilder::new().from_path(&csv_path)?;
+
+                let mut to_insert_award_series = vec![];
+
+                for record in reader.records() {
+                    let record = record?;
+                    let id = record.get(0);
+                    let name = record.get(1);
+                    let prestige = record.get(2).and_then(|s| s.parse::<i32>().ok());
+                    let image_name = record.get(3).map(|s| s.trim()).filter(|s| s.len() > 0);
+
+                    match (id, name, prestige) {
+                        (Some(id), Some(name), Some(prestige)) => {
+                            let image_uuid: Option<Uuid> = if let Some(image_name) = image_name {
+                                let content = std::fs::read(Path::new(path).join(image_name)).inspect_err(|e| eprintln!("Error while reading image: {}", e))?;
+                                let filetype = crate::assets::AssetFileType::from_filename(image_name)?;
+                                Some(save_named_asset(
+                                    &app_state,
+                                    content,
+                                    filetype,
+                                    id.to_owned() + "_image",
+                                ).await?)
+                            } else {
+                                None
+                            };
+
+                            let award_series = schema::award_series::ActiveModel {
+                                uuid: Set(Uuid::new_v4()),
+                                short_name: Set(id.to_string()),
+                                name: Set(name.to_string()),
+                                prestige: Set(prestige),
+                                image: Set(image_uuid),
+                            };
+                            to_insert_award_series.push(award_series);
+                        }
+                        _ => {}
+                    }
+                }
+
+                let transaction = app_state.db.begin().await?;
+                schema::award_series::Entity::insert_many(to_insert_award_series).exec(&transaction).await?;
                 transaction.commit().await?;
                 Ok(())
             }

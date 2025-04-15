@@ -72,7 +72,7 @@ pub async fn save_named_asset(
     let asset = open_tab_entities::schema::asset::ActiveModel {
         uuid: ActiveValue::Set(asset_id),
         hash: ActiveValue::Set(hash.to_be_bytes().to_vec()),
-        name: ActiveValue::Set(name),
+        name: ActiveValue::Set(Some(name)),
         file_type: ActiveValue::Set(serde_json::to_string(&file_type)?),
     };
 
@@ -116,7 +116,7 @@ async fn asset_middleware<B>(
         );
         response.headers_mut().insert(
             axum::http::header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}.{}\"", asset.name, file_type.get_extension()).parse().unwrap(),
+            format!("attachment; filename=\"{}.{}\"", asset.name.unwrap_or_else(|| uuid.to_string()), file_type.get_extension()).parse().unwrap(),
         );
         return Ok(response);
     }

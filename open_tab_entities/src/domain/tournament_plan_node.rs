@@ -1,6 +1,3 @@
-
-
-
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -165,8 +162,11 @@ pub enum PlanNodeConfig {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum PlanNodeType {
-    Round{config: RoundGroupConfig, rounds: Vec<Uuid>},
-    Break{
+    Round {
+config: RoundGroupConfig,
+rounds: Vec<Uuid>,
+},
+    Break {
         config: BreakConfig,
         break_id: Option<Uuid>,
         eligible_categories: Vec<TournamentEligibleBreakCategory>,
@@ -174,9 +174,9 @@ pub enum PlanNodeType {
         suggested_break_award_prestige: Option<i32>,
         max_breaking_adjudicator_count: Option<i32>,
         is_only_award: bool,
+        suggested_award_series_key: Option<String>,
     },
 }
-
 
 impl PlanNodeType {
     pub fn new_break(config: BreakConfig) -> Self {
@@ -188,13 +188,15 @@ impl PlanNodeType {
             max_breaking_adjudicator_count: None,
             is_only_award: false,
             suggested_break_award_prestige: None,
+            suggested_award_series_key: None
         }
     }
 }
+       
 
 /*
 impl BreakType {
-    pub fn human_readable_description(&self) -> String {
+pub fn human_readable_description(&self) -> String {
         match self {
             BreakType::TabBreak{num_debates} => format!("Top {0} break", num_debates * 2),
             BreakType::TwoThirdsBreak => "Upper 2/3rds break".to_string(),
@@ -258,6 +260,7 @@ impl TournamentPlanNode {
                         suggested_award_title: node_row.suggested_award_title,
                         break_id: node_row.break_id,
                         suggested_break_award_prestige: node_row.suggested_award_prestige,
+                        suggested_award_series_key: node_row.suggested_award_series_key,
                         eligible_categories: break_categories.into_iter().map(|r| {
                             Ok(TournamentEligibleBreakCategory {
                                 category_id: r.tournament_break_category_id,
@@ -320,7 +323,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
     async fn save(&self, db: &C, guarantee_insert: bool) -> Result<(), anyhow::Error> where C: sea_orm::ConnectionTrait {
         let empty_vec = vec![];
         let (model, rounds) = match &self.config {
-            PlanNodeType::Break { config, break_id, suggested_award_title, max_breaking_adjudicator_count, is_only_award, suggested_break_award_prestige, .. } => {
+            PlanNodeType::Break { config, break_id, suggested_award_title, max_breaking_adjudicator_count, is_only_award, suggested_break_award_prestige, suggested_award_series_key, .. } => {
                 (schema::tournament_plan_node::ActiveModel {
                     uuid: ActiveValue::Set(self.uuid),
                     tournament_id: ActiveValue::Set(self.tournament_id),
@@ -332,6 +335,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
                     max_breaking_adjudicator_count: ActiveValue::Set(*max_breaking_adjudicator_count),
                     is_only_award: ActiveValue::Set(*is_only_award),
                     suggested_award_prestige: ActiveValue::Set(suggested_break_award_prestige.clone()),
+                    suggested_award_series_key: ActiveValue::Set(suggested_award_series_key.clone()),
                 }, &empty_vec)
             },
             PlanNodeType::Round { config, rounds } => {
@@ -346,6 +350,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentPlanNode where C: Connection
                     max_breaking_adjudicator_count: ActiveValue::Set(None),
                     is_only_award: ActiveValue::Set(false),
                     suggested_award_prestige: ActiveValue::Set(None),
+                    suggested_award_series_key: ActiveValue::Set(None),
                 }, rounds)
             }
         };

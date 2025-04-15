@@ -78,7 +78,8 @@ async fn test_save_empty_break_node() {
                 suggested_award_title: None,
                 max_breaking_adjudicator_count: None,
                 is_only_award: false,
-                suggested_break_award_prestige: None
+                suggested_break_award_prestige: None,
+                suggested_award_series_key: None,
             }
         },
         true

@@ -1,4 +1,3 @@
-
 use open_tab_entities::domain::tournament_plan_node::{RoundGroupConfig, TournamentEligibleBreakCategory};
 use open_tab_entities::domain::tournament_plan_node::{TournamentPlanNode, BreakConfig, FoldDrawConfig};
 use open_tab_entities::schema::prelude::TournamentBreakEligibleCategory;
@@ -99,7 +98,8 @@ struct BreakInfo {
     suggested_award_title: Option<String>,
     suggested_break_award_prestige: Option<i32>,
     max_breaking_adjudicator_count: Option<i32>,
-    is_only_award: bool
+    is_only_award: bool,
+    suggested_award_series_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -425,7 +425,7 @@ impl TournamentTreeView {
                     config: config.clone()
                 }),  Self::get_standard_node_actions(node_uuid))
             },
-            domain::tournament_plan_node::PlanNodeType::Break { config, break_id, is_only_award, eligible_categories, suggested_award_title, suggested_break_award_prestige, max_breaking_adjudicator_count, .. } => {
+            domain::tournament_plan_node::PlanNodeType::Break { config, break_id, is_only_award, eligible_categories, suggested_award_title, suggested_break_award_prestige, max_breaking_adjudicator_count, suggested_award_series_key, .. } => {
                 let break_description = if *is_only_award {
                     match config {
                         BreakConfig::KnockoutBreak => "Winner's Award".to_string(),
@@ -450,8 +450,8 @@ impl TournamentTreeView {
                     suggested_award_title: suggested_award_title.clone(),
                     suggested_break_award_prestige: suggested_break_award_prestige.clone(),
                     max_breaking_adjudicator_count: max_breaking_adjudicator_count.clone(),
-                    is_only_award: *is_only_award
-
+                    is_only_award: *is_only_award,
+                    suggested_award_series_key: suggested_award_series_key.clone(),
                 }),  Self::get_standard_node_actions(node_uuid),)
             },
         };

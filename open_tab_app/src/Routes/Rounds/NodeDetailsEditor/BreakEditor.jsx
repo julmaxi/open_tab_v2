@@ -232,6 +232,7 @@ function BreakEditorInner({ nodeId, nodeContent }) {
         options.push({ label: "Manual", value: "Manual", selectable: false });
     }
 
+
     return <div className="w-full h-full p-10">
         <Select label="Break Type" options={options} value={editedContent.config.type} onChange={(e) => {
             let newConfig = { ...editedContent.config, type: e.target.value };
@@ -244,6 +245,35 @@ function BreakEditorInner({ nodeId, nodeContent }) {
             let newContent = {...editedContent, config: newConfig}
             setEditedContent(newContent);
         }} />
+
+        <label className="block text-sm font-medium text-gray-700">Award Title</label>
+        <input value={
+            editedContent.suggested_award_title
+        } onChange={
+            (e) => {
+                let val = e.target.value.trim();
+                if (val.length == 0) {
+                    val = null;
+                }
+                let newContent = {...editedContent, suggested_award_title: e.target.value}
+                setEditedContent(newContent);
+            }
+        } className="w-full mt-2 border p-1" placeholder="Award Title" />
+
+        <label className="block text-sm font-medium text-gray-700">Award Series Key</label>
+
+        <input value={
+            editedContent.suggested_award_series_key
+        } onChange={
+            (e) => {
+                let val = e.target.value.trim();
+                if (val.length == 0) {
+                    val = null;
+                }
+                let newContent = {...editedContent, suggested_award_series_key: e.target.value}
+                setEditedContent(newContent);
+            }
+        } className="w-full mt-2 border p-1" placeholder="Award Series Key" />
 
         {
             <div className="flex flex-row mt-2 border-t">
@@ -336,7 +366,7 @@ function BreakEditorInner({ nodeId, nodeContent }) {
                     executeAction(
                         "SetManualBreak",
                         {
-                            nodeId: nodeId,
+                            node_id: nodeId,
                             breaking_teams: breakingTeams,
                             breaking_speakers: breakingSpeaker
                         }

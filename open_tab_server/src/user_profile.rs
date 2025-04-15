@@ -3,9 +3,9 @@ use std::sync::Arc;
 use axum::{extract::{Path, State}, http::StatusCode, routing::get, Json, Router};
 use chrono::{NaiveDate, NaiveDateTime};
 use itertools::Itertools;
-use open_tab_entities::{prelude::SpeechRole, schema::{adjudicator, participant, speaker, tournament, tournament_round, user}, tab::TeamRoundRole};
+use open_tab_entities::{prelude::SpeechRole, schema::{adjudicator, participant, speaker, tournament, tournament_break, tournament_break_speaker, tournament_break_team, tournament_round, user}, tab::TeamRoundRole};
 use password_hash::rand_core::le;
-use sea_orm::{prelude::Uuid, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait};
+use sea_orm::{prelude::Uuid, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Statement};
 use serde::Serialize;
 use tokio::sync::Mutex;
 
@@ -21,6 +21,26 @@ struct UserStatistics {
     lifetime_adjudication_ratio: f64,
 
     score_samples: Vec<ScoreSample>,
+
+    awards: Vec<AwardInfo>,
+}
+
+#[derive(Debug, Serialize)]
+struct AwardInfo {
+    title: String,
+    award_role: AwardRole,
+    series_key: Option<String>,
+    tournament_id: Uuid,
+    tournament_name: String,
+    image: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AwardRole {
+    Team,
+    Speaker,
+    Adjudicator
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +97,145 @@ async fn retrieve_user_statistics(
             .into_tuple::<(Uuid, String, Option<NaiveDateTime>, Uuid, Option<Uuid>, Option<Uuid>)>()
             .all(db).await?
     };
+    
+    let awards = r#"
+SELECT
+    awards.participant_id AS participant_id,
+    awards.break_award_title AS break_award_title,
+    awards.break_award_prestige AS break_award_prestige,
+    awards.award_series_key AS award_series_key,
+    awards.type AS type,
+    awards.tournament_id AS tournament_id,
+    tournament.name AS tournament_name,
+    award_series.image AS image
+    FROM (
+    SELECT 
+        tournament_break_speaker.speaker_id AS participant_id, 
+        tournament_break.break_award_title, 
+        tournament_break.break_award_prestige, 
+        tournament_break.award_series_key, 
+        "s" AS type,
+        tournament_break.tournament_id AS tournament_id
+    FROM tournament_break
+    JOIN tournament_break_speaker 
+        ON tournament_break.uuid = tournament_break_speaker.tournament_break_id
+
+    UNION ALL
+
+    SELECT 
+        speaker.uuid AS participant_id, 
+        tournament_break.break_award_title, 
+        tournament_break.break_award_prestige, 
+        tournament_break.award_series_key, 
+        "t" AS type,
+        tournament_break.tournament_id AS tournament_id
+    FROM tournament_break
+    JOIN tournament_break_team 
+        ON tournament_break.uuid = tournament_break_team.tournament_break_id
+    JOIN speaker 
+        ON tournament_break_team.team_id = speaker.team_id
+
+    UNION ALL
+
+    SELECT 
+        tournament_break_adjudicator.adjudicator_id AS participant_id, 
+        tournament_break.break_award_title, 
+        tournament_break.break_award_prestige, 
+        tournament_break.award_series_key, 
+        "a" AS type,
+        tournament_break.tournament_id AS tournament_id
+    FROM tournament_break
+    JOIN tournament_break_adjudicator 
+        ON tournament_break.uuid = tournament_break_adjudicator.tournament_break_id
+) AS awards
+JOIN user_participant 
+    ON user_participant.participant_id = awards.participant_id
+JOIN tournament
+    ON tournament.uuid = awards.tournament_id
+LEFT JOIN award_series ON award_series.short_name = awards.award_series_key
+WHERE user_participant.user_id = $1 AND awards.break_award_title IS NOT NULL
+ORDER BY awards.break_award_prestige DESC;
+    "#;
+
+    let awards  : Result<Vec<_>, _> = open_tab_entities::schema::tournament_break::Entity::find()
+        .select_only()
+        .from_raw_sql(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            awards,
+            vec![user_id.into()],
+        ))
+        .into_json()
+        .all(db).await?.into_iter().map(
+            |values| {
+                let award_role_str = values.get("type")
+                .ok_or(anyhow::Error::msg("Invalid award role"))?;
+
+                let serde_json::Value::String(award_role_str) = award_role_str else {
+                    return Err(anyhow::Error::msg("Invalid award role"));
+                };
+    
+                let award_role = match award_role_str.as_str() {
+                    "s" => Ok(AwardRole::Speaker),
+                    "t" => Ok(AwardRole::Team),
+                    "a" => Ok(AwardRole::Adjudicator),
+                    _ => Err(anyhow::Error::msg("Invalid award role"))
+                }?;
+
+                let award_series_key = values.get("award_series_key");
+
+                let award_series_key = if let Some(serde_json::Value::String(award_series_key)) = award_series_key {
+                    Some(award_series_key.clone())
+                } else {
+                    None
+                };
+
+                let award_prestige = values.get("break_award_prestige");
+
+                let award_prestige = if let Some(serde_json::Value::Number(award_prestige)) = award_prestige {
+                    Some(award_prestige.as_i64().unwrap_or_default() as i32)
+                } else {
+                    None
+                };
+
+                let award_title = values.get("break_award_title");
+                let award_title = if let Some(serde_json::Value::String(award_title)) = award_title {
+                    award_title.clone()
+                } else {
+                    return Err(anyhow::Error::msg("Invalid award title"))
+                };
+
+                let tournament_id = values.get("tournament_id")
+                    .ok_or(anyhow::Error::msg("Invalid tournament ID"))?;
+                let serde_json::Value::String(tournament_id) = tournament_id else {
+                    return Err(anyhow::Error::msg("Invalid tournament ID"));
+                };
+                let tournament_id = Uuid::parse_str(tournament_id)?;
+
+                let tournament_name = values.get("tournament_name")
+                    .ok_or(anyhow::Error::msg("Invalid tournament name"))?;
+                let serde_json::Value::String(tournament_name) = tournament_name else {
+                    return Err(anyhow::Error::msg("Invalid tournament name"));
+                };
+
+                let image = if let Some(serde_json::Value::String(image)) = values.get("image") {
+                    Some(image.clone())
+                }
+                else {
+                    None
+                };
+
+                Ok(AwardInfo {
+                    title: award_title,
+                    series_key: award_series_key,
+                    award_role,
+                    tournament_id,
+                    tournament_name: tournament_name.clone(),
+                    image
+                })
+            }
+        ).collect();
+
+    let awards = awards?;
 
     let tournament_rounds = tournament_round::Entity::find()
         .select_only()
@@ -125,15 +284,15 @@ async fn retrieve_user_statistics(
 
             match (speaker_entry, team_entry) {
                 (Some(speaker_entry), Some(team_entry)) => {
-                    for (idx, round_id) in tab.rounds.iter().enumerate() {
+                    for (idx, _round_id) in tab.rounds.iter().enumerate() {
                         if let Some(Some(score)) = speaker_entry.detailed_scores.get(idx) {
-                            let scoreVal = score.score;
-                            speaker_max_score = scoreVal.max(speaker_max_score);
-                            speaker_score_sum += scoreVal;
+                            let score_val = score.score;
+                            speaker_max_score = score_val.max(speaker_max_score);
+                            speaker_score_sum += score_val;
                             speaker_score_count += 1;
                             if let Some(round_time) = round_times.get(idx) {
                                 score_samples.push(ScoreSample {
-                                    total_score: scoreVal,
+                                    total_score: score_val,
                                     time: round_time.clone().unwrap_or_default(),
                                     role: score.team_role.clone(),
                                     position: score.speech_position
@@ -187,7 +346,8 @@ async fn retrieve_user_statistics(
                 adjudicator_count as f64 / speaker_score_count as f64
             } else {
                 0.0
-            }
+            },
+            awards
         }
     )
 }

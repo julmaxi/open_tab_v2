@@ -27,6 +27,7 @@ pub enum NodeUpdate {
         config: BreakConfig,
         eligible_categories: Vec<TournamentEligibleBreakCategory>,
         suggested_award_title: Option<String>,
+        suggested_award_series_key: Option<String>,
         suggested_break_award_prestige: Option<i32>,
         max_breaking_adjudicator_count: Option<i32>,
         is_only_award: bool
@@ -247,14 +248,16 @@ impl ActionTrait for EditTreeAction {
                         suggested_break_award_prestige,
                         max_breaking_adjudicator_count,
                         is_only_award,
-                        ..
+                        suggested_award_series_key,
+                      ..
                     }, NodeUpdate::BreakConfig {
                         config: new_config,
                         eligible_categories: new_eligible_categories,
                         suggested_award_title: new_suggested_award_title,
                         suggested_break_award_prestige: new_suggested_break_award_prestige,
                         max_breaking_adjudicator_count: new_max_breaking_adjudicator_count,
-                        is_only_award: new_is_only_award
+                        is_only_award: new_is_only_award,
+                        suggested_award_series_key: new_suggested_award_series_key,
                     }) => {
                         *config = new_config;
                         *eligible_categories = new_eligible_categories;
@@ -262,6 +265,7 @@ impl ActionTrait for EditTreeAction {
                         *suggested_break_award_prestige = new_suggested_break_award_prestige;
                         *max_breaking_adjudicator_count = new_max_breaking_adjudicator_count;
                         *is_only_award = new_is_only_award;
+                        *suggested_award_series_key = new_suggested_award_series_key.clone();
                     },
                     _ => return Err(anyhow::anyhow!("Invalid node type for update"))
                 }
@@ -277,7 +281,8 @@ impl ActionTrait for EditTreeAction {
                     suggested_award_title: Some("Top 10".into()),
                     max_breaking_adjudicator_count: None,
                     is_only_award: true,
-                    suggested_break_award_prestige: Some(10)
+                    suggested_break_award_prestige: Some(10),
+                    suggested_award_series_key: None,
                 };
 
                 let award = TournamentPlanNode::new(self.tournament_id, config);

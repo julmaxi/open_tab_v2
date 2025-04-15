@@ -370,7 +370,8 @@ pub fn make_mock_tournament_with_options(options: MockOption) -> EntityGroup {
             eligible_categories: vec![],
             suggested_award_title: Some("Open".to_string()),
             max_breaking_adjudicator_count: None,
-            suggested_break_award_prestige: Some(10)
+            suggested_break_award_prestige: Some(10),
+            suggested_award_series_key: None,
         }
     );
     let finals_round_node = TournamentPlanNode::new(

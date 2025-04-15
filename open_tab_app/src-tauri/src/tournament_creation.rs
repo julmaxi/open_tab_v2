@@ -36,7 +36,8 @@ impl TournamentCreationConfig {
                     eligible_categories: vec![],
                     max_breaking_adjudicator_count: None,
                     is_only_award: false,
-                    suggested_break_award_prestige: None
+                    suggested_break_award_prestige: None,
+                    suggested_award_series_key: None
                 }
             );
             let minor_break_node_uuid = minor_break_node.uuid;
@@ -83,7 +84,8 @@ impl TournamentCreationConfig {
                         suggested_award_title: None,
                         max_breaking_adjudicator_count: None,
                         is_only_award: false,
-                        suggested_break_award_prestige: None
+                        suggested_break_award_prestige: None,
+                        suggested_award_series_key: None
                     }
                 );
     
@@ -157,7 +159,8 @@ impl TournamentCreationConfig {
                     eligible_categories: vec![],
                     max_breaking_adjudicator_count: None,
                     is_only_award: false,
-                    suggested_break_award_prestige: Some(0)
+                    suggested_break_award_prestige: Some(0),
+                    suggested_award_series_key: None
                 }
             );
             let break_node_id = break_node.uuid;
@@ -194,7 +197,8 @@ impl TournamentCreationConfig {
                 suggested_award_title: Some("Best Team".to_string()),
                 suggested_break_award_prestige: Some(100),
                 max_breaking_adjudicator_count: None,
-                is_only_award: true
+                is_only_award: true,
+                suggested_award_series_key: None
             }
         );
 

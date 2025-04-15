@@ -764,6 +764,9 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             if *config != open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak {
                 break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).collect();
             }
+            if *config == open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak {
+                break_.breaking_speakers = best_speaker_ids.first().cloned().into_iter().collect();
+            }
         },
         open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak => {
             if team_ranking.len() < 3 || team_ranking.len() % 3 != 0 {
@@ -833,7 +836,8 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 suggested_award_title: None,
                 max_breaking_adjudicator_count: None,
                 is_only_award: false,
-                suggested_break_award_prestige: None
+                suggested_break_award_prestige: None,
+                suggested_award_series_key: None
             };
         },
         PlanNodeType::Break { break_id: break_id_ref, .. } => {
