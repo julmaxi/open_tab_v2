@@ -15,11 +15,6 @@
         "InProgress": "rgb(74 222 128)",
         "Concluded": "rgb(74 74 74)",
     };
-
-    console.log(
-        data.awards[0].recipients
-    )
-
 </script>
 
 <style>

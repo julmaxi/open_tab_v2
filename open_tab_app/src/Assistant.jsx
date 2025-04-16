@@ -34,12 +34,36 @@ const StepTypeRenderers = {
 
 
 function DoneStep({ }) {
+    let tournamentContext = useContext(TournamentContext);
+    let errorContext = useContext(ErrorHandlingContext);
+
+    let tournament_id = tournamentContext.uuid;
+
     return <div className='w-full'>
         <h1>Done</h1>
 
         <p>
             Congratulations, the tournament is over.
         </p>
+
+        <p>
+            You should release the scores for the final round(s).
+        </p>
+
+        <DateTimeSelectorButton
+                    buttonFactory={Button}
+                    buttonProps={{ role: "secondary" }}
+                    label="Release Feedback, Break, and Silent Round Results for all rounds"
+                    onSetDate={(date) => {
+                        if (date !== null) {
+                            executeAction("SetBreakRelease", {
+                                tournament_uuid: tournament_id,
+                                time: date.toISOString().slice(0, -1),
+                            }, errorContext.handleError);
+                        }
+                    }}
+        />
+            
     </div>
 }
 
@@ -356,7 +380,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
         </p>}
 
         {previous_break_node && <p>
-            You might also want to release feedback for the rounds in the break, as well as the results for the silent rounds.
+            You might also want to release feedback for the rounds in the break, the break itself, as well as the results for the silent rounds.
         </p>}
 
         {
@@ -372,7 +396,7 @@ function WaitForDrawStep({ node_uuid, is_first_in_tournament, previous_break_nod
                 <DateTimeSelectorButton
                     buttonFactory={Button}
                     buttonProps={{ role: "secondary" }}
-                    label="Release Feedback and Silent Round Results"
+                    label="Release Feedback, Break, and Silent Round Results"
                     onSetDate={(date) => {
                         if (date !== null) {
                             executeAction("SetBreakRelease", {

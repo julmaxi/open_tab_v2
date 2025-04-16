@@ -79,6 +79,8 @@ pub struct TournamentBreak {
     pub break_award_prestige: Option<i32>,
 
     pub award_series_key: Option<String>,
+    
+    pub release_time: Option<DateTime>,
 }
 
 impl TournamentBreak {
@@ -91,7 +93,8 @@ impl TournamentBreak {
             breaking_adjudicators: vec![],
             break_award_title: None,
             break_award_prestige: None,
-            award_series_key: None
+            award_series_key: None,
+            release_time: None,
         }
     }
 
@@ -136,6 +139,7 @@ impl TournamentBreak {
             break_award_title: break_row.break_award_title,
             break_award_prestige: break_row.break_award_prestige,
             award_series_key: break_row.award_series_key,
+            release_time: break_row.release_time,
         })
     }
 }
@@ -174,6 +178,7 @@ impl<C> BoundTournamentEntityTrait<C> for TournamentBreak where C: sea_orm::Conn
             break_award_title: ActiveValue::Set(self.break_award_title.clone()),
             break_award_prestige: ActiveValue::Set(self.break_award_prestige),
             award_series_key: ActiveValue::Set(self.award_series_key.clone()),
+            release_time: ActiveValue::Set(self.release_time),
         };
 
         if guarantee_insert {

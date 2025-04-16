@@ -119,6 +119,7 @@ SELECT
     FROM tournament_break
     JOIN tournament_break_speaker 
         ON tournament_break.uuid = tournament_break_speaker.tournament_break_id
+    WHERE tournament_break.release_time < $2
 
     UNION ALL
 
@@ -134,6 +135,7 @@ SELECT
         ON tournament_break.uuid = tournament_break_team.tournament_break_id
     JOIN speaker 
         ON tournament_break_team.team_id = speaker.team_id
+    WHERE tournament_break.release_time < $2
 
     UNION ALL
 
@@ -147,6 +149,7 @@ SELECT
     FROM tournament_break
     JOIN tournament_break_adjudicator 
         ON tournament_break.uuid = tournament_break_adjudicator.tournament_break_id
+    WHERE tournament_break.release_time < $2
 ) AS awards
 JOIN user_participant 
     ON user_participant.participant_id = awards.participant_id
@@ -162,7 +165,7 @@ ORDER BY awards.break_award_prestige DESC;
         .from_raw_sql(Statement::from_sql_and_values(
             db.get_database_backend(),
             awards,
-            vec![user_id.into()],
+            vec![user_id.into(), now.into()],
         ))
         .into_json()
         .all(db).await?.into_iter().map(

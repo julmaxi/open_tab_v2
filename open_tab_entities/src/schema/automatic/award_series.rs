@@ -3,26 +3,32 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "asset")]
+#[sea_orm(table_name = "award_series")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    #[sea_orm(column_type = "VarBinary(StringLen::None)")]
-    pub hash: Vec<u8>,
     #[sea_orm(unique)]
-    pub name: Option<String>,
-    pub file_type: String,
+    pub short_name: String,
+    pub name: String,
+    pub prestige: i32,
+    pub image: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::award_series::Entity")]
-    AwardSeries,
+    #[sea_orm(
+        belongs_to = "super::asset::Entity",
+        from = "Column::Image",
+        to = "super::asset::Column::Uuid",
+        on_update = "Cascade",
+        on_delete = "SetNull"
+    )]
+    Asset,
 }
 
-impl Related<super::award_series::Entity> for Entity {
+impl Related<super::asset::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::AwardSeries.def()
+        Relation::Asset.def()
     }
 }
 

@@ -131,7 +131,7 @@ impl Command {
                                 short_name: Set(id.to_string()),
                                 name: Set(name.to_string()),
                                 prestige: Set(prestige),
-                                image: Set(image_uuid),
+                                image: Set(image_uuid.expect("Image not found")),
                             };
                             to_insert_award_series.push(award_series);
                         }

@@ -11,6 +11,7 @@ pub struct Model {
     pub break_award_title: Option<String>,
     pub break_award_prestige: Option<i32>,
     pub award_series_key: Option<String>,
+    pub release_time: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

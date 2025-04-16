@@ -751,6 +751,11 @@ pub async fn get_awards(
     let mut relevant_teams = HashSet::new();
     let mut relevant_participants = HashSet::new();
 
+    let now = Utc::now().naive_utc();
+    let award_breaks = award_breaks.into_iter().filter(|break_| {
+        check_release_date(now, break_.release_time)
+    }).collect_vec();
+
     for break_ in award_breaks.iter() {
         for recipient in break_.breaking_teams.iter() {
             relevant_teams.insert(*recipient);
