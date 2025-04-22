@@ -31,4 +31,4 @@ jobs:
       run: cd open_tab_server && cargo build --release; cd ..
     - name: Upload Release
       run: |
-        gh release create --generate-notes target/release/open_tab_server
+        gh release create --generate-notes target/release/open_tab_server#open_tab_server
