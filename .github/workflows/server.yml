@@ -1,0 +1,32 @@
+name: Server
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'server-v*'
+
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('open_tab_server/Cargo.lock') }}
+    - name: Build
+      run: cd open_tab_server && cargo build --release; cd ..
+    - name: Upload Release
+      run: |
+        gh release create --generate-notes target/release/open_tab_server
