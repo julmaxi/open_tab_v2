@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
       - 'server-v*'
-
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
