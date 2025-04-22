@@ -5,11 +5,12 @@
   
   <style>
     nav {
-      height: 3rem;
+      min-height: 3rem;
       padding: 0.25rem;
       display: flex;
       flex-direction: row;
       align-items: center;
+      flex-wrap: wrap;
   
       font-weight: bold;
   
