@@ -31,13 +31,23 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('./Cargo.lock') }}
-    - name: Build
+    - name: Build API
       run: cd open_tab_server && cargo build --release; cd ..
+    
+    - name: Install frontend dependencies
+      working-directory: 'participant_frontend'
+      run: npm install
+    
+    - name: Build frontend
+      working-directory: 'participant_frontend'
+      run: npm run build
     
     - name: Bundle
       run: |
         mkdir open_tab_server_release
-        cp target/release/open_tab_server open_tab_server_release
+        mkdir open_tab_server_release/bin
+        cp target/release/open_tab_server open_tab_server_release/bin
+        cp -r participant_frontend/build open_tab_server_release/frontend_build
         cp -r open_tab_server/data open_tab_server_release/data
         zip -r open_tab_server.zip open_tab_server_release
         rm -r open_tab_server_release
@@ -45,6 +55,6 @@ jobs:
     - name: Create Release
       id: create_release
       run: |
-        gh release create v0.0.2 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
+        gh release create v0.0.3 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
       env:
         GH_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
