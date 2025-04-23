@@ -32,7 +32,14 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: 'open_tab_app/src-tauri -> target'
+          workspaces: |
+            open_tab_app/src-tauri -> target
+            open_tab_entities -> target
+            open_tab_server -> target
+            open_tab_app_backend -> target
+            open_tab_reports -> target
+            open_tab_macros -> target
+            migration -> target
 
       - name: Sync node version and setup cache
         uses: actions/setup-node@v4
