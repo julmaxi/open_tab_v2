@@ -19,9 +19,28 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Rust setup
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('./Cargo.lock') }}
+    - name: Build
+      run: cd open_tab_server && cargo build --release; cd ..
+    
+    - name: Bundle
+      run: |
+        zip -r open_tab_server.zip open_tab_server/target/release/open_tab_server
+
     - name: Create Release
       id: create_release
       run: |
-        gh release create v0.0.1 -R https://github.com/julmaxi/open_tab_server_releases
+        gh release create v0.0.1 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
       env:
         GH_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
