@@ -27,6 +27,6 @@ jobs:
         prerelease: false
         release_name: "Some release"
         tag_name: ${{ github.ref_name }}
-        repo: julmaxi/open_tab_server_releases
+        repo: https://github.com/julmaxi/open_tab_server_releases
       env:
         GITHUB_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
