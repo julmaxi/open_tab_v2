@@ -20,7 +20,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     - name: Create Release
-      uses: actions/create-release@v1
       id: create_release
       run: |
         gh release create v0.0.1 -R https://github.com/julmaxi/open_tab_server_releases
