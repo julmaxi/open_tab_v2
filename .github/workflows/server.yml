@@ -25,7 +25,7 @@ jobs:
       with:
         draft: false
         prerelease: false
-        release_name: ${{ steps.version.outputs.version }}
+        release_name: "Some release"
         tag_name: ${{ github.ref_name }}
         repo: julmaxi/open_tab_server_releases
       env:
