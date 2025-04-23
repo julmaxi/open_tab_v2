@@ -22,11 +22,7 @@ jobs:
     - name: Create Release
       uses: actions/create-release@v1
       id: create_release
-      with:
-        draft: false
-        prerelease: false
-        release_name: "Some release"
-        tag_name: ${{ github.ref_name }}
-        repo: https://github.com/julmaxi/open_tab_server_releases
+      run: |
+        gh release create v0.0.1 -R https://github.com/julmaxi/open_tab_server_releases
       env:
         GITHUB_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
