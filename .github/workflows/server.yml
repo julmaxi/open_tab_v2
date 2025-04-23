@@ -45,6 +45,6 @@ jobs:
     - name: Create Release
       id: create_release
       run: |
-        gh release create v0.0.1 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
+        gh release create v0.0.2 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
       env:
         GH_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
