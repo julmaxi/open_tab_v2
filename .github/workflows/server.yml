@@ -13,7 +13,7 @@ env:
 
 jobs:
   build-api:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions: write-all
 
     steps:
@@ -55,6 +55,6 @@ jobs:
     - name: Create Release
       id: create_release
       run: |
-        gh release create v0.0.4 open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
+        gh release create ${{ github.ref_name }} open_tab_server.zip -R https://github.com/julmaxi/open_tab_server_releases
       env:
         GH_TOKEN: ${{ secrets.SERVER_RELEASE_REPO_KEY }}
