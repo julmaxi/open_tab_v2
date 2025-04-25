@@ -107,7 +107,6 @@ impl UploadParticipantsListAction {
         Vec<Entity>, anyhow::Error> where C: sea_orm::ConnectionTrait
      {
         let mut out_entities = Vec::new();
-        dbg!(&self.institution_normalizer);
         let normalizer = self.institution_normalizer.as_ref().map(|normalizer| {
             InstitutionNormalizer::from_csv_file(
                 &normalizer
