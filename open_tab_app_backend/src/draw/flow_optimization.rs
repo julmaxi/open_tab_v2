@@ -27,7 +27,6 @@ pub struct OptimizationOptions {
     feedback_weight: f32,
     moderation_weight: f32,
     max_discussion_improvement_weight: f32,
-    moderation_score_difference_weight: f32,
 
     hard_clash_threshold: i32,
     bias_weight: f32,
@@ -37,10 +36,9 @@ pub struct OptimizationOptions {
 impl Default for OptimizationOptions {
     fn default() -> Self {
         Self {
-            feedback_weight: 1.0,
-            moderation_weight: 1.0,
+            feedback_weight: 10.0,
+            moderation_weight: 10.0,
             max_discussion_improvement_weight: 1.0,
-            moderation_score_difference_weight: 1.0,
 
             bias_weight: 1.0,
             variance_weight: 1.0,
@@ -201,12 +199,6 @@ impl OptimizationState {
         let cost = self.compute_clash_cost_in_debate(adj_info, debate, evaluator);
 
         if let Some(mut cost) = cost {
-            let avg_wing_discussion_skill = if debate.wings.len() > 0 {
-                debate.wings.iter().map(|w| self.adjudicator_info.get(w).unwrap().discussion_skill).sum::<i32>() / debate.wings.len() as i32
-            } else {
-                0
-            };
-
             let chair_info = debate.chair.map(|c| self.adjudicator_info.get(&c).unwrap());
 
             let mut bias_sum = debate.wings.iter().map(|w| self.adjudicator_info.get(w).unwrap().bias).sum::<f32>();
@@ -222,7 +214,6 @@ impl OptimizationState {
             let avg_bias = bias_sum / (debate.wings.len() + chair_info.is_some() as usize) as f32;
             let avg_variance = variance_sum / (debate.wings.len() + chair_info.is_some() as usize) as f32;
 
-            cost -= ((adj_info.discussion_skill - avg_wing_discussion_skill).abs() as f32 * self.options.moderation_score_difference_weight) as i32;
             cost -= ((adj_info.bias - avg_bias).abs() as f32 * self.options.bias_weight) as i32;
             cost -= ((avg_variance - adj_info.variance) as f32 * self.options.variance_weight) as i32;
 
@@ -242,15 +233,15 @@ impl OptimizationState {
 
         self.adjudicator_assignments.keys().for_each(
             |adj| {
+                if adjudicators.is_some() && !adjudicators.unwrap().contains(adj) {
+                    return;
+                }
                 for i in 0..self.rounds.len() {
-                    if adjudicators.is_some() && !adjudicators.unwrap().contains(adj) {
-                        continue;
-                    }
                     graph_build.add_edge(
                         Vertex::Source,
                         NodeType::AdjudicatorChairFrequency(*adj, i as i32),
                         Capacity(1),
-                        Cost(i as i32 * 10)
+                        Cost((i * 10) as i32)
                     );
                     graph_build.add_edge(
                         NodeType::AdjudicatorChairFrequency(*adj, i as i32),
@@ -297,6 +288,15 @@ impl OptimizationState {
                     }
                 )
             }
+        );
+
+        let min_cost = graph_build.edge_list.iter().map(|
+            x
+            |
+            x.3.0
+        ).min().unwrap_or_default();
+
+        graph_build.edge_list.iter_mut().for_each(|x| x.3.0 = (x.3.0 - min_cost)
         );
 
         //Add sink

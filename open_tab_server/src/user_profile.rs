@@ -114,7 +114,7 @@ SELECT
         tournament_break.break_award_title, 
         tournament_break.break_award_prestige, 
         tournament_break.award_series_key, 
-        "s" AS type,
+        's' AS type,
         tournament_break.tournament_id AS tournament_id
     FROM tournament_break
     JOIN tournament_break_speaker 
@@ -128,7 +128,7 @@ SELECT
         tournament_break.break_award_title, 
         tournament_break.break_award_prestige, 
         tournament_break.award_series_key, 
-        "t" AS type,
+        't' AS type,
         tournament_break.tournament_id AS tournament_id
     FROM tournament_break
     JOIN tournament_break_team 
@@ -144,7 +144,7 @@ SELECT
         tournament_break.break_award_title, 
         tournament_break.break_award_prestige, 
         tournament_break.award_series_key, 
-        "a" AS type,
+        'a' AS type,
         tournament_break.tournament_id AS tournament_id
     FROM tournament_break
     JOIN tournament_break_adjudicator 
