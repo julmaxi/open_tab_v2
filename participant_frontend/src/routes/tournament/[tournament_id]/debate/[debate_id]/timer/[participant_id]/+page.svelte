@@ -167,6 +167,7 @@
         if (currSpeechEnd && currSpeechStart === null && currSegmentEnd !== null) {
             nextSegmentTimer = setTimeout(
                 () => {
+                    [currSegment, currSegmentEnd] = findCurrSegment(currSpeech);
                     let bellElement = document.querySelector("#bell_audio");
                     scheduledRings = 2;
                     // @ts-ignore

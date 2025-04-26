@@ -342,8 +342,8 @@ pub async fn get_active_tournaments_handler(
 
     let user_tournaments = if let Some(user) = user.as_ref() {
         open_tab_entities::schema::tournament::Entity::find()
-            .join(sea_orm::JoinType::InnerJoin, user_participant::Relation::Participant.def().rev())
             .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::participant::Relation::Tournament.def().rev())
+            .join(sea_orm::JoinType::InnerJoin, open_tab_entities::schema::user_participant::Relation::Participant.def().rev())
             .filter(open_tab_entities::schema::user_participant::Column::UserId.eq(user.uuid))
             .order_by_desc(open_tab_entities::schema::tournament::Column::LastModified)
             .limit(10)

@@ -66,7 +66,8 @@ impl DrawPresentationInfo {
         ).filter_map(|(team_id, info)| match team_id {
             Some(team_id) => Some((team_id, info)),
             None => None
-        }).group_by(|(team_id, _)| *team_id).into_iter().map(|(team_id, group)| (team_id, group.into_iter().map(|(_, p)| p).collect_vec())).collect::<HashMap<Uuid, Vec<ParticipantPresentationInfo>>>();
+        }).sorted_by_key(|(team_id, _)| *team_id)
+        .group_by(|(team_id, _)| *team_id).into_iter().map(|(team_id, group)| (team_id, group.into_iter().map(|(_, p)| p).collect_vec())).collect::<HashMap<Uuid, Vec<ParticipantPresentationInfo>>>();
 
         let teams = domain::team::Team::get_all_in_tournament(db, round.tournament_id).await?;
         let teams_by_id = teams.into_iter().map(|t| (t.uuid, TeamPresentationInfo::from_team(t, &participants_by_team_id))).collect::<HashMap<Uuid, TeamPresentationInfo>>();
