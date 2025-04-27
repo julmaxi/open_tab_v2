@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{HashSet, HashMap}, cmp::Ordering};
 
 use itertools::{Itertools, izip, repeat_n};
 use async_trait::async_trait;
-use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, schema::speaker, tab::TeamRoundRole, EntityTypeId};
+use open_tab_entities::{derived_models::{BackupBallot, BreakNodeBackgroundInfo, NodeExecutionError}, domain::{self, entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, PlanNodeType, RoundGroupConfig, TournamentPlanNode}, tournament_venue::TournamentVenue}, prelude::*, schema::speaker, tab::TeamRoundRole, EntityTypeId};
 use open_tab_entities::domain::tournament_plan_node::TournamentEligibleBreakCategory;
 
 use rand::{thread_rng, Rng};
@@ -693,7 +693,7 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
             break_.breaking_teams = teams;
             break_.breaking_speakers = speakers;
         },
-        open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak | open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak | open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak => {
+        open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak | open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak => {
             let relevant_round = preceding_rounds.first().ok_or(MakeBreakError::KOBreakConditionNotMet)?;
 
             let mut break_team_ids = vec![];
@@ -758,14 +758,38 @@ async fn generate_break<C>(db: &C, tournament_id: Uuid, node_id: Uuid, config: &
                 return Err(MakeBreakError::NotEnoughTeams.into())
             }
 
-            if *config != open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak {
-                break_.breaking_teams = break_team_ids;
-            }
+            break_.breaking_teams = break_team_ids;
             if *config != open_tab_entities::domain::tournament_plan_node::BreakConfig::TeamOnlyKnockoutBreak {
                 break_.breaking_speakers = tab_breaking_speakers.iter().map(|e| e.speaker_uuid).collect();
             }
+            if *config == open_tab_entities::domain::tournament_plan_node::BreakConfig::KnockoutBreak {
+                break_.breaking_speakers = break_.breaking_speakers.into_iter().chain(
+                    best_speaker_ids.iter().map(|e| *e)
+                ).collect();
+            }
+
             if *config == open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak {
                 break_.breaking_speakers = best_speaker_ids.first().cloned().into_iter().collect();
+            }
+        },
+        open_tab_entities::domain::tournament_plan_node::BreakConfig::BestSpeakerOnlyBreak => {
+            let relevant_round = preceding_rounds.first().ok_or(MakeBreakError::KOBreakConditionNotMet)?;
+
+            let debates = TournamentDebate::get_all_in_rounds(db, vec![*relevant_round]).await?.pop().unwrap();
+            let ballots: Vec<Ballot> = Ballot::get_many(db, debates.iter().map(|d| d.ballot_id).collect()).await?;
+
+            let best_speech = ballots.iter().flat_map(
+                |b| b.speeches.iter().filter(
+                    |s| s.speaker_score().is_some()
+                )
+            ).max_by_key(|s| ordered_float::NotNan::new(s.speaker_score().unwrap_or(0.0)).unwrap_or_default());
+
+            if let Some(best_speech) = best_speech {
+                let best_speaker = best_speech.speaker.ok_or(MakeBreakError::KOBreakConditionNotMet)?;
+                break_.breaking_speakers = vec![best_speaker];
+            }
+            else {
+                return Err(MakeBreakError::KOBreakConditionNotMet.into());
             }
         },
         open_tab_entities::domain::tournament_plan_node::BreakConfig::TimBreak => {

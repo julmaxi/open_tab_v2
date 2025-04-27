@@ -5,7 +5,7 @@ use sea_orm::{schema, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::domain::{self, ballot::Ballot, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, round::TournamentRound};
+use crate::domain::{self, ballot::Ballot, entity::LoadEntity, feedback_form::{FeedbackForm, FeedbackFormVisibility, FeedbackSourceRole, FeedbackTargetRole}, round::{check_release_date, TournamentRound}};
 
 #[derive(Debug, Clone)]
 pub struct FeedbackRequest {
@@ -53,23 +53,48 @@ pub struct FeedbackProgressMatrix {
 impl FeedbackProgressMatrix {
     pub async fn from_tournament<C>(db: &C, tournament_id: Uuid) -> anyhow::Result<FeedbackProgressMatrix> where C: ConnectionTrait {
         let rounds = domain::round::TournamentRound::get_all_in_tournament(db, tournament_id).await?;
+        let rounds_by_id = rounds.iter().map(|r| (r.uuid, r)).collect::<HashMap<_, _>>();
         let feedback_directions = get_tournament_feedback_directions(db, tournament_id).await?;
+
+        let silent_round_directions = feedback_directions.iter().filter(|(source, target)| {
+            !matches!(source, FeedbackSourceRole::Team | FeedbackSourceRole::NonAligned)
+        }).cloned().collect_vec();
 
         let debates = domain::debate::TournamentDebate::get_all_in_rounds(db, rounds.iter().map(|u| u.uuid).collect_vec()).await?;
 
         let debates = debates.into_iter().flatten().collect_vec();
 
         let ballots = Ballot::get_many(db, debates.iter().map(|u| u.ballot_id).collect_vec()).await?;
+
+        let now = chrono::Utc::now().naive_utc();
+        let empty = vec![];
         
-        let all_requests = ballots.iter().zip(debates.iter().map(|d| d.uuid)).flat_map(|(b, debate_id)| {
-            let requests = get_feedback_requests_from_ballot(b, &feedback_directions);
+        let all_requests = ballots.iter().zip(debates.iter()).flat_map(|(b, debate)| {
+            let feedback_directions = if let Some(round) = rounds_by_id.get(&debate.round_id) {
+                if check_release_date(
+                    now,
+                    round.debate_start_time,
+                ) {
+                    if round.is_silent {
+                        &silent_round_directions
+                    }
+                    else {
+                        &feedback_directions
+                    }
+                } else {
+                    &empty
+                }
+            } else {
+                &feedback_directions
+            };
+            let requests = get_feedback_requests_from_ballot(b, feedback_directions);
             requests.into_iter().map(move |r| {
                 DebateFeedbackRequest {
                     target_id: r.target_id,
                     source_id: r.source_id,
                     source_role: r.source_role,
                     target_role: r.target_role,
-                    debate_id: debate_id
+                    debate_id: debate.uuid
                 }
             })
         }).collect_vec();

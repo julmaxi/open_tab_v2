@@ -802,6 +802,7 @@ impl TournamentUpdateProcess {
         let mut last_sync = None;
 
         loop {
+            println!("Start sync attempt");
             if let Some(last_sync) = last_sync {
                 let time_passed = chrono::Utc::now().naive_utc() - last_sync;
                 if time_passed < self.sync_frequency {

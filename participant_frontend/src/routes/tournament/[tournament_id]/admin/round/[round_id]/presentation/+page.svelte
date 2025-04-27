@@ -10,7 +10,9 @@
   
     let currentSlide = 0;
     console.log(data.info);
-    let startTime = data.info.debate_start_time ? new Date(Date.parse(data.info.debate_start_time)) : null;
+    let startTime = data.info.debate_start_time ? new Date(
+        Date.parse(data.info.debate_start_time)
+    ) : null;
 
   
     onMount(() => {
@@ -64,9 +66,7 @@
         .join(';');
 
     function formatTime(date) {
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
+        return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
     }
 </script>
   

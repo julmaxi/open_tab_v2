@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{derived_models::get_participant_public_name, domain::entity::LoadEntity, info::TournamentParticipantsInfo, prelude::{Participant, Team}};
 
 use super::{base::{SpeakerTabEntry, SpeakerTabEntryDetailedScore, TabView, TeamTabEntry, TeamTabEntryDetailedScore}, BreakRelevantTabView};
+use itertools::Itertools;
 use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -152,7 +153,7 @@ impl AugmentedBreakRelevantTabView {
                     uuid: *a,
                     name
                 }
-            }).collect()
+            }).sorted_by_key(|a| a.name.clone()).collect()
         }
     }
 }

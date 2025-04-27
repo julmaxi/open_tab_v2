@@ -95,7 +95,7 @@
 <div class="container">
     {#if data.awards.length > 0}
     <div>
-        <h3>Winners</h3>
+        <h3>Breaks and Awards</h3>
         
         <div>
             {#each data.awards as award}

@@ -37,11 +37,15 @@ impl ActionTrait for SetManualBreakAction {
             suggested_award_title,
             suggested_award_series_key,
             ..
-        } = &node.config {
-            let break_id = break_id.clone().unwrap_or(Uuid::new_v4());
-
-            let mut break_ = TournamentBreak::new(tournament_id);
-            break_.uuid = break_id;
+        } = &mut node.config {
+            let mut break_ = if let Some(break_id) = break_id {
+                TournamentBreak::get(db, *break_id).await?
+            }
+            else {
+                TournamentBreak::new(tournament_id)
+            };
+            *break_id = Some(break_.uuid);
+            
             break_.breaking_speakers = self.breaking_speakers;
             break_.breaking_teams = self.breaking_teams;
 
