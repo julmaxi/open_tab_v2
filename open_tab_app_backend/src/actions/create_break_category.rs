@@ -19,6 +19,9 @@ impl ActionTrait for CreateBreakCategoryAction {
     async fn get_changes<C>(self, _db: &C) -> Result<EntityGroup, anyhow::Error> 
     where C: sea_orm::ConnectionTrait {
         let mut g = EntityGroup::new(self.tournament_uuid);
+        if self.name.is_empty() {
+            return Err(anyhow::anyhow!("Name cannot be empty"));
+        }
         g.add(
             Entity::TournamentBreakCategory(TournamentBreakCategory {
                 uuid: self.uuid,

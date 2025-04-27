@@ -127,7 +127,6 @@ pub async fn get_current_tab(
         .unique()
         .into_group_map();
     
-
     return Ok(
         Json(
             TabResponse {

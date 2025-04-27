@@ -259,7 +259,8 @@ impl CSVReaderConfig {
             let break_category = match self.break_category_column {
                 Some(index) => row
                     .get(index)
-                    .map(|i| i.into()),
+                    .map(|i| i.trim().into())
+                    .filter(|i: &String| i.len() > 0),
                 None => None,
             };
 

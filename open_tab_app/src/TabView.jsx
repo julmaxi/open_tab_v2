@@ -10,7 +10,7 @@ const avgPointFormat = new Intl.NumberFormat("en-US", {minimumFractionDigits: 2,
 
 
 function ScoreTable({descriptionName, numRounds, children}) {
-    return <div className='overflow-auto w-full'>
+    return <div className='overflow-auto w-full relative'>
         <table className='w-full'>
             <thead className='bg-white sticky top-0'>
                 <tr>
@@ -157,7 +157,7 @@ function TabView({tabView, breakingTeams: breakingTeams = [], breakingSpeakers: 
     return (
         <div className='flex flex-1 w-full h-full flex-col'>
             <div className='flex flex-1 w-full min-h-0'>
-                <div className='flex-1 flex flex-col'>
+                <div className='flex-1 flex flex-col max-w-[50%]'>
                     <TabHeader>Teams</TabHeader>
                     {
                         tabView == null ? <div>Loading...</div> : <TeamTab tab={tabView.team_tab} numRounds={tabView.num_rounds} markedBreaks={
@@ -165,7 +165,7 @@ function TabView({tabView, breakingTeams: breakingTeams = [], breakingSpeakers: 
                         } />
                     }
                 </div>
-                <div className='flex-1 h-full flex flex-col'>
+                <div className='flex-1 h-full flex flex-col max-w-[50%]'>
                     <TabHeader>Speakers</TabHeader>
                     {
                         tabView == null ? <div>Loading...</div> : <SpeakerTab tab={tabView.speaker_tab} numRounds={tabView.num_rounds} markedBreaks={
