@@ -74,7 +74,8 @@ pub struct SummaryColumn {
 pub struct ParticipantEntry {
     pub participant_id: Uuid,
     pub participant_name: String,
-    pub score_summaries: HashMap<Uuid, SummaryValue>
+    pub score_summaries: HashMap<Uuid, SummaryValue>,
+    pub num_submissions: u64,
 }
 
 impl FeedbackOverviewView {
@@ -115,6 +116,10 @@ impl FeedbackOverviewView {
             ))
         );
 
+        let num_submissions_by_adjudicator = all_values.iter().filter_map(|(_, r)| {
+            r.as_ref()
+        }).unique_by(|r| r.uuid).counts_by(|r| r.target_participant_id);
+
         for (value, response) in all_values.into_iter() {
             let response = response.unwrap(); // Guaranteed by db constraints
             let question = questions_by_id.get(&value.question_id).unwrap(); // Guaranteed by db constraints
@@ -137,7 +142,8 @@ impl FeedbackOverviewView {
                 ParticipantEntry {
                     participant_id,
                     participant_name: name.clone(),
-                    score_summaries: averages
+                    score_summaries: averages,
+                    num_submissions: num_submissions_by_adjudicator.get(&participant_id).cloned().unwrap_or_default() as u64,
                 }
             }
         ).collect_vec();
@@ -198,7 +204,7 @@ impl FeedbackDetailView {
             |q| (q.uuid, q)
         ).collect::<HashMap<_, _>>();
 
-        let responses = responses.into_iter().map(|r| {
+        let mut responses = responses.into_iter().map(|r| {
             let author_name = author_names.get(&r.author_participant_id).unwrap(); // Guaranteed by db constraints
             let (round_id, round_name) = debate_round_names_and_ids.get(&r.source_debate_id).unwrap(); // Guaranteed by db constraints
             let round_name = round_name.clone();
@@ -212,6 +218,17 @@ impl FeedbackDetailView {
             }).collect::<Result<Vec<_>, anyhow::Error>>()?;
             Ok(FeedbackResponseDetails { round_name, round_id, author_name: author_name.clone(), author_id, values })
         }).collect::<Result<Vec<_>, anyhow::Error>>()?;
+
+        responses.sort_by(|a, b| {
+            let a_round_name = &a.round_name;
+            let b_round_name = &b.round_name;
+            let a_author_name = &a.author_name;
+            let b_author_name = &b.author_name;
+
+            a_round_name.cmp(&b_round_name).then(
+                a_author_name.cmp(&b_author_name)
+            )
+        });
 
         Ok(FeedbackDetailView { participant_name, responses })
     }

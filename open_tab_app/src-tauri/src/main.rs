@@ -1434,7 +1434,7 @@ async fn show_error(error: String) {
 }
 
 fn main() {
-    let db_path: PathBuf = dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or(PathBuf::from("."))).join("open_tab_db.sqlite3");
+    let db_path: PathBuf = dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or(PathBuf::from("."))).join("tab_db_hdbam.sqlite3");
 
     let db = block_on(connect_db_to_file(Some(db_path))).unwrap();
 
@@ -1446,7 +1446,6 @@ fn main() {
     )));
 
     let identity_provider = Arc::new(IdentityProvider::new_with_keys(settings.known_api_keys.clone()));
-
 
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![

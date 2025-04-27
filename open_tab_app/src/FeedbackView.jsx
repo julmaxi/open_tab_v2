@@ -27,6 +27,7 @@ export function FeedbackOverviewTable() {
             let result = {
                 participant_name: participant.participant_name,
                 participant_id: participant.participant_id,
+                num_submissions: participant.num_submissions,
             };
             for (let column of feedback_overview.summary_columns) {
                 result[column.question_id] = get_cell_value(participant.score_summaries[column.question_id]);
@@ -40,15 +41,32 @@ export function FeedbackOverviewTable() {
     }
 
     return <div className="w-full h-full">
-        <ContentView defaultDrawerWidth={400}  forceOpen={selectedParticipantIds.size > 0}>
+        <ContentView defaultDrawerWidth={500}  forceOpen={selectedParticipantIds.size > 0}>
         <ContentView.Content>
-            <SortableTable columns={[{
-                header: "Participant",
-                key: "participant_name",
-            }, ...feedback_overview.summary_columns.map((column) => ({
-                header: column.title,
-                key: column.question_id,
-            }) )]} data={flatData} rowId={"participant_id"} allowMultiSelect={true} selectedRowIds={selectedParticipantIds} onSelectRow={(newIds => {
+            <SortableTable
+            columns={
+                [
+                    {
+                        header: "Participant",
+                        key: "participant_name",
+                    },
+                    {
+                        header: "N",
+                        key: "num_submissions",
+                    },
+                    ...feedback_overview.summary_columns.map((column) => (
+                        {
+                            header: column.title,
+                            key: column.question_id,
+                        }
+                    ))
+                ]
+            }
+            data={flatData}
+            rowId={"participant_id"}
+            allowMultiSelect={true}
+            selectedRowIds={selectedParticipantIds}
+            onSelectRow={(newIds => {
                 setSelectedParticipantIds(newIds);
             })} />
         </ContentView.Content>
@@ -86,26 +104,18 @@ function FeedbackResponseDetails(props) {
     let table_values = response.values.filter((value) => value.value.type != "String");
     table_values.sort((a, b) => a.question_short_name.localeCompare(b.question_short_name));
     let string_values = response.values.filter((value) => value.value.type == "String");
+    string_values.sort((a, b) => a.question_short_name.localeCompare(b.question_short_name));
 
-    return <div className="p-1 pb-2 w-full border-b-4 border-gray-400 flex justify-center flex-col">
+    return <div className="p-1 pb-2 w-full border-b border-gray-400 flex justify-center flex-col pr-5 pl-5">
         <h1 className="font-bold">{response.author_name} in {response.round_name}</h1>
         <table className="border bg-white">
-            <thead>
-                <tr>
-                    {table_values.map(
-                        (value, idx) => <th className="border" key={idx}>{value.question_short_name}</th>
-                    )}
-                </tr>
-            </thead>
             <tbody>
-                <tr>
-                    {table_values.map(
-                        (value, idx) => <ValCell key={idx} value={value.value} />
-                    )}
-                </tr>
+                {table_values.map(
+                    (value, idx) => <tr><td className="border">{value.question_short_name}</td> <ValCell key={idx} value={value.value} /></tr>
+                )}
             </tbody>
         </table>
-        
+
         {
             string_values.map((value, idx) => <div key={idx}>
                 <h2 className="font-bold border-t">{value.question_short_name}</h2>
@@ -123,7 +133,7 @@ export function FeedbackDetailView({participantId}) {
     }
 
     return <div className="w-full overflow-auto">
-        <h1 className="font-bold">{responses.participant_name}</h1>
+        <h1 className="font-bold">Feedback for {responses.participant_name}</h1>
         {responses.responses.map((response, idx) => <FeedbackResponseDetails response={response} key={idx} />)}
     </div>
 
