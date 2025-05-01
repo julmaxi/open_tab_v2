@@ -2,7 +2,7 @@ use std::collections::{HashMap, self};
 
 use itertools::Itertools;
 use async_trait::async_trait;
-use open_tab_entities::{domain::{self, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, FoldDrawConfig, PlanNodeType, RoundGroupConfig, TournamentEligibleBreakCategory, TournamentPlanNode}}, prelude::*, EntityTypeId};
+use open_tab_entities::{domain::{self, entity::LoadEntity, tournament_break::TournamentBreak, tournament_plan_edge::TournamentPlanEdge, tournament_plan_node::{BreakConfig, FoldDrawConfig, PlanNodeType, RoundGroupConfig, TournamentEligibleBreakCategory, TournamentPlanNode}}, prelude::*, EntityTypeId};
 
 use sea_orm::prelude::*;
 
@@ -249,7 +249,8 @@ impl ActionTrait for EditTreeAction {
                         max_breaking_adjudicator_count,
                         is_only_award,
                         suggested_award_series_key,
-                      ..
+                        break_id,
+                        ..
                     }, NodeUpdate::BreakConfig {
                         config: new_config,
                         eligible_categories: new_eligible_categories,
@@ -261,11 +262,19 @@ impl ActionTrait for EditTreeAction {
                     }) => {
                         *config = new_config;
                         *eligible_categories = new_eligible_categories;
-                        *suggested_award_title = new_suggested_award_title;
+                        *suggested_award_title = new_suggested_award_title.clone();
                         *suggested_break_award_prestige = new_suggested_break_award_prestige;
                         *max_breaking_adjudicator_count = new_max_breaking_adjudicator_count;
                         *is_only_award = new_is_only_award;
                         *suggested_award_series_key = new_suggested_award_series_key.clone();
+
+                        if let Some(break_id) = break_id {
+                            let mut break_ = TournamentBreak::get(db, *break_id).await?;
+                            break_.break_award_title = new_suggested_award_title.clone();
+                            break_.break_award_prestige = new_suggested_break_award_prestige;
+                            break_.award_series_key = new_suggested_award_series_key.clone();
+                            groups.add(Entity::TournamentBreak(break_));
+                        }
                     },
                     _ => return Err(anyhow::anyhow!("Invalid node type for update"))
                 }
