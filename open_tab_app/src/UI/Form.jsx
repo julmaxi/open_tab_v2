@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import _ from "lodash";
-import { open } from '@tauri-apps/api/dialog';
-import { readBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 
 
 function NumberField(props) {
@@ -115,7 +115,7 @@ function ImageSelectorField(props) {
         <div className="border rounded shadow-inner w-16 h-16 flex items-center p-1 cursor-pointer" onClick={async () => {
             let file = await open({ accept: "image/*" });
             if (file) {
-                let content = await readBinaryFile(file);
+                let content = await readFile(file);
                 let type = guessImageType(content);
                 let blob = new Blob([content], { type: type });
                 let reader = new FileReader();

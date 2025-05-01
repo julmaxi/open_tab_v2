@@ -8,8 +8,8 @@ import {useView} from "./View";
 import { executeAction } from "./Action";
 import ModalOverlay from "./UI/Modal";
 import Button from "./UI/Button";
-import { invoke } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { DateTimeSelectorButton } from "./UI/DateTimeSelectorButton";
 import TextField from "./UI/TextField";
 

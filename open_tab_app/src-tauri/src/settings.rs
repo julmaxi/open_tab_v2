@@ -1,14 +1,13 @@
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tauri::{App, AppHandle, Manager, State};
+use tauri::{App, AppHandle, Emitter, Manager, State};
 use tokio::sync::RwLock;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub known_remotes: Vec<RemoteSettings>,
-    pub known_api_keys: HashMap<String, String>
+    pub known_api_keys: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +19,9 @@ pub struct RemoteSettings {
 
 impl AppSettings {
     pub fn settings_path() -> PathBuf {
-        let settings_dir = dirs::config_dir().unwrap_or(PathBuf::from(".")).join("com.juliussteen.open-tab");
+        let settings_dir = dirs::config_dir()
+            .unwrap_or(PathBuf::from("."))
+            .join("com.juliussteen.open-tab");
         let settings_path = settings_dir.join("settings.json");
         settings_path
     }
@@ -57,22 +58,24 @@ impl Default for AppSettings {
                     url: "http://localhost:3000".to_string(),
                     name: "Local".to_string(),
                     account_name: None,
-                }
+                },
             ],
-            known_api_keys: HashMap::new()
+            known_api_keys: HashMap::new(),
         }
     }
 }
-
 
 #[tauri::command]
 pub async fn get_settings(settings: State<'_, RwLock<AppSettings>>) -> Result<AppSettings, ()> {
     Ok(settings.inner().read().await.clone())
 }
 
-
 #[tauri::command]
-pub async fn add_remote(app: AppHandle, settings: State<'_, RwLock<AppSettings>>, new_remote: RemoteSettings) -> Result<(), ()> {
+pub async fn add_remote(
+    app: AppHandle,
+    settings: State<'_, RwLock<AppSettings>>,
+    new_remote: RemoteSettings,
+) -> Result<(), ()> {
     let mut settings = settings.write().await;
 
     settings.known_remotes.retain(|r| r.url != new_remote.url);
@@ -83,7 +86,11 @@ pub async fn add_remote(app: AppHandle, settings: State<'_, RwLock<AppSettings>>
 }
 
 #[tauri::command]
-pub async fn remove_remote(app: AppHandle, settings: State<'_, RwLock<AppSettings>>, url: String) -> Result<(), ()> {
+pub async fn remove_remote(
+    app: AppHandle,
+    settings: State<'_, RwLock<AppSettings>>,
+    url: String,
+) -> Result<(), ()> {
     let mut settings = settings.write().await;
 
     settings.known_remotes.retain(|r| r.url != url);
@@ -93,7 +100,7 @@ pub async fn remove_remote(app: AppHandle, settings: State<'_, RwLock<AppSetting
 }
 
 fn update_settings(app: AppHandle, settings: &mut AppSettings) -> Result<(), anyhow::Error> {
-    app.emit_all("settings-changed", settings.clone())?;
+    app.emit("settings-changed", settings.clone())?;
     settings.write()?;
 
     Ok(())

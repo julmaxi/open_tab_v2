@@ -12,7 +12,7 @@ import { SortableTable, EditableCell } from "../../SortableTable";
 import ComboBox from "../../UI/ComboBox";
 import { useEffect } from "react";
 import _ from "lodash";
-import { confirm } from '@tauri-apps/api/dialog';
+import { confirm } from '@tauri-apps/plugin-dialog';
 
 import {
     BrowserRouter as Router,

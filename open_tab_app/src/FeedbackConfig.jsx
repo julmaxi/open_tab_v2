@@ -1,9 +1,9 @@
 import { useContext, useEffect, useState } from "react";
 import { executeAction } from "./Action";
 import Button from "./UI/Button";
-import { open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useFloating, offset, flip, shift } from '@floating-ui/react';
-import { confirm } from '@tauri-apps/api/dialog';
+import { confirm } from '@tauri-apps/plugin-dialog';
 
 import { TournamentContext } from "./TournamentContext";
 import { ErrorHandlingContext } from "./Action";

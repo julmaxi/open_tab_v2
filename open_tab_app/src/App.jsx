@@ -1,14 +1,14 @@
 import { useState, useId, useMemo, useEffect, useCallback } from "react";
 import { Children } from "react";
 import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/tauri";
-import { WebviewWindow, getCurrent } from '@tauri-apps/api/window'
+import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from '@tauri-apps/api/event'
 
 import ConnectivityStatus from "./ConnectivityStatus";
 
 import "./App.css";
 
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import {DndContext, useDraggable, useDroppable, closestCenter, closestCorners, pointerWithin} from '@dnd-kit/core';
 import {CSS} from '@dnd-kit/utilities';
 
@@ -158,7 +158,7 @@ export function TournamentWindow({tournamentId}) {
 }
 
 export function App() {
-  let label = getCurrent().label;
+  let label = getCurrentWebviewWindow().label;
 
   let view = null;
 

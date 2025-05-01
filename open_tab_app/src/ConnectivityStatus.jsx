@@ -5,7 +5,7 @@ import {listen} from '@tauri-apps/api/event';
 import { useView } from './View';
 import ModalOverlay from './UI/Modal';
 import LoginWidget from './LoginWidget';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from "./settings";
 
 function ConnectivityStatusDrawer({ state, lastUpdate, message }) {

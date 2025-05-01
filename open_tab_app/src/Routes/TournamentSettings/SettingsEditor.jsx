@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { Form, validateForm } from "../../UI/Form";
 import ModalOverlay from "../../UI/Modal";
 import Button from '../../UI/Button';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { TournamentContext } from '../../TournamentContext';
 import { useView } from '../../View';
 import { set } from 'lodash';

@@ -3,7 +3,7 @@ import Button from "@/UI/Button";
 
 import { useView } from "@/View";
 import { TournamentContext } from "@/TournamentContext";
-import { ask } from '@tauri-apps/api/dialog';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { executeAction } from "../../Action";
 import { Popover } from "../../UI/Popover";
 import ContentView from "../../ContentView";

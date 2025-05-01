@@ -4,7 +4,7 @@ import React, { useCallback, useContext, useEffect } from "react";
 import { useState, useMemo } from "react";
 import { executeAction } from "./Action";
 import { getPath, useView } from "./View";
-import { open } from '@tauri-apps/api/dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { TournamentContext } from "./TournamentContext";
 
 import ModalOverlay from "./UI/Modal";

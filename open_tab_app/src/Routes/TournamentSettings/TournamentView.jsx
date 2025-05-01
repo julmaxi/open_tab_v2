@@ -6,7 +6,7 @@ import { useSettings } from "../../settings";
 import ModalOverlay from "../../UI/Modal";
 
 import RemoteSelector from "./RemoteSelector";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import SettingsEditor from "./SettingsEditor";
 import { executeAction } from "../../Action";
 import SelfDeclaredClashSettingsEditor from "./SelfDeclaredClashSettingsEditor";

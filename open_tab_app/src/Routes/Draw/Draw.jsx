@@ -1,6 +1,6 @@
 //@ts-check
 import React, { useState, useCallback, useContext, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import "../../App.css";
 
 import { DndContext, closestCenter, DragOverlay, TraversalOrder, AutoScrollActivator, MeasuringStrategy, useDndContext } from '@dnd-kit/core';

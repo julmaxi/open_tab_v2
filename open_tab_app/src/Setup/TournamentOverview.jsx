@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import TournamentCreationForm from './TournamentCreationForm';
 
 const TournamentOverview = ({ tournaments, onCreateNew }) => {

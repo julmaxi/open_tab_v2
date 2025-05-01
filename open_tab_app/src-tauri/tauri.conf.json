@@ -2,62 +2,40 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": false
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
-  "package": {
-    "productName": "Open Tab",
-    "version": "0.0.14"
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "../../open_tab_reports/templates",
+      "resources/default_feedback_form.yml",
+      "resources/well_known_institutions.csv"
+    ],
+    "targets": "all",
+    "createUpdaterArtifacts": "v1Compatible"
   },
-  "tauri": {
-    "allowlist": {
-      "path": {
-        "all": true
-      },
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": true,
-        "open": true,
-        "save": true
-      },
-      "fs": {
-        "scope": ["$RESOURCE/*"],
-        "readFile": true
-      }
-    },
+  "productName": "Open Tab",
+  "mainBinaryName": "Open Tab",
+  "version": "0.0.14",
+  "identifier": "com.juliussteen.open-tab",
+  "plugins": {
     "updater": {
-      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFNEZERkY5NUFGNjBCREMKUldUY0MvWmErZDlQYnJlMGVBNW1pU3pEMitwenNuVHNLOTRRa2F0OG5Mc2FDSVlCS05EWEREZ3IK",
       "endpoints": [
         "https://releases.debateresult.com/{{target}}_{{arch}}"
-      ],
-      "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFNEZERkY5NUFGNjBCREMKUldUY0MvWmErZDlQYnJlMGVBNW1pU3pEMitwenNuVHNLOTRRa2F0OG5Mc2FDSVlCS05EWEREZ3IK"
-    },
-    "bundle": {
-      "active": true,
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [
-        "../../open_tab_reports/templates",
-        "resources/default_feedback_form.yml",
-        "resources/well_known_institutions.csv"
-      ],
-      "identifier": "com.juliussteen.open-tab",
-      "targets": "all"
-    },
-    "security": {
-      "csp": null
-    },
+      ]
+    }
+  },
+  "app": {
+    "withGlobalTauri": false,
     "windows": [
       {
         "fullscreen": false,
@@ -65,8 +43,12 @@
         "title": "open_tab_app",
         "label": "main",
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "useHttpsScheme": true
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
   }
 }

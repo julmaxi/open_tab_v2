@@ -5,11 +5,11 @@ import { ErrorHandlingContext, executeAction } from "../../Action";
 import { TournamentContext } from "../../TournamentContext";
 import { getPath, useView } from "../../View";
 
-import { save } from '@tauri-apps/api/dialog';
+import { save } from '@tauri-apps/plugin-dialog';
 import { EditableCell, SortableTable } from "../../SortableTable";
 import ModalOverlay from "../../UI/Modal";
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import ErrorBoundary from "../../ErrorBoundary";
 import { ParticipantImportDialogButton } from "./ParticipantImportDialog";
 import { SplitDetailView } from "../../UI/SplitDetailView";

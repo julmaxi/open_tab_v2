@@ -1,0 +1,29 @@
+{
+  "identifier": "desktop-capability",
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "windows": [
+    "*"
+  ],
+  "permissions": [
+    "core:default",
+    "fs:allow-read-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$RESOURCE/*"
+      ]
+    },
+    "shell:allow-open",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "shell:default",
+    "dialog:default",
+    "updater:default"
+  ]}

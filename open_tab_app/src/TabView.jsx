@@ -2,8 +2,8 @@ import React, { Children, useContext } from 'react';
 import { TournamentContext } from './TournamentContext';
 import { useView } from './View';
 import { TabGroup, Tab } from './TabGroup';
-import { save } from '@tauri-apps/api/dialog';
-import { invoke } from '@tauri-apps/api/tauri';
+import { save } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 
 
 const avgPointFormat = new Intl.NumberFormat("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});

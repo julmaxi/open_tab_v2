@@ -1,4 +1,4 @@
-import { ask } from "@tauri-apps/api/dialog";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { useContext, createContext } from 'react';
 import { ErrorHandlingContext, executeAction } from "../../Action";
 
