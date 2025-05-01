@@ -22,6 +22,8 @@ pub enum Relation {
     FeedbackForm,
     #[sea_orm(has_many = "super::feedback_question::Entity")]
     FeedbackQuestion,
+    #[sea_orm(has_many = "super::participant::Entity")]
+    Participant,
     #[sea_orm(has_one = "super::published_tournament::Entity")]
     PublishedTournament,
     #[sea_orm(has_many = "super::team::Entity")]
@@ -57,6 +59,12 @@ impl Related<super::feedback_form::Entity> for Entity {
 impl Related<super::feedback_question::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::FeedbackQuestion.def()
+    }
+}
+
+impl Related<super::participant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Participant.def()
     }
 }
 

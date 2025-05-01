@@ -27,6 +27,7 @@ mod m20250328_125955_add_awards;
 mod m20250406_140902_add_well_known_institutions;
 mod m20250415_110254_add_award_series;
 mod m20250415_214310_add_break_release_time;
+mod m20250501_160227_fix_schema_bugs;
 
 pub struct Migrator;
 
@@ -60,6 +61,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250406_140902_add_well_known_institutions::Migration),
             Box::new(m20250415_110254_add_award_series::Migration),
             Box::new(m20250415_214310_add_break_release_time::Migration),
+            Box::new(m20250501_160227_fix_schema_bugs::Migration),
         ]
     }
 }

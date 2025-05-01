@@ -12,6 +12,8 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::ballot_speech::Entity")]
+    BallotSpeech,
     #[sea_orm(
         belongs_to = "super::participant::Entity",
         from = "Column::Uuid",
@@ -30,6 +32,12 @@ pub enum Relation {
     Team,
     #[sea_orm(has_many = "super::tournament_break_speaker::Entity")]
     TournamentBreakSpeaker,
+}
+
+impl Related<super::ballot_speech::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::BallotSpeech.def()
+    }
 }
 
 impl Related<super::participant::Entity> for Entity {

@@ -53,15 +53,6 @@ impl Related<super::tournament_break_adjudicator::Entity> for Entity {
     }
 }
 
-impl Related<super::ballot::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::ballot_adjudicator::Relation::Ballot.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::ballot_adjudicator::Relation::Adjudicator.def().rev())
-    }
-}
-
 impl Related<super::tournament_break::Entity> for Entity {
     fn to() -> RelationDef {
         super::tournament_break_adjudicator::Relation::TournamentBreak.def()

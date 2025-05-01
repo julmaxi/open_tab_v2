@@ -23,6 +23,10 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Adjudicator,
+    #[sea_orm(has_many = "super::adjudicator_speech_score::Entity")]
+    AdjudicatorSpeechScore,
+    #[sea_orm(has_many = "super::adjudicator_team_score::Entity")]
+    AdjudicatorTeamScore,
     #[sea_orm(
         belongs_to = "super::ballot::Entity",
         from = "Column::BallotId",
@@ -36,6 +40,18 @@ pub enum Relation {
 impl Related<super::adjudicator::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Adjudicator.def()
+    }
+}
+
+impl Related<super::adjudicator_speech_score::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AdjudicatorSpeechScore.def()
+    }
+}
+
+impl Related<super::adjudicator_team_score::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AdjudicatorTeamScore.def()
     }
 }
 
