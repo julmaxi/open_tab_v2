@@ -8,7 +8,7 @@ import { SortableTable } from "../../SortableTable";
 import ComboBox from "../../UI/ComboBox";
 import { useEffect } from "react";
 import { useBlocker as useBlocker } from "react-router-dom";
-import _ from "lodash";
+import _, { set } from "lodash";
 import TextField from "../../UI/TextField";
 import { RowBlockerContext } from "./RowBlocker";
 
@@ -77,34 +77,41 @@ function AdjudicatorSkillInput({ value, onChange }) {
 }
 
 export function ParticipantDetailView({ onClose, participant, institutions, break_categories, ...props }) {
-    let [modifiedParticipant, setModifiedParticipant] = useState(participant);
+    return <InnerParticipantDetailView
+        {...props}
+        onClose={onClose}
+        participant={participant}
+        institutions={institutions}
+        break_categories={break_categories}
+        key={participant.uuid}
+    />;
+}
 
-    useEffect(() => {
-        if (modifiedParticipant?.uuid != participant?.uuid) {
-            setModifiedParticipant(participant);
-        }
-    }, [participant, modifiedParticipant.uuid]);
+function InnerParticipantDetailView({ onClose, participant, institutions, break_categories, ...props }) {
+    let [changes, setChanges] = useState({});
 
-    let [hasChanges, setHasChanges] = useState(false);
+    let modifiedParticipant = { ...participant, ...changes };
+
     let { block } = useContext(RowBlockerContext);
+    let lease = useState(null);
 
     useEffect(() => {
-        let newHasChanges = !_.isEqual(
-            participant,
-            modifiedParticipant
-        );
-        setHasChanges(newHasChanges);
-
-        if (newHasChanges) {
-            let lease = block();
+        if (!_.isEmpty(changes)) {
+            lease.current = block();
             return () => {
-                lease.unblock();
+                lease.current.unblock();
             }
         }
-    }, [participant, modifiedParticipant]);
+        else {
+            if (lease.current != null) {
+                lease.current.unblock();
+            }
+            lease.current = null;
+        }
+    }, [changes]);
 
     useBlocker(
-        hasChanges
+        !_.isEmpty(changes)
     );
 
     let tournamentContext = useContext(TournamentContext);
@@ -148,13 +155,21 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
             <div>
                 <label className="font-bold">Name</label>
                     <TextField value={modifiedParticipant.name} onChange={(e) => {
-                        setModifiedParticipant({ ...modifiedParticipant, name: e.target.value });
+                        setChanges(
+                            (changes) => {
+                                return { ...changes, name: e.target.value };
+                            }
+                        )
                     }} />
             </div>
 
             <div className="flex flex-row items-center">
                 <input type="checkbox" checked={modifiedParticipant.is_anonymous} onChange={(e) => {
-                    setModifiedParticipant({ ...modifiedParticipant, is_anonymous: e.target.checked });
+                    setChanges(
+                        (changes) => {
+                            return { ...changes, is_anonymous: e.target.checked };
+                        }
+                    )
                 }} />
                 <label className="ml-1">Only show initials on tab</label>
             </div>
@@ -165,19 +180,21 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                 placeholder={"Select Break Category"}
                 items={flatBreakCategories}
                 onSelect={(value, isCreate) => {
+                    let newBreakCategoryId = null;
                     if (isCreate) {
                         let newUuid = crypto.randomUUID();
-                        console.log(newUuid);
                         executeAction("CreateBreakCategory", { tournament_uuid: tournamentContext.uuid, name: value, uuid: newUuid });
-                        let updatedPart = { ...modifiedParticipant };
-                        updatedPart.break_category_id = newUuid;
-                        setModifiedParticipant(updatedPart);
+                        newBreakCategoryId = newUuid;
                     }
                     else {
-                        let updatedPart = { ...modifiedParticipant };
-                        updatedPart.break_category_id = value.uuid;
-                        setModifiedParticipant(updatedPart);    
+                        newBreakCategoryId = value.uuid;
                     }
+
+                    setChanges(
+                        (changes) => {
+                            return { ...changes, break_category_id: newBreakCategoryId };
+                        }
+                    )
                 }}
                 value={modifiedParticipant.break_category_id !== null ? (break_categories[modifiedParticipant.break_category_id]?.name || "<Unknown Category>") : null}
                 allowCreate={true}
@@ -222,15 +239,27 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                                     className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
                                     onClick={() => {
                                         let toDelete = modifiedParticipant.clashes.findIndex(r => r.participant_uuid === row.participant_uuid);
-                                        setModifiedParticipant({ ...modifiedParticipant, clashes: [...modifiedParticipant.clashes.slice(0, toDelete), ...modifiedParticipant.clashes.slice(toDelete + 1)] });
-                                }}>
+
+                                        setChanges(
+                                            (changes) => {
+                                                let newClashes = [...modifiedParticipant.clashes];
+                                                newClashes.splice(toDelete, 1);
+                                                return { ...changes, clashes: newClashes };
+                                            }
+                                        );
+                                    }}>
                                     &times;
-                                </button>}</td>;
+                                </button>
+                            }
+                            </td>;
                         }
                     }
                 ]} />
             </div>
             <ComboBox placeholder={"Add Clash"} items={flatParticipantView} onSelect={(participant) => {
+                if (modifiedParticipant.clashes.findIndex(c => c.participant_uuid === participant.uuid) !== -1) {
+                    return;
+                }
                 let clashEntry = {
                     participant_uuid: participant.uuid,
                     participant_name: participant.name,
@@ -263,9 +292,12 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                     }
                 )
 
-                setModifiedParticipant(
-                    { ...modifiedParticipant, clashes: newClashes });
-
+                setChanges(
+                    (changes) => {
+                        return { ...changes, clashes: newClashes };
+                    }
+                );
+                
             }} />
         </Section>
 
@@ -297,10 +329,14 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                                 className="bg-transparent w-full text-gray-700 font-semibold hover:text-red-500 rounded"
                                 onClick={() => {
                                     let toDelete = modifiedParticipant.institutions.findIndex(r => r.uuid === row.uuid);
-                                    setModifiedParticipant({ ...modifiedParticipant, institutions: [
-                                        ...modifiedParticipant.institutions.slice(0, toDelete),
-                                        ...modifiedParticipant.institutions.slice(toDelete + 1)]
-                                    });
+                                    let newInstitutions = [...modifiedParticipant.institutions];
+                                    newInstitutions.splice(toDelete, 1);
+
+                                    setChanges(
+                                        (changes) => {
+                                            return { ...changes, institutions: newInstitutions };
+                                        }
+                                    );
                                 }}
                             >&times;</button></td>;
                         }
@@ -316,14 +352,26 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                         uuid: newUuid,
                         clash_severity: 100
                     };
-                    setModifiedParticipant({ ...modifiedParticipant, institutions: [...modifiedParticipant.institutions, institutionEntry] });
+                    
+                    setChanges(
+                        (changes) => {
+                            return { ...changes, institutions: [...modifiedParticipant.institutions, institutionEntry] };
+                        }
+                    );
                 }
                 else {
+                    if (modifiedParticipant.institutions.findIndex(i => i.uuid === institution.uuid) !== -1) {
+                        return;
+                    }
                     let institutionEntry = {
                         uuid: institution.uuid,
                         clash_severity: 100
                     };
-                    setModifiedParticipant({ ...modifiedParticipant, institutions: [...modifiedParticipant.institutions, institutionEntry] });
+                    setChanges(
+                        (changes) => {
+                            return { ...changes, institutions: [...modifiedParticipant.institutions, institutionEntry] };
+                        }
+                    );
                 }
             }} allowCreate={true} />
         </Section>
@@ -336,12 +384,16 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                         <div className="flex-1 items-end flex justify-end">
                             <label className="pr-2">Chair Skill</label>
                             <AdjudicatorSkillInput value={modifiedParticipant.chair_skill} onChange={(value) => {
-                                setModifiedParticipant({ ...modifiedParticipant, chair_skill: value });
+                                setChanges((changes) => {
+                                    return { ...changes, chair_skill: value };
+                                });
                             }} />
                         </div>
                         <div className="flex-1">
                             <AdjudicatorSkillInput value={modifiedParticipant.panel_skill} onChange={(value) => {
-                                setModifiedParticipant({ ...modifiedParticipant, panel_skill: value });
+                                setChanges((changes) => {
+                                    return { ...changes, panel_skill: value };
+                                });
                             }} />
                             <label className="pl-2">Panel Skill</label>
                         </div>
@@ -359,7 +411,10 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
                                 return <td key={colIdx} className="w-4"><input type="checkbox" checked={value} onChange={(e) => {
                                     let newAvailability = [...availability];
                                     newAvailability[rowIdx].available = e.target.checked;
-                                    setModifiedParticipant({ ...modifiedParticipant, unavailable_rounds: newAvailability.filter(r => !r.available).map(r => r.round_uuid) });
+
+                                    setChanges((changes) => {
+                                        return { ...changes, unavailable_rounds: newAvailability.filter(r => !r.available).map(r => r.round_uuid) };
+                                    });
                                 }} /></td>;
                             }
                         }
@@ -368,8 +423,9 @@ export function ParticipantDetailView({ onClose, participant, institutions, brea
             </Section>
         }
 
-        {hasChanges ? <Button className="mt-2 mb-2" onClick={() => {
-            executeAction("UpdateParticipants", { tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant], deleted_participants: [] });
+        {!_.isEmpty(changes) ? <Button className="mt-2 mb-2" onClick={async () => {
+            await executeAction("UpdateParticipants", { tournament_id: tournamentContext.uuid, updated_participants: [modifiedParticipant], deleted_participants: [] });
+            setChanges({});
         }}>Save Changes</Button> : []}
     </div>;
 }

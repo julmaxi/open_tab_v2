@@ -248,7 +248,10 @@ pub fn get_round_names(nodes: &Vec<TournamentPlanNode>, node_children: &HashMap<
         let next_node = nodes.iter().find(|n| n.uuid == next_node_id).unwrap();
 
         match &next_node.config {
-            domain::tournament_plan_node::PlanNodeType::Round { config, rounds } => {
+            domain::tournament_plan_node::PlanNodeType::Round {
+                config,
+                rounds
+            } => {
                 let num_rounds_to_consider = usize::max(rounds.len(), config.num_rounds() as usize);
                 let special_name = if num_rounds_to_consider == 1 {
                     let special_name = get_special_name_from_preceding_breaks(&prev_breaks);
