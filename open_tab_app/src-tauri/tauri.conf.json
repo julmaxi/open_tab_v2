@@ -24,7 +24,7 @@
   },
   "productName": "Open Tab",
   "mainBinaryName": "Open Tab",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "identifier": "com.juliussteen.open-tab",
   "plugins": {
     "updater": {
