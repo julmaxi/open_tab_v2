@@ -22,7 +22,7 @@ open_tab_server = { path = "../../open_tab_server" }
 migration = { path = "../../migration" }
 sea-orm = "*"
 itertools = "*"
-tokio="*"
+tokio= {version = "*", features = ["time"] }
 reqwest = { version = "0.11", features = ["json"] }
 ordered-float = "3.5.0"
 chrono = "*"

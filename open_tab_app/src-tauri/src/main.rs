@@ -7,7 +7,7 @@ use std::{
     fmt::{Debug, Display, Formatter},
     fs::File,
     iter::zip,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, time::Duration,
 };
 
 use identity::IdentityProvider;
@@ -38,7 +38,6 @@ use open_tab_server::{
         CreateUserRequest, CreateUserRequestError, CreateUserResponse, GetTokenRequest,
         GetTokenResponse,
     },
-    cache,
     response::APIErrorResponse,
     sync::{reconcile_changes, FatLog, ReconciliationOutcome, SyncRequest, SyncRequestResponse},
     tournament::CreateTournamentRequest,
@@ -1108,8 +1107,7 @@ impl TournamentUpdateProcess {
             let target_tournament_remote = schema::tournament_remote::Entity::find()
                 .filter(schema::tournament_remote::Column::TournamentId.eq(self.tournament_id))
                 .one(&transaction)
-                .await
-                .unwrap();
+                .await?;
             if target_tournament_remote.is_none() {
                 println!("No remote");
 
@@ -1123,10 +1121,12 @@ impl TournamentUpdateProcess {
                     .await
                     .expect("Error sending connectivity update");
 
+                transaction.rollback().await?;
+
                 break Err(TournamentUpdateError::NoRemote);
             }
             let target_tournament_remote = target_tournament_remote.unwrap();
-            transaction.rollback().await.unwrap();
+            transaction.rollback().await?;
 
             let _settings: State<'_, RwLock<AppSettings>> = self.app_handle.state();
             let api_key = self
@@ -1144,10 +1144,9 @@ impl TournamentUpdateProcess {
                             timestamp: chrono::Utc::now().naive_utc(),
                         },
                     })
-                    .await
-                    .expect("Error sending connectivity update");
-
-                println!("No key");
+                    .await.map_err(|e| {
+                        TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                    })?;
 
                 self.identity_provider
                     .get_key_blocking(&target_tournament_remote.url)
@@ -1175,7 +1174,6 @@ impl TournamentUpdateProcess {
                     .await;
 
                 if let Err(result) = result {
-                    println!("Error creating tournament: {}", result);
                     self.update_msg_sender
                         .send(ConnectivityStatusMessage {
                             tournament_id: self.tournament_id,
@@ -1184,7 +1182,9 @@ impl TournamentUpdateProcess {
                             },
                         })
                         .await
-                        .expect("Error sending connectivity update");
+                        .map_err(|e| {
+                            TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                        })?;
                     continue;
                     //break Err(TournamentUpdateError::ReqwestError(result));
                 }
@@ -1222,7 +1222,9 @@ impl TournamentUpdateProcess {
                                 },
                             })
                             .await
-                            .expect("Error sending connectivity update");
+                            .map_err(|e| {
+                                TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                            })?;
                         continue;
                     }
                     SyncError::TournamentDoesNotExist => {
@@ -1257,7 +1259,9 @@ impl TournamentUpdateProcess {
                         },
                     })
                     .await
-                    .expect("Error sending connectivity update");
+                    .map_err(|e| {
+                        TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                    })?;
                 continue;
             }
             let transaction = db.begin().await.unwrap();
@@ -1265,13 +1269,15 @@ impl TournamentUpdateProcess {
                 .filter(schema::tournament_remote::Column::TournamentId.eq(self.tournament_id))
                 .one(&transaction)
                 .await
-                .unwrap();
+                .map_err(|e| TournamentUpdateError::DatabaseError(e))?;
             if target_tournament_remote.is_none() {
                 println!("No remote");
                 continue;
             }
             let target_tournament_remote = target_tournament_remote.unwrap();
-            transaction.rollback().await.unwrap();
+            transaction.rollback().await.map_err(|e| {
+                TournamentUpdateError::DatabaseError(e)
+            })?;
 
             let result =
                 try_push_changes(&target_tournament_remote, &self.client, &api_key, db).await;
@@ -1287,7 +1293,9 @@ impl TournamentUpdateProcess {
                                 },
                             })
                             .await
-                            .expect("Error sending connectivity update");
+                            .map_err(|e| {
+                                TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                            })?;
                         continue;
                     }
                     SyncError::TournamentDoesNotExist => {
@@ -1314,7 +1322,9 @@ impl TournamentUpdateProcess {
                     },
                 })
                 .await
-                .expect("Error sending connectivity update");
+                .map_err(|e| {
+                    TournamentUpdateError::Other(format!("Error sending connectivity update: {}", e))
+                })?;
         }
     }
 }
@@ -1940,7 +1950,7 @@ fn main() {
         .manage(std::sync::Mutex::new(DownloadProgress::new()))
         .manage(open_tournaments_manager)
         .manage(RwLock::new(settings))
-        .manage(Client::new())
+        .manage(Client::builder().connect_timeout(Duration::from_secs(30)).build().unwrap())
         .manage(identity_provider)
         .setup(|app: &mut tauri::App| {
             let template_path = app
