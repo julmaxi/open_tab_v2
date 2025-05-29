@@ -23,7 +23,7 @@ migration = { path = "../../migration" }
 sea-orm = "*"
 itertools = "*"
 tokio= {version = "*", features = ["time"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"] }
 ordered-float = "3.5.0"
 chrono = "*"
 keyring = "*"

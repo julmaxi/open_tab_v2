@@ -1950,7 +1950,12 @@ fn main() {
         .manage(std::sync::Mutex::new(DownloadProgress::new()))
         .manage(open_tournaments_manager)
         .manage(RwLock::new(settings))
-        .manage(Client::builder().connect_timeout(Duration::from_secs(30)).build().unwrap())
+        .manage(Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .read_timeout(Duration::from_secs(10))
+            .build()
+            .unwrap()
+        )
         .manage(identity_provider)
         .setup(|app: &mut tauri::App| {
             let template_path = app
