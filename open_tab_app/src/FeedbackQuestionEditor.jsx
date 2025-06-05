@@ -43,11 +43,10 @@ const QuestionEditor = ({ question, onUpdate, onRemove }) => {
       onUpdate(updated);
   };
 
-  const handleSpecificPropertyChange = (updates) => {
-      // Accept either a single property/value pair or an object with multiple properties
-      const updatedProperties = typeof updates === 'object' && updates.property 
-          ? { [updates.property]: updates.value }
-          : updates;
+  const handleSpecificPropertyChange = (...updates) => {
+      const updatedProperties = updates.length == 2 ?  
+          { [updates[0]]: updates[1] }
+          : updates[0];
       
       const updated = { ...question, ...updatedProperties };
       onUpdate(updated);
@@ -257,7 +256,9 @@ const RangeQuestionEditor = ({ question, onUpdate }) => {
         <select
           className="w-full p-2 border rounded"
           value={question.orientation || 'high'}
-          onChange={(e) => onUpdate('orientation', e.target.value)}
+          onChange={(e) => {
+            onUpdate('orientation', e.target.value)
+          }}
         >
           <option value="high">High (higher is better)</option>
           <option value="low">Low (lower is better)</option>
