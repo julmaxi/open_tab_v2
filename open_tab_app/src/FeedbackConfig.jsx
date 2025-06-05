@@ -330,6 +330,7 @@ export function FeedbackConfigRoute() {
                         <ToolbarButton icon="save" color="green" onClick={() => {
                             setSelectedForm(null);
                             setSelectedFormIndex(null);
+                            console.log(forms);
                             executeAction("UpdateFeedbackSystem", {
                                 tournament_id: tournamentId,
                                 forms,

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Button from './UI/Button';
-import { min } from 'lodash';
 
 export const QUESTION_TYPES = {
     range: {
@@ -44,8 +43,13 @@ const QuestionEditor = ({ question, onUpdate, onRemove }) => {
       onUpdate(updated);
   };
 
-  const handleSpecificPropertyChange = (property, value) => {
-      const updated = { ...question, [property]: value };
+  const handleSpecificPropertyChange = (updates) => {
+      // Accept either a single property/value pair or an object with multiple properties
+      const updatedProperties = typeof updates === 'object' && updates.property 
+          ? { [updates.property]: updates.value }
+          : updates;
+      
+      const updated = { ...question, ...updatedProperties };
       onUpdate(updated);
   };
 
@@ -90,7 +94,7 @@ const QuestionEditor = ({ question, onUpdate, onRemove }) => {
       <div className={showDetails ? 'block' : 'hidden'}>
         <SharedPropertiesEditor 
             question={question} 
-            onChange={handleSharedPropertyChange} 
+            onUpdate={handleSharedPropertyChange} 
         />
         
         {renderTypeSpecificEditor()}
@@ -100,7 +104,7 @@ const QuestionEditor = ({ question, onUpdate, onRemove }) => {
 };
 
 // Component for editing properties shared by all question types
-const SharedPropertiesEditor = ({ question, onChange }) => {
+const SharedPropertiesEditor = ({ question, onUpdate }) => {
   return (
     <div className="space-y-4">      
       <p className='text-sm font-medium'>{QUESTION_TYPES[question.type].displayName}</p>
@@ -110,7 +114,7 @@ const SharedPropertiesEditor = ({ question, onChange }) => {
           type="text"
           className="w-full p-2 border rounded"
           value={question.full_name || ''}
-          onChange={(e) => onChange('full_name', e.target.value)}
+          onChange={(e) => onUpdate('full_name', e.target.value)}
         />
       </div>
 
@@ -119,7 +123,7 @@ const SharedPropertiesEditor = ({ question, onChange }) => {
         <textarea
           className="w-full p-2 border rounded"
           value={question.description || ''}
-          onChange={(e) => onChange('description', e.target.value)}
+          onChange={(e) => onUpdate('description', e.target.value)}
           rows={3}
         />
       </div>
@@ -131,7 +135,7 @@ const SharedPropertiesEditor = ({ question, onChange }) => {
             id="is_required"
             className="mr-2"
             checked={question.is_required || false}
-            onChange={(e) => onChange('is_required', e.target.checked)}
+            onChange={(e) => onUpdate('is_required', e.target.checked)}
           />
           <label htmlFor="is_required" className="text-sm">Required</label>
         </div>
@@ -142,7 +146,7 @@ const SharedPropertiesEditor = ({ question, onChange }) => {
             id="is_confidential"
             className="mr-2"
             checked={question.is_confidential || false}
-            onChange={(e) => onChange('is_confidential', e.target.checked)}
+            onChange={(e) => onUpdate('is_confidential', e.target.checked)}
           />
           <label htmlFor="is_confidential" className="text-sm">Confidential</label>
         </div>
@@ -152,44 +156,54 @@ const SharedPropertiesEditor = ({ question, onChange }) => {
 };
 
 // Component for editing range-specific properties
-const RangeQuestionEditor = ({ question, onChange }) => {
+const RangeQuestionEditor = ({ question, onUpdate }) => {
   const [minLabel, setMinLabel] = useState(question.labels ? question.labels[question.min] : '');
   const [maxLabel, setMaxLabel] = useState(question.labels ? question.labels[question.max] : '');
 
-  const updateLabels = (min, max) => {
+  const handleMinChange = (value) => {
+    const newMin = parseInt(value, 10);
     const newLabels = { ...question.labels };
     
-    // Delete old min/max keys if they exist
+    // Delete old min key if it exists
     if (question.min in newLabels) delete newLabels[question.min];
-    if (question.max in newLabels) delete newLabels[question.max];
     
-    // Add new min/max keys
-    newLabels[min] = minLabel;
-    newLabels[max] = maxLabel;
+    // Add new min key with current label
+    newLabels[newMin] = minLabel;
     
-    onChange('labels', newLabels);
-  };
-
-  const handleMinChange = (value) => {
-    onChange('min', parseInt(value, 10));
-    updateLabels(parseInt(value, 10), question.max);
+    // Update both min and labels at the same time
+    onUpdate({
+      min: newMin,
+      labels: newLabels
+    });
   };
 
   const handleMaxChange = (value) => {
-    onChange('max', parseInt(value, 10));
-    updateLabels(question.min, parseInt(value, 10));
+    const newMax = parseInt(value, 10);
+    const newLabels = { ...question.labels };
+    
+    // Delete old max key if it exists
+    if (question.max in newLabels) delete newLabels[question.max];
+    
+    // Add new max key with current label
+    newLabels[newMax] = maxLabel;
+    
+    // Update both max and labels at the same time
+    onUpdate({
+      max: newMax,
+      labels: newLabels
+    });
   };
 
   const handleMinLabelChange = (value) => {
     setMinLabel(value);
     const newLabels = { ...question.labels, [question.min]: value };
-    onChange('labels', newLabels);
+    onUpdate({ labels: newLabels });
   };
 
   const handleMaxLabelChange = (value) => {
     setMaxLabel(value);
     const newLabels = { ...question.labels, [question.max]: value };
-    onChange('labels', newLabels);
+    onUpdate({ labels: newLabels });
   };
 
   return (
@@ -243,7 +257,7 @@ const RangeQuestionEditor = ({ question, onChange }) => {
         <select
           className="w-full p-2 border rounded"
           value={question.orientation || 'high'}
-          onChange={(e) => onChange('orientation', e.target.value)}
+          onChange={(e) => onUpdate('orientation', e.target.value)}
         >
           <option value="high">High (higher is better)</option>
           <option value="low">Low (lower is better)</option>
@@ -255,7 +269,7 @@ const RangeQuestionEditor = ({ question, onChange }) => {
 };
 
 // Component for editing text-specific properties
-const TextQuestionEditor = ({ question, onChange }) => {
+const TextQuestionEditor = ({ question, onUpdate }) => {
   // Currently text questions don't have specific properties
   // beyond the shared ones, but this component provides a place
   // to add them in the future
@@ -268,7 +282,7 @@ const TextQuestionEditor = ({ question, onChange }) => {
 };
 
 // Component for editing yes/no-specific properties
-const YesNoQuestionEditor = ({ question, onChange }) => {
+const YesNoQuestionEditor = ({ question, onUpdate }) => {
   // Currently yes/no questions don't have specific properties
   // beyond the shared ones, but this component provides a place
   // to add them in the future
